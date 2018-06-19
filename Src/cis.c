@@ -109,46 +109,48 @@ void cisInit(void)
 	while(1)
 	{
 		int i = 0;
-		HAL_Delay(10);
+		HAL_Delay(100);
 
 		for (i = 0; i < VOLUME_ZONE; i++)
 		{
-			volume += (4096 - redData[CIS_PIXELS_NB - TOTAL_DEADZONE - i]);
+			volume += (aADCxConvertedData[CIS_PIXELS_NB - i - 500]);
 		}
-		volume += i;
-		volume /= 1;
-		if (volume < 20)
-			volume = 20;
-		if (volume > 800)
-			volume = 800;
+
+		volume /= i;
+		volume /= 1000;
+		if (volume < 1)
+			volume = 1;
+		if (volume > 10)
+			volume = 10;
 
 		for (i = 0; i < CIS_PIXELS_NB; i++)
 		{
-			aADCxConvertedData[i] /= volume;
+			aADCxConvertedData[i] =  aADCxConvertedData[i] / volume;
 		}
 
 		for (i = 0; i < NOTE_ZONE; i++)
 		{
-			redVal += (redData[i]);
+			redVal += (aADCxConvertedData[i]);
 		}
 		redVal /= i;
-//		redVal /= 3;
+		redVal /= 2;
 
-		redVal = redVal - 2000;
+		redVal = redVal - 1000;
 
 		if (redVal < 20)
 			redVal = 20;
-		if (redVal > 800)
-			redVal = 800;
+		if (redVal > 2000)
+			redVal = 2000;
 
 		if (redVal != oldRedVal)
 		{
 			setDacCarrier(redVal);
 			oldRedVal = redVal;
 		}
-		printf("%d  ", (int)redData[500]);
-		printf("%d  ", (int)redData[150]);
-		printf("%d  ", (int)redVal);
+
+		printf("%d  ", volume);
+//		printf("%d  ", (int)redData[150]);
+//		printf("%d  ", (int)redVal);
 		printf("\n");
 	}
 }
@@ -219,19 +221,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 				switch (color_selector)
 				{
 				case RED :
-					redDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (aADCxConvertedDataDMA >> 1);
+					redDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (4096 - (aADCxConvertedDataDMA >> 1));
 					redDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] /= 2;
 					break;
 				case GREEN :
-					greenDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (aADCxConvertedDataDMA >> 1);
+					greenDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (4096 - (aADCxConvertedDataDMA >> 1));
 					greenDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] /= 2;
 					break;
 				case BLUE :
-					blueDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (aADCxConvertedDataDMA >> 1);
+					blueDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (4096 - (aADCxConvertedDataDMA >> 1));
 					blueDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] /= 2;
 					break;
 				default :
-					aADCxConvertedDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (aADCxConvertedDataDMA >> 1);
+					aADCxConvertedDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] += (4096 - (aADCxConvertedDataDMA >> 1));
 					aADCxConvertedDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] /= 2;
 					break;
 				}
@@ -241,22 +243,22 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 				switch (color_selector)
 				{
 				case RED :
-					redData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((aADCxConvertedDataDMA >> 1) - redDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
+					redData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((4096 - (aADCxConvertedDataDMA >> 1)) - redDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
 					if (redData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] < 0)
 						redData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = 0;
 					break;
 				case GREEN :
-					greenData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((aADCxConvertedDataDMA >> 1) - greenDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
+					greenData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((4096 - (aADCxConvertedDataDMA >> 1)) - greenDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
 					if (greenData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] < 0)
 						greenData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = 0;
 					break;
 				case BLUE :
-					blueData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((aADCxConvertedDataDMA >> 1) - blueDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
+					blueData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((4096 - (aADCxConvertedDataDMA >> 1)) - blueDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
 					if (blueData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] < 0)
 						blueData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = 0;
 					break;
 				default :
-					aADCxConvertedData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((aADCxConvertedDataDMA >> 1) - aADCxConvertedDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
+					aADCxConvertedData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] = ((4096 - (aADCxConvertedDataDMA >> 1)) - aADCxConvertedDataOffset[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt]);
 					if (aADCxConvertedData[pixel_cnt - PIXEL_CNT_OFFSET - deadZone_cnt] < 0)
 						aADCxConvertedData[pixel_cnt - PIXEL_CNT_OFFSET -deadZone_cnt] = 0;
 					break;
