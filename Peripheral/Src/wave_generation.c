@@ -8,6 +8,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
 #include "main.h"
+#include "config.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -21,13 +22,6 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define SAMPLING_FREQUENCY 	(128000)
-#define WAVE_AMP_RESOLUTION (65535)
-#define START_FREQUENCY     (43.654)  //FA 1
-#define MAX_OCTAVE_NUMBER   (10)
-#define SEMITONE_PER_OCTAVE (12)
-#define COMMA_PER_SEMITONE  (4.5)
-#define PIXEL_PER_COMMA     (6)
 
 #define COMMA_PER_OCTAVE    ((SEMITONE_PER_OCTAVE) * (COMMA_PER_SEMITONE))
 #define PIXEL_PER_OCTAVE    ((PIXEL_PER_COMMA) * (COMMA_PER_OCTAVE))
@@ -142,17 +136,17 @@ uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves)
 
 	//print all structure table for debug
 
-	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
-	{
+//	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
+//	{
 //		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave);
 //		HAL_Delay(20);
-		uint16_t output = 0;
-		for (uint32_t idx = 0; idx < waves[pix].aera_size; idx++)
-		{
-			output = *(waves[pix].start_ptr + (idx * (uint32_t)pow(2, waves[pix].octave)));
-			printf("%d\n", output);
-		}
-	}
+//		uint16_t output = 0;
+//		for (uint32_t idx = 0; idx < waves[pix].aera_size; idx++)
+//		{
+//			output = *(waves[pix].start_ptr + (idx * (uint32_t)pow(2, waves[pix].octave)));
+//			printf("%d\n", output);
+//		}
+//	}
 
 	return buffer_len;
 }

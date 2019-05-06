@@ -60,12 +60,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define CIS_SP_Pin GPIO_PIN_4
 #define CIS_SP_GPIO_Port GPIOE
-#define CIS_LED_B_Pin GPIO_PIN_5
-#define CIS_LED_B_GPIO_Port GPIOD
+#define CIS_LED_R_Pin GPIO_PIN_5
+#define CIS_LED_R_GPIO_Port GPIOD
 #define CIS_LED_G_Pin GPIO_PIN_6
 #define CIS_LED_G_GPIO_Port GPIOD
-#define CIS_LED_R_Pin GPIO_PIN_7
-#define CIS_LED_R_GPIO_Port GPIOD
+#define CIS_LED_B_Pin GPIO_PIN_7
+#define CIS_LED_B_GPIO_Port GPIOD
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

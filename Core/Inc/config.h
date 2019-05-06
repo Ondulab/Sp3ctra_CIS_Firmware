@@ -12,10 +12,35 @@
 /**************************************************************************************/
 /***************                 Times definitions                 ********************/
 /**************************************************************************************/
+#define SAMPLING_FREQUENCY 	(96000)	  //in hertz
+//#define HI_TIME_FREQ 		(200000)
+#define DAC_TIME_FREQ 		(20) // 1Hz to 1Khz
 
 /**************************************************************************************/
-/***************                 Gyro definitions                  ********************/
+/***************            Wave generation definitions            ********************/
 /**************************************************************************************/
+#define WAVE_AMP_RESOLUTION (65535)   //in decimal
+#define START_FREQUENCY     (43.654)  //FA 1
+#define MAX_OCTAVE_NUMBER   (10)
+#define SEMITONE_PER_OCTAVE (12)
+#define COMMA_PER_SEMITONE  (4.5)
+#define PIXEL_PER_COMMA     (6)
+
+/**************************************************************************************/
+/***************            Wave generation definitions            ********************/
+/**************************************************************************************/
+#define CIS_PIXELS_NB		(2700)
+#define SEGMENT_NB			(11)
+#define SEGMENT_WIDTH		((CIS_PIXELS_NB) / (SEGMENT_NB))
+#define DEADZONE_WIDTH		(int)(CIS_PIXELS_NB * 0.04)
+#define TOTAL_DEADZONE		(SEGMENT_NB * DEADZONE_WIDTH)
+#define PIXEL_CNT_OFFSET	(11)
+
+#define NOTE_ZONE			(200)
+#define VOLUME_ZONE			(200)
+
+#define LED_ON
+//#define BLACK_AND_WITHE
 
 
 #endif // __CONFIG_H__

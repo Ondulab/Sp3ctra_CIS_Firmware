@@ -9,11 +9,6 @@
 #ifndef __WAVE_GENERATION_H
 #define __WAVE_GENERATION_H
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Includes ------------------------------------------------------------------*/
 #include "synth.h"
 
@@ -30,10 +25,4 @@ uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves);
 
 /* Private defines -----------------------------------------------------------*/
 
-#ifdef __cplusplus
-}
-#endif
-
 #endif /* __WAVE_GENERATION_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

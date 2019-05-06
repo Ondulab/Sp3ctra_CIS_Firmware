@@ -8,9 +8,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
 #include "main.h"
+#include "config.h"
 
-#include "stdio.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 #include "cis.h"
 #include "wave_generation.h"
@@ -41,45 +42,28 @@ int32_t synth_init(void)
 {
 	uint32_t buffer_len = 0;
 
-//	buffer_len = calculate_wave_buffer_len();
-
-//	//allocate the contiguous memory area for storage all waveforms
-//	unitary_waveform = (uint16_t*)malloc(buffer_len * sizeof(uint16_t));
-//	if (unitary_waveform == NULL)
-//	{
-//		return -1;
-//	}
-
-	if (init_waves(&unitary_waveform, waves) != SUCCESS)
+	buffer_len = init_waves(&unitary_waveform, waves);
+	if (buffer_len < 0)
 	{
+		printf("RAM overflow");
 		Error_Handler();
 	}
 
 	printf("Buffer lengh = %d\n", (int)buffer_len);
 
-	//print all buffer for debug (you can see the waveform with serial tracer on arduino ide)
-//	for (uint32_t i = 0; i < buffer_len; i++)
-//	{
-//		printf("%d\n", *(unitary_waveform + i));
-//		HAL_Delay(1);
-//	}
-
-	//print all structure table for debug
-	uint16_t output = 0;
-	for (uint32_t band = 0; band < CIS_PIXELS_NB; band++)
+#ifdef DEBUG
+	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
 	{
-		printf("---------- FREQUENCY = %d, BUFF LENGH = %d ----------\n", waves[band].frequency, waves[band].aera_size);
-		HAL_Delay(5);
-//		for (uint32_t idx = 0; idx < waves[band].aera_size; idx++)
-//		{
-//			output = *(waves[band].start_ptr + idx);
-//			printf("%d\n", output);
-//		}
+//		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave);
+//		HAL_Delay(20);
+		uint16_t output = 0;
+		for (uint32_t idx = 0; idx < waves[pix].aera_size; idx++)
+		{
+			output = *(waves[pix].start_ptr + (idx * (uint32_t)pow(2, waves[pix].octave)));
+			printf("%d\n", output);
+		}
 	}
-
-	while(1);
-
-	cisInit();
+#endif
 
 	return 0;
 }

@@ -41,5 +41,7 @@
 "Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_usb.o"
 "Peripheral/Src/cis.o"
 "Peripheral/Src/synth.o"
+"Peripheral/Src/times_base.o"
 "Peripheral/Src/wave_generation.o"
+"Peripheral/Src/wave_sommation.o"
 "startup/startup_stm32h743xx.o"
