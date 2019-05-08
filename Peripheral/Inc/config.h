@@ -6,13 +6,18 @@
 /**************************************************************************************/
 /***************                 STM32 definitions                 ********************/
 /**************************************************************************************/
-#define ADC_VOLTAGE				(3300)                    //STM32 ADC peripheral reference is 3300mV
-#define ADC_COEFF 				((ADC_VOLTAGE) / (4095))  //ADC value/mV
+#define ADC_VOLTAGE			(3300)                    //STM32 ADC peripheral reference is 3300mV
+#define ADC_COEFF 			((ADC_VOLTAGE) / (4095))  //ADC value/mV
+
+/**************************************************************************************/
+/***************                 basic definitions                 ********************/
+/**************************************************************************************/
+#define PI					(3.14159265359)
 
 /**************************************************************************************/
 /***************                 Times definitions                 ********************/
 /**************************************************************************************/
-#define SAMPLING_FREQUENCY 	(96000)	  //in hertz
+#define SAMPLING_FREQUENCY 	(30000)	  //in hertz
 //#define HI_TIME_FREQ 		(200000)
 #define DAC_TIME_FREQ 		(20) // 1Hz to 1Khz
 
@@ -27,8 +32,10 @@
 #define PIXEL_PER_COMMA     (6)
 
 /**************************************************************************************/
-/***************            Wave generation definitions            ********************/
+/*********************            CIS definitions            **************************/
 /**************************************************************************************/
+#define SENSIVITY_THRESHOLD (10)							//threshold for detection
+#define CIS_RESOLUTION      (65535)   						//in decimal
 #define CIS_PIXELS_NB		(2700)
 #define SEGMENT_NB			(11)
 #define SEGMENT_WIDTH		((CIS_PIXELS_NB) / (SEGMENT_NB))

@@ -34,10 +34,7 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.o: \
  /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim.h \
  /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h \
  /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
- /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
- /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd.h \
- /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_usb.h \
- /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd_ex.h
+ /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h
 
 /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
 
@@ -108,9 +105,3 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_dma.o: \
 /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h:
 
 /mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h:
-
-/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd.h:
-
-/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_usb.h:
-
-/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd_ex.h:

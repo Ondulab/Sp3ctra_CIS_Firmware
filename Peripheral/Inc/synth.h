@@ -15,13 +15,17 @@
 
 /* Exported types ------------------------------------------------------------*/
 struct wave {
-	float frequency;
-	uint8_t octave;
+	uint16_t *start_ptr;
+    uint16_t current_idx;
 	uint16_t aera_size;
-	__IO uint16_t *start_ptr;
-	__IO uint16_t *current_ptr;
+	uint16_t octave_coeff;
+#ifdef DEBUG
+	float frequency;
+#endif
 };
 
+extern __IO uint32_t left_output;
+extern __IO uint32_t right_output;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/

@@ -69,7 +69,7 @@ int32_t timesBaseInit(void)
 	HAL_TIM_Base_Start(&htim6);
 
 	/* Compute the prescaler value */
-	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (SAMPLING_FREQUENCY * 2));
+	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (SAMPLING_FREQUENCY));
 
 	htim15.Instance = TIM15;
 	htim15.Init.Prescaler = 0;
@@ -84,7 +84,7 @@ int32_t timesBaseInit(void)
 	}
 
 	sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-	sConfigOC.Pulse = uwPrescalerValue / 2;
+	sConfigOC.Pulse = uwPrescalerValue;
 	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
 	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
 	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -95,14 +95,14 @@ int32_t timesBaseInit(void)
 		return -2;
 	}
 
-	//	//	/* Start channel 1 in Output compare mode */
-	//	if(HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
-	//	{
-	//		/* Starting Error */
-	//		Error_Handler();
-	//	}
-	//
-	//	HAL_TIM_Base_Start_IT(&htim15);
+	//	/* Start channel 1 in Output compare mode */
+	if(HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
+	{
+		/* Starting Error */
+		Error_Handler();
+	}
+
+	HAL_TIM_Base_Start_IT(&htim15);
 
 	//	/* Compute the prescaler value */
 	//	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (HI_TIME_FREQ * 8));

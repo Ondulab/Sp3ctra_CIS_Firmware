@@ -35,8 +35,6 @@ static float calculate_frequency(uint32_t comma_cnt);
 
 /* Private user code ---------------------------------------------------------*/
 
-//	octave_number = ((12 / log(2)) * log(END_FREQUENCY / START_FREQUENCY) / 12);
-
 /**
  * @brief  calculate frequency,
  * @param  comma cnt
@@ -56,30 +54,31 @@ static float calculate_frequency(uint32_t comma_cnt)
  * @param  waves structure pointer,
  * @retval buffer length on success, negative value otherwise
  */
-uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves)
+uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 {
 	uint32_t buffer_len = 0;
 	uint32_t current_unitary_waveform_cell = 0;
+	uint32_t pix = 0;
 
 	//compute cell number for storage all oscillators waveform
 	for (uint32_t comma_cnt = 0; comma_cnt < COMMA_PER_OCTAVE; comma_cnt++)
 	{
-		//store only first octave frequencies ---- logarithmic distribution
+		//store only first octave_coeff frequencies ---- logarithmic distribution
 		float frequency = calculate_frequency(comma_cnt);
 		buffer_len += (uint32_t)(SAMPLING_FREQUENCY / frequency);
 	}
 
-	//allocate the contiguous memory area for storage all waveforms for the first octave
+	//allocate the contiguous memory area for storage all waveforms for the first octave_coeff
 	*unitary_waveform = malloc(buffer_len * sizeof(uint16_t*));
 	if (*unitary_waveform == NULL)
 	{
 		return -1;
 	}
 
-	//compute and store the waveform into unitary_waveform only for the first octave
+	//compute and store the waveform into unitary_waveform only for the first octave_coeff
 	for (uint32_t current_comma_first_octave = 0; current_comma_first_octave < COMMA_PER_OCTAVE; current_comma_first_octave++)
 	{
-		//compute frequency for each comma into the first octave
+		//compute frequency for each comma into the first octave_coeff
 		float frequency = calculate_frequency(current_comma_first_octave);
 
 		//current aera size is the number of char cell for storage a waveform at the current frequency (one pixel per frequency oscillator)
@@ -91,12 +90,12 @@ uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves)
 			//sanity check
 			if (current_unitary_waveform_cell < buffer_len)
 			{
-				(*unitary_waveform)[current_unitary_waveform_cell] = (sin((x * 2.00 * M_PI) / current_aera_size) + 1.00) * WAVE_AMP_RESOLUTION / 2.00;
+				(*unitary_waveform)[current_unitary_waveform_cell] = (sin((x * 2.00 * PI) / current_aera_size) + 1.00) * WAVE_AMP_RESOLUTION / 2.00;
 				current_unitary_waveform_cell++;
 			}
 		}
 
-		//for each octave (only the first octave stay in RAM, for multiple octave start_ptr stay on first octave waveform but current_ptr jump cell according to multiple frequencies)
+		//for each octave_coeff (only the first octave_coeff stay in RAM, for multiple octave_coeff start_ptr stay on first octave waveform but current_ptr jump cell according to multiple frequencies)
 		for (uint32_t octave = 0; octave < MAX_OCTAVE_NUMBER; octave++)
 		{
 			//duplicate for each pixel with same frequency value, different waves[pix] for the same start_ptr
@@ -108,25 +107,32 @@ uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves)
 				// ---***---------***---------***---------***---------***---------***---------***---------***------ for the second comma...
 				// ------***---------***---------***---------***---------***---------***---------***---------***---
 				// ---------***---------***---------***---------***---------***---------***---------***---------***
-				uint32_t pix = current_comma_first_octave * PIXEL_PER_COMMA + PIXEL_PER_OCTAVE * octave + idx;
+				pix = current_comma_first_octave * PIXEL_PER_COMMA + PIXEL_PER_OCTAVE * octave + idx;
 				//sanity check, if user demand is't possible
 				if (pix < CIS_PIXELS_NB)
 				{
+#ifdef DEBUG
 					//store frequencies
 					waves[pix].frequency = frequency * pow(2, octave);
+#endif
 					//store octave number
-					waves[pix].octave = octave;
+					waves[pix].octave_coeff = pow(2, octave);
 					//store aera size
 					waves[pix].aera_size = current_aera_size / pow(2, octave);
 					//store pointer address
 					waves[pix].start_ptr = &(*unitary_waveform)[current_unitary_waveform_cell - current_aera_size];
 					//set current pointer at the same address
-					waves[pix].current_ptr = &(*unitary_waveform)[current_unitary_waveform_cell - current_aera_size];
+					waves[pix].current_idx = 0;
 				}
 			}
 		}
 	}
 
+	if (pix < CIS_PIXELS_NB)
+	{
+		printf("Configuration fail, current pix : %d\n", (int)pix);
+		Error_Handler();
+	}
 	//print all buffer for debug (you can see the waveform with serial tracer on arduino ide)
 //	for (uint32_t i = 0; i < buffer_len; i++)
 //	{
@@ -143,7 +149,7 @@ uint32_t init_waves(__IO uint16_t **unitary_waveform, __IO struct wave *waves)
 //		uint16_t output = 0;
 //		for (uint32_t idx = 0; idx < waves[pix].aera_size; idx++)
 //		{
-//			output = *(waves[pix].start_ptr + (idx * (uint32_t)pow(2, waves[pix].octave)));
+//			output = *(waves[pix].start_ptr + (idx * waves[pix].octave_coeff));
 //			printf("%d\n", output);
 //		}
 //	}

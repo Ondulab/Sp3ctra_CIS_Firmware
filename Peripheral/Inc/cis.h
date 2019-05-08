@@ -9,7 +9,11 @@
 #ifndef __CIS_H__
 #define __CIS_H__
 
+#include "config.h"
+
 enum color { RED, GREEN, BLUE };
+
+extern __IO int16_t cis_adc_data[CIS_PIXELS_NB];
 
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

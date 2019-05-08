@@ -26,7 +26,6 @@
 #include "hrtim.h"
 #include "tim.h"
 #include "usart.h"
-#include "usb_otg.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -38,6 +37,8 @@
 #include "wave_sommation.h"
 #include "config.h"
 #include "stdio.h"
+
+//-funroll-loops
 
 /* USER CODE END Includes */
 
@@ -60,7 +61,7 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-extern __IO uint32_t sommation_int_cnt;
+extern __IO uint32_t summation_int_cnt;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -127,6 +128,9 @@ int main(void)
   /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
 
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
+
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -152,7 +156,6 @@ int main(void)
   MX_TIM6_Init();
   MX_HRTIM_Init();
   MX_TIM1_Init();
-  MX_USB_OTG_FS_PCD_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 	printf("Start CIS Demo\n");
@@ -160,17 +163,32 @@ int main(void)
 	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
 	synth_init();
-	//	cisInit();
+	cisInit();
 	timesBaseInit();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	static int old_tick;
+	old_tick = HAL_GetTick();
+	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
+	{
+		cis_adc_data[idx] = 6553;
+	}
 	while (1)
 	{
-		printf("Sommation INT cnt : %d", (int)sommation_int_cnt/SAMPLING_FREQUENCY);
-		HAL_Delay(500);
+		if (((HAL_GetTick() - old_tick)) < 1000)
+		{
+//			HAL_TIM_PeriodElapsedCallback(&htim15);
+		}
+		else
+		{
+			printf("Sommation INT cnt : %d\n", (int)summation_int_cnt);
+			printf("left_output : %d\n", (int)left_output);
+			old_tick = HAL_GetTick();
+			summation_int_cnt = 0;
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -197,25 +215,20 @@ void SystemClock_Config(void)
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-  /** Macro to configure the PLL clock source 
-  */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
-                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 2;
-  RCC_OscInitStruct.PLL.PLLN = 64;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 500;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
   RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
+  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_1;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -235,36 +248,20 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_HRTIM1|RCC_PERIPHCLK_USART3
-                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB
-                              |RCC_PERIPHCLK_CKPER;
-  PeriphClkInitStruct.PLL2.PLL2M = 2;
-  PeriphClkInitStruct.PLL2.PLL2N = 64;
-  PeriphClkInitStruct.PLL2.PLL2P = 4;
-  PeriphClkInitStruct.PLL2.PLL2Q = 4;
-  PeriphClkInitStruct.PLL2.PLL2R = 2;
-  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_3;
-  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_CKPER;
   PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
-  PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;
-  PeriphClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+  PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP;
   PeriphClkInitStruct.Hrtim1ClockSelection = RCC_HRTIM1CLK_CPUCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
-  /** Enables the Clock Security System 
-  */
-  HAL_RCC_EnableCSS();
-  /** Enable USB Voltage detector 
-  */
-  HAL_PWREx_EnableUSBVoltageDetector();
 }
 
 /* USER CODE BEGIN 4 */
