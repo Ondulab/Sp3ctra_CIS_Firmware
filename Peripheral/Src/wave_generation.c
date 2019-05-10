@@ -111,14 +111,14 @@ uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 				//sanity check, if user demand is't possible
 				if (pix < CIS_PIXELS_NB)
 				{
-#ifdef DEBUG
+#ifdef PRINT_FREQUENCY
 					//store frequencies
 					waves[pix].frequency = frequency * pow(2, octave);
 #endif
 					//store octave number
 					waves[pix].octave_coeff = pow(2, octave);
 					//store aera size
-					waves[pix].aera_size = current_aera_size / pow(2, octave);
+					waves[pix].aera_size = current_aera_size;
 					//store pointer address
 					waves[pix].start_ptr = &(*unitary_waveform)[current_unitary_waveform_cell - current_aera_size];
 					//set current pointer at the same address
@@ -133,26 +133,6 @@ uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 		printf("Configuration fail, current pix : %d\n", (int)pix);
 		Error_Handler();
 	}
-	//print all buffer for debug (you can see the waveform with serial tracer on arduino ide)
-//	for (uint32_t i = 0; i < buffer_len; i++)
-//	{
-//		printf("%d\n", (*unitary_waveform)[i]);
-//		HAL_Delay(1);
-//	}
-
-	//print all structure table for debug
-
-//	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
-//	{
-//		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave);
-//		HAL_Delay(20);
-//		uint16_t output = 0;
-//		for (uint32_t idx = 0; idx < waves[pix].aera_size; idx++)
-//		{
-//			output = *(waves[pix].start_ptr + (idx * waves[pix].octave_coeff));
-//			printf("%d\n", output);
-//		}
-//	}
 
 	return buffer_len;
 }

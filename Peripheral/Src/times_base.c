@@ -47,7 +47,7 @@ int32_t timesBaseInit(void)
 	uint32_t uwPrescalerValue = 0;
 
 	/* Compute the prescaler value */
-	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (DAC_TIME_FREQ * 10 * CIS_PIXELS_NB));
+	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (DAC_TIME_FREQ * 10));
 
 	/*##-1- Configure the TIM peripheral #######################################*/
 	/* Time base configuration */
@@ -99,7 +99,7 @@ int32_t timesBaseInit(void)
 	if(HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
 	{
 		/* Starting Error */
-		Error_Handler();
+		return -3;
 	}
 
 	HAL_TIM_Base_Start_IT(&htim15);

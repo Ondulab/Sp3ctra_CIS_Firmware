@@ -10,6 +10,7 @@
 #define __SYNTH_H
 
 /* Includes ------------------------------------------------------------------*/
+#include "config.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -19,13 +20,12 @@ struct wave {
     uint16_t current_idx;
 	uint16_t aera_size;
 	uint16_t octave_coeff;
-#ifdef DEBUG
+#ifdef PRINT_FREQUENCY
 	float frequency;
 #endif
 };
 
-extern __IO uint32_t left_output;
-extern __IO uint32_t right_output;
+extern __IO uint32_t dac_buffer[];
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/

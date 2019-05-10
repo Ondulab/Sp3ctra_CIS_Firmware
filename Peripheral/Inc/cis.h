@@ -13,7 +13,7 @@
 
 enum color { RED, GREEN, BLUE };
 
-extern __IO int16_t cis_adc_data[CIS_PIXELS_NB];
+extern __IO uint32_t cis_adc_data[CIS_PIXELS_NB];
 
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
