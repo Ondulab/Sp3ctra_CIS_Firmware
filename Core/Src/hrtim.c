@@ -31,7 +31,6 @@ void MX_HRTIM_Init(void)
 {
   HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg = {0};
   HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg = {0};
-  HRTIM_SimpleOCChannelCfgTypeDef pSimpleOCChannelCfg = {0};
   HRTIM_SimplePWMChannelCfgTypeDef pSimplePWMChannelCfg = {0};
 
   hhrtim.Instance = HRTIM1;
@@ -55,11 +54,10 @@ void MX_HRTIM_Init(void)
   {
     Error_Handler();
   }
-  pSimpleOCChannelCfg.Mode = HRTIM_BASICOCMODE_TOGGLE;
-  pSimpleOCChannelCfg.Pulse = 800;
-  pSimpleOCChannelCfg.Polarity = HRTIM_OUTPUTPOLARITY_LOW;
-  pSimpleOCChannelCfg.IdleLevel = HRTIM_OUTPUTIDLELEVEL_INACTIVE;
-  if (HAL_HRTIM_SimpleOCChannelConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1, &pSimpleOCChannelCfg) != HAL_OK)
+  pSimplePWMChannelCfg.Pulse = 800;
+  pSimplePWMChannelCfg.Polarity = HRTIM_OUTPUTPOLARITY_HIGH;
+  pSimplePWMChannelCfg.IdleLevel = HRTIM_OUTPUTIDLELEVEL_INACTIVE;
+  if (HAL_HRTIM_SimplePWMChannelConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1, &pSimplePWMChannelCfg) != HAL_OK)
   {
     Error_Handler();
   }
@@ -68,9 +66,8 @@ void MX_HRTIM_Init(void)
   {
     Error_Handler();
   }
-  pSimplePWMChannelCfg.Pulse = 10;
+  pSimplePWMChannelCfg.Pulse = 1600;
   pSimplePWMChannelCfg.Polarity = HRTIM_OUTPUTPOLARITY_LOW;
-  pSimplePWMChannelCfg.IdleLevel = HRTIM_OUTPUTIDLELEVEL_INACTIVE;
   if (HAL_HRTIM_SimplePWMChannelConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_B, HRTIM_OUTPUT_TB1, &pSimplePWMChannelCfg) != HAL_OK)
   {
     Error_Handler();
@@ -89,10 +86,6 @@ void HAL_HRTIM_MspInit(HRTIM_HandleTypeDef* hrtimHandle)
   /* USER CODE END HRTIM1_MspInit 0 */
     /* HRTIM1 clock enable */
     __HAL_RCC_HRTIM1_CLK_ENABLE();
-
-    /* HRTIM1 interrupt Init */
-    HAL_NVIC_SetPriority(HRTIM1_Master_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(HRTIM1_Master_IRQn);
   /* USER CODE BEGIN HRTIM1_MspInit 1 */
 
   /* USER CODE END HRTIM1_MspInit 1 */
@@ -138,9 +131,6 @@ void HAL_HRTIM_MspDeInit(HRTIM_HandleTypeDef* hrtimHandle)
   /* USER CODE END HRTIM1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_HRTIM1_CLK_DISABLE();
-
-    /* HRTIM1 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(HRTIM1_Master_IRQn);
   /* USER CODE BEGIN HRTIM1_MspDeInit 1 */
 
   /* USER CODE END HRTIM1_MspDeInit 1 */

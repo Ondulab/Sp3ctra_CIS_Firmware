@@ -24,7 +24,6 @@
 /* Private define ------------------------------------------------------------*/
 
 #define COMMA_PER_OCTAVE    ((SEMITONE_PER_OCTAVE) * (COMMA_PER_SEMITONE))
-#define PIXEL_PER_OCTAVE    ((PIXEL_PER_COMMA) * (COMMA_PER_OCTAVE))
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -58,7 +57,7 @@ uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 {
 	uint32_t buffer_len = 0;
 	uint32_t current_unitary_waveform_cell = 0;
-	uint32_t pix = 0;
+	uint32_t note = 0;
 
 	//compute cell number for storage all oscillators waveform
 	for (uint32_t comma_cnt = 0; comma_cnt < COMMA_PER_OCTAVE; comma_cnt++)
@@ -98,39 +97,35 @@ uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 		//for each octave_coeff (only the first octave_coeff stay in RAM, for multiple octave_coeff start_ptr stay on first octave waveform but current_ptr jump cell according to multiple frequencies)
 		for (uint32_t octave = 0; octave < MAX_OCTAVE_NUMBER; octave++)
 		{
-			//duplicate for each pixel with same frequency value, different waves[pix] for the same start_ptr
-			for (uint32_t idx = 0; idx < PIXEL_PER_COMMA; idx++)
+			//compute the current pixel for associate an waveform pointer,
+			// *** is current pix, --- octave separation
+			// *---------*---------*---------*---------*---------*---------*---------*--------- for current comma at each octave
+			// ---*---------*---------*---------*---------*---------*---------*---------*------ for the second comma...
+			// ------*---------*---------*---------*---------*---------*---------*---------*---
+			// ---------*---------*---------*---------*---------*---------*---------*---------*
+			note = current_comma_first_octave + COMMA_PER_OCTAVE * octave;
+			//sanity check, if user demand is't possible
+			if (note < NUMBER_OF_NOTES)
 			{
-				//compute the current pixel for associate an waveform pointer,
-				// *** is current pix, --- octave separation
-				// ***---------***---------***---------***---------***---------***---------***---------***--------- for current comma at each octave *** represent 3 duplication (according to PIXEL_PER_COMMA
-				// ---***---------***---------***---------***---------***---------***---------***---------***------ for the second comma...
-				// ------***---------***---------***---------***---------***---------***---------***---------***---
-				// ---------***---------***---------***---------***---------***---------***---------***---------***
-				pix = current_comma_first_octave * PIXEL_PER_COMMA + PIXEL_PER_OCTAVE * octave + idx;
-				//sanity check, if user demand is't possible
-				if (pix < CIS_PIXELS_NB)
-				{
 #ifdef PRINT_FREQUENCY
-					//store frequencies
-					waves[pix].frequency = frequency * pow(2, octave);
+				//store frequencies
+				waves[note].frequency = frequency * pow(2, octave);
 #endif
-					//store octave number
-					waves[pix].octave_coeff = pow(2, octave);
-					//store aera size
-					waves[pix].aera_size = current_aera_size;
-					//store pointer address
-					waves[pix].start_ptr = &(*unitary_waveform)[current_unitary_waveform_cell - current_aera_size];
-					//set current pointer at the same address
-					waves[pix].current_idx = 0;
-				}
+				//store octave number
+				waves[note].octave_coeff = pow(2, octave);
+				//store aera size
+				waves[note].aera_size = current_aera_size;
+				//store pointer address
+				waves[note].start_ptr = &(*unitary_waveform)[current_unitary_waveform_cell - current_aera_size];
+				//set current pointer at the same address
+				waves[note].current_idx = 0;
 			}
 		}
 	}
 
-	if (pix < CIS_PIXELS_NB)
+	if (note < NUMBER_OF_NOTES)
 	{
-		printf("Configuration fail, current pix : %d\n", (int)pix);
+		printf("Configuration fail, current pix : %d\n", (int)note);
 		Error_Handler();
 	}
 

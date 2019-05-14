@@ -26,6 +26,7 @@ struct wave {
 };
 
 extern __IO uint32_t dac_buffer[];
+extern __IO uint32_t rfft_cnt;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/

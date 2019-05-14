@@ -98,7 +98,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = CIS_SP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(CIS_SP_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC13 */
@@ -228,7 +228,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = CIS_LED_B_Pin|CIS_LED_G_Pin|CIS_LED_R_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PG11 PG13 */
