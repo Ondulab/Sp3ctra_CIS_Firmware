@@ -31,8 +31,8 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-static uint16_t *unitary_waveform = NULL;
-static struct wave waves[NUMBER_OF_NOTES];
+static __IO uint16_t *unitary_waveform = NULL;
+static __IO struct wave waves[NUMBER_OF_NOTES];
 __IO uint32_t rfft_cnt = 0;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,23 +78,23 @@ int32_t synth_init(void)
 
 	if (initDacTimer(DAC_TIME_FREQ) != 0)
 	{
-		return -2;
+		Error_Handler();
 	}
 	if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
 	{
-		return -3;
+		Error_Handler();
 	}
 
 	if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_1) != HAL_OK)
 	{
-		return -4;
+		Error_Handler();
 	}
 
-	if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_2) != HAL_OK)
-	{
-		return -4;
-	}
-
+//	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 1400);//1489 1,2V
+//	if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_2) != HAL_OK)
+//	{
+//		Error_Handler();
+//	}
 	return 0;
 }
 
@@ -121,7 +121,7 @@ int32_t initDacTimer(uint32_t freq)
 	htim6.Init.RepetitionCounter = 0;
 	if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
 	{
-		return -1;
+		Error_Handler();
 	}
 
 	/* TIM6 TRGO selection */
@@ -129,13 +129,13 @@ int32_t initDacTimer(uint32_t freq)
 	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 	if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
 	{
-		return -2;
+		Error_Handler();
 	}
 
 	/*##-2- Enable TIM peripheral counter ######################################*/
 	if (HAL_TIM_Base_Start(&htim6) != HAL_OK)
 	{
-		return -3;
+		Error_Handler();
 	}
 	return 0;
 }
@@ -163,7 +163,7 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 	htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_OC_Init(&htim15) != HAL_OK)
 	{
-		return -1;
+		Error_Handler();
 	}
 
 	sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
@@ -175,14 +175,13 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
 	if (HAL_TIM_OC_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	{
-		return -2;
+		Error_Handler();
 	}
 
 	//	/* Start channel 1 in Output compare mode */
 	if (HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
 	{
-		/* Starting Error */
-		return -3;
+		Error_Handler();
 	}
 
 #ifndef DEBUG_SAMPLE_RATE
@@ -204,8 +203,8 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 #pragma GCC optimize ("unroll-loops")
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	uint64_t signal_summation = 0;
-	uint64_t signal_power_summation = 0;
+	uint32_t signal_summation = 0;
+	uint32_t signal_power_summation = 0;
 	uint32_t new_idx;
 	uint32_t max_power = 0;
 
@@ -216,7 +215,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
 	{
 		//test for CIS presence
-		if (cis_adc_data[pix * 9] > SENSIVITY_THRESHOLD)
+		if (cis_adc_data[pix] > SENSIVITY_THRESHOLD)
 		{
 			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
 			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
@@ -226,16 +225,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 			waves[pix].current_idx = new_idx;
 
-			signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * cis_adc_data[pix * 9]) >> 16;
+			signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * cis_adc_data[pix]) >> 16;
 
 			//read equivalent power of current pixel
-			signal_power_summation += cis_adc_data[pix * 9];
-			if (cis_adc_data[pix * 9] > max_power)
-				max_power = cis_adc_data[pix * 9];
+			signal_power_summation += (cis_adc_data[pix]);
+			if (cis_adc_data[pix] > max_power)
+				max_power = cis_adc_data[pix];
 		}
 	}
-
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_L, signal_summation * ((double)max_power / signal_power_summation));
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, (uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
+//	printf ("%d\n",(uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 
 	++rfft_cnt;
 }
