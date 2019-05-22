@@ -32,7 +32,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 static __IO uint16_t *unitary_waveform = NULL;
-static __IO struct wave waves[NUMBER_OF_NOTES];
+static struct wave waves[NUMBER_OF_NOTES];
 __IO uint32_t rfft_cnt = 0;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,20 +60,23 @@ int32_t synth_init(void)
 	printf("Buffer lengh = %d\n", (int)buffer_len);
 
 #ifdef PRINT_FREQUENCY
-	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
-	{
-		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave_coeff);
-		HAL_Delay(10);
-		//		uint16_t output = 0;
-		//		for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
-		//		{
-		//			output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
-		//			printf("%d\n", output);
-		//		}
-		//				HAL_Delay(1);
-	}
-	printf("---- END ----");
-	while(1);
+	printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
+	printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size, (int)waves[NUMBER_OF_NOTES - 1].octave_coeff);
+
+//	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
+//	{
+//		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave_coeff);
+//		HAL_Delay(10);
+//		//		uint16_t output = 0;
+//		//		for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
+//		//		{
+//		//			output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
+//		//			printf("%d\n", output);
+//		//		}
+//		//				HAL_Delay(1);
+//	}
+//	printf("---- END ----");
+//	while(1);
 #endif
 
 	if (initDacTimer(DAC_TIME_FREQ) != 0)

@@ -53,7 +53,7 @@ static float calculate_frequency(uint32_t comma_cnt)
  * @param  waves structure pointer,
  * @retval buffer length on success, negative value otherwise
  */
-uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
+uint32_t init_waves( __IO uint16_t **unitary_waveform, struct wave *waves)
 {
 	uint32_t buffer_len = 0;
 	uint32_t current_unitary_waveform_cell = 0;
