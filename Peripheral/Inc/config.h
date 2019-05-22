@@ -13,8 +13,8 @@
 /********************              debug definitions               ********************/
 /**************************************************************************************/
 #define PRINT_FREQUENCY
-//#define DEBUG_CIS
-//#define DEBUG_SYNTH
+#define DEBUG_CIS
+#define DEBUG_SYNTH
 //#define DEBUG_SAMPLE_RATE
 
 /**************************************************************************************/
@@ -35,8 +35,8 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(200000)	//3,5MHz in hertz
-#define SENSIVITY_THRESHOLD (100)		    //threshold for detection
+#define CIS_CLK_FREQ		(400000)	//3,5MHz in hertz
+#define SENSIVITY_THRESHOLD (10)		    //threshold for detection
 #define CIS_RESOLUTION      (65535)   	//in decimal
 #define CIS_PIXELS_NB		(5148)		//5148 active pixels
 
