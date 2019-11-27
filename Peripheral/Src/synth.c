@@ -16,7 +16,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 
-#include "arm_math.h"
+//#include "arm_math.h"
 
 #include "cis.h"
 #include "wave_generation.h"
@@ -88,7 +88,7 @@ int32_t synth_init(void)
 		Error_Handler();
 	}
 
-	if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_1) != HAL_OK)
+	if (HAL_DAC_Start(&hdac1, DAC_CHANNEL_2) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -236,7 +236,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				max_power = cis_adc_data[pix];
 		}
 	}
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, (uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 //	printf ("%d\n",(uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 
 	++rfft_cnt;

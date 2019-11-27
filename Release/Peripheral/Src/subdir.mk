@@ -27,19 +27,13 @@ C_DEPS += \
 
 # Each subdirectory must supply rules for building sources it contributes
 Peripheral/Src/cis.o: ../Peripheral/Src/cis.c
-	@echo 'Building file: $<'
-	@echo 'Invoking: MCU GCC Compiler'
-	@echo $(PWD)
-	arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 '-D__weak=__attribute__((weak))' -D__FPU_PRESENT -DARM_MATH_CM7 '-D__packed="__attribute__((__packed__))"' -DUSE_HAL_DRIVER -DSTM32H743xx -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Core/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/DSP/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Peripheral/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/Legacy" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/Device/ST/STM32H7xx/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/DSP/Include"  -O2 -Wall -fmessage-length=0 -ffunction-sections -fdata-sections -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
-	@echo 'Finished building: $<'
-	@echo ' '
-
-Peripheral/Src/%.o: ../Peripheral/Src/%.c
-	@echo 'Building file: $<'
-	@echo 'Invoking: MCU GCC Compiler'
-	@echo $(PWD)
-	arm-none-eabi-gcc -mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 '-D__weak=__attribute__((weak))' -D__FPU_PRESENT -DARM_MATH_CM7 '-D__packed="__attribute__((__packed__))"' -DUSE_HAL_DRIVER -DSTM32H743xx -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Core/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/DSP/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Peripheral/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/STM32H7xx_HAL_Driver/Inc/Legacy" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/Device/ST/STM32H7xx/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/Include" -I"/mnt/data/Documents/Workspace_AC6/CISYNTH/Drivers/CMSIS/DSP/Include"  -O3 -Ofast -Wall -fmessage-length=0 -ffunction-sections -fdata-sections -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
-	@echo 'Finished building: $<'
-	@echo ' '
-
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DUSE_HAL_DRIVER -DSTM32H743xx -c -I../Drivers/CMSIS/Include -I../Core/Inc -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Peripheral/Inc" -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/STM32H7xx_HAL_Driver/Inc -O3 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Peripheral/Src/cis.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Peripheral/Src/synth.o: ../Peripheral/Src/synth.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DUSE_HAL_DRIVER -DSTM32H743xx -c -I../Drivers/CMSIS/Include -I../Core/Inc -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Peripheral/Inc" -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/STM32H7xx_HAL_Driver/Inc -O3 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Peripheral/Src/synth.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Peripheral/Src/times_base.o: ../Peripheral/Src/times_base.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DUSE_HAL_DRIVER -DSTM32H743xx -c -I../Drivers/CMSIS/Include -I../Core/Inc -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Peripheral/Inc" -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/STM32H7xx_HAL_Driver/Inc -O3 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Peripheral/Src/times_base.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Peripheral/Src/wave_generation.o: ../Peripheral/Src/wave_generation.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DUSE_HAL_DRIVER -DSTM32H743xx -c -I../Drivers/CMSIS/Include -I../Core/Inc -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Peripheral/Inc" -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/STM32H7xx_HAL_Driver/Inc -O3 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Peripheral/Src/wave_generation.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Peripheral/Src/wave_sommation.o: ../Peripheral/Src/wave_sommation.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -DUSE_HAL_DRIVER -DSTM32H743xx -c -I../Drivers/CMSIS/Include -I../Core/Inc -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Peripheral/Inc" -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/STM32H7xx_HAL_Driver/Inc -O3 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Peripheral/Src/wave_sommation.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 

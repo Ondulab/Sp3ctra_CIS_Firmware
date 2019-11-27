@@ -12,9 +12,9 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-#define PRINT_FREQUENCY
-#define DEBUG_CIS
-#define DEBUG_SYNTH
+//#define PRINT_FREQUENCY
+//#define DEBUG_CIS
+//#define DEBUG_SYNTH
 //#define DEBUG_SAMPLE_RATE
 
 /**************************************************************************************/
@@ -35,7 +35,7 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(400000)	//3,5MHz in hertz
+#define CIS_CLK_FREQ		(100000)	//3,5MHz in hertz
 #define SENSIVITY_THRESHOLD (10)		    //threshold for detection
 #define CIS_RESOLUTION      (65535)   	//in decimal
 #define CIS_PIXELS_NB		(5148)		//5148 active pixels
@@ -54,10 +54,10 @@
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION (65535)   	//in decimal
 #define START_FREQUENCY     (60)  	//FA 1
-#define MAX_OCTAVE_NUMBER   (10)
+#define MAX_OCTAVE_NUMBER   (8)
 #define SEMITONE_PER_OCTAVE (12)
 #define COMMA_PER_SEMITONE  (4.5)		//4.5
-#define PIXEL_PER_COMMA     (14)        //12
+#define PIXEL_PER_COMMA     (12)        //12
 
 #define NUMBER_OF_NOTES     ((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 

@@ -333,6 +333,16 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	case CAL_ZONE:
 		cis_adc_cal += 1;// HAL_ADC_GetValue(&hadc2);
 		++cnt;
+		//		if (HAL_ADC_GetValue(&hadc1) < 100) //cut tac tac bug...
+		//		{
+		//			calibration_state = CAL_OFF;
+		//			cis_read_step = START_PULSE;
+		//			callback_cnt = 0;
+		//		}
+		//		else
+		//		{
+//					++cnt;
+		//		}
 		break;
 	case DATA_ZONE:
 		temp_data += HAL_ADC_GetValue(&hadc1);
