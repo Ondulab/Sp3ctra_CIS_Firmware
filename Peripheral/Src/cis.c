@@ -130,7 +130,7 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	pTimeBaseCfg.Period = uwPrescalerValue;
 
 	/*-------------------------------------------------------------------------------------*/
-	pSimplePWMChannelCfg.Pulse = uwPrescalerValue / 2;
+	pSimplePWMChannelCfg.Pulse = (CIS_CLK_DUTY * uwPrescalerValue) / 100;
 	pSimplePWMChannelCfg.Polarity = HRTIM_OUTPUTPOLARITY_LOW;
 	pSimplePWMChannelCfg.IdleLevel = HRTIM_OUTPUTIDLELEVEL_ACTIVE;
 	if (HAL_HRTIM_SimplePWMChannelConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1, &pSimplePWMChannelCfg) != HAL_OK)
@@ -252,7 +252,7 @@ void cisADC_Init(void)
 //	}
 }
 
-#define CIS_SP_TICK 				(1)
+#define CIS_SP_TICK 				(2)
 #define CIS_INIT_TICK				((CIS_SP_TICK) + (CIS_INIT_CLK_CNT))
 #define CIS_CAL_TICK 				((CIS_INIT_TICK) + (CIS_CAL_CLK_CNT))
 #define CIS_DATA_TICK 				((CIS_CAL_TICK) + (CIS_PIXELS_NB))

@@ -1,0 +1,25 @@
+
+        GND     LED1 R  LED2 V  LED3 B  +LED    CLK     SP      1,165V  3,3VB   GND    3,3VA    ADC
+        |       |       |       |       |       |       |       |       |       |       |       | 
+
+- ADC coté 1 ZIF
+                                                  _   _   _
+CLK = 3,5MHz                                    _/ \_/ \_/ \_/
+                                                      ___  
+SP  = 549Hz     SP est synchro avec la clock    _____/   \____
+
+1,16V = Il semble correspondre à la tension min de la sortie ADC, à voir si on utilise l'ADC en mode differentiel...
+
+- A l'aide du contage de front de l'oscillo, je note ~5150 mesures ADC qui correspondrait à 5150 pixel
+- Après et pendant le SP l'ADC reste à 0 pendant ~20uS (à compter du temps 0)
+- Puis la sortie ADC prend la valeur 1,16V pendant ~12 cycles CLK, surement pour calibrer
+- Le capteur est divisé en 11 secteurs ce qui laisserai penser que le nombre de pixels est de 468x11 = 5148
+- La mesure ADC devrait etre déclenchée sur un front descendant de clock la fenetre de mesure est de 180nS
+- Le delai entre la fin d'une capture et d'un nouveau SP est de ~684uS
+- La PIN +LED est montée derrierre une résistance, les leds sont driver par la cathode
+- Periode totale 2,177ms
+- Deconnecté l'entrée ADC est à la masse, le courant necessaire pour passer le signal à 3,3V est de 317uA, ce qui laisse penser qu'il y a une résistance de pull down de 10,5Kohm
+- Les lognes CLK et SP sont adaptées en impédance, 100ohm en ligne et une capa (valeur inconnue) coté connecteur et masse. En effet ce filtre améliaure grandement la qualité de la sortie ADC, je décide de mettre 470pF afin de faire un filtre passe-bas qui coupe à 3,5MHz
+
+- ADC coté 1 ZIF
+- Tension 1,165V : réalisé à partir d'un régulateur 3,3V et d'un pont diviseur sur 3,3VB tel que : R1 = 220ohm R2 = 120ohm. Sur la partie filtrage on retrouve un condensateur chimique de 100uF associé à un 100nF 6,4V 

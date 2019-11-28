@@ -63,12 +63,12 @@ void Error_Handler(void);
 #define USER_PB_Pin GPIO_PIN_13
 #define USER_PB_GPIO_Port GPIOC
 #define USER_PB_EXTI_IRQn EXTI15_10_IRQn
-#define CIS_LED_R_Pin GPIO_PIN_7
-#define CIS_LED_R_GPIO_Port GPIOF
-#define CIS_LED_G_Pin GPIO_PIN_8
+#define CIS_LED_G_Pin GPIO_PIN_7
 #define CIS_LED_G_GPIO_Port GPIOF
-#define CIS_LED_B_Pin GPIO_PIN_9
+#define CIS_LED_B_Pin GPIO_PIN_8
 #define CIS_LED_B_GPIO_Port GPIOF
+#define CIS_LED_R_Pin GPIO_PIN_9
+#define CIS_LED_R_GPIO_Port GPIOF
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -33,10 +33,15 @@
 #define DAC_TIME_FREQ 		(44100)//SAMPLING_FREQUENCY)
 
 /**************************************************************************************/
+/********************           Generation definitions             ********************/
+/**************************************************************************************/
+#define SENSIVITY_THRESHOLD (1)		    //threshold for detection
+
+/**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(100000)	//3,5MHz in hertz
-#define SENSIVITY_THRESHOLD (10)		    //threshold for detection
+#define CIS_CLK_FREQ		(1000000)	//3,5MHz in hertz
+#define CIS_CLK_DUTY		(50)		//in percent
 #define CIS_RESOLUTION      (65535)   	//in decimal
 #define CIS_PIXELS_NB		(5148)		//5148 active pixels
 
@@ -53,7 +58,7 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION (65535)   	//in decimal
-#define START_FREQUENCY     (60)  	//FA 1
+#define START_FREQUENCY     (30)  	//FA 1
 #define MAX_OCTAVE_NUMBER   (8)
 #define SEMITONE_PER_OCTAVE (12)
 #define COMMA_PER_SEMITONE  (4.5)		//4.5
