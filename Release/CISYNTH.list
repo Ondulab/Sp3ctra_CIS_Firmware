@@ -15130,7 +15130,7 @@ Disassembly of section .text:
  800a11a:	4807      	ldr	r0, [pc, #28]	; (800a138 <cisInit+0x70>)
  800a11c:	e8bd 4038 	ldmia.w	sp!, {r3, r4, r5, lr}
  800a120:	f000 bd64 	b.w	800abec <puts>
- 800a124:	000f4240 	.word	0x000f4240
+ 800a124:	003567e0 	.word	0x003567e0
  800a128:	0800d2e4 	.word	0x0800d2e4
  800a12c:	24000010 	.word	0x24000010
  800a130:	24005120 	.word	0x24005120
