@@ -40,19 +40,16 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(3500000)	//3,5MHz in hertz
+#define CIS_CLK_FREQ		(1000000)	//3,5MHz in hertz
 #define CIS_CLK_DUTY		(50)		//in percent
 #define CIS_RESOLUTION      (65535)   	//in decimal
 #define CIS_PIXELS_NB		(5148)		//5148 active pixels
 
-#define CIS_CAL_CLK_CNT   	(12)  		//fixed by manufacturer
-#define CIS_INIT_CLK_CNT   	(69)		//wait clock after SP
-#define CIS_END_CLK_CNT   	(100)		//2394 wait clock after capture
+#define CIS_CAL_CLK_CNT   	(12)  		//12 fixed by manufacturer
+#define CIS_INIT_CLK_CNT   	(69)		//69 wait clock after SP
+#define CIS_END_CLK_CNT   	(1)		//2394 wait clock after capture
 
 #define CIS_CAL_CYCLE		(10)		//number of cis cycle to read max pixel value
-
-#define LED_ON
-#define BLACK_AND_WITHE
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/

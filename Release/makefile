@@ -32,6 +32,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 CISYNTH.list \
 
+OBJCOPY_BIN += \
+CISYNTH.bin \
+
 
 # All Target
 all: CISYNTH.elf secondary-outputs
@@ -52,12 +55,17 @@ CISYNTH.list: $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+CISYNTH.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "CISYNTH.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
 	-$(RM) *
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_BIN)
 
 .PHONY: all clean dependents
 .SECONDARY:

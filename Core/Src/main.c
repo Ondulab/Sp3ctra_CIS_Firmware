@@ -119,10 +119,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	HAL_EnableCompensationCell();
 	printf("Start CIS Demo\n");
-	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_SET);
-	synth_init();
+//	synth_init();
 	cisInit();
 
   /* USER CODE END 2 */
