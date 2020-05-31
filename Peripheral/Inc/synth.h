@@ -11,6 +11,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "config.h"
+#include "stdint.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -25,7 +26,7 @@ struct wave {
 #endif
 };
 
-extern __IO uint32_t rfft_cnt;
+extern volatile uint32_t rfft_cnt;
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/

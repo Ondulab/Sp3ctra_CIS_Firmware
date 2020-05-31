@@ -10,6 +10,15 @@
 #define __CIS_H__
 
 #include "config.h"
+#include "main.h"
+
+#define CIS_LED_R_GPIO_Port ARD_D4_GPIO_Port
+#define CIS_LED_G_GPIO_Port ARD_D7_GPIO_Port
+#define CIS_LED_B_GPIO_Port ARD_D8_GPIO_Port
+
+#define CIS_LED_R_Pin ARD_D4_Pin
+#define CIS_LED_G_Pin ARD_D7_Pin
+#define CIS_LED_B_Pin ARD_D8_Pin
 
 enum color { RED, GREEN, BLUE };
 

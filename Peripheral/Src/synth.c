@@ -31,9 +31,9 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-static __IO uint16_t *unitary_waveform = NULL;
+static uint16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
-__IO uint32_t rfft_cnt = 0;
+volatile uint32_t rfft_cnt = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 int32_t initDacTimer(uint32_t freq);

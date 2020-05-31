@@ -181,10 +181,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     PA0_C     ------> ADC1_INP0
     PA1_C     ------> ADC1_INP1 
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Pin = ARD_A0_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_Init(ARD_A0_GPIO_Port, &GPIO_InitStruct);
 
     HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PA0, SYSCFG_SWITCH_PA0_OPEN);
 
@@ -235,15 +235,15 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     PC2_C     ------> ADC3_INN1
     PC3_C     ------> ADC3_INP1 
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_8;
+    GPIO_InitStruct.Pin = ARD_A1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+    HAL_GPIO_Init(ARD_A1_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_0;
+    GPIO_InitStruct.Pin = ARD_A0_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_Init(ARD_A0_GPIO_Port, &GPIO_InitStruct);
 
     HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC2, SYSCFG_SWITCH_PC2_OPEN);
 
@@ -274,7 +274,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     PA0_C     ------> ADC1_INP0
     PA1_C     ------> ADC1_INP1 
     */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_0);
+    HAL_GPIO_DeInit(ARD_A0_GPIO_Port, ARD_A0_Pin);
 
   /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
@@ -310,9 +310,9 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     PC2_C     ------> ADC3_INN1
     PC3_C     ------> ADC3_INP1 
     */
-    HAL_GPIO_DeInit(GPIOF, GPIO_PIN_8);
+    HAL_GPIO_DeInit(ARD_A1_GPIO_Port, ARD_A1_Pin);
 
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_0);
+    HAL_GPIO_DeInit(ARD_A0_GPIO_Port, ARD_A0_Pin);
 
   /* USER CODE BEGIN ADC3_MspDeInit 1 */
 

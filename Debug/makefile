@@ -9,6 +9,7 @@ RM := rm -rf
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include Utilities/subdir.mk
+-include Peripheral/Src/subdir.mk
 -include Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 -include Drivers/BSP/STM32H750B-Discovery/subdir.mk
 -include Drivers/BSP/Components/mt48lc4m32b2/subdir.mk

@@ -22,7 +22,9 @@
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
+#include "dac.h"
 #include "dma2d.h"
+#include "hrtim.h"
 #include "ltdc.h"
 #include "quadspi.h"
 #include "rtc.h"
@@ -116,6 +118,10 @@ int main(void)
   MX_CRC_Init();
   MX_DMA2D_Init();
   MX_TIM8_Init();
+  MX_DAC1_Init();
+  MX_HRTIM_Init();
+  MX_TIM6_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 	paint();
   /* USER CODE END 2 */
@@ -189,10 +195,10 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_LTDC
-                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_SPI2
-                              |RCC_PERIPHCLK_SAI2|RCC_PERIPHCLK_SDMMC
-                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_QSPI
-                              |RCC_PERIPHCLK_FMC;
+                              |RCC_PERIPHCLK_HRTIM1|RCC_PERIPHCLK_USART3
+                              |RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_SAI2
+                              |RCC_PERIPHCLK_SDMMC|RCC_PERIPHCLK_ADC
+                              |RCC_PERIPHCLK_QSPI|RCC_PERIPHCLK_FMC;
   PeriphClkInitStruct.PLL2.PLL2M = 2;
   PeriphClkInitStruct.PLL2.PLL2N = 12;
   PeriphClkInitStruct.PLL2.PLL2P = 1;
@@ -217,6 +223,7 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLL2;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  PeriphClkInitStruct.Hrtim1ClockSelection = RCC_HRTIM1CLK_TIMCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();

@@ -23,5 +23,6 @@ Drivers/BSP/Components/ft5336 \
 Drivers/BSP/Components/mt48lc4m32b2 \
 Drivers/BSP/STM32H750B-Discovery \
 Drivers/STM32H7xx_HAL_Driver/Src \
+Peripheral/Src \
 Utilities \
 

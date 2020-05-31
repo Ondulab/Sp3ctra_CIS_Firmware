@@ -28,6 +28,8 @@ enum cisReadStep{START_PULSE, INIT_ZONE, CAL_ZONE, DATA_ZONE, END_ZONE};
 enum cisCalStep{CAL_ON, CAL_OFF};
 
 /* Private define ------------------------------------------------------------*/
+#define CIS_SP_GPIO_Port ARD_D2_GPIO_Port
+#define CIS_SP_Pin ARD_D2_Pin
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -143,7 +145,8 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	}
 
 	/*-------------------------------------------------------------------------------------*/
-	HAL_HRTIM_MspPostInit(&hhrtim);
+//	HAL_HRTIM_MspPostInit(&hhrtim);
+	HAL_HRTIM_MspInit(&hhrtim);
 
 	/*##-7- Start PWM signals generation ########################################################*/
 	if (HAL_HRTIM_SimplePWMStart(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1) != HAL_OK)

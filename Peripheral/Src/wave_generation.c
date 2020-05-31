@@ -53,7 +53,7 @@ static float calculate_frequency(uint32_t comma_cnt)
  * @param  waves structure pointer,
  * @retval buffer length on success, negative value otherwise
  */
-uint32_t init_waves( __IO uint16_t **unitary_waveform, struct wave *waves)
+uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 {
 	uint32_t buffer_len = 0;
 	uint32_t current_unitary_waveform_cell = 0;
@@ -97,7 +97,7 @@ uint32_t init_waves( __IO uint16_t **unitary_waveform, struct wave *waves)
 		//for each octave_coeff (only the first octave_coeff stay in RAM, for multiple octave_coeff start_ptr stay on first octave waveform but current_ptr jump cell according to multiple frequencies)
 		for (uint32_t octave = 0; octave < MAX_OCTAVE_NUMBER; octave++)
 		{
-			//compute the current pixel for associate an waveform pointer,
+			//compute the current pixel to associate an waveform pointer,
 			// *** is current pix, --- octave separation
 			// *---------*---------*---------*---------*---------*---------*---------*--------- for current comma at each octave
 			// ---*---------*---------*---------*---------*---------*---------*---------*------ for the second comma...
