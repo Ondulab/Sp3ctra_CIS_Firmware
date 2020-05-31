@@ -287,7 +287,11 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
-
+	  /* Turn LED REDon */
+	  BSP_LED_On(LED_RED);
+	  while(1)
+	  {
+	  }
   /* USER CODE END Error_Handler_Debug */
 }
 

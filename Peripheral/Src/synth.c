@@ -6,9 +6,9 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <BSP_example.h>
 #include "stm32h7xx_hal.h"
 //#include "stm32h7xx_ll_dac.h"
-#include "main.h"
 #include "config.h"
 #include "tim.h"
 #include "dac.h"
