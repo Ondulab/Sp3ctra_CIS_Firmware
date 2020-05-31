@@ -1,0 +1,36 @@
+
+       GND      LED1 R     LED2 V     LED3 B   +LED 4,72V     CLK         SP       3,16V       GND        GND        ADC
+        |          |          |          |          |          |          |          |          |          |          | 
+
+- ADC coté 1 ZIF
+                                                        1   2   3   4   5   6   7   8   9  10  11  12
+                                                  _   _   _   _   _   _   _   _   _   _   _   _   _   _   _   _   _
+CLK =                                           _/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/
+                                                      _______________________________________________  
+SP  =                                           _____/                                               \____
+                                            
+300 DPI :
+CLK = 3,70MHz   Vpp 4,48V                                    
+SP  = 1,35kHz   Vpp 3,20V   3,21uS            
+
+1,16V = Il semble correspondre à la tension min de la sortie ADC, à voir si on utilise l'ADC en mode differentiel...
+
+- A l'aide du comptage de fronts, je note 2768 clocks entre le début de deux start puslse
+- La polarité de la clock à l'air inversée
+- SP serait actif au moment du falling 
+- Après et pendant le SP l'ADC reste au Max de la tension de sortie, soit 3,08V pendant 23,1uS (87 falling CLK) (à compter du falling edge du SP)
+- Puis la sortie ADC prend la valeur ~2,94V pendant 58 Falling clock cycles, surement pour calibrer
+- Zone inactive de 3 falling CLK
+- Le capteur est divisé en 8 secteurs ce qui laisserai penser que le nombre de pixels est de 323*8 = 2584
+- Enfin 22 valeurs ne bougent pas en fin de lecture, surement pour de la qualibration + 3 qui debordent sur le start pulse
+
+à faire :
+- La mesure ADC devrait etre déclenchée sur un front descendant de clock la fenetre de mesure est de 180nS
+- Le delai entre la fin d'une capture et d'un nouveau SP est de ~684uS
+- La PIN +LED est montée derrierre une résistance, les leds sont driver par la cathode
+- Periode totale 2,177ms
+- Deconnecté l'entrée ADC est à la masse, le courant necessaire pour passer le signal à 3,3V est de 317uA, ce qui laisse penser qu'il y a une résistance de pull down de 10,5Kohm
+- Les lignes CLK et SP sont adaptées en impédance, 100ohm en ligne et une capa (valeur inconnue) coté connecteur et masse. En effet ce filtre améliaure grandement la qualité de la sortie ADC, je décide de mettre 470pF afin de faire un filtre passe-bas qui coupe à 3,5MHz
+
+- ADC coté 1 ZIF
+- Tension 1,165V : réalisé à partir d'un régulateur 3,3V et d'un pont diviseur sur 3,3VB tel que : R1 = 220ohm R2 = 120ohm. Sur la partie filtrage on retrouve un condensateur chimique de 100uF associé à un 100nF 6,4V 
