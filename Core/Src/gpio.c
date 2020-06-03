@@ -33,11 +33,13 @@
 /** Configure pins
      PB5   ------> FDCAN2_RX
      PG11   ------> ETH_TX_EN
+     PA14 (JTCK/SWCLK)   ------> DEBUG_JTCK-SWCLK
      PH14   ------> FDCAN1_RX
      PC15-OSC32_OUT (OSC32_OUT)   ------> RCC_OSC32_OUT
      PC14-OSC32_IN (OSC32_IN)   ------> RCC_OSC32_IN
      PE2   ------> ETH_TXD3
      PG12   ------> ETH_TXD1
+     PA13 (JTMS/SWDIO)   ------> DEBUG_JTMS-SWDIO
      PE5   ------> SAI4_CK2
      PE4   ------> SAI4_D2
      PG13   ------> ETH_TXD0
@@ -78,8 +80,8 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOJ_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */

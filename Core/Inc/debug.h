@@ -1,13 +1,12 @@
 /**
   ******************************************************************************
-  * @file    mt48lc4m32b2_conf.h
-  * @author  MCD Application Team
-  * @brief   This file contains some configurations required for the
-  *          mt48lc4m32b2 SDRAM memory.
+  * File Name          : DEBUG.h
+  * Description        : This file provides code for the configuration
+  *                      of the DEBUG instances.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under BSD 3-Clause license,
@@ -17,49 +16,34 @@
   *
   ******************************************************************************
   */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef mt48lc4m32b2_CONF_H
-#define mt48lc4m32b2_CONF_H
-
+#ifndef __debug_H
+#define __debug_H
 #ifdef __cplusplus
  extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32h7xx_hal.h"
+#include "main.h"
 
-/** @addtogroup BSP
-  * @{
-  */
+/* USER CODE BEGIN Includes */
 
-/** @addtogroup Components
-  * @{
-  */
+/* USER CODE END Includes */
 
-/** @addtogroup mt48lc4m32b2
-  * @{
-  */
+/* USER CODE BEGIN Private defines */
 
-/** @addtogroup mt48lc4m32b2_Exported_Constants
-  * @{
-  */
-#define REFRESH_COUNT                    ((uint32_t)0x0603)   /* SDRAM refresh counter (100Mhz SD clock) */
+/* USER CODE END Private defines */
 
-#define MT48LC4M32B2_TIMEOUT             ((uint32_t)0xFFFF)
+void MX_DEBUG_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* mt48lc4m32b2_CONF_H */
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
+#endif /*__ debug_H */
 
 /**
   * @}

@@ -104,6 +104,8 @@ void Touchscreen_DrawBackground_Circles(uint8_t state);
 void Touchscreen_demo3(void);
 uint8_t TouchScreen_GetTouchPosition(void);
 
+int BSP_example(void);
+
 #endif /* __BSP_EXAMPLE_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

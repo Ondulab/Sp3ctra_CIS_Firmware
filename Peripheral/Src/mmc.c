@@ -18,7 +18,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "BSP_example.h"
+#include "main.h"
 
 /** @addtogroup STM32H7xx_HAL_Examples
   * @{

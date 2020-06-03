@@ -41,6 +41,7 @@
           <heapSize>0x400</heapSize>
           <stackSize>0x800</stackSize>
           <board>STM32H750B-DK</board>
+          <debugprobe>swd</debugprobe>
           <optimization/>
           <Aincludes>
             <include/>

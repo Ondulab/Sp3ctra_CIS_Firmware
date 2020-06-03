@@ -82,10 +82,13 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	/* Configure the MPU attributes as Write Through for SDRAM*/
 	MPU_Config();
-
-	/* Enable the CPU Cache */
-	CPU_CACHE_Enable();
   /* USER CODE END 1 */
+
+  /* Enable I-Cache---------------------------------------------------------*/
+  SCB_EnableICache();
+
+  /* Enable D-Cache---------------------------------------------------------*/
+  SCB_EnableDCache();
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -96,33 +99,13 @@ int main(void)
 
   /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
-
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_ADC1_Init();
-  MX_ADC2_Init();
-  MX_ADC3_Init();
-  MX_FMC_Init();
-  MX_QUADSPI_Init();
-  MX_RTC_Init();
-  MX_SAI2_Init();
-  MX_SDMMC1_MMC_Init();
-  MX_SPI2_Init();
-  MX_USART3_UART_Init();
-  MX_CRC_Init();
-  MX_DMA2D_Init();
-  MX_TIM8_Init();
-  MX_DAC1_Init();
-  MX_HRTIM_Init();
-  MX_TIM6_Init();
-  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
+    BSP_example();
 	paint();
   /* USER CODE END 2 */
 
@@ -246,15 +229,15 @@ static void CPU_CACHE_Enable(void)
 }
 
 /**
-  * @brief  Configure the MPU attributes as Write Through for External SDRAM.
-  * @note   The Base Address is 0xD0000000 .
-  *         The Configured Region Size is 32MB because same as SDRAM size.
+  * @brief  Configure the MPU attributes as Write Through for SDRAM.
+  * @note   The Base Address is SDRAM_DEVICE_ADDR.
+  *         The Region Size is 32MB.
   * @param  None
   * @retval None
   */
 static void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct;
+    MPU_Region_InitTypeDef MPU_InitStruct;
 
   /* Disable the MPU */
   HAL_MPU_Disable();
@@ -276,6 +259,7 @@ static void MPU_Config(void)
 
   /* Enable the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+
 }
 /* USER CODE END 4 */
 

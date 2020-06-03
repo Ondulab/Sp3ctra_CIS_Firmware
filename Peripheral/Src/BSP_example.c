@@ -45,14 +45,12 @@ __IO uint32_t SRAMTest = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 static void Display_DemoDescription(void);
-static void MPU_Config(void);
-static void CPU_CACHE_Enable(void);
 
 BSP_DemoTypedef  BSP_examples[]=
 {
   {Touchscreen_demo1, "TOUCHSCREEN DEMO1", 0},
-  {Touchscreen_demo2, "TOUCHSCREEN DEMO2", 0},
-  {LCD_demo, "LCD", 0},
+//  {Touchscreen_demo2, "TOUCHSCREEN DEMO2", 0},
+//  {LCD_demo, "LCD", 0},
   {AudioPlay_demo, "AUDIO PLAY", 0},
   {AudioRecord_demo, "AUDIO RECORD", 0},
   {MMC_demo, "MMC", 0},
@@ -68,27 +66,6 @@ BSP_DemoTypedef  BSP_examples[]=
   */
 int BSP_example(void)
 {
-  /* System Init, System clock, voltage scaling and L1-Cache configuration are done by CPU1 (Cortex-M7)
-     in the meantime Domain D2 is put in STOP mode(Cortex-M4 in deep-sleep)
-  */
-
-  /* Configure the MPU attributes as Write Through */
-  MPU_Config();
-
-  /* Enable the CPU Cache */
-  CPU_CACHE_Enable();
-
-  /* STM32H7xx HAL library initialization:
-       - Systick timer is configured by default as source of time base, but user
-         can eventually implement his proper time base source (a general purpose
-         timer for example or other time source), keeping in mind that Time base
-         duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and
-         handled in milliseconds basis.
-       - Set NVIC Group Priority to 4
-       - Low Level Initialization
-     */
-  HAL_Init();
-
   /* Configure the system clock to 400 MHz */
   SystemClock_Config();
 
@@ -285,82 +262,3 @@ void BSP_PB_Callback(Button_TypeDef Button)
     ButtonState = 1;
   }
 }
-
-#ifdef USE_FULL_ASSERT
-
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t* file, uint32_t line)
-{
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-
-  /* Infinite loop */
-  while (1)
-  {
-  }
-}
-#endif /* USE_FULL_ASSERT */
-
-/**
-  * @brief  Configure the MPU attributes as Write Through for SDRAM.
-  * @note   The Base Address is SDRAM_DEVICE_ADDR.
-  *         The Region Size is 32MB.
-  * @param  None
-  * @retval None
-  */
-static void MPU_Config(void)
-{
-    MPU_Region_InitTypeDef MPU_InitStruct;
-
-  /* Disable the MPU */
-  HAL_MPU_Disable();
-
-  /* Configure the MPU attributes as WT for SDRAM */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.BaseAddress = SDRAM_DEVICE_ADDR;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
-  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.SubRegionDisable = 0x00;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-  /* Enable the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
-
-}
-
-/**
-  * @brief  CPU L1-Cache enable.
-  * @param  None
-  * @retval None
-  */
-static void CPU_CACHE_Enable(void)
-{
-  /* Enable I-Cache */
-  SCB_EnableICache();
-
-  /* Enable D-Cache */
-  SCB_EnableDCache();
-}
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

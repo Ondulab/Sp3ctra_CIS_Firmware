@@ -48,8 +48,6 @@
 #include "stm32h7xx.h"
 #include <math.h>
 
-#define APPLICATION_ADDRESS 0x8000000UL
-
 #if !defined  (HSE_VALUE)
 #define HSE_VALUE    ((uint32_t)25000000) /*!< Value of the External oscillator in Hz */
 #endif /* HSE_VALUE */
