@@ -64,7 +64,6 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-static void CPU_CACHE_Enable(void);
 static void MPU_Config(void);
 /* USER CODE END PFP */
 
@@ -214,20 +213,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-/**
-  * @brief  CPU L1-Cache enable.
-  * @param  None
-  * @retval None
-  */
-static void CPU_CACHE_Enable(void)
-{
-  /* Enable I-Cache */
-  SCB_EnableICache();
-
-  /* Enable D-Cache */
-  SCB_EnableDCache();
-}
-
 /**
   * @brief  Configure the MPU attributes as Write Through for SDRAM.
   * @note   The Base Address is SDRAM_DEVICE_ADDR.

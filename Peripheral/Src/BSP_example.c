@@ -82,6 +82,8 @@ int BSP_example(void)
   GUI_SetFuncDriver(&LCD_Driver);
   Display_DemoDescription();
 
+  AudioPlay_demo();
+
   /* Wait For User inputs */
   while (1)
   {

@@ -25,6 +25,8 @@
 "Drivers/BSP/Components/ft5336/ft5336.o"
 "Drivers/BSP/Components/ft5336/ft5336_reg.o"
 "Drivers/BSP/Components/mt48lc4m32b2/mt48lc4m32b2.o"
+"Drivers/BSP/Components/wm8994/wm8994.o"
+"Drivers/BSP/Components/wm8994/wm8994_reg.o"
 "Drivers/BSP/STM32H750B-Discovery/stm32h750b_discovery.o"
 "Drivers/BSP/STM32H750B-Discovery/stm32h750b_discovery_audio.o"
 "Drivers/BSP/STM32H750B-Discovery/stm32h750b_discovery_bus.o"

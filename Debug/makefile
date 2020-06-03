@@ -12,6 +12,7 @@ RM := rm -rf
 -include Peripheral/Src/subdir.mk
 -include Drivers/STM32H7xx_HAL_Driver/Src/subdir.mk
 -include Drivers/BSP/STM32H750B-Discovery/subdir.mk
+-include Drivers/BSP/Components/wm8994/subdir.mk
 -include Drivers/BSP/Components/mt48lc4m32b2/subdir.mk
 -include Drivers/BSP/Components/ft5336/subdir.mk
 -include Core/Src/subdir.mk

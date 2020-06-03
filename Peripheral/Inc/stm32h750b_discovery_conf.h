@@ -1,12 +1,12 @@
 /**
   ******************************************************************************
-  * @file    stm32h750b_discovery_conf.h
+  * @file    stm32h745i_discovery_config.h
   * @author  MCD Application Team
-  * @brief   STM32H750B_DK board configuration file.
+  * @brief   STM32H745I-DISCO board(MB1381) configuration file.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under BSD 3-Clause license,
@@ -32,10 +32,10 @@
 #define USE_COM_LOG                         0U
 
 #define LCD_LAYER_0_ADDRESS                 0xD0000000U
-#define LCD_LAYER_1_ADDRESS                 0xD0130000U
-#define USE_DMA2D_TO_FILL_RGB_RECT          0U
+#define LCD_LAYER_1_ADDRESS                 0xD0200000U
+
 /* Audio codecs defines */
-#define USE_AUDIO_CODEC_WM8994              0U
+#define USE_AUDIO_CODEC_WM8994              1U
 
 /* Default Audio IN internal buffer size */
 #define DEFAULT_AUDIO_IN_BUFFER_SIZE        64U
@@ -46,9 +46,13 @@
 /* Default TS touch number */
 #define TS_TOUCH_NBR                        FT5336_MAX_NB_TOUCH
 
+
+
 /* IRQ priorities */
 #define BSP_SDRAM_IT_PRIORITY               15U
 #define BSP_BUTTON_USER_IT_PRIORITY         15U
+#define BSP_BUTTON_WAKEUP_IT_PRIORITY       15U
+#define BSP_BUTTON_TAMPER_IT_PRIORITY       15U
 #define BSP_AUDIO_OUT_IT_PRIORITY           14U
 #define BSP_AUDIO_IN_IT_PRIORITY            15U
 #define BSP_SD_IT_PRIORITY                  14U
