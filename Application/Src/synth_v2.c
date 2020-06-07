@@ -14,25 +14,33 @@
 #include "stdio.h"
 
 extern __IO uint32_t rfft_cnt;
+static void cisynth_v2_SetHint(uint32_t Index);
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+ * @brief  The application entry point.
+ * @retval int
+ */
 int synth_v2(void)
 {
-	HAL_EnableCompensationCell();
-	printf("Start CIS Demo\n");
-	synth_init();
-	cisInit();
+	cisynth_v2_SetHint(0);
+	uint8_t FreqStr[256] = {0};
 
-  /* Infinite loop */
+	printf("Start CIS Demo\n");
+
+	synth_init();
+	//	cisInit();
+
+	/* Infinite loop */
 	static int old_tick;
 	old_tick = HAL_GetTick();
-	//	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
-	//	{
-	//		cis_adc_data[idx] = 65534;
-	//	}
+
+//	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
+//	{
+//		cis_adc_data[idx] = 65534;
+//	}
+	cis_adc_data[100] = 16000;
+	cis_adc_data[200] = 8000;
+
 	while (1)
 	{
 		if (((HAL_GetTick() - old_tick)) < 1000)
@@ -45,8 +53,10 @@ int synth_v2(void)
 		else
 		{
 #ifdef DEBUG_SYNTH
-			printf("-----------------------------------------\n");
-			printf("rfft  cnt : %d\n", (int)rfft_cnt);
+		    sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt);
+			GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
+//			printf("-----------------------------------------\n");
+//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
 			rfft_cnt = 0;
 #endif
 #ifdef DEBUG_CIS
@@ -58,7 +68,42 @@ int synth_v2(void)
 			cis_dbg_cnt = 0;
 #endif
 
+			GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
+			for (int i = 0; i < LCD_DEFAULT_WIDTH; i++)
+			{
+				GUI_SetPixel(i, 25 + (audio_buff[i] >> 9) , GUI_COLOR_YELLOW);
+			}
 			old_tick = HAL_GetTick();
 		}
 	}
+}
+
+/**
+ * @brief  Display Audio demo hint
+ * @param  None
+ * @retval None
+ */
+static void cisynth_v2_SetHint(uint32_t Index)
+{
+	uint32_t x_size, y_size;
+
+	BSP_LCD_GetXSize(0, &x_size);
+	BSP_LCD_GetYSize(0, &y_size);
+
+	BSP_LCD_SetBrightness(0, 40);
+
+	/* Clear the LCD */
+	GUI_Clear(GUI_COLOR_DARKGRAY);
+
+	/* Set Audio Demo description */
+	GUI_FillRect(0, 0, x_size, 24, GUI_COLOR_DARKRED);
+	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
+	GUI_SetBackColor(GUI_COLOR_DARKRED);
+	GUI_SetFont(&Font24);
+	if(Index == 0)
+	{
+		GUI_DisplayStringAt(0, 0, (uint8_t *)"CISYNTH DEMO", CENTER_MODE);
+		GUI_SetFont(&Font12);
+	}
+	GUI_SetBackColor(GUI_COLOR_DARKGRAY);
 }

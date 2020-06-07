@@ -10,7 +10,6 @@
 #define __SYNTH_V2_H
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32h7xx_hal.h"
 
 /* Private defines -----------------------------------------------------------*/
 #define CIS_SP_Pin GPIO_PIN_4
@@ -24,5 +23,7 @@
 #define CIS_LED_B_GPIO_Port GPIOF
 #define CIS_LED_R_Pin GPIO_PIN_9
 #define CIS_LED_R_GPIO_Port GPIOF
+
+int synth_v2(void);
 
 #endif /* __SYNTH_V2_H */

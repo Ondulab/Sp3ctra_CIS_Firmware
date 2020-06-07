@@ -12,6 +12,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "config.h"
 #include "stdint.h"
+#include "synth.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -26,7 +27,10 @@ struct wave {
 #endif
 };
 
+#define  AUDIO_BUFFER_SIZE 4410
+
 extern volatile uint32_t rfft_cnt;
+extern volatile uint32_t audio_buff[AUDIO_BUFFER_SIZE];
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
