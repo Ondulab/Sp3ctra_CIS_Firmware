@@ -83,6 +83,7 @@ uint32_t OutputDevice = 0;
 /* Private function prototypes -----------------------------------------------*/
 int32_t initDacTimer(uint32_t freq);
 int32_t initSamplingTimer(uint32_t sampling_freq);
+static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -144,7 +145,23 @@ int32_t synth_init(void)
 		GUI_SetTextColor(GUI_COLOR_RED);
 	}
 
-//	BSP_AUDIO_OUT_Play(0, (uint8_t *)&audio_buff[0], AUDIO_BUFFER_SIZE);
+	uint32_t bytesread;
+
+	buffer_ctl.state = BUFFER_OFFSET_NONE;
+	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE;
+	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS;
+
+	bytesread = GetData( (uint32_t *)AUDIO_SRC_FILE_ADDRESS,
+			0,
+			&buffer_ctl.buff[0],
+			AUDIO_BUFFER_SIZE);
+	if(bytesread > 0)
+	{
+		BSP_AUDIO_OUT_Play(0,(uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
+		audio_state = AUDIO_STATE_PLAYING;
+		buffer_ctl.fptr = bytesread;
+		return AUDIO_ERROR_NONE;
+	}
 
 	if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
 	{
