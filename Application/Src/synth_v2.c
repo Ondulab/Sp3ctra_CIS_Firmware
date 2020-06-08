@@ -71,7 +71,7 @@ int synth_v2(void)
 			GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
 			for (int i = 0; i < LCD_DEFAULT_WIDTH; i++)
 			{
-				GUI_SetPixel(i, 25 + (audio_buff[i] >> 9) , GUI_COLOR_YELLOW);
+//				GUI_SetPixel(i, 25 + (audio_buff[i] >> 9) , GUI_COLOR_YELLOW);
 			}
 			old_tick = HAL_GetTick();
 		}

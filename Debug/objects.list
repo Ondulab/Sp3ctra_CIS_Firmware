@@ -77,8 +77,6 @@
 "Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_fmc.o"
 "Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_sdmmc.o"
 "Peripheral/Src/BSP_example.o"
-"Peripheral/Src/audio_play.o"
-"Peripheral/Src/audio_record.o"
 "Peripheral/Src/cis.o"
 "Peripheral/Src/lcd.o"
 "Peripheral/Src/mmc.o"
