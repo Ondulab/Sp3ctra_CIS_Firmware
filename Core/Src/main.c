@@ -118,7 +118,6 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
   synth_v2();
 //	AudioPlay_demo();

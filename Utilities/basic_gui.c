@@ -813,24 +813,24 @@ void GUI_FillPolygon(pPoint Points, uint32_t PointCount, uint32_t Color)
   image_left = image_right = Points->X;
   image_top= image_bottom = Points->Y;
 
-  for(counter = 1; counter < PointCount; counter++)
+  for(counter = 1; counter < (int16_t)PointCount; counter++)
   {
     pixel_x = POLY_X(counter);
-    if(pixel_x < image_left)
+    if(pixel_x < (int16_t)image_left)
     {
       image_left = pixel_x;
     }
-    if(pixel_x > image_right)
+    if(pixel_x > (int16_t)image_right)
     {
       image_right = pixel_x;
     }
 
     pixel_y = POLY_Y(counter);
-    if(pixel_y < image_top)
+    if(pixel_y < (int16_t)image_top)
     {
       image_top = pixel_y;
     }
-    if(pixel_y > image_bottom)
+    if(pixel_y > (int16_t)image_bottom)
     {
       image_bottom = pixel_y;
     }

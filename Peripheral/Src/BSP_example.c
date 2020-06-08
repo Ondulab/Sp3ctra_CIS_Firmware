@@ -51,8 +51,8 @@ BSP_DemoTypedef  BSP_examples[]=
   {Touchscreen_demo1, "TOUCHSCREEN DEMO1", 0},
   {Touchscreen_demo2, "TOUCHSCREEN DEMO2", 0},
   {LCD_demo, "LCD", 0},
-  {AudioPlay_demo, "AUDIO PLAY", 0},
-  {AudioRecord_demo, "AUDIO RECORD", 0},
+//  {AudioPlay_demo, "AUDIO PLAY", 0},
+//  {AudioRecord_demo, "AUDIO RECORD", 0},
   {MMC_demo, "MMC", 0},
   {SDRAM_demo, "SDRAM", 0},
   {SDRAM_DMA_demo, "SDRAM MDMA", 0}
@@ -82,7 +82,7 @@ int BSP_example(void)
   GUI_SetFuncDriver(&LCD_Driver);
   Display_DemoDescription();
 
-  AudioPlay_demo();
+//  AudioPlay_demo();
 
   /* Wait For User inputs */
   while (1)

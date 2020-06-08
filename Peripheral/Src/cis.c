@@ -369,7 +369,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			}
 			else
 			{
-				if (cis_adc_offset[pixel_cnt] > (temp_data / PIXEL_PER_COMMA))
+				if ((int32_t)cis_adc_offset[pixel_cnt] > (temp_data / PIXEL_PER_COMMA))
 				{
 					cis_adc_data[pixel_cnt] = cis_adc_offset[pixel_cnt] - (temp_data / PIXEL_PER_COMMA);
 				}

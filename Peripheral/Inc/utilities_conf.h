@@ -86,7 +86,7 @@ extern "C" {
 
 /* The max value of YWINDOW_SIZE is calculated as follow:
    ((LCD Height - HEADER FONT height - FOOTER FONT height)/ TEXT FONT height) - 1 */
-#define     YWINDOW_SIZE                         19U
+#define     YWINDOW_SIZE                         18U
 
 /******************************************************************************
  * ITM trace Configuration

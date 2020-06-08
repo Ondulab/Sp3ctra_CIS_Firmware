@@ -47,7 +47,7 @@ all: CISYNTH.elf secondary-outputs
 
 # Tool invocations
 CISYNTH.elf: $(OBJS) $(USER_OBJS) /mnt/data/Documents/Workspace_Cube/CISYNTH/CISYNTH.ld
-	arm-none-eabi-gcc -o "CISYNTH.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/mnt/data/Documents/Workspace_Cube/CISYNTH/CISYNTH.ld" --specs=nosys.specs -Wl,-Map="CISYNTH.map" -Wl,--gc-sections -static -L"/mnt/data/Documents/Workspace_Cube/CISYNTH/Addons/PDM/Lib" -u_printf_float --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "CISYNTH.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/mnt/data/Documents/Workspace_Cube/CISYNTH/CISYNTH.ld" --specs=nosys.specs -Wl,-Map="CISYNTH.map" -static -L"/mnt/data/Documents/Workspace_Cube/CISYNTH/Addons/PDM/Lib" -u_printf_float --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

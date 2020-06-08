@@ -347,7 +347,7 @@ UTIL_LCD_TRACE_Status_t UTIL_LCD_TRACE_ScrollBack(void)
 
     if(LcdTrace_Ctx.CacheBufferYptrBottom > LcdTrace_Ctx.CacheBufferYptrTop)
     {
-      if ((LcdTrace_Ctx.CacheBufferYptrBottom - LcdTrace_Ctx.CacheBufferYptrTop) <=  YWINDOW_SIZE)
+      if ((LcdTrace_Ctx.CacheBufferYptrBottom - LcdTrace_Ctx.CacheBufferYptrTop) <=  (uint16_t)YWINDOW_SIZE)
       {
         LcdTrace_Ctx.Lock = DISABLE;
         return UTIL_LCD_TRACE_ERROR;
@@ -369,7 +369,7 @@ UTIL_LCD_TRACE_Status_t UTIL_LCD_TRACE_ScrollBack(void)
 
     if(LcdTrace_Ctx.CacheBufferYptrBottom > LcdTrace_Ctx.CacheBufferYptrTop)
     {
-      if((LcdTrace_Ctx.CacheBufferYptrBottom  - LcdTrace_Ctx.CacheBufferYptrTop) <  YWINDOW_SIZE )
+      if((LcdTrace_Ctx.CacheBufferYptrBottom  - LcdTrace_Ctx.CacheBufferYptrTop) <  (uint16_t)YWINDOW_SIZE )
       {
         LcdTrace_Ctx.Lock = DISABLE;
         return UTIL_LCD_TRACE_ERROR;
@@ -416,7 +416,7 @@ UTIL_LCD_TRACE_Status_t UTIL_LCD_TRACE_ScrollForward(void)
       if(LcdTrace_Ctx.CacheBufferYptrBottom > LcdTrace_Ctx.CacheBufferYptrTop)
       {
 
-        if ((LcdTrace_Ctx.CacheBufferYptrBottom - LcdTrace_Ctx.CacheBufferYptrTop) <=  YWINDOW_SIZE)
+        if ((LcdTrace_Ctx.CacheBufferYptrBottom - LcdTrace_Ctx.CacheBufferYptrTop) <=  (uint16_t)YWINDOW_SIZE)
         {
           LcdTrace_Ctx.Lock = DISABLE;
           return UTIL_LCD_TRACE_ERROR;

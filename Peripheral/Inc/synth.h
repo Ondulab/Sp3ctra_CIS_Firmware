@@ -28,12 +28,14 @@ struct wave {
 };
 
 extern volatile uint32_t rfft_cnt;
+
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synth_init(void);
+uint32_t getBuffData(uint32_t index);
 
 /* Private defines -----------------------------------------------------------*/
 
