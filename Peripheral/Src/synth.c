@@ -68,7 +68,7 @@ volatile uint32_t rfft_cnt = 0;
 
 uint32_t bytesread;
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
-static uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
+static volatile uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
 static AUDIO_PLAYBACK_StateTypeDef  audio_state;
 __IO uint32_t uwVolume = 20;
 uint8_t ReadVol = 0;
@@ -127,6 +127,13 @@ int32_t synth_init(void)
 	//	while(1);
 #endif
 
+	if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
+	{
+		Error_Handler();
+	}
+
+	HAL_Delay(100);
+
 	uint32_t *AudioFreq_ptr;
 
 	AudioFreq_ptr = &AudioFreq[1]; //44K /*96K*/
@@ -149,7 +156,7 @@ int32_t synth_init(void)
 
 	buffer_ctl.state = BUFFER_OFFSET_NONE;
 	buffer_ctl.AudioFileSize = RFFT_BUFFER_SIZE;
-	buffer_ctl.SrcAddress = rfft_buff;
+	buffer_ctl.SrcAddress = (uint32_t*)rfft_buff;
 	//	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE; //HELLO MEN!
 	//	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS; //HELLO MEN!
 
@@ -161,10 +168,6 @@ int32_t synth_init(void)
 		audio_state = AUDIO_STATE_PLAYING;
 		buffer_ctl.fptr = bytesread;
 
-		if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
-		{
-			Error_Handler();
-		}
 		return 0;
 	}
 
@@ -227,11 +230,11 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 	//		Error_Handler();
 	//	}
 
-		//	/* Start channel 1 in Output compare mode */
-		if (HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
-		{
-			Error_Handler();
-		}
+	//	/* Start channel 1 in Output compare mode */
+	if (HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 #ifndef DEBUG_SAMPLE_RATE
 	if (HAL_TIM_Base_Start_IT(&htim15) != HAL_OK)
@@ -285,14 +288,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 	}
 
-		rfft = (signal_summation * ((double)max_power / signal_power_summation));
-		rfft_buff[audio_buff_idx] = rfft | (rfft << 16);
+	rfft = (signal_summation * ((double)max_power / signal_power_summation));
+	rfft_buff[audio_buff_idx] = rfft | (rfft << 16); //stéreo
+//	rfft_buff[audio_buff_idx] = rfft; //mono
+
 
 	++audio_buff_idx;
 
 	if (audio_buff_idx > RFFT_BUFFER_SIZE)
 	{
 		audio_buff_idx = 0;
+		HAL_TIM_Base_Stop_IT(&htim15); //for debug
 	}
 	//	printf ("%d\n",(uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 
@@ -311,11 +317,21 @@ static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t Nb
 	uint32_t ReadDataNbr;
 
 	ReadDataNbr = 0;
-	while(((offset + ReadDataNbr) < buffer_ctl.AudioFileSize) && (ReadDataNbr < NbrOfData))
+	while(ReadDataNbr < NbrOfData)
 	{
-		pbuf[ReadDataNbr]= lptr [offset + ReadDataNbr];
-		ReadDataNbr++;
+		if ((offset + ReadDataNbr) < buffer_ctl.AudioFileSize)
+		{
+			pbuf[ReadDataNbr]= lptr [offset + ReadDataNbr];
+			ReadDataNbr++;
+		}
+		else
+		{
+			offset = 0;
+			buffer_ctl.fptr = 0;
+		}
 	}
+
+	buffer_ctl.fptr = offset + ReadDataNbr;
 
 	return ReadDataNbr;
 }
@@ -338,17 +354,13 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
 		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
 		buffer_ctl.state = BUFFER_OFFSET_FULL;
 
-		bytesread = GetData((void *)buffer_ctl.SrcAddress,
-				buffer_ctl.fptr,
-				&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
-				AUDIO_BUFFER_SIZE / 2);
+		bytesread = GetData((void *)buffer_ctl.SrcAddress, buffer_ctl.fptr, &buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
 
 		if( bytesread > 0)
 		{
 			buffer_ctl.state = BUFFER_OFFSET_NONE;
-			buffer_ctl.fptr += 1024;
 			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE/2);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
 		}
 	}
 }
@@ -365,15 +377,11 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 		/* allows AUDIO_Process() to refill 1st part of the buffer  */
 		buffer_ctl.state = BUFFER_OFFSET_HALF;
 
-		bytesread = GetData((void *)buffer_ctl.SrcAddress,
-				buffer_ctl.fptr,
-				&buffer_ctl.buff[0],
-				AUDIO_BUFFER_SIZE / 2);
+		bytesread = GetData((void *)buffer_ctl.SrcAddress, buffer_ctl.fptr, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
 
 		if( bytesread > 0)
 		{
 			buffer_ctl.state = BUFFER_OFFSET_NONE;
-			buffer_ctl.fptr += 1024;
 			/* Clean Data Cache to update the content of the SRAM */
 			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
 		}

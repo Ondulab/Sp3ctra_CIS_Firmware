@@ -27,19 +27,19 @@ int synth_v2(void)
 
 	printf("Start CIS Demo\n");
 
+	//	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
+	//	{
+	//		cis_adc_data[idx] = 65534;
+	//	}
+	//	cis_adc_data[100] = 65000;
+	cis_adc_data[200] = 32000;
+
 	synth_init();
 	//	cisInit();
 
 	/* Infinite loop */
 	static int old_tick;
 	old_tick = HAL_GetTick();
-
-//	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
-//	{
-//		cis_adc_data[idx] = 65534;
-//	}
-	cis_adc_data[100] = 65000;
-	cis_adc_data[200] = 32000;
 
 	while (1)
 	{
@@ -53,10 +53,10 @@ int synth_v2(void)
 		else
 		{
 #ifdef DEBUG_SYNTH
-		    sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt);
+			sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt);
 			GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
-//			printf("-----------------------------------------\n");
-//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
+			//			printf("-----------------------------------------\n");
+			//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
 			rfft_cnt = 0;
 #endif
 #ifdef DEBUG_CIS
