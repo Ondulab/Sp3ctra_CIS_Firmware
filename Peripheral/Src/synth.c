@@ -34,6 +34,7 @@
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
 #define AUDIO_BUFFER_SIZE             2048
+#define RFFT_BUFFER_SIZE        	  AUDIO_BUFFER_SIZE * 10
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -52,7 +53,7 @@ typedef enum {
 }BUFFER_StateTypeDef;
 
 typedef struct {
-	uint8_t buff[AUDIO_BUFFER_SIZE * 4]; //x4 to transpose uin8 to uint32
+	uint8_t buff[AUDIO_BUFFER_SIZE];
 	uint32_t fptr;
 	BUFFER_StateTypeDef state;
 	uint32_t AudioFileSize;
@@ -64,10 +65,10 @@ typedef struct {
 static uint16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t rfft_cnt = 0;
-volatile uint16_t* rfft_buff_ptr;
 
 uint32_t bytesread;
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
+static uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
 static AUDIO_PLAYBACK_StateTypeDef  audio_state;
 __IO uint32_t uwVolume = 20;
 uint8_t ReadVol = 0;
@@ -95,7 +96,6 @@ static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t Nb
 int32_t synth_init(void)
 {
 	int32_t buffer_len = 0;
-	rfft_buff_ptr = (uint16_t *)&buffer_ctl.buff[0];
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -129,7 +129,7 @@ int32_t synth_init(void)
 
 	uint32_t *AudioFreq_ptr;
 
-	AudioFreq_ptr = &AudioFreq[0]; /*96K*/
+	AudioFreq_ptr = &AudioFreq[1]; //44K /*96K*/
 	uwVolume = 10;
 
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
@@ -148,28 +148,27 @@ int32_t synth_init(void)
 	uint32_t bytesread;
 
 	buffer_ctl.state = BUFFER_OFFSET_NONE;
-	buffer_ctl.AudioFileSize = AUDIO_BUFFER_SIZE;
-	buffer_ctl.SrcAddress = (uint32_t*)&buffer_ctl.buff[0];
-//	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE; //HELLO MEN!
-//	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS; //HELLO MEN!
+	buffer_ctl.AudioFileSize = RFFT_BUFFER_SIZE;
+	buffer_ctl.SrcAddress = rfft_buff;
+	//	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE; //HELLO MEN!
+	//	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS; //HELLO MEN!
 
-	bytesread = GetData( (uint32_t *)AUDIO_SRC_FILE_ADDRESS,
-			0,
-			&buffer_ctl.buff[0],
-			AUDIO_BUFFER_SIZE);
+	//	bytesread = GetData( (uint32_t *)AUDIO_SRC_FILE_ADDRESS, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE); //HELLO MEN!
+	bytesread = GetData( (void *)rfft_buff, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
 	if(bytesread > 0)
 	{
 		BSP_AUDIO_OUT_Play(0,(uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
 		audio_state = AUDIO_STATE_PLAYING;
 		buffer_ctl.fptr = bytesread;
+
+		if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
+		{
+			Error_Handler();
+		}
+		return 0;
 	}
 
-	if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
-	{
-		Error_Handler();
-	}
-
-	return 0;
+	return -1;
 }
 
 /**
@@ -179,7 +178,7 @@ int32_t synth_init(void)
  */
 uint16_t getBuffData(uint32_t index)
 {
-	return rfft_buff_ptr[index];
+	return rfft_buff[index];
 }
 
 /**
@@ -189,54 +188,26 @@ uint16_t getBuffData(uint32_t index)
  */
 int32_t initSamplingTimer(uint32_t sampling_freq)
 {
-//	TIM_OC_InitTypeDef sConfigOC;
-//
-//	uint32_t uwPrescalerValue = 0;
-//
-//	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
-//	uwPrescalerValue = (uint32_t)(SystemCoreClock / (4 * sampling_freq)) - 1;
-//
-//	/* Set TIMx instance */
-//	htim15.Instance = TIM15;
-//
-//	/* Initialize TIM15 peripheral as follows:
-//	       + Period = sampling_freq
-//	       + Prescaler = (SystemCoreClock/10000) - 1
-//	       + ClockDivision = 0
-//	       + Counter direction = Up
-//	 */
-//	htim15.Init.Period            = sampling_freq - 1;
-//	htim15.Init.Prescaler         = uwPrescalerValue;
-//	htim15.Init.ClockDivision     = 0;
-//	htim15.Init.CounterMode       = TIM_COUNTERMODE_UP;
-//	htim15.Init.RepetitionCounter = 0;
-//
-//	if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
-//	{
-//		/* Initialization Error */
-//		Error_Handler();
-//	}
-//
-//	/*##-2- Start the TIM Base generation in interrupt mode ####################*/
-//	/* Start Channel1 */
-//	if (HAL_TIM_Base_Start_IT(&htim15) != HAL_OK)
-//	{
-//		/* Starting Error */
-//		Error_Handler();
-//	}
-
 	TIM_OC_InitTypeDef sConfigOC;
 
 	uint32_t uwPrescalerValue = 0;
 
-	/* Compute the prescaler value */
-	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (sampling_freq));
+	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
+	uwPrescalerValue = (uint32_t)(SystemCoreClock / (4 * sampling_freq)) - 1;
 
+	/* Set TIMx instance */
 	htim15.Instance = TIM15;
-	htim15.Init.Prescaler = 0;
-	htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim15.Init.Period = uwPrescalerValue;
-	htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
+
+	/* Initialize TIM15 peripheral as follows:
+		       + Period = sampling_freq
+		       + Prescaler = (SystemCoreClock/10000) - 1
+		       + ClockDivision = 0
+		       + Counter direction = Up
+	 */
+	htim15.Init.Period            = 1;
+	htim15.Init.Prescaler         = uwPrescalerValue;
+	htim15.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+	htim15.Init.CounterMode       = TIM_COUNTERMODE_UP;
 	htim15.Init.RepetitionCounter = 0;
 	htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_OC_Init(&htim15) != HAL_OK)
@@ -244,23 +215,23 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 		Error_Handler();
 	}
 
-	sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-	sConfigOC.Pulse = uwPrescalerValue;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	if (HAL_TIM_OC_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	//	sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
+	//	sConfigOC.Pulse = uwPrescalerValue;
+	//	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	//	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+	//	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	//	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+	//	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+	//	if (HAL_TIM_OC_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 
-	//	/* Start channel 1 in Output compare mode */
-	if (HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+		//	/* Start channel 1 in Output compare mode */
+		if (HAL_TIM_OC_Start_IT(&htim15, TIM_CHANNEL_1) != HAL_OK)
+		{
+			Error_Handler();
+		}
 
 #ifndef DEBUG_SAMPLE_RATE
 	if (HAL_TIM_Base_Start_IT(&htim15) != HAL_OK)
@@ -287,8 +258,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	uint32_t max_power = 0;
 	static uint32_t audio_buff_idx = 0;
 
-//	if (htim != &htim15)
-//		return;
+	if (htim != &htim15)
+		return;
 
 	//Summation for all pixel
 	for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
@@ -313,10 +284,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 	}
 
-	rfft_buff_ptr[audio_buff_idx++] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
-	rfft_buff_ptr[audio_buff_idx++] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
+		uint32_t result = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
+		rfft_buff[audio_buff_idx] = result;
+	//	rfft_buff[audio_buff_idx] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) << 16);
 
-	if (audio_buff_idx > AUDIO_BUFFER_SIZE)
+	++audio_buff_idx;
+
+	if (audio_buff_idx > RFFT_BUFFER_SIZE)
 	{
 		audio_buff_idx = 0;
 	}
@@ -366,8 +340,8 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
 
 		bytesread = GetData((void *)buffer_ctl.SrcAddress,
 				buffer_ctl.fptr,
-				&buffer_ctl.buff[AUDIO_BUFFER_SIZE /2],
-				AUDIO_BUFFER_SIZE /2);
+				&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
+				AUDIO_BUFFER_SIZE / 2);
 
 		if( bytesread > 0)
 		{
@@ -394,14 +368,14 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 		bytesread = GetData((void *)buffer_ctl.SrcAddress,
 				buffer_ctl.fptr,
 				&buffer_ctl.buff[0],
-				AUDIO_BUFFER_SIZE /2);
+				AUDIO_BUFFER_SIZE / 2);
 
 		if( bytesread > 0)
 		{
 			buffer_ctl.state = BUFFER_OFFSET_NONE;
 			buffer_ctl.fptr += 1024;
 			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE/2);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
 		}
 	}
 }
