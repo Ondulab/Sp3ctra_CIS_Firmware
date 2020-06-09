@@ -35,7 +35,7 @@ extern volatile uint32_t rfft_cnt;
 
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synth_init(void);
-uint32_t getBuffData(uint32_t index);
+uint16_t getBuffData(uint32_t index);
 
 /* Private defines -----------------------------------------------------------*/
 

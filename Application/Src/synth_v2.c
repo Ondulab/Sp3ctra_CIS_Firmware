@@ -38,8 +38,8 @@ int synth_v2(void)
 //	{
 //		cis_adc_data[idx] = 65534;
 //	}
-	cis_adc_data[100] = 16000;
-	cis_adc_data[200] = 8000;
+	cis_adc_data[100] = 65000;
+	cis_adc_data[200] = 32000;
 
 	while (1)
 	{
@@ -71,7 +71,8 @@ int synth_v2(void)
 			GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
 			for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
 			{
-				GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
+				if ((getBuffData(i) >> 9) < 127)
+					GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
 			}
 			old_tick = HAL_GetTick();
 		}

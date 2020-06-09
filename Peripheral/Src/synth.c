@@ -33,7 +33,7 @@
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             4096
+#define AUDIO_BUFFER_SIZE             2048
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -64,7 +64,7 @@ typedef struct {
 static uint16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t rfft_cnt = 0;
-volatile uint32_t* rfft_buff_ptr;
+volatile uint16_t* rfft_buff_ptr;
 
 uint32_t bytesread;
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
@@ -95,7 +95,7 @@ static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t Nb
 int32_t synth_init(void)
 {
 	int32_t buffer_len = 0;
-	rfft_buff_ptr = (uint32_t *)&buffer_ctl.buff[0];
+	rfft_buff_ptr = (uint16_t *)&buffer_ctl.buff[0];
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -129,13 +129,13 @@ int32_t synth_init(void)
 
 	uint32_t *AudioFreq_ptr;
 
-	AudioFreq_ptr = &AudioFreq[1]; /*44K*/
-	uwVolume = 40;
+	AudioFreq_ptr = &AudioFreq[0]; /*96K*/
+	uwVolume = 10;
 
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
 	AudioPlayInit.ChannelsNbr = 2;
 	AudioPlayInit.SampleRate = *AudioFreq_ptr;
-	AudioPlayInit.BitsPerSample = AUDIO_RESOLUTION_32B;
+	AudioPlayInit.BitsPerSample = AUDIO_RESOLUTION_16B;
 	AudioPlayInit.Volume = uwVolume;
 
 
@@ -148,8 +148,10 @@ int32_t synth_init(void)
 	uint32_t bytesread;
 
 	buffer_ctl.state = BUFFER_OFFSET_NONE;
-	buffer_ctl.AudioFileSize = AUDIO_BUFFER_SIZE; //AUDIO_FILE_SIZE;
-	buffer_ctl.SrcAddress = (uint32_t*)&buffer_ctl.buff[0];//(uint32_t *)AUDIO_SRC_FILE_ADDRESS;
+	buffer_ctl.AudioFileSize = AUDIO_BUFFER_SIZE;
+	buffer_ctl.SrcAddress = (uint32_t*)&buffer_ctl.buff[0];
+//	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE; //HELLO MEN!
+//	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS; //HELLO MEN!
 
 	bytesread = GetData( (uint32_t *)AUDIO_SRC_FILE_ADDRESS,
 			0,
@@ -175,9 +177,9 @@ int32_t synth_init(void)
  * @param  index
  * @retval value
  */
-uint32_t getBuffData(uint32_t index)
+uint16_t getBuffData(uint32_t index)
 {
-	return (rfft_buff_ptr[index] & 0x0F);
+	return rfft_buff_ptr[index];
 }
 
 /**
@@ -311,7 +313,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 	}
 
-	rfft_buff_ptr[audio_buff_idx++] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));// + (uint32_t)(signal_summation * ((double)max_power / signal_power_summation));
+	rfft_buff_ptr[audio_buff_idx++] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
+	rfft_buff_ptr[audio_buff_idx++] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
 
 	if (audio_buff_idx > AUDIO_BUFFER_SIZE)
 	{

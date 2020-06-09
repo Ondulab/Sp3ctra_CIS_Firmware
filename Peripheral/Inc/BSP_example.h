@@ -72,8 +72,8 @@ typedef struct
 #define AUDIO_RECPDM_START_ADDR      (AUDIO_REC_START_ADDR+AUDIO_REC_TOTAL_SIZE)
 
 /* The Audio file is flashed with ST-Link Utility @ flash address =  AUDIO_SRC_FILE_ADDRESS */
-#define AUDIO_SRC_FILE_ADDRESS       0x90090000   /* Audio file address in flash */
-#define AUDIO_FILE_SIZE              0x70000
+#define AUDIO_SRC_FILE_ADDRESS       0x90080000   /* Audio file address in flash */
+#define AUDIO_FILE_SIZE              0x80000
 
 #define AUDIO_PLAY_SAMPLE        0
 #define AUDIO_PLAY_RECORDED      1
