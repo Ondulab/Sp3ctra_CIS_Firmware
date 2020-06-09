@@ -72,7 +72,7 @@ int synth_v2(void)
 			for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
 			{
 				if ((getBuffData(i) >> 9) < 127)
-					GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
+					GUI_SetPixel(i, 25 + (getBuffData(i * 4) >> 9) , GUI_COLOR_YELLOW);
 			}
 			old_tick = HAL_GetTick();
 		}

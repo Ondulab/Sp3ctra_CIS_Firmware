@@ -256,6 +256,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	uint32_t signal_power_summation = 0;
 	uint32_t new_idx;
 	uint32_t max_power = 0;
+	uint16_t rfft = 0;
 	static uint32_t audio_buff_idx = 0;
 
 	if (htim != &htim15)
@@ -284,9 +285,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 	}
 
-		uint32_t result = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)));
-		rfft_buff[audio_buff_idx] = result;
-	//	rfft_buff[audio_buff_idx] = ((uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) << 16);
+		rfft = (signal_summation * ((double)max_power / signal_power_summation));
+		rfft_buff[audio_buff_idx] = rfft | (rfft << 16);
 
 	++audio_buff_idx;
 
