@@ -33,9 +33,8 @@
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             2048
-#define RFFT_BUFFER_SIZE        	  AUDIO_BUFFER_SIZE * 10
-
+#define AUDIO_BUFFER_SIZE             4096
+#define RFFT_BUFFER_SIZE        	  (AUDIO_BUFFER_SIZE / 4)
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
@@ -68,9 +67,9 @@ volatile uint32_t rfft_cnt = 0;
 
 uint32_t bytesread;
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
-static volatile uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
+static uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
 static AUDIO_PLAYBACK_StateTypeDef  audio_state;
-__IO uint32_t uwVolume = 20;
+__IO uint32_t uwVolume = 15;
 uint8_t ReadVol = 0;
 __IO uint32_t uwPauseEnabledStatus = 0;
 uint32_t updown = 1;
@@ -127,17 +126,9 @@ int32_t synth_init(void)
 	//	while(1);
 #endif
 
-	if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
-	{
-		Error_Handler();
-	}
-
-	HAL_Delay(100);
-
 	uint32_t *AudioFreq_ptr;
 
 	AudioFreq_ptr = &AudioFreq[1]; //44K /*96K*/
-	uwVolume = 10;
 
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
 	AudioPlayInit.ChannelsNbr = 2;
@@ -157,10 +148,7 @@ int32_t synth_init(void)
 	buffer_ctl.state = BUFFER_OFFSET_NONE;
 	buffer_ctl.AudioFileSize = RFFT_BUFFER_SIZE;
 	buffer_ctl.SrcAddress = (uint32_t*)rfft_buff;
-	//	buffer_ctl.AudioFileSize = AUDIO_FILE_SIZE; //HELLO MEN!
-	//	buffer_ctl.SrcAddress = (uint32_t *)AUDIO_SRC_FILE_ADDRESS; //HELLO MEN!
 
-	//	bytesread = GetData( (uint32_t *)AUDIO_SRC_FILE_ADDRESS, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE); //HELLO MEN!
 	bytesread = GetData( (void *)rfft_buff, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
 	if(bytesread > 0)
 	{
@@ -168,6 +156,10 @@ int32_t synth_init(void)
 		audio_state = AUDIO_STATE_PLAYING;
 		buffer_ctl.fptr = bytesread;
 
+		//		if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
+		//		{
+		//			Error_Handler();
+		//		}
 		return 0;
 	}
 
@@ -253,58 +245,143 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void rfft(uint32_t *pdata, uint32_t NbrOfData)
 {
-	uint32_t signal_summation = 0;
-	uint32_t signal_power_summation = 0;
+	uint32_t signal_summation;
+	uint32_t signal_power_summation;
 	uint32_t new_idx;
-	uint32_t max_power = 0;
-	uint16_t rfft = 0;
-	static uint32_t audio_buff_idx = 0;
+	uint32_t max_power;
+	uint16_t rfft;
+	uint16_t reverse8bit;
 
-	if (htim != &htim15)
-		return;
+	uint32_t WriteDataNbr;
 
-	//Summation for all pixel
-	for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
+	WriteDataNbr = 0;
+	while(WriteDataNbr < NbrOfData)
 	{
-		//test for CIS presence
-		if (cis_adc_data[pix] > SENSIVITY_THRESHOLD)
+		signal_summation = 0;
+		signal_power_summation = 0;
+		max_power = 0;
+		rfft = 0;
+		//Summation for all pixel
+		for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
 		{
-			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
-			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-			new_idx = (waves[pix].current_idx + waves[pix].octave_coeff);
-			if (new_idx > waves[pix].aera_size)
-				new_idx -= waves[pix].aera_size;
+			//test for CIS presence
+			if (cis_adc_data[pix] > SENSIVITY_THRESHOLD)
+			{
+				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
+				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
+				new_idx = (waves[pix].current_idx + waves[pix].octave_coeff);
+				if (new_idx > waves[pix].aera_size)
+					new_idx -= waves[pix].aera_size;
 
-			waves[pix].current_idx = new_idx;
+				waves[pix].current_idx = new_idx;
 
-			signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * cis_adc_data[pix]) >> 16;
+				signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * cis_adc_data[pix]) >> 16;
 
-			//read equivalent power of current pixel
-			signal_power_summation += (cis_adc_data[pix]);
-			if (cis_adc_data[pix] > max_power)
-				max_power = cis_adc_data[pix];
+				//read equivalent power of current pixel
+				signal_power_summation += (cis_adc_data[pix]);
+				if (cis_adc_data[pix] > max_power)
+					max_power = cis_adc_data[pix];
+			}
 		}
-	}
 
-	rfft = (signal_summation * ((double)max_power / signal_power_summation));
-	rfft_buff[audio_buff_idx] = rfft | (rfft << 16); //stéreo
-//	rfft_buff[audio_buff_idx] = rfft; //mono
-
-
-	++audio_buff_idx;
-
-	if (audio_buff_idx > RFFT_BUFFER_SIZE)
-	{
-		audio_buff_idx = 0;
-		HAL_TIM_Base_Stop_IT(&htim15); //for debug
+		rfft = (signal_summation * ((double)max_power / signal_power_summation));
+		pdata[WriteDataNbr] = rfft | (rfft << 16); //stereo
+		//	rfft_buff[audio_buff_idx] = rfft; //mono
+		WriteDataNbr++;
 	}
 	//	printf ("%d\n",(uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 
-	++rfft_cnt;
+	rfft_cnt += NbrOfData;
 }
 #pragma GCC pop_options
+
+/**
+ * @brief  Manages Audio process.
+ * @param  None
+ * @retval Audio error
+ *
+ *                   |------------------------------|------------------------------|
+ *                   |half rfft buffer to audio buff|                              |
+ * audio buffer      |------------FILL--------------|-------------PLAY-------------|
+ *                   |                              |                              |
+ *                   |                              |     fill half rfft buffer    |
+ *                   |                              |                              |
+ *                   |------------------------------|------------------------------|
+ *                                                  ^
+ *                                                HALF
+ *                                              COMPLETE
+ *
+ *                   |------------------------------|------------------------------|
+ *                   |                              |full rfft buffer to audio buff|
+ * audio buffer      |-------------PLAY-------------|-------------FILL-------------|
+ *                   |                              |                              |
+ *                   |     fill full rfft buffer    |                              |
+ *                   |                              |                              |
+ *                   |------------------------------|------------------------------|
+ *                                                                                 ^
+ *                                                                                FULL
+ *                                                                              COMPLETE
+ */
+uint8_t AUDIO_Process(void)
+{
+	uint32_t bytesread;
+	AUDIO_ErrorTypeDef error_state = AUDIO_ERROR_NONE;
+
+	switch(audio_state)
+	{
+	case AUDIO_STATE_PLAYING:
+
+		if(buffer_ctl.fptr >= (buffer_ctl.AudioFileSize * 4))
+		{
+			/* Play audio sample again ... */
+			buffer_ctl.fptr = 0;
+			error_state = AUDIO_ERROR_EOF;
+		}
+
+		/* 1st half buffer played; so fill it and continue playing from bottom*/
+		if(buffer_ctl.state == BUFFER_OFFSET_HALF)
+		{
+			bytesread = GetData((void *)buffer_ctl.SrcAddress,
+					buffer_ctl.fptr,
+					&buffer_ctl.buff[0],
+					AUDIO_BUFFER_SIZE / 2);
+
+			if( bytesread > 0)
+			{
+				buffer_ctl.state = BUFFER_OFFSET_NONE;
+				buffer_ctl.fptr += bytesread;
+				/* Clean Data Cache to update the content of the SRAM */
+				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
+				rfft((uint32_t*)&rfft_buff[0], RFFT_BUFFER_SIZE / 2);
+			}
+		}
+
+		/* 2nd half buffer played; so fill it and continue playing from top */
+		if(buffer_ctl.state == BUFFER_OFFSET_FULL)
+		{
+			bytesread = GetData((void *)buffer_ctl.SrcAddress,
+					buffer_ctl.fptr,
+					&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
+					AUDIO_BUFFER_SIZE / 2);
+			if( bytesread > 0)
+			{
+				buffer_ctl.state = BUFFER_OFFSET_NONE;
+				buffer_ctl.fptr += bytesread;
+				/* Clean Data Cache to update the content of the SRAM */
+				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
+				rfft((uint32_t*)&rfft_buff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
+			}
+		}
+		break;
+
+	default:
+		error_state = AUDIO_ERROR_NOTREADY;
+		break;
+	}
+	return (uint8_t) error_state;
+}
 
 /**
  * @brief  Gets Data from storage unit.
@@ -317,21 +394,11 @@ static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t Nb
 	uint32_t ReadDataNbr;
 
 	ReadDataNbr = 0;
-	while(ReadDataNbr < NbrOfData)
+	while(((offset + ReadDataNbr) < (buffer_ctl.AudioFileSize * 4)) && (ReadDataNbr < NbrOfData))
 	{
-		if ((offset + ReadDataNbr) < buffer_ctl.AudioFileSize)
-		{
-			pbuf[ReadDataNbr]= lptr [offset + ReadDataNbr];
-			ReadDataNbr++;
-		}
-		else
-		{
-			offset = 0;
-			buffer_ctl.fptr = 0;
-		}
+		pbuf[ReadDataNbr]= lptr [offset + ReadDataNbr];
+		ReadDataNbr++;
 	}
-
-	buffer_ctl.fptr = offset + ReadDataNbr;
 
 	return ReadDataNbr;
 }
@@ -353,15 +420,6 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
 	{
 		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
 		buffer_ctl.state = BUFFER_OFFSET_FULL;
-
-		bytesread = GetData((void *)buffer_ctl.SrcAddress, buffer_ctl.fptr, &buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
-
-		if( bytesread > 0)
-		{
-			buffer_ctl.state = BUFFER_OFFSET_NONE;
-			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
-		}
 	}
 }
 
@@ -376,15 +434,6 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 	{
 		/* allows AUDIO_Process() to refill 1st part of the buffer  */
 		buffer_ctl.state = BUFFER_OFFSET_HALF;
-
-		bytesread = GetData((void *)buffer_ctl.SrcAddress, buffer_ctl.fptr, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
-
-		if( bytesread > 0)
-		{
-			buffer_ctl.state = BUFFER_OFFSET_NONE;
-			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
-		}
 	}
 }
 

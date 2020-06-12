@@ -27,12 +27,10 @@ int synth_v2(void)
 
 	printf("Start CIS Demo\n");
 
-	//	for (uint32_t idx = 0; idx < CIS_PIXELS_NB; idx++)
-	//	{
-	//		cis_adc_data[idx] = 65534;
-	//	}
-	//	cis_adc_data[100] = 65000;
-	cis_adc_data[200] = 32000;
+	cis_adc_data[30] = 32000;
+	cis_adc_data[10] = 32000;
+	cis_adc_data[5] = 32000;
+	cis_adc_data[40] = 32000;
 
 	synth_init();
 	//	cisInit();
@@ -43,17 +41,14 @@ int synth_v2(void)
 
 	while (1)
 	{
-		if (((HAL_GetTick() - old_tick)) < 1000)
+		if (((HAL_GetTick() - old_tick)) < 100)
 		{
-#ifdef DEBUG_SAMPLE_RATE
-			HAL_TIM_PeriodElapsedCallback(&htim15);
-#endif
 
 		}
 		else
 		{
 #ifdef DEBUG_SYNTH
-			sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt);
+			sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt * 10);
 			GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
 			//			printf("-----------------------------------------\n");
 			//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
@@ -71,9 +66,21 @@ int synth_v2(void)
 			GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
 			for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
 			{
-				if ((getBuffData(i) >> 9) < 127)
-					GUI_SetPixel(i, 25 + (getBuffData(i * 4) >> 9) , GUI_COLOR_YELLOW);
+				GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
 			}
+
+//			static uint32_t idx = 0;
+//			++idx;
+//
+//			cis_adc_data[idx - 1] = 0;
+//			cis_adc_data[idx] = 16000;
+//
+//			if (idx >= 30)
+//			{
+//				cis_adc_data[idx] = 0;
+//				idx = 0;
+//			}
+
 			old_tick = HAL_GetTick();
 		}
 	}
