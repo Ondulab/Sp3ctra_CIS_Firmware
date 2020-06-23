@@ -293,7 +293,7 @@ void rfft(uint32_t *pdata, uint32_t NbrOfData)
 	}
 	//	printf ("%d\n",(uint32_t)(signal_summation * ((double)max_power / signal_power_summation)) >> 4);
 
-	rfft_cnt += NbrOfData;
+	rfft_cnt += WriteDataNbr;
 }
 #pragma GCC pop_options
 

@@ -38,7 +38,7 @@
 void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+void MX_GPIO_Init2(void);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

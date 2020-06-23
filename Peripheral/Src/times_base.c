@@ -14,7 +14,6 @@
 #include "stdio.h"
 #include "math.h"
 
-#include "hrtim.h"
 #include "tim.h"
 
 #include "cis.h"

@@ -24,9 +24,7 @@
 #include "crc.h"
 #include "dac.h"
 #include "dma2d.h"
-#include "hrtim.h"
 #include "ltdc.h"
-#include "quadspi.h"
 #include "rtc.h"
 #include "sai.h"
 #include "sdmmc.h"
@@ -100,6 +98,16 @@ int main(void)
   /* Configure the system clock to 400 MHz */
   SystemClock_Config_2();
 
+  /* USER CODE END Init */
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+//  MX_ADC1_Init();
+  MX_TIM1_Init();
+  /* USER CODE BEGIN 2 */
   /* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
      HSEM notification or by any D2 wakeup source (SEV,EXTI..)   */
 
@@ -111,14 +119,7 @@ int main(void)
 
   BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
   GUI_SetFuncDriver(&LCD_Driver);
-  /* USER CODE END Init */
 
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  /* USER CODE BEGIN 2 */
   synth_v2();
 //	AudioPlay_demo();
 	//	BSP_example();
@@ -194,10 +195,9 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_LTDC
-                              |RCC_PERIPHCLK_HRTIM1|RCC_PERIPHCLK_USART3
-                              |RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_SAI2
-                              |RCC_PERIPHCLK_SDMMC|RCC_PERIPHCLK_ADC
-                              |RCC_PERIPHCLK_QSPI|RCC_PERIPHCLK_FMC;
+                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_SPI2
+                              |RCC_PERIPHCLK_SAI2|RCC_PERIPHCLK_SDMMC
+                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_FMC;
   PeriphClkInitStruct.PLL2.PLL2M = 2;
   PeriphClkInitStruct.PLL2.PLL2N = 12;
   PeriphClkInitStruct.PLL2.PLL2P = 1;
@@ -215,14 +215,12 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
   PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
   PeriphClkInitStruct.FmcClockSelection = RCC_FMCCLKSOURCE_D1HCLK;
-  PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_D1HCLK;
   PeriphClkInitStruct.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
   PeriphClkInitStruct.Sai23ClockSelection = RCC_SAI23CLKSOURCE_PLL;
   PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL;
   PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLL2;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
-  PeriphClkInitStruct.Hrtim1ClockSelection = RCC_HRTIM1CLK_TIMCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();

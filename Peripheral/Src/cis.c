@@ -11,7 +11,6 @@
 #include "config.h"
 #include "basetypes.h"
 #include "tim.h"
-#include "hrtim.h"
 #include "adc.h"
 #include "dac.h"
 
@@ -56,11 +55,11 @@ void cisInit(void)
 	cisADC_Init();
 	cisTIM_Init(CIS_CLK_FREQ);
 	HAL_Delay(100);
-	cisCalibration();
+	//	cisCalibration();
 
 	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_SET);
 }
 
 void cisCalibration(void)
@@ -92,7 +91,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if (GPIO_Pin != GPIO_PIN_13)
 		return;
 
-//	cisCalibration();
+	//	cisCalibration();
 }
 
 /**
@@ -102,55 +101,45 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
  */
 int32_t cisTIM_Init(uint32_t cis_clk_freq)
 {
-	HRTIM_ADCTriggerCfgTypeDef pADCTriggerCfg = {0};
-	HRTIM_TimeBaseCfgTypeDef pTimeBaseCfg = {0};
-	HRTIM_SimplePWMChannelCfgTypeDef pSimplePWMChannelCfg = {0};
+	/* Timer Output Compare Configuration Structure declaration */
+	TIM_OC_InitTypeDef sConfig;
 
+	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
 
-	uwPrescalerValue = (uint32_t) ((SystemCoreClock / 2) / (cis_clk_freq));
+	/* Compute the prescaler value to have TIM1 counter clock equal to 20 MHz */
+	uwPrescalerValue = (uint32_t)((SystemCoreClock / 2 / cis_clk_freq / 4) - 1); //cis_clk_freq
 
-	hhrtim.Instance = HRTIM1;
-	hhrtim.Init.HRTIMInterruptResquests = HRTIM_IT_NONE;
-	hhrtim.Init.SyncOptions = HRTIM_SYNCOPTION_NONE;
-	if (HAL_HRTIM_Init(&hhrtim) != HAL_OK)
+	htim1.Instance = TIM1;
+
+	htim1.Init.Period        = 1;
+	htim1.Init.Prescaler     = uwPrescalerValue;
+	htim1.Init.ClockDivision = 0;
+	htim1.Init.CounterMode   = TIM_COUNTERMODE_UP;
+	if(HAL_TIM_OC_Init(&htim1) != HAL_OK)
 	{
-		Error_Handler();
-	}
-	pADCTriggerCfg.UpdateSource = HRTIM_ADCTRIGGERUPDATE_TIMER_A;
-	pADCTriggerCfg.Trigger = HRTIM_ADCTRIGGEREVENT13_TIMERA_PERIOD;
-	if (HAL_HRTIM_ADCTriggerConfig(&hhrtim, HRTIM_ADCTRIGGER_1, &pADCTriggerCfg) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/*-------------------------------------------------------------------------------------*/
-	pTimeBaseCfg.Period = uwPrescalerValue;
-	pTimeBaseCfg.RepetitionCounter = 0;
-	pTimeBaseCfg.PrescalerRatio = HRTIM_PRESCALERRATIO_DIV1;
-	pTimeBaseCfg.Mode = HRTIM_MODE_CONTINUOUS;
-	if (HAL_HRTIM_TimeBaseConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, &pTimeBaseCfg) != HAL_OK)
-	{
+		/* Initialization Error */
 		Error_Handler();
 	}
 
-	pTimeBaseCfg.Period = uwPrescalerValue;
+	/*##-2- Configure the Output Compare channels ##############################*/
+	/* Common configuration for all channels */
+	sConfig.OCMode     = TIM_OCMODE_TOGGLE;
+	sConfig.OCPolarity = TIM_OCPOLARITY_LOW;
 
-	/*-------------------------------------------------------------------------------------*/
-	pSimplePWMChannelCfg.Pulse = (CIS_CLK_DUTY * uwPrescalerValue) / 100;
-	pSimplePWMChannelCfg.Polarity = HRTIM_OUTPUTPOLARITY_LOW;
-	pSimplePWMChannelCfg.IdleLevel = HRTIM_OUTPUTIDLELEVEL_ACTIVE;
-	if (HAL_HRTIM_SimplePWMChannelConfig(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1, &pSimplePWMChannelCfg) != HAL_OK)
+	/* Output Compare Toggle Mode configuration: Channel1 */
+	sConfig.Pulse = 1;
+	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfig, TIM_CHANNEL_1) != HAL_OK)
 	{
+		/* Configuration Error */
 		Error_Handler();
 	}
 
-	/*-------------------------------------------------------------------------------------*/
-//	HAL_HRTIM_MspPostInit(&hhrtim);
-	HAL_HRTIM_MspInit(&hhrtim);
-
-	/*##-7- Start PWM signals generation ########################################################*/
-	if (HAL_HRTIM_SimplePWMStart(&hhrtim, HRTIM_TIMERINDEX_TIMER_A, HRTIM_OUTPUT_TA1) != HAL_OK)
+	/*##-3- Start signals generation #######################################*/
+	/* Start channel 1 in Output compare mode */
+	if(HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1) != HAL_OK)
 	{
+		/* Starting Error */
 		Error_Handler();
 	}
 
@@ -162,9 +151,16 @@ void cisADC_Init(void)
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef sConfig = {0};
 
-	/* Common config */
+	if (HAL_ADC_DeInit(&hadc1) != HAL_OK)
+	{
+		/* ADC de-initialization Error */
+		Error_Handler();
+	}
+
+	/** Common config
+	 */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV16;
 	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
 	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
@@ -172,8 +168,8 @@ void cisADC_Init(void)
 	hadc1.Init.ContinuousConvMode = DISABLE;
 	hadc1.Init.NbrOfConversion = 1;
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
-	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_HR1_ADCTRG1;
-	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_FALLING;
+	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
+	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
@@ -182,25 +178,27 @@ void cisADC_Init(void)
 	{
 		Error_Handler();
 	}
-	/* Configure the ADC multi-mode */
+
+	/** Configure the ADC multi-mode
+	 */
 	multimode.Mode = ADC_MODE_INDEPENDENT;
 	if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
 	{
 		Error_Handler();
 	}
-	/* Configure Regular Channel */
-	sConfig.Channel = ADC_CHANNEL_5;
+	/** Configure Regular Channel
+	 */
+	sConfig.Channel = ADC_CHANNEL_0;
 	sConfig.Rank = ADC_REGULAR_RANK_1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+	sConfig.SamplingTime = ADC_SAMPLETIME_32CYCLES_5;
 	sConfig.SingleDiff = ADC_SINGLE_ENDED;
 	sConfig.OffsetNumber = ADC_OFFSET_NONE;
 	sConfig.Offset = 0;
-	sConfig.OffsetRightShift = DISABLE;
-	sConfig.OffsetSignedSaturation = DISABLE;
 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
 	{
 		Error_Handler();
 	}
+
 	/* ### Start calibration ############################################ */
 	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
 	{
@@ -215,48 +213,48 @@ void cisADC_Init(void)
 	/*******************************************************************************************/
 	/** Common config
 	 */
-//	hadc2.Instance = ADC2;
-//	hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
-//	hadc2.Init.Resolution = ADC_RESOLUTION_16B;
-//	hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
-//	hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-//	hadc2.Init.LowPowerAutoWait = DISABLE;
-//	hadc2.Init.ContinuousConvMode = DISABLE;
-//	hadc2.Init.NbrOfConversion = 1;
-//	hadc2.Init.DiscontinuousConvMode = DISABLE;
-//	hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIG_HR1_ADCTRG1;
-//	hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_FALLING;
-//	hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
-//	hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
-//	hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-//	hadc2.Init.OversamplingMode = DISABLE;
-//	if (HAL_ADC_Init(&hadc2) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-//	/** Configure Regular Channel
-//	 */
-//	sConfig.Channel = ADC_CHANNEL_9;
-//	sConfig.Rank = ADC_REGULAR_RANK_1;
-//	sConfig.SamplingTime = ADC_SAMPLETIME_8CYCLES_5;
-//	sConfig.SingleDiff = ADC_SINGLE_ENDED;
-//	sConfig.OffsetNumber = ADC_OFFSET_NONE;
-//	sConfig.Offset = 0;
-//	if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-//	/* ### Start calibration ############################################ */
-//	if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	//	hadc2.Instance = ADC2;
+	//	hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
+	//	hadc2.Init.Resolution = ADC_RESOLUTION_16B;
+	//	hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
+	//	hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	//	hadc2.Init.LowPowerAutoWait = DISABLE;
+	//	hadc2.Init.ContinuousConvMode = DISABLE;
+	//	hadc2.Init.NbrOfConversion = 1;
+	//	hadc2.Init.DiscontinuousConvMode = DISABLE;
+	//	hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIG_HR1_ADCTRG1;
+	//	hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_FALLING;
+	//	hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
+	//	hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+	//	hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
+	//	hadc2.Init.OversamplingMode = DISABLE;
+	//	if (HAL_ADC_Init(&hadc2) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
+	//	/** Configure Regular Channel
+	//	 */
+	//	sConfig.Channel = ADC_CHANNEL_9;
+	//	sConfig.Rank = ADC_REGULAR_RANK_1;
+	//	sConfig.SamplingTime = ADC_SAMPLETIME_8CYCLES_5;
+	//	sConfig.SingleDiff = ADC_SINGLE_ENDED;
+	//	sConfig.OffsetNumber = ADC_OFFSET_NONE;
+	//	sConfig.Offset = 0;
+	//	if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
+	//	/* ### Start calibration ############################################ */
+	//	if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 
-//	/* ### Start conversion in DMA mode ################################# */
-//	if (HAL_ADC_Start(&hadc2) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	//	/* ### Start conversion in DMA mode ################################# */
+	//	if (HAL_ADC_Start(&hadc2) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 }
 
 #define CIS_SP_TICK 				(2)
@@ -271,8 +269,8 @@ void cisADC_Init(void)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-//	if (hadc != &hadc1)
-//		return;
+	//	if (hadc != &hadc1)
+	//		return;
 
 #ifdef DEBUG_CIS
 	++cis_dbg_cnt;
@@ -348,7 +346,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		//		}
 		//		else
 		//		{
-//					++cnt;
+		//					++cnt;
 		//		}
 		break;
 	case DATA_ZONE:

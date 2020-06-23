@@ -14,7 +14,20 @@
       <ProjectName>CISYNTH</ProjectName>
       <ProjectNature>C</ProjectNature>
       <Secure/>
-      <filestoremove/>
+      <filestoremove>
+        <file>
+          <name>Core/Src/hrtim.c</name>
+        </file>
+        <file>
+          <name>Core/Src/quadspi.c</name>
+        </file>
+        <file>
+          <name>Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_hrtim.c</name>
+        </file>
+        <file>
+          <name>Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_qspi.c</name>
+        </file>
+      </filestoremove>
       <sourceEntriesToRemove>
         <sourceEntry/>
       </sourceEntriesToRemove>

@@ -40,14 +40,14 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(1000000)	//3,5MHz in hertz
-#define CIS_CLK_DUTY		(50)		//in percent
+#define CIS_CLK_FREQ		(3500000)	//3,5MHz in hertz
 #define CIS_RESOLUTION      (65535)   	//in decimal
-#define CIS_PIXELS_NB		(514)		//5148 active pixels
+#define CIS_PIXELS_NB		(5148)		//5148 active pixels
+#define CIS_CLK_DUTY		(10)
 
-#define CIS_CAL_CLK_CNT   	(12)  		//12 fixed by manufacturer
-#define CIS_INIT_CLK_CNT   	(69)		//69 wait clock after SP
-#define CIS_END_CLK_CNT   	(1)		//2394 wait clock after capture
+#define CIS_CAL_CLK_CNT   	(12)  		//fixed by manufacturer
+#define CIS_INIT_CLK_CNT   	(69)		//wait clock after SP
+#define CIS_END_CLK_CNT   	(100)		//2394 wait clock after capture
 
 #define CIS_CAL_CYCLE		(10)		//number of cis cycle to read max pixel value
 
@@ -55,11 +55,11 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION (65535)   	//in decimal
-#define START_FREQUENCY     (70)  	//FA 1
-#define MAX_OCTAVE_NUMBER   (8)
+#define START_FREQUENCY     (60)  	//FA 1
+#define MAX_OCTAVE_NUMBER   (10)
 #define SEMITONE_PER_OCTAVE (12)
-#define COMMA_PER_SEMITONE  (1)		//4.5
-#define PIXEL_PER_COMMA     (12)        //12
+#define COMMA_PER_SEMITONE  (4.5)		//4.5
+#define PIXEL_PER_COMMA     (14)        //12
 
 #define NUMBER_OF_NOTES     ((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 

@@ -27,13 +27,13 @@ int synth_v2(void)
 
 	printf("Start CIS Demo\n");
 
-	cis_adc_data[30] = 32000;
-	cis_adc_data[10] = 32000;
-	cis_adc_data[5] = 32000;
-	cis_adc_data[40] = 32000;
+//	for(int i = 0; i < NUMBER_OF_NOTES; i+=100) //NUMBER_OF_NOTES
+//	{
+//		cis_adc_data[i] = 30000;
+//	}
 
+	cisInit();
 	synth_init();
-	//	cisInit();
 
 	/* Infinite loop */
 	static int old_tick;
@@ -69,17 +69,17 @@ int synth_v2(void)
 				GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
 			}
 
-//			static uint32_t idx = 0;
-//			++idx;
-//
-//			cis_adc_data[idx - 1] = 0;
-//			cis_adc_data[idx] = 16000;
-//
-//			if (idx >= 30)
-//			{
-//				cis_adc_data[idx] = 0;
-//				idx = 0;
-//			}
+			//			static uint32_t idx = 0;
+			//			++idx;
+			//
+			//			cis_adc_data[idx - 1] = 0;
+			//			cis_adc_data[idx] = 16000;
+			//
+			//			if (idx >= 30)
+			//			{
+			//				cis_adc_data[idx] = 0;
+			//				idx = 0;
+			//			}
 
 			old_tick = HAL_GetTick();
 		}
