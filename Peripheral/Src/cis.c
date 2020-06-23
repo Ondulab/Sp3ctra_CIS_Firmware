@@ -137,7 +137,7 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 
 	/*##-3- Start signals generation #######################################*/
 	/* Start channel 1 in Output compare mode */
-	if(HAL_TIM_OC_Start_IT(&htim1, TIM_CHANNEL_1) != HAL_OK)
+	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
 	{
 		/* Starting Error */
 		Error_Handler();
@@ -160,7 +160,7 @@ void cisADC_Init(void)
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV16;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
 	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
 	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
@@ -173,12 +173,11 @@ void cisADC_Init(void)
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-	hadc1.Init.OversamplingMode = DISABLE;
+	hadc1.Init.OversamplingMode = ENABLE;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();
 	}
-
 	/** Configure the ADC multi-mode
 	 */
 	multimode.Mode = ADC_MODE_INDEPENDENT;
@@ -188,9 +187,9 @@ void cisADC_Init(void)
 	}
 	/** Configure Regular Channel
 	 */
-	sConfig.Channel = ADC_CHANNEL_0;
+	sConfig.Channel = ADC_CHANNEL_1;
 	sConfig.Rank = ADC_REGULAR_RANK_1;
-	sConfig.SamplingTime = ADC_SAMPLETIME_32CYCLES_5;
+	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
 	sConfig.SingleDiff = ADC_SINGLE_ENDED;
 	sConfig.OffsetNumber = ADC_OFFSET_NONE;
 	sConfig.Offset = 0;
@@ -199,62 +198,19 @@ void cisADC_Init(void)
 		Error_Handler();
 	}
 
+	HAL_ADC_Stop(&hadc1);
+
 	/* ### Start calibration ############################################ */
 	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	/* ### Start conversion in DMA mode ################################# */
+	/* ### Start conversion in IT mode ################################# */
 	if (HAL_ADC_Start_IT(&hadc1) != HAL_OK)
 	{
 		Error_Handler();
 	}
-	/*******************************************************************************************/
-	/** Common config
-	 */
-	//	hadc2.Instance = ADC2;
-	//	hadc2.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
-	//	hadc2.Init.Resolution = ADC_RESOLUTION_16B;
-	//	hadc2.Init.ScanConvMode = ADC_SCAN_DISABLE;
-	//	hadc2.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-	//	hadc2.Init.LowPowerAutoWait = DISABLE;
-	//	hadc2.Init.ContinuousConvMode = DISABLE;
-	//	hadc2.Init.NbrOfConversion = 1;
-	//	hadc2.Init.DiscontinuousConvMode = DISABLE;
-	//	hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIG_HR1_ADCTRG1;
-	//	hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_FALLING;
-	//	hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
-	//	hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
-	//	hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-	//	hadc2.Init.OversamplingMode = DISABLE;
-	//	if (HAL_ADC_Init(&hadc2) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
-	//	/** Configure Regular Channel
-	//	 */
-	//	sConfig.Channel = ADC_CHANNEL_9;
-	//	sConfig.Rank = ADC_REGULAR_RANK_1;
-	//	sConfig.SamplingTime = ADC_SAMPLETIME_8CYCLES_5;
-	//	sConfig.SingleDiff = ADC_SINGLE_ENDED;
-	//	sConfig.OffsetNumber = ADC_OFFSET_NONE;
-	//	sConfig.Offset = 0;
-	//	if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
-	//	/* ### Start calibration ############################################ */
-	//	if (HAL_ADCEx_Calibration_Start(&hadc2, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
-
-	//	/* ### Start conversion in DMA mode ################################# */
-	//	if (HAL_ADC_Start(&hadc2) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
 }
 
 #define CIS_SP_TICK 				(2)

@@ -52,6 +52,8 @@
      PH0-OSC_IN (PH0)   ------> RCC_OSC_IN
      PF6   ------> QUADSPI_BK1_IO3
      PF7   ------> QUADSPI_BK1_IO2
+     PF8   ------> ADC3_INP7
+     PC0   ------> ADCx_INP10
      PF10   ------> QUADSPI_CLK
      PF9   ------> QUADSPI_BK1_IO1
      PC1   ------> ETH_MDC
@@ -61,6 +63,8 @@
      PA2   ------> ETH_MDIO
      PA1   ------> ETH_RX_CLK
      PH3   ------> ETH_COL
+     PC2_C   ------> ADC3_INN1
+     PC3_C   ------> ADC3_INP1
      PA6   ------> S_TIM13_CH1
      PA7   ------> ETH_RX_DV
      PD11   ------> QUADSPI_BK1_IO0
@@ -241,6 +245,18 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = ARD_A1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ARD_A1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = ARD_A0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(ARD_A0_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : PF9 */
   GPIO_InitStruct.Pin = GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -331,6 +347,12 @@ void MX_GPIO_Init(void)
 
   /**/
   HAL_I2CEx_EnableFastModePlus(SYSCFG_PMCR_I2C_PB7_FMP);
+
+  /*AnalogSwitch Config */
+  HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC2, SYSCFG_SWITCH_PC2_OPEN);
+
+  /*AnalogSwitch Config */
+  HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PC3, SYSCFG_SWITCH_PC3_OPEN);
 
 }
 
