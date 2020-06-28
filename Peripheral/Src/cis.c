@@ -54,7 +54,6 @@ void cisInit(void)
 {
 	cisADC_Init();
 	cisTIM_Init(CIS_CLK_FREQ);
-	HAL_Delay(100);
 	//	cisCalibration();
 
 	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
@@ -107,6 +106,7 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
 
+	TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
 
 	/* Compute the prescaler value to have TIM1 counter clock equal to 20 MHz */
@@ -117,8 +117,9 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 
 	htim1.Init.Period        = 1;
 	htim1.Init.Prescaler     = uwPrescalerValue;
-	htim1.Init.ClockDivision = 0;
+	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim1.Init.CounterMode   = TIM_COUNTERMODE_UP;
+	htim1.Init.RepetitionCounter = 0;
 	if(HAL_TIM_OC_Init(&htim1) != HAL_OK)
 	{
 		/* Initialization Error */
@@ -128,7 +129,7 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	/*##-2- Configure the Output Compare channels ##############################*/
 	/* Common configuration for all channels */
 	sConfig.OCMode     = TIM_OCMODE_TOGGLE;
-	sConfig.OCPolarity = TIM_OCPOLARITY_LOW;
+	sConfig.OCPolarity = TIM_OCPOLARITY_HIGH;
 	sConfig.OCFastMode = TIM_OCFAST_ENABLE;
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
@@ -139,7 +140,24 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 		Error_Handler();
 	}
 
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1;
+	sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+	sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+	sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+	sBreakDeadTimeConfig.DeadTime = 0;
+	sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+	sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+	sBreakDeadTimeConfig.BreakFilter = 0;
+	sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+	sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+	sBreakDeadTimeConfig.Break2Filter = 0;
+	sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+	if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	HAL_TIM_MspPostInit(&htim1);
+
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
 	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
 	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
@@ -163,27 +181,21 @@ void cisADC_Init(void)
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef sConfig = {0};
 
-	if (HAL_ADC_DeInit(&hadc1) != HAL_OK)
-	{
-		/* ADC de-initialization Error */
-		Error_Handler();
-	}
-
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
+	hadc1.Init.Resolution = ADC_RESOLUTION_8B;
 	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
 	hadc1.Init.LowPowerAutoWait = DISABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE;
 	hadc1.Init.NbrOfConversion = 1;
-	hadc1.Init.DiscontinuousConvMode = DISABLE;
-	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_TRGO;
+	hadc1.Init.DiscontinuousConvMode = ENABLE;
+	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
-	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
 	hadc1.Init.OversamplingMode = DISABLE;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -210,7 +222,7 @@ void cisADC_Init(void)
 		Error_Handler();
 	}
 
-//	HAL_ADC_Stop(&hadc1);
+	//	HAL_ADC_Stop(&hadc1);
 
 	/* ### Start calibration ############################################ */
 	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
@@ -234,7 +246,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	//	if (hadc != &hadc1)
 	//		return;
-
+	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_SET);
 #ifdef DEBUG_CIS
 	++cis_dbg_cnt;
 #endif
@@ -256,7 +268,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		HAL_GPIO_WritePin(CIS_SP_GPIO_Port, CIS_SP_Pin, GPIO_PIN_RESET);
 		break;
 	case CIS_LED_ON:
-		HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_SET);
 		break;
 	case CIS_BLACK_PIX_AERA_START:
 		cis_step = CAL_ZONE;
@@ -280,7 +292,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		cis_step = DATA_ZONE;
 		break;
 	case CIS_LED_RED_OFF:
-		HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
 		break;
 	case CIS_PIXEX_AERA_STOP:
 		cis_step = READ_OFF;
@@ -348,4 +360,5 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	case END_ZONE:
 		break;
 	}
+	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
 }
