@@ -34,9 +34,19 @@ SP  =                                           _____/                          
 CLK = 3,70MHz   Vpp 4,48V                                    
 SP  = 1,35kHz   Vpp 3,20V   3,21uS 
 
-RED 	= 160
-GREEN	= 91
-BLEU	= 91            
+RED 	= 160us
+GREEN	= 91us
+BLEU	= 91us
+
+Since the first CLK :
+SP OFF						= 10
+LED GREEN ON				= 79
+BLACK PIX AERA START		= 99
+DEAD ZONE AERA START		= 157
+VALID PIXEX AERA START		= 166
+LED GREEN OFF				= 2475
+END DEAD ZONE AERA SATRT	= 5334
+END CAPTURE 				= 5696          
 
 1,16V = Il semble correspondre à la tension min de la sortie ADC, à voir si on utilise l'ADC en mode differentiel...
 
@@ -76,4 +86,3 @@ Etude Carte mère (Modèle ver) :
 
 Pour aller plus loin :
 - ADC WM8255
-

@@ -40,14 +40,21 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ		(1000000)	//3,5MHz in hertz
-#define CIS_RESOLUTION      (65535)   	//in decimal
-#define CIS_PIXELS_NB		(5148)		//5148 active pixels
-#define CIS_CLK_DUTY		(10)
+#define CIS_CLK_FREQ					(1000000)	//3,5MHz in hertz
+#define CIS_RESOLUTION      			(65535)   	//in decimal
+#define CIS_PIXELS_NB					(5148)		//5148 active pixels
+#define CIS_CLK_DUTY					(10)
 
-#define CIS_CAL_CLK_CNT   	(12)  		//fixed by manufacturer
-#define CIS_INIT_CLK_CNT   	(69)		//wait clock after SP
-#define CIS_END_CLK_CNT   	(100)		//2394 wait clock after capture
+#define CIS_SP_OFF						(10)
+#define CIS_LED_ON						(79)
+#define CIS_BLACK_PIX_AERA_START		(99)
+#define CIS_DEAD_ZONE_AERA_START		(157)
+#define CIS_PIXEX_AERA_START			(166)
+#define CIS_LED_RED_OFF					(1578)
+#define CIS_LED_BLUE_OFF				(2127)
+#define CIS_LED_GREEN_OFF				(2475)
+#define CIS_PIXEX_AERA_STOP				(5333)
+#define CIS_END_CAPTURE 				(5696)
 
 #define CIS_CAL_CYCLE		(10)		//number of cis cycle to read max pixel value
 

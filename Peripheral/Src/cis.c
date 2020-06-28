@@ -23,12 +23,12 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
-enum cisReadStep{START_PULSE, INIT_ZONE, CAL_ZONE, DATA_ZONE, END_ZONE};
+enum cisReadStep{READ_OFF, START_PULSE, INIT_ZONE, CAL_ZONE, DEAD_ZONE, DATA_ZONE, END_ZONE};
 enum cisCalStep{CAL_ON, CAL_OFF};
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_SP_GPIO_Port ARD_D2_GPIO_Port
-#define CIS_SP_Pin ARD_D2_Pin
+#define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
+#define CIS_SP_Pin ARD_D6_Pin
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -57,9 +57,9 @@ void cisInit(void)
 	HAL_Delay(100);
 	//	cisCalibration();
 
-	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
 }
 
 void cisCalibration(void)
@@ -107,8 +107,11 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
 
+	TIM_MasterConfigTypeDef sMasterConfig = {0};
+
 	/* Compute the prescaler value to have TIM1 counter clock equal to 20 MHz */
 	uwPrescalerValue = (uint32_t)((SystemCoreClock / 2 / cis_clk_freq / 4) - 1); //cis_clk_freq
+
 
 	htim1.Instance = TIM1;
 
@@ -126,12 +129,21 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 	/* Common configuration for all channels */
 	sConfig.OCMode     = TIM_OCMODE_TOGGLE;
 	sConfig.OCPolarity = TIM_OCPOLARITY_LOW;
+	sConfig.OCFastMode = TIM_OCFAST_ENABLE;
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
 	sConfig.Pulse = 1;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfig, TIM_CHANNEL_1) != HAL_OK)
 	{
 		/* Configuration Error */
+		Error_Handler();
+	}
+
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1;
+	sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+	{
 		Error_Handler();
 	}
 
@@ -160,7 +172,7 @@ void cisADC_Init(void)
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
-	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV2;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
 	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
 	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
@@ -168,12 +180,12 @@ void cisADC_Init(void)
 	hadc1.Init.ContinuousConvMode = DISABLE;
 	hadc1.Init.NbrOfConversion = 1;
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
-	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
+	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_TRGO;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-	hadc1.Init.OversamplingMode = ENABLE;
+	hadc1.Init.OversamplingMode = DISABLE;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();
@@ -198,7 +210,7 @@ void cisADC_Init(void)
 		Error_Handler();
 	}
 
-	HAL_ADC_Stop(&hadc1);
+//	HAL_ADC_Stop(&hadc1);
 
 	/* ### Start calibration ############################################ */
 	if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_CALIB_OFFSET, ADC_SINGLE_ENDED) != HAL_OK)
@@ -213,11 +225,6 @@ void cisADC_Init(void)
 	}
 }
 
-#define CIS_SP_TICK 				(2)
-#define CIS_INIT_TICK				((CIS_SP_TICK) + (CIS_INIT_CLK_CNT))
-#define CIS_CAL_TICK 				((CIS_INIT_TICK) + (CIS_CAL_CLK_CNT))
-#define CIS_DATA_TICK 				((CIS_CAL_TICK) + (CIS_PIXELS_NB))
-#define CIS_END_TICK 				((CIS_DATA_TICK) + (CIS_END_CLK_CNT))
 /**
  * @brief  End of conversion callback in non blocking mode
  * @param  hadc : hadc handle
@@ -238,22 +245,24 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	static uint32_t callback_cnt = 0;
 	static uint32_t cnt = 0;
 	static bool cal_state = FALSE;
-	static enum cisReadStep cis_read_step = START_PULSE;
+	static enum cisReadStep cis_step = READ_OFF;
 
 	switch (callback_cnt)
 	{
 	case 0:
-		cis_read_step = START_PULSE;
+		HAL_GPIO_WritePin(CIS_SP_GPIO_Port, CIS_SP_Pin, GPIO_PIN_SET);
 		break;
-	case CIS_SP_TICK:
-		cis_read_step = INIT_ZONE;
+	case CIS_SP_OFF:
+		HAL_GPIO_WritePin(CIS_SP_GPIO_Port, CIS_SP_Pin, GPIO_PIN_RESET);
 		break;
-	case CIS_INIT_TICK:
-		cis_read_step = CAL_ZONE;
+	case CIS_LED_ON:
+		HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_SET);
 		break;
-	case CIS_CAL_TICK:
-		cis_read_step = DATA_ZONE;
-		cis_adc_cal /= CIS_CAL_CLK_CNT;
+	case CIS_BLACK_PIX_AERA_START:
+		cis_step = CAL_ZONE;
+		break;
+	case CIS_DEAD_ZONE_AERA_START:
+		cis_adc_cal /= (CIS_BLACK_PIX_AERA_START - CIS_DEAD_ZONE_AERA_START);
 #ifdef DEBUG_CIS
 		//		printf("C %d\n", (int)cis_adc_cal);
 		cis_dbg_data_cal = cis_adc_cal;
@@ -267,14 +276,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			cal_state = OFF;
 		}
 		break;
-	case CIS_DATA_TICK:
-		cis_read_step = END_ZONE;
+	case CIS_PIXEX_AERA_START:
+		cis_step = DATA_ZONE;
+		break;
+	case CIS_LED_RED_OFF:
+		HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
+		break;
+	case CIS_PIXEX_AERA_STOP:
+		cis_step = READ_OFF;
 		pixel_cnt = 0;
 		cis_adc_cal = 0;
 		break;
-	case CIS_END_TICK:
+	case CIS_END_CAPTURE:
 		calibration_state = CAL_OFF;
-		cis_read_step = START_PULSE;
 		callback_cnt = 0;
 		return;
 		break;
@@ -283,14 +297,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 	++callback_cnt;
 
-	switch (cis_read_step)
+	switch (cis_step)
 	{
-	case START_PULSE:
-		HAL_GPIO_WritePin(CIS_SP_GPIO_Port, CIS_SP_Pin, GPIO_PIN_SET);
-		break;
-	case INIT_ZONE:
-		HAL_GPIO_WritePin(CIS_SP_GPIO_Port, CIS_SP_Pin, GPIO_PIN_RESET);
-		break;
 	case CAL_ZONE:
 		cis_adc_cal += 1;// HAL_ADC_GetValue(&hadc2);
 		++cnt;

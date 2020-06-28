@@ -201,6 +201,7 @@ Mcu.UserConstants=
 Mcu.UserName=STM32H750XBHx
 MxCube.Version=5.6.1
 MxDb.Version=DB.5.0.60
+NVIC.ADC_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.BusFault_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.DebugMonitor_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.ForceEnableDMAVector=true
