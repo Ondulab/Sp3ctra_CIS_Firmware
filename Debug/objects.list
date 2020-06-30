@@ -4,6 +4,7 @@
 "Core/Src/crc.o"
 "Core/Src/dac.o"
 "Core/Src/debug.o"
+"Core/Src/dma.o"
 "Core/Src/dma2d.o"
 "Core/Src/fmc.o"
 "Core/Src/gpio.o"

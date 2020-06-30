@@ -11,6 +11,7 @@ C_SRCS += \
 ../Core/Src/crc.c \
 ../Core/Src/dac.c \
 ../Core/Src/debug.c \
+../Core/Src/dma.c \
 ../Core/Src/dma2d.c \
 ../Core/Src/fmc.c \
 ../Core/Src/gpio.c \
@@ -32,6 +33,7 @@ OBJS += \
 ./Core/Src/crc.o \
 ./Core/Src/dac.o \
 ./Core/Src/debug.o \
+./Core/Src/dma.o \
 ./Core/Src/dma2d.o \
 ./Core/Src/fmc.o \
 ./Core/Src/gpio.o \
@@ -54,6 +56,7 @@ C_DEPS += \
 ./Core/Src/crc.d \
 ./Core/Src/dac.d \
 ./Core/Src/debug.d \
+./Core/Src/dma.d \
 ./Core/Src/dma2d.d \
 ./Core/Src/fmc.d \
 ./Core/Src/gpio.d \
@@ -80,6 +83,8 @@ Core/Src/dac.o: ../Core/Src/dac.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/dac.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/debug.o: ../Core/Src/debug.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/debug.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Core/Src/dma.o: ../Core/Src/dma.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/dma.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/dma2d.o: ../Core/Src/dma2d.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/dma2d.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/fmc.o: ../Core/Src/fmc.c

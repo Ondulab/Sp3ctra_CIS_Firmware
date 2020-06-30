@@ -23,6 +23,7 @@
 #include "adc.h"
 #include "crc.h"
 #include "dac.h"
+#include "dma.h"
 #include "dma2d.h"
 #include "ltdc.h"
 #include "rtc.h"
@@ -106,6 +107,8 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+//  MX_DMA_Init();
+//  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   MX_GPIO_Init2();
   /* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of

@@ -50,7 +50,7 @@
 #define CIS_BLACK_PIX_AERA_START		(99)
 #define CIS_DEAD_ZONE_AERA_START		(157)
 #define CIS_PIXEX_AERA_START			(166)
-#define CIS_LED_RED_OFF				(1578)
+#define CIS_LED_RED_OFF					(1578)
 #define CIS_LED_BLUE_OFF				(2127)
 #define CIS_LED_GREEN_OFF				(2475)
 #define CIS_PIXEX_AERA_STOP				(5333)

@@ -23,12 +23,13 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
-enum cisReadStep{READ_OFF, START_PULSE, INIT_ZONE, CAL_ZONE, DEAD_ZONE, DATA_ZONE, END_ZONE};
 enum cisCalStep{CAL_ON, CAL_OFF};
 
 /* Private define ------------------------------------------------------------*/
 #define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
 #define CIS_SP_Pin ARD_D6_Pin
+/* Definition of ADCx conversions data table size */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t) 32)//CIS_END_CAPTURE)  //32 /* Size of array aADCxConvertedData[] */
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -36,6 +37,8 @@ enum cisCalStep{CAL_ON, CAL_OFF};
 __IO uint32_t cis_adc_data[CIS_PIXELS_NB] = {0};
 static __IO uint32_t cis_adc_offset[CIS_PIXELS_NB] = {0};
 static __IO enum cisCalStep calibration_state = CAL_OFF;
+/* Variable containing ADC conversions data */
+ALIGN_32BYTES (static uint16_t   aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 
 #ifdef DEBUG_CIS
 __IO uint32_t cis_dbg_cnt = 0;
@@ -140,21 +143,21 @@ int32_t cisTIM_Init(uint32_t cis_clk_freq)
 		Error_Handler();
 	}
 
-	sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-	sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-	sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-	sBreakDeadTimeConfig.DeadTime = 0;
-	sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-	sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-	sBreakDeadTimeConfig.BreakFilter = 0;
-	sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
-	sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
-	sBreakDeadTimeConfig.Break2Filter = 0;
-	sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-	if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
+//	sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+//	sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+//	sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+//	sBreakDeadTimeConfig.DeadTime = 0;
+//	sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+//	sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+//	sBreakDeadTimeConfig.BreakFilter = 0;
+//	sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+//	sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+//	sBreakDeadTimeConfig.Break2Filter = 0;
+//	sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+//	if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+//	{
+//		Error_Handler();
+//	}
 	HAL_TIM_MspPostInit(&htim1);
 
 	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
@@ -181,6 +184,12 @@ void cisADC_Init(void)
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef sConfig = {0};
 
+	if (HAL_ADC_DeInit(&hadc1) != HAL_OK)
+	{
+		/* ADC de-initialization Error */
+		Error_Handler();
+	}
+
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
@@ -194,8 +203,8 @@ void cisADC_Init(void)
 	hadc1.Init.DiscontinuousConvMode = ENABLE;
 	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR;
-	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DR; //ADC_CONVERSIONDATA_DMA_CIRCULAR; //ADC_CONVERSIONDATA_DR;
+	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
 	hadc1.Init.OversamplingMode = DISABLE;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -235,6 +244,11 @@ void cisADC_Init(void)
 	{
 		Error_Handler();
 	}
+	//	/* ### Start conversion in DMA mode ################################# */
+	//	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)aADCxConvertedData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 }
 
 /**
@@ -242,7 +256,7 @@ void cisADC_Init(void)
  * @param  hadc : hadc handle
  * @retval None
  */
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+static inline void cisReadPixel(uint16_t adc_value)
 {
 	//	if (hadc != &hadc1)
 	//		return;
@@ -257,7 +271,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	static uint32_t callback_cnt = 0;
 	static uint32_t cnt = 0;
 	static bool cal_state = FALSE;
-	static enum cisReadStep cis_step = READ_OFF;
 
 	switch (callback_cnt)
 	{
@@ -269,9 +282,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		break;
 	case CIS_LED_ON:
 		HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_SET);
-		break;
-	case CIS_BLACK_PIX_AERA_START:
-		cis_step = CAL_ZONE;
 		break;
 	case CIS_DEAD_ZONE_AERA_START:
 		cis_adc_cal /= (CIS_BLACK_PIX_AERA_START - CIS_DEAD_ZONE_AERA_START);
@@ -288,30 +298,21 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			cal_state = OFF;
 		}
 		break;
-	case CIS_PIXEX_AERA_START:
-		cis_step = DATA_ZONE;
-		break;
 	case CIS_LED_RED_OFF:
 		HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
 		break;
 	case CIS_PIXEX_AERA_STOP:
-		cis_step = READ_OFF;
 		pixel_cnt = 0;
 		cis_adc_cal = 0;
 		break;
 	case CIS_END_CAPTURE:
-		calibration_state = CAL_OFF;
 		callback_cnt = 0;
 		return;
 		break;
 	}
 
-
-	++callback_cnt;
-
-	switch (cis_step)
+	if (callback_cnt == CIS_BLACK_PIX_AERA_START && callback_cnt < CIS_DEAD_ZONE_AERA_START)
 	{
-	case CAL_ZONE:
 		cis_adc_cal += 1;// HAL_ADC_GetValue(&hadc2);
 		++cnt;
 		//		if (HAL_ADC_GetValue(&hadc1) < 100) //cut tac tac bug...
@@ -324,9 +325,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		//		{
 		//					++cnt;
 		//		}
-		break;
-	case DATA_ZONE:
-		temp_data += HAL_ADC_GetValue(&hadc1);
+	}
+	else if ((callback_cnt == CIS_PIXEX_AERA_START && callback_cnt <= CIS_PIXEX_AERA_STOP))
+	{
+		temp_data += adc_value;
 #ifdef DEBUG_CIS
 		//		printf("D %d\n", (int)HAL_ADC_GetValue(&hadc1));
 		cis_dbg_data = HAL_ADC_GetValue(&hadc1);
@@ -356,9 +358,33 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 			pixel_per_comma = 0;
 			temp_data = 0;
 		}
-		break;
-	case END_ZONE:
-		break;
 	}
+	++callback_cnt;
+
 	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
+}
+
+/**
+ * @brief  Conversion complete callback in non-blocking mode
+ * @param  hadc: ADC handle
+ * @retval None
+ */
+void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer: 32 bytes */
+	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[0], ADC_CONVERTED_DATA_BUFFER_SIZE);
+	cisReadPixel(aADCxConvertedData[0]);
+}
+
+/**
+ * @brief  Conversion DMA half-transfer callback in non-blocking mode
+ * @param  hadc: ADC handle
+ * @retval None
+ */
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	//	/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer: 32 bytes */
+	//	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE);
+	//	cisReadPixel(aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE/2]);
+	cisReadPixel(HAL_ADC_GetValue(&hadc1));
 }
