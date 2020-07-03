@@ -177,8 +177,6 @@ void Error_Handler(void);
 #define MII_RX_DV_GPIO_Port GPIOA
 #define ARD_A2_Pin GPIO_PIN_0
 #define ARD_A2_GPIO_Port GPIOA
-#define ARD_A3_Pin GPIO_PIN_1
-#define ARD_A3_GPIO_Port GPIOA
 #define OTG_FS2_PSO_Pin GPIO_PIN_5
 #define OTG_FS2_PSO_GPIO_Port GPIOA
 #define MII_RXD0_Pin GPIO_PIN_4
