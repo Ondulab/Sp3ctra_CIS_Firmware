@@ -40,7 +40,7 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ					(3000000)	//3,5MHz in hertz
+#define CIS_CLK_FREQ					(1000000)	//3,5MHz in hertz
 #define CIS_RESOLUTION      			(65535)   	//in decimal
 #define CIS_PIXELS_NB					(5148)		//5148 active pixels
 #define CIS_CLK_DUTY					(10)

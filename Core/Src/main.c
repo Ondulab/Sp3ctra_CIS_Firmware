@@ -39,6 +39,7 @@
 /* USER CODE BEGIN Includes */
 #include "paint.h"
 #include "synth_v2.h"
+#include "synth_v3.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -123,7 +124,7 @@ int main(void)
   BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
   GUI_SetFuncDriver(&LCD_Driver);
 
-  synth_v2();
+  synth_v3();
 //	AudioPlay_demo();
 	//	BSP_example();
 	//	paint();

@@ -25,6 +25,13 @@
 /* Private typedef -----------------------------------------------------------*/
 enum cisCalStep{CAL_ON, CAL_OFF};
 
+typedef enum
+{
+	BUFFER_OFFSET_NONE = 0,
+	BUFFER_OFFSET_HALF,
+	BUFFER_OFFSET_FULL,
+}CIS_BUFF_StateTypeDef;
+
 /* Private define ------------------------------------------------------------*/
 #define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
 #define CIS_SP_Pin ARD_D6_Pin
@@ -38,7 +45,9 @@ __IO uint32_t cis_adc_data[CIS_PIXELS_NB] = {0};
 static __IO uint32_t cis_adc_offset[CIS_PIXELS_NB] = {0};
 static __IO enum cisCalStep calibration_state = CAL_OFF;
 /* Variable containing ADC conversions data */
-ALIGN_32BYTES (static uint16_t   aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint16_t   cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+
+static CIS_BUFF_StateTypeDef  cisBufferState = {0};
 
 #ifdef DEBUG_CIS
 __IO uint32_t cis_dbg_cnt = 0;
@@ -53,6 +62,7 @@ int32_t cisTIM_LED_G_Init(void);
 
 void cisADC_Init(void);
 void cisCalibration(void);
+void cisDisplayLine(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -62,11 +72,49 @@ void cisInit(void)
 	cisTIM_SP_Init();
 	cisTIM_LED_G_Init();
 	cisTIM_CLK_Init(CIS_CLK_FREQ);
+
+	while(1)
+	{
+		cisDisplayLine();
+	}
+
 	//	cisCalibration();
 
 	//	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
 	//	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
 	//	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
+}
+
+void cisDisplayLine(void)
+{
+	static uint32_t j = 24;
+	uint32_t x_size, y_size;
+
+	BSP_LCD_GetXSize(0, &x_size);
+	BSP_LCD_GetYSize(0, &y_size);
+
+	/* 1st half buffer played; so fill it and continue playing from bottom*/
+	if(cisBufferState == BUFFER_OFFSET_HALF)
+	{
+		cisBufferState = BUFFER_OFFSET_NONE;
+		/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer: 32 bytes */
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+	}
+
+	/* 2nd half buffer played; so fill it and continue playing from top */
+	if(cisBufferState == BUFFER_OFFSET_FULL)
+	{
+		cisBufferState = BUFFER_OFFSET_NONE;
+		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer: 32 bytes */
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+		for (uint32_t i = 0; i < x_size; i++)
+		{
+			GUI_SetPixel(i, j, (0xFF000000 | (cisData[i + CIS_PIXEX_AERA_START] << 8)));
+		}
+		j++;
+		if (j >= (y_size - 24))
+			j = 24;
+	}
 }
 
 void cisCalibration(void)
@@ -151,7 +199,7 @@ int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
 	/* Output Compare Toggle Mode configuration: Channel1 */
 	sConfigOC.OCMode  	 = TIM_OCMODE_PWM2;
 	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.Pulse   	 = 5;
+	sConfigOC.Pulse   	 = 2;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
 	{
 		/* Configuration Error */
@@ -323,11 +371,11 @@ void cisADC_Init(void)
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
 	hadc1.Init.LowPowerAutoWait = DISABLE;
 	hadc1.Init.ContinuousConvMode = DISABLE;
-	hadc1.Init.NbrOfConversion = 1;
+	hadc1.Init.NbrOfConversion = CIS_END_CAPTURE;
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC2;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_ONESHOT; //ADC_CONVERSIONDATA_DR;
+	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_ONESHOT;
 	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
 	hadc1.Init.OversamplingMode = DISABLE;
@@ -362,6 +410,11 @@ void cisADC_Init(void)
 	{
 		Error_Handler();
 	}
+
+	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 /**
@@ -371,8 +424,7 @@ void cisADC_Init(void)
  */
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer: 32 bytes */
-	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+	cisBufferState = BUFFER_OFFSET_HALF;
 	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_SET);
 }
 
@@ -383,16 +435,14 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
+	cisBufferState = BUFFER_OFFSET_FULL;
 	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
 	if (HAL_ADC_Stop_DMA(&hadc1) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer: 32 bytes */
-	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
-
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)aADCxConvertedData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
+	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
 	{
 		Error_Handler();
 	}

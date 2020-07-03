@@ -12,17 +12,6 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
-#define CIS_SP_Pin GPIO_PIN_4
-#define CIS_SP_GPIO_Port GPIOE
-#define USER_PB_Pin GPIO_PIN_13
-#define USER_PB_GPIO_Port GPIOC
-#define USER_PB_EXTI_IRQn EXTI15_10_IRQn
-#define CIS_LED_G_Pin GPIO_PIN_7
-#define CIS_LED_G_GPIO_Port GPIOF
-#define CIS_LED_B_Pin GPIO_PIN_8
-#define CIS_LED_B_GPIO_Port GPIOF
-#define CIS_LED_R_Pin GPIO_PIN_9
-#define CIS_LED_R_GPIO_Port GPIOF
 
 int synth_v2(void);
 
