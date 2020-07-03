@@ -29,7 +29,7 @@ enum cisCalStep{CAL_ON, CAL_OFF};
 #define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
 #define CIS_SP_Pin ARD_D6_Pin
 /* Definition of ADCx conversions data table size */
-#define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t) CIS_END_CAPTURE)  //32 /* Size of array aADCxConvertedData[] */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t) CIS_END_CAPTURE) /* Size of array aADCxConvertedData[] */
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -62,7 +62,6 @@ void cisInit(void)
 	cisTIM_SP_Init();
 	cisTIM_LED_G_Init();
 	cisTIM_CLK_Init(CIS_CLK_FREQ);
-	cisStartCapture();
 	//	cisCalibration();
 
 	//	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
@@ -100,27 +99,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		return;
 
 	//	cisCalibration();
-}
-
-int32_t cisStartCapture()
-{
-	/* Start CLK generation ##################################*/
-	/* Start channel 1 in Output compare mode */
-	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
-	{
-		/* Starting Error */
-		Error_Handler();
-	}
-
-	/* Start ADC Timer #######################################*/
-	/* Start channel 2 in Output compare mode no output */
-	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
-	{
-		/* Starting Error */
-		Error_Handler();
-	}
-
-	return 0;
 }
 
 /**
@@ -193,6 +171,18 @@ int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
 	cisTIM_SP_Init();
 	cisTIM_LED_G_Init();
 
+	/* Start CLK generation ##################################*/
+	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/* Start ADC Timer #######################################*/
+	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
 	return 0;
 }
 
@@ -206,7 +196,7 @@ int32_t cisTIM_SP_Init()
 	htim15.Instance = TIM15;
 	htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
 	htim15.Init.Prescaler = 0;
-	htim15.Init.Period = CIS_END_CAPTURE - 1;
+	htim15.Init.Period = CIS_FINAL_WAIT - 1;
 	htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim15.Init.RepetitionCounter = 0;
 	htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -251,12 +241,11 @@ int32_t cisTIM_SP_Init()
 
 	HAL_TIM_MspPostInit(&htim15);
 
+	/* Start SP generation ##################################*/
 	if(HAL_TIM_OC_Start(&htim15, TIM_CHANNEL_2) != HAL_OK)
 	{
-		/* Starting Error */
 		Error_Handler();
 	}
-
 	return 0;
 }
 
@@ -269,7 +258,7 @@ int32_t cisTIM_LED_G_Init()
 	htim3.Instance = TIM3;
 	htim3.Init.Prescaler = 0;
 	htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim3.Init.Period = CIS_END_CAPTURE - 1;
+	htim3.Init.Period = CIS_FINAL_WAIT - 1;
 	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -305,11 +294,12 @@ int32_t cisTIM_LED_G_Init()
 	}
 	HAL_TIM_MspPostInit(&htim3);
 
+	/* Start LED G generation ###############################*/
 	if(HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
 	{
-		/* Starting Error */
 		Error_Handler();
 	}
+
 	return 0;
 }
 
@@ -337,7 +327,7 @@ void cisADC_Init(void)
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC2;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR; //ADC_CONVERSIONDATA_DR;
+	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_ONESHOT; //ADC_CONVERSIONDATA_DR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
 	hadc1.Init.OversamplingMode = DISABLE;
@@ -372,17 +362,6 @@ void cisADC_Init(void)
 	{
 		Error_Handler();
 	}
-
-	//	/* ### Start conversion in IT mode ################################# */
-	//	if (HAL_ADC_Start_IT(&hadc1) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
-	/* ### Start conversion in DMA mode ################################# */
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)aADCxConvertedData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
-	{
-		Error_Handler();
-	}
 }
 
 /**
@@ -404,25 +383,22 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer: 32 bytes */
-	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
-	/* Stop CLK generation ##################################*/
-	/* Stop channel 1 in Output compare mode */
-	if(HAL_TIM_OC_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
+	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
+	if (HAL_ADC_Stop_DMA(&hadc1) != HAL_OK)
 	{
-		/* Starting Error */
 		Error_Handler();
 	}
 
-	/* Stop ADC Timer #######################################*/
-	/* Stop channel 2 in Output compare mode no output */
-	if(HAL_TIM_OC_Stop(&htim1, TIM_CHANNEL_2) != HAL_OK)
+	/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer: 32 bytes */
+	SCB_InvalidateDCache_by_Addr((uint32_t *) &aADCxConvertedData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+
+	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)aADCxConvertedData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
 	{
-		/* Starting Error */
 		Error_Handler();
 	}
-	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
-	cisStartCapture();
+
+	__HAL_TIM_SET_COUNTER(&htim15, 0);
+	__HAL_TIM_SET_COUNTER(&htim3, 0);
 }
 
 

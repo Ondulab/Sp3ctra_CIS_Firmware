@@ -34,6 +34,5 @@ extern __IO uint32_t cis_dbg_data;
 /* Private define ------------------------------------------------------------*/
 
 void cisInit(void);
-int32_t cisStartCapture(void);
 
 #endif /* __CIS_H__ */

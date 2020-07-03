@@ -55,6 +55,7 @@
 #define CIS_LED_GREEN_OFF				(2475)
 #define CIS_PIXEX_AERA_STOP				(5333)
 #define CIS_END_CAPTURE 				(5696)
+#define CIS_FINAL_WAIT 					(6000)
 
 #define CIS_CAL_CYCLE		(10)		//number of cis cycle to read max pixel value
 
