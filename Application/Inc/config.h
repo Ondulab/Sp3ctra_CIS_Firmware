@@ -40,10 +40,8 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ					(1000000)	//3,5MHz in hertz
-#define CIS_RESOLUTION      			(65535)   	//in decimal
-#define CIS_PIXELS_NB					(5148)		//5148 active pixels
-#define CIS_CLK_DUTY					(10)
+#define CIS_CLK_FREQ					(1000000)	//Max 3,5MHz in hertz
+#define CIS_PIXELS_NB					((CIS_END_CAPTURE)-(CIS_PIXEX_AERA_START))		//5530 active pixels
 
 #define CIS_SP_OFF						(10)
 #define CIS_LED_ON						(79)
@@ -52,12 +50,10 @@
 #define CIS_PIXEX_AERA_START			(166)
 #define CIS_LED_RED_OFF					(1578)
 #define CIS_LED_BLUE_OFF				(2127)
-#define CIS_LED_GREEN_OFF				(2475)
+#define CIS_LED_GREEN_OFF				(2475)	//(2475)
 #define CIS_PIXEX_AERA_STOP				(5333)
 #define CIS_END_CAPTURE 				(5696)
-#define CIS_FINAL_WAIT 					(6000)
-
-#define CIS_CAL_CYCLE		(10)		//number of cis cycle to read max pixel value
+#define CIS_FINAL_WAIT 					(5700)
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/

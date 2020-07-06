@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : ADC.h
+  * File Name          : OPAMP.h
   * Description        : This file provides code for the configuration
-  *                      of the ADC instances.
+  *                      of the OPAMP instances.
   ******************************************************************************
   * @attention
   *
@@ -17,8 +17,8 @@
   ******************************************************************************
   */
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __adc_H
-#define __adc_H
+#ifndef __opamp_H
+#define __opamp_H
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -30,13 +30,13 @@
 
 /* USER CODE END Includes */
 
-extern ADC_HandleTypeDef hadc1;
+extern OPAMP_HandleTypeDef hopamp1;
 
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 
-void MX_ADC1_Init(void);
+void MX_OPAMP1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
@@ -45,7 +45,7 @@ void MX_ADC1_Init(void);
 #ifdef __cplusplus
 }
 #endif
-#endif /*__ adc_H */
+#endif /*__ opamp_H */
 
 /**
   * @}

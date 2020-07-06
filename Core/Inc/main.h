@@ -179,8 +179,6 @@ void Error_Handler(void);
 #define ARD_A2_GPIO_Port GPIOA
 #define OTG_FS2_PSO_Pin GPIO_PIN_5
 #define OTG_FS2_PSO_GPIO_Port GPIOA
-#define MII_RXD0_Pin GPIO_PIN_4
-#define MII_RXD0_GPIO_Port GPIOC
 #define MII_RX_D3_Pin GPIO_PIN_1
 #define MII_RX_D3_GPIO_Port GPIOB
 #define LD1_Pin GPIO_PIN_2
@@ -189,8 +187,6 @@ void Error_Handler(void);
 #define LCD_RST_GPIO_Port GPIOB
 #define ARD_D11_Pin GPIO_PIN_15
 #define ARD_D11_GPIO_Port GPIOB
-#define MII_RXD1_Pin GPIO_PIN_5
-#define MII_RXD1_GPIO_Port GPIOC
 #define MII_RX_D2_Pin GPIO_PIN_0
 #define MII_RX_D2_GPIO_Port GPIOB
 #define FDCAN2_TX_Pin GPIO_PIN_13

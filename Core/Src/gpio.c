@@ -68,9 +68,7 @@
      PA6   ------> S_TIM13_CH1
      PA7   ------> ETH_RX_DV
      PD11   ------> QUADSPI_BK1_IO0
-     PC4   ------> ETH_RXD0
      PB1   ------> ETH_RXD3
-     PC5   ------> ETH_RXD1
      PB0   ------> ETH_RXD2
      PB13   ------> FDCAN2_TX
 */
@@ -265,10 +263,8 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PCPin PCPin PCPin PCPin 
-                           PCPin */
-  GPIO_InitStruct.Pin = MII_MDC_Pin|MII_TXD2_Pin|MII_TX_CLK_Pin|MII_RXD0_Pin 
-                          |MII_RXD1_Pin;
+  /*Configure GPIO pins : PCPin PCPin PCPin */
+  GPIO_InitStruct.Pin = MII_MDC_Pin|MII_TXD2_Pin|MII_TX_CLK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

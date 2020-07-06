@@ -17,6 +17,7 @@ C_SRCS += \
 ../Core/Src/gpio.c \
 ../Core/Src/ltdc.c \
 ../Core/Src/main.c \
+../Core/Src/opamp.c \
 ../Core/Src/rtc.c \
 ../Core/Src/sai.c \
 ../Core/Src/sdmmc.c \
@@ -39,6 +40,7 @@ OBJS += \
 ./Core/Src/gpio.o \
 ./Core/Src/ltdc.o \
 ./Core/Src/main.o \
+./Core/Src/opamp.o \
 ./Core/Src/rtc.o \
 ./Core/Src/sai.o \
 ./Core/Src/sdmmc.o \
@@ -62,6 +64,7 @@ C_DEPS += \
 ./Core/Src/gpio.d \
 ./Core/Src/ltdc.d \
 ./Core/Src/main.d \
+./Core/Src/opamp.d \
 ./Core/Src/rtc.d \
 ./Core/Src/sai.d \
 ./Core/Src/sdmmc.d \
@@ -95,6 +98,8 @@ Core/Src/ltdc.o: ../Core/Src/ltdc.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/ltdc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/main.o: ../Core/Src/main.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/main.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Core/Src/opamp.o: ../Core/Src/opamp.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/opamp.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/rtc.o: ../Core/Src/rtc.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Core/Src/rtc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Core/Src/sai.o: ../Core/Src/sai.c

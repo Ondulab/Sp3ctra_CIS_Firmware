@@ -13,6 +13,7 @@
 #include "tim.h"
 #include "adc.h"
 #include "dac.h"
+#include "opamp.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -41,11 +42,8 @@ typedef enum
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-__IO uint32_t cis_adc_data[CIS_PIXELS_NB] = {0};
-static __IO uint32_t cis_adc_offset[CIS_PIXELS_NB] = {0};
-static __IO enum cisCalStep calibration_state = CAL_OFF;
 /* Variable containing ADC conversions data */
-ALIGN_32BYTES (static uint16_t   cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint8_t   cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 
 static CIS_BUFF_StateTypeDef  cisBufferState = {0};
 
@@ -61,7 +59,6 @@ int32_t cisTIM_SP_Init(void);
 int32_t cisTIM_LED_G_Init(void);
 
 void cisADC_Init(void);
-void cisCalibration(void);
 void cisDisplayLine(void);
 
 /* Private user code ---------------------------------------------------------*/
@@ -77,12 +74,6 @@ void cisInit(void)
 	{
 		cisDisplayLine();
 	}
-
-	//	cisCalibration();
-
-	//	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
-	//	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
-	//	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
 }
 
 void cisDisplayLine(void)
@@ -115,30 +106,6 @@ void cisDisplayLine(void)
 		if (j >= (y_size - 24))
 			j = 24;
 	}
-}
-
-void cisCalibration(void)
-{
-	uint32_t cnt = 0;
-
-	printf("/***** START CIS CALIBRATION *****/\n");
-	calibration_state = CAL_ON;
-
-	while (cnt < CIS_CAL_CYCLE)
-	{
-		if (calibration_state != CAL_ON)
-		{
-			cnt++;
-			calibration_state = CAL_ON;
-		}
-	}
-	calibration_state = CAL_OFF;
-
-	for (uint32_t i = 0; i < CIS_PIXELS_NB; i++)
-	{
-		cis_adc_offset[i] /= CIS_CAL_CYCLE;
-	}
-	printf("/******** END CALIBRATION ********/\n");
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -362,6 +329,23 @@ void cisADC_Init(void)
 		Error_Handler();
 	}
 
+	/* Set DAC output voltage (use to change OPAMP offset */
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, 93);//(0.64/(3.3/256)));
+
+	/*##-3- Enable DAC Channel 1 ##########################################*/
+	if(HAL_DAC_Start(&hdac1, DAC_CHANNEL_1) != HAL_OK)
+	{
+
+		Error_Handler();
+	}
+
+	/*##  Start OPAMP    #####################################################*/
+	/* Enable OPAMP */
+	if(HAL_OK != HAL_OPAMP_Start(&hopamp1))
+	{
+		Error_Handler();
+	}
+
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
@@ -375,8 +359,8 @@ void cisADC_Init(void)
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC2;
 	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_ONESHOT;
-	hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
+	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
+	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
 	hadc1.Init.OversamplingMode = DISABLE;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -392,11 +376,11 @@ void cisADC_Init(void)
 	}
 	/** Configure Regular Channel
 	 */
-	sConfig.Channel = ADC_CHANNEL_1;
+	sConfig.Channel = ADC_CHANNEL_4;
 	sConfig.Rank = ADC_REGULAR_RANK_1;
 	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
 	sConfig.SingleDiff = ADC_SINGLE_ENDED;
-	sConfig.OffsetNumber = ADC_OFFSET_NONE;
+	sConfig.OffsetNumber = ADC_OFFSET_1;
 	sConfig.Offset = 0;
 	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
 	{
@@ -425,7 +409,6 @@ void cisADC_Init(void)
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	cisBufferState = BUFFER_OFFSET_HALF;
-	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_SET);
 }
 
 /**
@@ -436,16 +419,6 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	cisBufferState = BUFFER_OFFSET_FULL;
-	HAL_GPIO_WritePin(ARD_D2_GPIO_Port, ARD_D2_Pin, GPIO_PIN_RESET);
-	if (HAL_ADC_Stop_DMA(&hadc1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, ADC_CONVERTED_DATA_BUFFER_SIZE) != HAL_OK)
-	{
-		Error_Handler();
-	}
 
 	__HAL_TIM_SET_COUNTER(&htim15, 0);
 	__HAL_TIM_SET_COUNTER(&htim3, 0);
