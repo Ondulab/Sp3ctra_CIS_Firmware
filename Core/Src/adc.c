@@ -79,7 +79,6 @@ void MX_ADC1_Init(void)
 void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 {
 
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(adcHandle->Instance==ADC1)
   {
   /* USER CODE BEGIN ADC1_MspInit 0 */
@@ -88,17 +87,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     /* ADC1 clock enable */
     __HAL_RCC_ADC12_CLK_ENABLE();
   
-    __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**ADC1 GPIO Configuration    
-    PC0     ------> ADC1_INP10
     PA0_C     ------> ADC1_INP0 
     */
-    GPIO_InitStruct.Pin = ARD_A0_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(ARD_A0_GPIO_Port, &GPIO_InitStruct);
-
     HAL_SYSCFG_AnalogSwitchConfig(SYSCFG_SWITCH_PA0, SYSCFG_SWITCH_PA0_OPEN);
 
     /* ADC1 DMA Init */
@@ -140,11 +132,6 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     /* Peripheral clock disable */
     __HAL_RCC_ADC12_CLK_DISABLE();
   
-    /**ADC1 GPIO Configuration    
-    PC0     ------> ADC1_INP10
-    PA0_C     ------> ADC1_INP0 
-    */
-    HAL_GPIO_DeInit(ARD_A0_GPIO_Port, ARD_A0_Pin);
 
     /* ADC1 DMA DeInit */
     HAL_DMA_DeInit(adcHandle->DMA_Handle);

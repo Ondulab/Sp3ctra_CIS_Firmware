@@ -191,21 +191,21 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 	uwPrescalerValue = (uint32_t)(SystemCoreClock / (4 * sampling_freq)) - 1;
 
 	/* Set TIMx instance */
-	htim12.Instance = TIM15;
+	htim13.Instance = TIM13;
 
-	/* Initialize TIM15 peripheral as follows:
+	/* Initialize TIM13 peripheral as follows:
 		       + Period = sampling_freq
 		       + Prescaler = (SystemCoreClock/10000) - 1
 		       + ClockDivision = 0
 		       + Counter direction = Up
 	 */
-	htim12.Init.Period            = 1;
-	htim12.Init.Prescaler         = uwPrescalerValue;
-	htim12.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-	htim12.Init.CounterMode       = TIM_COUNTERMODE_UP;
-	htim12.Init.RepetitionCounter = 0;
-	htim12.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	if (HAL_TIM_OC_Init(&htim12) != HAL_OK)
+	htim13.Init.Period            = 1;
+	htim13.Init.Prescaler         = uwPrescalerValue;
+	htim13.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+	htim13.Init.CounterMode       = TIM_COUNTERMODE_UP;
+	htim13.Init.RepetitionCounter = 0;
+	htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	if (HAL_TIM_OC_Init(&htim13) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -217,19 +217,19 @@ int32_t initSamplingTimer(uint32_t sampling_freq)
 	//	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 	//	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
 	//	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	//	if (HAL_TIM_OC_ConfigChannel(&htim12, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+	//	if (HAL_TIM_OC_ConfigChannel(&htim13, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	//	{
 	//		Error_Handler();
 	//	}
 
 	//	/* Start channel 1 in Output compare mode */
-	if (HAL_TIM_OC_Start_IT(&htim12, TIM_CHANNEL_1) != HAL_OK)
+	if (HAL_TIM_OC_Start_IT(&htim13, TIM_CHANNEL_1) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
 #ifndef DEBUG_SAMPLE_RATE
-	if (HAL_TIM_Base_Start_IT(&htim12) != HAL_OK)
+	if (HAL_TIM_Base_Start_IT(&htim13) != HAL_OK)
 	{
 		/* Starting Error */
 		return -4;

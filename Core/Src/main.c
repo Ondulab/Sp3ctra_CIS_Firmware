@@ -30,7 +30,6 @@
 #include "rtc.h"
 #include "sai.h"
 #include "sdmmc.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -110,9 +109,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_DAC1_Init();
-  MX_OPAMP1_Init();
   /* USER CODE BEGIN 2 */
   MX_GPIO_Init2();
   /* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
@@ -205,10 +201,9 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_LTDC
-                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_SPI2
-                              |RCC_PERIPHCLK_SAI2|RCC_PERIPHCLK_SDMMC
-                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_FMC
-                              |RCC_PERIPHCLK_CKPER;
+                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_SAI2
+                              |RCC_PERIPHCLK_SDMMC|RCC_PERIPHCLK_ADC
+                              |RCC_PERIPHCLK_FMC|RCC_PERIPHCLK_CKPER;
   PeriphClkInitStruct.PLL2.PLL2M = 2;
   PeriphClkInitStruct.PLL2.PLL2N = 12;
   PeriphClkInitStruct.PLL2.PLL2P = 1;
@@ -229,7 +224,6 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL;
   PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   PeriphClkInitStruct.Sai23ClockSelection = RCC_SAI23CLKSOURCE_PLL;
-  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL;
   PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;

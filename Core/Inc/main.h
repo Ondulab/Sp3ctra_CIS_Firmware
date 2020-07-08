@@ -171,6 +171,8 @@ void Error_Handler(void);
 #define VCP_RX_GPIO_Port GPIOB
 #define OTG_FS2_OverCurrent_Pin GPIO_PIN_11
 #define OTG_FS2_OverCurrent_GPIO_Port GPIOH
+#define ARD_A4_Pin GPIO_PIN_2
+#define ARD_A4_GPIO_Port GPIOC
 #define ARD_D3_Pin GPIO_PIN_6
 #define ARD_D3_GPIO_Port GPIOA
 #define MII_RX_DV_Pin GPIO_PIN_7
@@ -185,8 +187,6 @@ void Error_Handler(void);
 #define LD1_GPIO_Port GPIOJ
 #define LCD_RST_Pin GPIO_PIN_12
 #define LCD_RST_GPIO_Port GPIOB
-#define ARD_D11_Pin GPIO_PIN_15
-#define ARD_D11_GPIO_Port GPIOB
 #define MII_RX_D2_Pin GPIO_PIN_0
 #define MII_RX_D2_GPIO_Port GPIOB
 #define FDCAN2_TX_Pin GPIO_PIN_13
