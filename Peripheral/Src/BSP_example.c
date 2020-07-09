@@ -67,7 +67,7 @@ BSP_DemoTypedef  BSP_examples[]=
 int BSP_example(void)
 {
   /* Configure the system clock to 400 MHz */
-  SystemClock_Config();
+//  SystemClock_Config();
 
   /* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
      HSEM notification or by any D2 wakeup source (SEV,EXTI..)   */

@@ -34,7 +34,7 @@ int synth_v2(void)
 
 	cisInit();
 	while(1);
-	synth_init();
+	synthInit();
 
 	/* Infinite loop */
 	static int old_tick;

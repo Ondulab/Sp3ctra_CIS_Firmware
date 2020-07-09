@@ -24,7 +24,6 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
-enum cisCalStep{CAL_ON, CAL_OFF};
 
 typedef enum
 {
@@ -34,24 +33,16 @@ typedef enum
 }CIS_BUFF_StateTypeDef;
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
-#define CIS_SP_Pin ARD_D6_Pin
-/* Definition of ADCx conversions data table size tis buffer contains RGB conversion */
-#define ADC_CONVERTED_DATA_BUFFER_SIZE   ((uint32_t) CIS_END_CAPTURE * 3) /* Size of array aADCxConvertedData[] */
+/* Definition of ADCx conversions data table size this buffer contains RGB conversion */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
 
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
 /* Variable containing ADC conversions data */
-ALIGN_32BYTES (static uint8_t   cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 
 static CIS_BUFF_StateTypeDef  cisBufferState = {0};
-
-#ifdef DEBUG_CIS
-__IO uint32_t cis_dbg_cnt = 0;
-__IO uint32_t cis_dbg_data_cal = 0;
-__IO uint32_t cis_dbg_data = 0;
-#endif
 
 /* Private function prototypes -----------------------------------------------*/
 int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq);
@@ -69,13 +60,30 @@ void cisInit(void)
 {
 	cisADC_Init();
 	cisTIM_CLK_Init(CIS_CLK_FREQ);
+	cisTIM_SP_Init();
+	cisTIM_LED_R_Init();
+	cisTIM_LED_G_Init();
+	cisTIM_LED_B_Init();
+
+	// Reset SP counter
+	__HAL_TIM_SET_COUNTER(&htim15, 0);
+
+	//Set RGB phase shift
+	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
+
+	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 	HAL_Delay(100);
 
-	while(1)
-	{
-		cisDisplayLine();
-	}
+//	while(1)
+//	{
+//		cisDisplayLine();
+//	}
 }
 
 void cisDisplayLine(void)
@@ -195,11 +203,6 @@ int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
 
 	HAL_TIM_MspPostInit(&htim1);
 
-	cisTIM_SP_Init();
-	cisTIM_LED_R_Init();
-	cisTIM_LED_G_Init();
-	cisTIM_LED_B_Init();
-
 	/* Start CLK generation ##################################*/
 	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
 	{
@@ -208,19 +211,6 @@ int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
 
 	/* Start ADC Timer #######################################*/
 	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	// Reset SP counter
-	__HAL_TIM_SET_COUNTER(&htim15, 0);
-
-	//Set RGB phase shift
-	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
-
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -337,7 +327,7 @@ int32_t cisTIM_LED_R_Init()
 	}
 	HAL_TIM_MspPostInit(&htim3);
 
-	/* Start LED B generation ###############################*/
+	/* Start LED R generation ###############################*/
 	if(HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
 	{
 		Error_Handler();
@@ -438,7 +428,7 @@ int32_t cisTIM_LED_B_Init()
 	}
 	HAL_TIM_MspPostInit(&htim8);
 
-	/* Start LED R generation ###############################*/
+	/* Start LED B generation ###############################*/
 	if(HAL_TIMEx_OCN_Start(&htim8, TIM_CHANNEL_3) != HAL_OK)
 	{
 		Error_Handler();
@@ -564,7 +554,7 @@ void cisADC_Init(void)
 }
 
 /**
- * @brief  Conversion complete callback in non-blocking mode
+ * @brief  Conversion DMA half-transfer callback in non-blocking mode
  * @param  hadc: ADC handle
  * @retval None
  */
@@ -574,7 +564,7 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 }
 
 /**
- * @brief  Conversion DMA half-transfer callback in non-blocking mode
+ * @brief  Conversion complete callback in non-blocking mode
  * @param  hadc: ADC handle
  * @retval None
  */

@@ -27,6 +27,7 @@
 #include "dma2d.h"
 #include "ltdc.h"
 #include "opamp.h"
+#include "rng.h"
 #include "rtc.h"
 #include "sai.h"
 #include "sdmmc.h"
@@ -109,24 +110,24 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_DMA_Init();
+  MX_RNG_Init();
   /* USER CODE BEGIN 2 */
-  MX_GPIO_Init2();
-  /* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
+	MX_GPIO_Init2();
+	/* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
      HSEM notification or by any D2 wakeup source (SEV,EXTI..)   */
 
-  BSP_LED_Init(LED_GREEN);
-  BSP_LED_Init(LED_RED);
+	BSP_LED_Init(LED_GREEN);
+	BSP_LED_Init(LED_RED);
 
-  /* Configure the User push-button in EXTI Mode */
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+	/* Configure the User push-button in EXTI Mode */
+	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
-  BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
-  GUI_SetFuncDriver(&LCD_Driver);
+	BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
+	GUI_SetFuncDriver(&LCD_Driver);
 
-  synth_v3();
-//	AudioPlay_demo();
-	//	BSP_example();
-	//	paint();
+	synth_v3();
+	//		paint();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -163,12 +164,13 @@ void SystemClock_Config(void)
   __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
-                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
+                              |RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
   RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 5;
@@ -201,9 +203,10 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_LTDC
-                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_SAI2
-                              |RCC_PERIPHCLK_SDMMC|RCC_PERIPHCLK_ADC
-                              |RCC_PERIPHCLK_FMC|RCC_PERIPHCLK_CKPER;
+                              |RCC_PERIPHCLK_USART3|RCC_PERIPHCLK_RNG
+                              |RCC_PERIPHCLK_SAI2|RCC_PERIPHCLK_SDMMC
+                              |RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_FMC
+                              |RCC_PERIPHCLK_CKPER;
   PeriphClkInitStruct.PLL2.PLL2M = 2;
   PeriphClkInitStruct.PLL2.PLL2N = 12;
   PeriphClkInitStruct.PLL2.PLL2P = 1;
@@ -225,6 +228,7 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   PeriphClkInitStruct.Sai23ClockSelection = RCC_SAI23CLKSOURCE_PLL;
   PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_PLL2;
+  PeriphClkInitStruct.RngClockSelection = RCC_RNGCLKSOURCE_HSI48;
   PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_CLKP;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)

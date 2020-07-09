@@ -13,7 +13,6 @@
 /********************              debug definitions               ********************/
 /**************************************************************************************/
 #define PRINT_FREQUENCY
-//#define DEBUG_CIS
 #define DEBUG_SYNTH
 //#define DEBUG_SAMPLE_RATE
 
@@ -40,8 +39,8 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_CLK_FREQ					(2000000)	//Max 3,5MHz in hertz
-#define CIS_PIXELS_NB					((CIS_END_CAPTURE)-(CIS_PIXEX_AERA_START))		//5530 active pixels
+#define CIS_CLK_FREQ					(2000000)
+#define CIS_PIXELS_NB					((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START))		//5530 active pixels
 
 #define CIS_SP_OFF						(10)
 #define CIS_LED_ON						(79)
@@ -60,11 +59,11 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION (65535)   	//in decimal
-#define START_FREQUENCY     (60)  	//FA 1
-#define MAX_OCTAVE_NUMBER   (10)
+#define START_FREQUENCY     (20)
+#define MAX_OCTAVE_NUMBER   (11)
 #define SEMITONE_PER_OCTAVE (12)
-#define COMMA_PER_SEMITONE  (4.5)		//4.5
-#define PIXEL_PER_COMMA     (14)        //12
+#define COMMA_PER_SEMITONE  (2.5)
+#define PIXEL_PER_COMMA     (18)
 
 #define NUMBER_OF_NOTES     ((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 

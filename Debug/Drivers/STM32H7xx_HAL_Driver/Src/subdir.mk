@@ -33,6 +33,8 @@ C_SRCS += \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c \
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.c \
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.c \
 ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.c \
@@ -75,6 +77,8 @@ OBJS += \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.o \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.o \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.o \
@@ -117,6 +121,8 @@ C_DEPS += \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.d \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.d \
+./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.d \
@@ -189,6 +195,10 @@ Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.o: ../Drivers/STM32H7xx_HAL_D
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.c
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.c
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g -DUSE_HAL_DRIVER -DSTM32H750xx -DUSE_STM32H750B_DISCO -DTS_MULTI_TOUCH_SUPPORTED '-DAPPLICATION_ADDRESS=0x90000000' -c -I../Drivers/BSP/Components/rk043fn48h -I"/mnt/data/Documents/Workspace_Cube/CISYNTH/Middleware/Inc" -I../Peripheral/Inc -I../Utilities -I../Drivers/BSP/Components/ft5336 -I../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../Drivers/BSP/Components/mt48lc4m32b2 -I../Drivers/BSP/STM32H750B-Discovery -I../Drivers/CMSIS/Include -I../Core/Inc -I../Drivers/BSP/Components -I../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../Drivers/BSP/Components/Common -I../Drivers/STM32H7xx_HAL_Driver/Inc -I../Application/Inc -O0 -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.o: ../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rtc_ex.c

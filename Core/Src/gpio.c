@@ -67,6 +67,7 @@
      PH3   ------> ETH_COL
      PC2_C   ------> ADC3_INN1
      PC3_C   ------> ADC3_INP1
+     PA6   ------> S_TIM13_CH1
      PA7   ------> ETH_RX_DV
      PD11   ------> QUADSPI_BK1_IO0
      PB1   ------> ETH_RXD3
@@ -309,6 +310,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(OTG_FS2_OverCurrent_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = ARD_D3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF9_TIM13;
+  HAL_GPIO_Init(ARD_D3_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PD11 */
   GPIO_InitStruct.Pin = GPIO_PIN_11;

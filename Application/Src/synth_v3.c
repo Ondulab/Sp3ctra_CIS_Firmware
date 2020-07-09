@@ -27,67 +27,39 @@ int synth_v3(void)
 
 	printf("Start CIS Demo\n");
 
-//	for(int i = 0; i < NUMBER_OF_NOTES; i+=100) //NUMBER_OF_NOTES
-//	{
-//		cis_adc_data[i] = 30000;
-//	}
-
 	cisInit();
-
-	while(1)
-	{
-	}
-
-	synth_init();
+	synthInit();
+	synthTest();
 
 	/* Infinite loop */
-	static int old_tick;
+	static uint32_t start_tick;
+	static uint32_t old_tick;
+	uint32_t latency;
 	old_tick = HAL_GetTick();
 
 	while (1)
 	{
-		if (((HAL_GetTick() - old_tick)) < 100)
+		start_tick = HAL_GetTick();
+		while (rfft_cnt < 44100)
 		{
-
+			AUDIO_Process();
 		}
-		else
-		{
+		rfft_cnt = 0;
+		latency = HAL_GetTick() - start_tick;
+
 #ifdef DEBUG_SYNTH
-			sprintf((char *)FreqStr, "rfft cnt : %d", (int)rfft_cnt * 10);
-			GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
-			//			printf("-----------------------------------------\n");
-			//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
-			rfft_cnt = 0;
-#endif
-#ifdef DEBUG_CIS
-			printf("-----------------------------------------\n");
-			printf("CIS cnt   : %d\n", (int)cis_dbg_cnt);
-			printf("CIS cal   : %d\n", (int)cis_dbg_data_cal);
-			printf("CIS dat   : %d\n", (int)cis_dbg_data);
-			printf("ADC [240] : %d\n", (int)cis_adc_data[240]);
-			cis_dbg_cnt = 0;
-#endif
-
-			GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
-			for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
-			{
-				GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
-			}
-
-			//			static uint32_t idx = 0;
-			//			++idx;
-			//
-			//			cis_adc_data[idx - 1] = 0;
-			//			cis_adc_data[idx] = 16000;
-			//
-			//			if (idx >= 30)
-			//			{
-			//				cis_adc_data[idx] = 0;
-			//				idx = 0;
-			//			}
-
-			old_tick = HAL_GetTick();
+		sprintf((char *)FreqStr, "rfft Frequency = : %d", (int) (44100000 / latency));
+		GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
+		//			printf("-----------------------------------------\n");
+		//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
+		rfft_cnt = 0;
+		GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
+		for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
+		{
+			GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
 		}
+#endif
+		old_tick = HAL_GetTick();
 	}
 }
 

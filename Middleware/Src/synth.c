@@ -10,6 +10,7 @@
 #include "stm32h7xx_hal.h"
 #include "config.h"
 #include "tim.h"
+#include "rng.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -28,16 +29,19 @@
 /*Since SysTick is set to 1ms (unless to set it quicker) */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
 /* to run up to 96khz, a buffer around 2000 (or more) is requested*/
-#define AUDIO_DEFAULT_VOLUME    70
+#define AUDIO_DEFAULT_VOLUME    		50
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
-#define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             4096
-#define RFFT_BUFFER_SIZE        	  (AUDIO_BUFFER_SIZE / 4)
+#define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
+#define AUDIO_BUFFER_SIZE             	4096
+#define RFFT_BUFFER_SIZE        	  	(AUDIO_BUFFER_SIZE / 4)
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
+
+/* Definition of monochrome pix data table size */
+#define BW_DATA_FRAME_SIZE (CIS_PIXELS_NB)
 /* Private typedef -----------------------------------------------------------*/
 typedef enum {
 	AUDIO_STATE_IDLE = 0,
@@ -69,7 +73,7 @@ uint32_t bytesread;
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 static uint32_t rfft_buff[RFFT_BUFFER_SIZE] = {0};
 static AUDIO_PLAYBACK_StateTypeDef  audio_state;
-__IO uint32_t uwVolume = 15;
+__IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
 uint8_t ReadVol = 0;
 __IO uint32_t uwPauseEnabledStatus = 0;
 uint32_t updown = 1;
@@ -79,6 +83,9 @@ uint32_t AudioFreq[8] = {96000, 48000, 44100, 32000, 22050, 16000, 11025, 8000};
 BSP_AUDIO_Init_t AudioPlayInit;
 
 uint32_t OutputDevice = 0;
+
+/* Variable containing black and white frame from CIS*/
+ALIGN_32BYTES (static uint16_t frameDataBW[BW_DATA_FRAME_SIZE]) = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 int32_t initDacTimer(uint32_t freq);
@@ -92,11 +99,23 @@ static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t Nb
  * @param
  * @retval Error
  */
-int32_t synth_init(void)
+int32_t synthInit(void)
 {
 	int32_t buffer_len = 0;
+	uint32_t aRandom32bit = 0;
 
 	buffer_len = init_waves(&unitary_waveform, waves);
+
+	// start with random index
+	for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
+	{
+		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+		{
+			/* Random number generation error */
+			Error_Handler();
+		}
+		waves[i].current_idx = aRandom32bit % waves[i].aera_size;
+	}
 
 	if (buffer_len < 0)
 	{
@@ -108,7 +127,7 @@ int32_t synth_init(void)
 
 #ifdef PRINT_FREQUENCY
 	printf("FREQ = %0.2fHz, SIZE = %d, OCTAVE = %d\n", waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
-	printf("FREQ = %0.2fHz, SIZE = %d, OCTAVE = %d\n", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size, (int)waves[NUMBER_OF_NOTES - 1].octave_coeff);
+	printf("FREQ = %0.2fHz, SIZE = %d, OCTAVE = %d\n", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size, (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
 
 	//	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
 	//	{
@@ -123,7 +142,6 @@ int32_t synth_init(void)
 	//		//				HAL_Delay(1);
 	//	}
 	//	printf("---- END ----");
-	//	while(1);
 #endif
 
 	uint32_t *AudioFreq_ptr;
@@ -156,14 +174,26 @@ int32_t synth_init(void)
 		audio_state = AUDIO_STATE_PLAYING;
 		buffer_ctl.fptr = bytesread;
 
-		//		if (initSamplingTimer(SAMPLING_FREQUENCY) != 0)
-		//		{
-		//			Error_Handler();
-		//		}
 		return 0;
 	}
 
 	return -1;
+}
+
+/**
+ * @brief  synth Test.
+ * @param
+ * @retval Error
+ */
+int32_t synthTest(void)
+{
+	for(int i = 0; i < NUMBER_OF_NOTES; i++)
+	{
+		frameDataBW[i * PIXEL_PER_COMMA] = 30000;
+	}
+//	frameDataBW[50 * PIXEL_PER_COMMA] = 30000;
+
+	return 0;
 }
 
 /**
@@ -174,68 +204,6 @@ int32_t synth_init(void)
 uint16_t getBuffData(uint32_t index)
 {
 	return rfft_buff[index];
-}
-
-/**
- * @brief  Init sampling frequency timer and set it
- * @param  sampling_frequency
- * @retval Error
- */
-int32_t initSamplingTimer(uint32_t sampling_freq)
-{
-	TIM_OC_InitTypeDef sConfigOC;
-
-	uint32_t uwPrescalerValue = 0;
-
-	/* Compute the prescaler value to have TIMx counter clock equal to 10000 Hz */
-	uwPrescalerValue = (uint32_t)(SystemCoreClock / (4 * sampling_freq)) - 1;
-
-	/* Set TIMx instance */
-	htim13.Instance = TIM13;
-
-	/* Initialize TIM13 peripheral as follows:
-		       + Period = sampling_freq
-		       + Prescaler = (SystemCoreClock/10000) - 1
-		       + ClockDivision = 0
-		       + Counter direction = Up
-	 */
-	htim13.Init.Period            = 1;
-	htim13.Init.Prescaler         = uwPrescalerValue;
-	htim13.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-	htim13.Init.CounterMode       = TIM_COUNTERMODE_UP;
-	htim13.Init.RepetitionCounter = 0;
-	htim13.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	if (HAL_TIM_OC_Init(&htim13) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	//	sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-	//	sConfigOC.Pulse = uwPrescalerValue;
-	//	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	//	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-	//	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-	//	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-	//	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-	//	if (HAL_TIM_OC_ConfigChannel(&htim13, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-	//	{
-	//		Error_Handler();
-	//	}
-
-	//	/* Start channel 1 in Output compare mode */
-	if (HAL_TIM_OC_Start_IT(&htim13, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-#ifndef DEBUG_SAMPLE_RATE
-	if (HAL_TIM_Base_Start_IT(&htim13) != HAL_OK)
-	{
-		/* Starting Error */
-		return -4;
-	}
-#endif
-	return 0;
 }
 
 /**
@@ -253,6 +221,7 @@ void rfft(uint32_t *pdata, uint32_t NbrOfData)
 	uint32_t max_power;
 	uint16_t rfft;
 	uint16_t reverse8bit;
+	uint16_t curr_pix_val;
 
 	uint32_t WriteDataNbr;
 
@@ -266,8 +235,10 @@ void rfft(uint32_t *pdata, uint32_t NbrOfData)
 		//Summation for all pixel
 		for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
 		{
+			//store current pixel value
+			curr_pix_val = frameDataBW[pix * PIXEL_PER_COMMA];
 			//test for CIS presence
-			if (cis_adc_data[pix] > SENSIVITY_THRESHOLD)
+			if (curr_pix_val > SENSIVITY_THRESHOLD)
 			{
 				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
 				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
@@ -277,12 +248,12 @@ void rfft(uint32_t *pdata, uint32_t NbrOfData)
 
 				waves[pix].current_idx = new_idx;
 
-				signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * cis_adc_data[pix]) >> 16;
+				signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * curr_pix_val) >> 16;
 
 				//read equivalent power of current pixel
-				signal_power_summation += (cis_adc_data[pix]);
-				if (cis_adc_data[pix] > max_power)
-					max_power = cis_adc_data[pix];
+				signal_power_summation += curr_pix_val;
+				if (frameDataBW[pix * PIXEL_PER_COMMA] > max_power)
+					max_power = frameDataBW[pix * PIXEL_PER_COMMA];
 			}
 		}
 
