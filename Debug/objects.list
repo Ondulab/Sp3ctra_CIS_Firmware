@@ -1,5 +1,4 @@
 "Application/Src/paint.o"
-"Application/Src/synth_v2.o"
 "Application/Src/synth_v3.o"
 "Core/Src/adc.o"
 "Core/Src/crc.o"

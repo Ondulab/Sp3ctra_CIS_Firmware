@@ -27,5 +27,8 @@
 /* Private define ------------------------------------------------------------*/
 
 void cisInit(void);
+void cisTest(void);
+uint16_t cisGetBuffData(uint32_t index);
+void cisImageProcess(void);
 
 #endif /* __CIS_H__ */

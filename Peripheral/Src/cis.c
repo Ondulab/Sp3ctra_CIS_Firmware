@@ -40,22 +40,27 @@ typedef enum
 
 /* Private variables ---------------------------------------------------------*/
 /* Variable containing ADC conversions data */
-ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static __IO uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 
 static CIS_BUFF_StateTypeDef  cisBufferState = {0};
 
 /* Private function prototypes -----------------------------------------------*/
-int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq);
-int32_t cisTIM_SP_Init(void);
-int32_t cisTIM_LED_R_Init(void);
-int32_t cisTIM_LED_G_Init(void);
-int32_t cisTIM_LED_B_Init(void);
+void cisTIM_CLK_Init(uint32_t cis_clk_freq);
+void cisTIM_SP_Init(void);
+void cisTIM_LED_R_Init(void);
+void cisTIM_LED_G_Init(void);
+void cisTIM_LED_B_Init(void);
 
 void cisADC_Init(void);
 void cisDisplayLine(void);
 
 /* Private user code ---------------------------------------------------------*/
 
+/**
+ * @brief  CIS init
+ * @param  Void
+ * @retval None
+ */
 void cisInit(void)
 {
 	cisADC_Init();
@@ -79,25 +84,74 @@ void cisInit(void)
 	}
 
 	HAL_Delay(100);
-
-//	while(1)
-//	{
-//		cisDisplayLine();
-//	}
 }
 
-void cisDisplayLine(void)
+/**
+ * @brief  CIS test
+ * @param  Void
+ * @retval None
+ */
+void cisTest(void)
 {
-	static uint32_t j = 0;
+	uint32_t j = 0;
 	uint32_t x_size, y_size;
 	uint32_t color = 0;
 
 	BSP_LCD_GetXSize(0, &x_size);
 	BSP_LCD_GetYSize(0, &y_size);
 
-	if (j >= y_size)
-		return;
+	while(1)
+	{
+		/* 1st half buffer played; so fill it and continue playing from bottom*/
+		if(cisBufferState == BUFFER_OFFSET_HALF)
+		{
+			cisBufferState = BUFFER_OFFSET_NONE;
+			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
+			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+		}
 
+		/* 2nd half buffer played; so fill it and continue playing from top */
+		if(cisBufferState == BUFFER_OFFSET_FULL)
+		{
+			cisBufferState = BUFFER_OFFSET_NONE;
+			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
+			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+			for (uint32_t i = 0; i < x_size; i++)
+			{
+				color = 0xFF000000;
+				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START) << 16;
+				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START) << 8;
+				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START);
+				GUI_SetPixel(i, j + 24, color);
+			}
+			j++;
+			if (j >= (y_size - 24))
+			{
+				j = 0;
+			}
+		}
+	}
+}
+
+/**
+ * @brief  Return buffer data
+ * @param  index
+ * @retval value
+ */
+uint16_t cisGetBuffData(uint32_t index)
+{
+//	if (index >= CIS_PIXELS_NB)
+//		Error_Handler();
+	return cisData[index + CIS_PIXEX_AERA_START];
+}
+
+/**
+ * @brief  Manages Image process.
+ * @param  None
+ * @retval Image error
+ */
+void cisImageProcess(void)
+{
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == BUFFER_OFFSET_HALF)
 	{
@@ -112,36 +166,15 @@ void cisDisplayLine(void)
 		cisBufferState = BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
-		for (uint32_t i = 0; i < x_size; i++)
-		{
-			color = 0xFF000000;
-			color |= cisData[(i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START] << 16;
-			color |= cisData[(i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START] << 8;
-			color |= cisData[(i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START];
-			GUI_SetPixel(i, j + 24, color);
-		}
-		j++;
-//		if (j >= (y_size - 24))
-//		{
-//			j = 0;
-//		}
 	}
-}
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	if (GPIO_Pin != GPIO_PIN_13)
-		return;
-
-	//	cisCalibration();
 }
 
 /**
  * @brief  Init CIS clock Frequency
  * @param  sampling_frequency
- * @retval Error
+ * @retval None
  */
-int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
+void cisTIM_CLK_Init(uint32_t cis_clk_freq)
 {
 	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
@@ -214,11 +247,14 @@ int32_t cisTIM_CLK_Init(uint32_t cis_clk_freq)
 	{
 		Error_Handler();
 	}
-
-	return 0;
 }
 
-int32_t cisTIM_SP_Init()
+/**
+ * @brief  CIS start pulse timer init
+ * @param  Void
+ * @retval None
+ */
+void cisTIM_SP_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -278,10 +314,14 @@ int32_t cisTIM_SP_Init()
 	{
 		Error_Handler();
 	}
-	return 0;
 }
 
-int32_t cisTIM_LED_R_Init()
+/**
+ * @brief  CIS red led timer init
+ * @param  Void
+ * @retval None
+ */
+void cisTIM_LED_R_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -332,11 +372,14 @@ int32_t cisTIM_LED_R_Init()
 	{
 		Error_Handler();
 	}
-
-	return 0;
 }
 
-int32_t cisTIM_LED_G_Init()
+/**
+ * @brief  CIS green led timer init
+ * @param  Void
+ * @retval None
+ */
+void cisTIM_LED_G_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -378,11 +421,14 @@ int32_t cisTIM_LED_G_Init()
 	{
 		Error_Handler();
 	}
-
-	return 0;
 }
 
-int32_t cisTIM_LED_B_Init()
+/**
+ * @brief  CIS blue led timer init
+ * @param  Void
+ * @retval None
+ */
+void cisTIM_LED_B_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -433,10 +479,13 @@ int32_t cisTIM_LED_B_Init()
 	{
 		Error_Handler();
 	}
-
-	return 0;
 }
 
+/**
+ * @brief  CIS adc init
+ * @param  Void
+ * @retval None
+ */
 void cisADC_Init(void)
 {
 	ADC_MultiModeTypeDef multimode = {0};

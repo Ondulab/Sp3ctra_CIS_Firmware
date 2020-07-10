@@ -6,35 +6,36 @@
 /**************************************************************************************/
 /********************              STM32 definitions               ********************/
 /**************************************************************************************/
-#define ADC_VOLTAGE			(3300)                    //STM32 ADC peripheral reference is 3300mV
-#define ADC_COEFF 			((ADC_VOLTAGE) / (4095))  //ADC value/mV
+#define ADC_VOLTAGE						(3300)                    //STM32 ADC peripheral reference is 3300mV
+#define ADC_COEFF 						((ADC_VOLTAGE) / (4095))  //ADC value/mV
 
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
 #define PRINT_FREQUENCY
 #define DEBUG_SYNTH
+#define DEBUG_CIS
 //#define DEBUG_SAMPLE_RATE
 
 /**************************************************************************************/
 /********************                     math                     ********************/
 /**************************************************************************************/
-#define PI					(3.14159265359)
+#define PI								(3.14159265359)
 
 /**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
-#define SAMPLING_FREQUENCY 	(44100)	  	//in hertz
+#define SAMPLING_FREQUENCY 				(44100)	  	//in hertz
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
 /**************************************************************************************/
-#define DAC_TIME_FREQ 		(44100)//SAMPLING_FREQUENCY)
+#define DAC_TIME_FREQ 					(44100)//SAMPLING_FREQUENCY)
 
 /**************************************************************************************/
 /********************           Generation definitions             ********************/
 /**************************************************************************************/
-#define SENSIVITY_THRESHOLD (100)		    //threshold for detection
+#define SENSIVITY_THRESHOLD 			(0)		    //threshold for detection
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
@@ -58,14 +59,14 @@
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
-#define WAVE_AMP_RESOLUTION (65535)   	//in decimal
-#define START_FREQUENCY     (20)
-#define MAX_OCTAVE_NUMBER   (11)
-#define SEMITONE_PER_OCTAVE (12)
-#define COMMA_PER_SEMITONE  (2.5)
-#define PIXEL_PER_COMMA     (18)
+#define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
+#define START_FREQUENCY     			(20)
+#define MAX_OCTAVE_NUMBER   			(11)
+#define SEMITONE_PER_OCTAVE 			(12)
+#define COMMA_PER_SEMITONE  			(2.5)
+#define PIXEL_PER_COMMA     			(15)
 
-#define NUMBER_OF_NOTES     ((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
+#define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 
 #endif // __CONFIG_H__
 

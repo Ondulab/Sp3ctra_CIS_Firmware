@@ -24,12 +24,19 @@ int synth_v3(void)
 {
 	cisynth_v3_SetHint(0);
 	uint8_t FreqStr[256] = {0};
+	uint32_t x_size, y_size;
+	uint32_t color = 0;
+
+	BSP_LCD_GetXSize(0, &x_size);
+	BSP_LCD_GetYSize(0, &y_size);
 
 	printf("Start CIS Demo\n");
 
 	cisInit();
 	synthInit();
-	synthTest();
+
+	//	cisTest();
+//		synthTest();
 
 	/* Infinite loop */
 	static uint32_t start_tick;
@@ -42,21 +49,33 @@ int synth_v3(void)
 		start_tick = HAL_GetTick();
 		while (rfft_cnt < 44100)
 		{
-			AUDIO_Process();
+			cisImageProcess();
+			for (uint32_t i = 30; i < NUMBER_OF_NOTES - 30; i++)
+			{
+				synthSetFrameBuffData(i * PIXEL_PER_COMMA, 65535 - (cisGetBuffData(i * PIXEL_PER_COMMA) * cisGetBuffData(i * PIXEL_PER_COMMA + CIS_END_CAPTURE)));
+			}
+			synthAudioProcess();
 		}
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
-
 #ifdef DEBUG_SYNTH
-		sprintf((char *)FreqStr, "rfft Frequency = : %d", (int) (44100000 / latency));
+		GUI_FillRect(0, 27, x_size, 70, GUI_COLOR_GRAY);
+		sprintf((char *)FreqStr, "rfft Frequency = : %d", (int)(44100000 / (latency)));
 		GUI_DisplayStringAt(0, LINE(15), (uint8_t*)FreqStr, CENTER_MODE);
-		//			printf("-----------------------------------------\n");
-		//			printf("rfft  cnt : %d\n", (int)rfft_cnt);
 		rfft_cnt = 0;
-		GUI_FillRect(0, 25, LCD_DEFAULT_WIDTH, 150, GUI_COLOR_DARKGRAY);
-		for (uint32_t i = 0; i < LCD_DEFAULT_WIDTH; i++)
+		for (uint32_t i = 0; i < x_size; i++)
 		{
-			GUI_SetPixel(i, 25 + (getBuffData(i) >> 9) , GUI_COLOR_YELLOW);
+			GUI_SetPixel(i, 27 + (synthGetRfftBuffData(i) >> 9) , GUI_COLOR_LIGHTYELLOW);
+		}
+#endif
+#ifdef DEBUG_CIS
+		for (uint32_t i = 0; i < x_size; i++)
+		{
+			color = 0xFF000000;
+			color |= cisGetBuffData(i * (CIS_PIXELS_NB/x_size)) << 16;
+			color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE) << 8;
+			color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2));
+			GUI_DrawLine(i, 100, i, 170, color);
 		}
 #endif
 		old_tick = HAL_GetTick();

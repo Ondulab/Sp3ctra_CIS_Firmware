@@ -39,7 +39,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "paint.h"
-#include "synth_v2.h"
 #include "synth_v3.h"
 /* USER CODE END Includes */
 
