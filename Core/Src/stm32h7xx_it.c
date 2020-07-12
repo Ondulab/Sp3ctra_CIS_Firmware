@@ -58,6 +58,8 @@
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
 extern ADC_HandleTypeDef hadc1;
+extern DMA_HandleTypeDef hdma_sai2_a;
+extern DMA_HandleTypeDef hdma_sai2_b;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim15;
 /* USER CODE BEGIN EV */
@@ -271,6 +273,34 @@ void TIM1_CC_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles DMA2 stream1 global interrupt.
+  */
+void DMA2_Stream1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream1_IRQn 0 */
+	BSP_AUDIO_OUT_IRQHandler(0);
+  /* USER CODE END DMA2_Stream1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_sai2_a);
+  /* USER CODE BEGIN DMA2_Stream1_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles DMA2 stream4 global interrupt.
+  */
+void DMA2_Stream4_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA2_Stream4_IRQn 0 */
+	HAL_DMA_IRQHandler(haudio_in_sai.hdmarx);
+  /* USER CODE END DMA2_Stream4_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_sai2_b);
+  /* USER CODE BEGIN DMA2_Stream4_IRQn 1 */
+
+  /* USER CODE END DMA2_Stream4_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM15 global interrupt.
   */
 void TIM15_IRQHandler(void)
@@ -293,26 +323,6 @@ void TIM15_IRQHandler(void)
 void EXTI15_10_IRQHandler(void)
 {
 BSP_PB_IRQHandler(BUTTON_USER);
-}
-
-/**
-  * @brief  This function handles DMA2 Stream 1 interrupt request.
-  * @param  None
-  * @retval None
-  */
-void AUDIO_OUT_SAIx_DMAx_IRQHandler(void)
-{
-  BSP_AUDIO_OUT_IRQHandler(0);
-}
-
-/**
-  * @brief  This function handles DMA2 Stream 4 for SAI1B interrupt request.
-  * @param  None
-  * @retval None
-  */
-void AUDIO_IN_SAIx_DMAx_IRQHandler(void)
-{
-  HAL_DMA_IRQHandler(haudio_in_sai.hdmarx);
 }
 
 /**

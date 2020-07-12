@@ -10,6 +10,7 @@
 "Core/Src/gpio.o"
 "Core/Src/ltdc.o"
 "Core/Src/main.o"
+"Core/Src/mdma.o"
 "Core/Src/opamp.o"
 "Core/Src/rng.o"
 "Core/Src/rtc.o"

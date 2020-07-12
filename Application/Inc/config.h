@@ -35,7 +35,7 @@
 /**************************************************************************************/
 /********************           Generation definitions             ********************/
 /**************************************************************************************/
-#define SENSIVITY_THRESHOLD 			(0)		    //threshold for detection
+#define SENSIVITY_THRESHOLD 			(1)		    //threshold for detection
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
@@ -60,10 +60,10 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
-#define START_FREQUENCY     			(20)
+#define START_FREQUENCY     			(40)
 #define MAX_OCTAVE_NUMBER   			(11)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(2.5)
+#define COMMA_PER_SEMITONE  			(4)
 #define PIXEL_PER_COMMA     			(15)
 
 #define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))

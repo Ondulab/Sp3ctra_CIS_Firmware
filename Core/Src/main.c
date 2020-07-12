@@ -26,6 +26,7 @@
 #include "dma.h"
 #include "dma2d.h"
 #include "ltdc.h"
+#include "mdma.h"
 #include "opamp.h"
 #include "rng.h"
 #include "rtc.h"
@@ -109,6 +110,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_DMA_Init();
+  MX_MDMA_Init();
   MX_RNG_Init();
   /* USER CODE BEGIN 2 */
 	MX_GPIO_Init2();
@@ -121,8 +123,12 @@ int main(void)
 	/* Configure the User push-button in EXTI Mode */
 	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
+	/* Configure LCD */
 	BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
+	BSP_LCD_SetBrightness(0, 1000); //Conflit with TIM8 in CIS
 	GUI_SetFuncDriver(&LCD_Driver);
+	/* Clear the LCD */
+	GUI_Clear(GUI_COLOR_DARKGRAY);
 
 	synth_v3();
 	//		paint();

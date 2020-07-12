@@ -89,7 +89,7 @@ uint32_t init_waves( uint16_t **unitary_waveform, struct wave *waves)
 			//sanity check
 			if (current_unitary_waveform_cell < buffer_len)
 			{
-				(*unitary_waveform)[current_unitary_waveform_cell] = (sin((x * 2.00 * PI) / current_aera_size) + 1.00) * WAVE_AMP_RESOLUTION / 2.00;
+				(*unitary_waveform)[current_unitary_waveform_cell] = (sin((x * 2.00 * PI) / current_aera_size) + 1.00) * WAVE_AMP_RESOLUTION / 2;
 				current_unitary_waveform_cell++;
 			}
 		}

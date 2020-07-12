@@ -64,7 +64,7 @@ extern "C" {
 /******************************************************************************
  * LCD trace Configuration
  ******************************************************************************/
-#define USE_LCD_TRACE                            1U
+#define USE_LCD_TRACE                            0U
 
 /* Enable LCD scrolling */
 #define     LCD_SCROLL_ENABLED                   1U

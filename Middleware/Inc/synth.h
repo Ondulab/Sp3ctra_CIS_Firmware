@@ -38,6 +38,7 @@ int32_t synthInit(void);
 int32_t synthTest(void);
 uint16_t synthGetRfftBuffData(uint32_t index);
 void synthSetFrameBuffData(uint32_t index, uint16_t value);
+uint16_t synthGetFrameBuffData(uint32_t index);
 uint8_t synthAudioProcess(void);
 
 /* Private defines -----------------------------------------------------------*/

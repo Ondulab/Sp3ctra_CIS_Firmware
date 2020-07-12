@@ -18,7 +18,7 @@
 
 
 
-#define FreeRTOS
+//#define FreeRTOS
 #define MAX_STACK_SIZE 0x2000
 
 extern int __io_putchar(int ch) __attribute__((weak));

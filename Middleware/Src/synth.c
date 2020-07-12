@@ -29,7 +29,7 @@
 /*Since SysTick is set to 1ms (unless to set it quicker) */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
 /* to run up to 96khz, a buffer around 2000 (or more) is requested*/
-#define AUDIO_DEFAULT_VOLUME    		50
+#define AUDIO_DEFAULT_VOLUME    		40
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -40,8 +40,6 @@
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
 
-/* Definition of monochrome pix data table size */
-#define BW_DATA_FRAME_SIZE (CIS_PIXELS_NB)
 /* Private typedef -----------------------------------------------------------*/
 typedef enum {
 	AUDIO_STATE_IDLE = 0,
@@ -82,7 +80,7 @@ BSP_AUDIO_Init_t AudioPlayInit;
 uint32_t OutputDevice = 0;
 
 /* Variable containing black and white frame from CIS*/
-ALIGN_32BYTES (static uint16_t frameDataBW[BW_DATA_FRAME_SIZE]) = {0};
+ALIGN_32BYTES (static uint16_t frameDataBW[NUMBER_OF_NOTES]) = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
@@ -122,8 +120,14 @@ int32_t synthInit(void)
 	printf("Buffer lengh = %d\n", (int)buffer_len);
 
 #ifdef PRINT_FREQUENCY
-	printf("FREQ = %0.2fHz, SIZE = %d, OCTAVE = %d\n", waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
-	printf("FREQ = %0.2fHz, SIZE = %d, OCTAVE = %d\n", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size, (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
+	uint8_t FreqStr[256] = {0};
+	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
+	GUI_SetBackColor(GUI_COLOR_DARKGRAY);
+	GUI_SetFont(&Font12);
+	sprintf((char *)FreqStr, "FIRST NOTE = %0.2fHz, SIZE = %d, OCTAVE = %d", waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
+	GUI_DisplayStringAt(0, LINE(20), (uint8_t*)FreqStr, LEFT_MODE);
+	sprintf((char *)FreqStr, "LAST NOTE  = %0.2fHz, SIZE = %d, OCTAVE = %d", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
+	GUI_DisplayStringAt(0, LINE(21), (uint8_t*)FreqStr, LEFT_MODE);
 
 	//	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
 	//	{
@@ -194,27 +198,27 @@ int32_t synthTest(void)
 			/* Random number generation error */
 			Error_Handler();
 		}
-		frameDataBW[i * PIXEL_PER_COMMA] = aRandom32bit % 1000;
+		frameDataBW[i] = aRandom32bit % 1000;
 	}
 
-	frameDataBW[50 * PIXEL_PER_COMMA] = 30000;
-	frameDataBW[54 * PIXEL_PER_COMMA] = 30000;
-	frameDataBW[151 * PIXEL_PER_COMMA] = 30000;
-	frameDataBW[152 * PIXEL_PER_COMMA] = 30000;
-	frameDataBW[153 * PIXEL_PER_COMMA] = 30000;
+	frameDataBW[50] = 30000;
+	frameDataBW[54] = 30000;
+	frameDataBW[151] = 30000;
+	frameDataBW[152] = 30000;
+	frameDataBW[153] = 30000;
 
 	return 0;
 }
 
 /**
- * @brief  Get buffer data
- * @param  index
- * @retval value
+ * @brief  Get RFFT buffer data
+ * @param  Index
+ * @retval Value
  */
 uint16_t synthGetRfftBuffData(uint32_t index)
 {
-	if (index >= RFFT_BUFFER_SIZE)
-		Error_Handler();
+//	if (index >= RFFT_BUFFER_SIZE)
+//		Error_Handler();
 	return rfft_buff[index];
 }
 
@@ -225,9 +229,21 @@ uint16_t synthGetRfftBuffData(uint32_t index)
  */
 void synthSetFrameBuffData(uint32_t index, uint16_t value)
 {
-//	if (index >= BW_DATA_FRAME_SIZE)
+//	if (index >= NUMBER_OF_NOTES)
 //		Error_Handler();
 	frameDataBW[index] = value;
+}
+
+/**
+ * @brief  Set buffer data
+ * @param  index
+ * @retval Value
+ */
+uint16_t synthGetFrameBuffData(uint32_t index)
+{
+	if (index >= NUMBER_OF_NOTES)
+		return 0;
+	return frameDataBW[index];
 }
 
 /**
@@ -242,10 +258,9 @@ void synthRfftMode(uint32_t *pdata, uint32_t NbrOfData)
 	uint64_t signal_summation;
 	uint32_t signal_power_summation;
 	uint32_t new_idx;
-	uint32_t max_power;
-	uint16_t rfft;
-	uint16_t reverse8bit;
-	uint16_t curr_pix_val;
+	uint64_t max_power;
+	uint32_t rfft;
+	uint32_t curr_note_val;
 
 	uint32_t WriteDataNbr;
 
@@ -257,33 +272,33 @@ void synthRfftMode(uint32_t *pdata, uint32_t NbrOfData)
 		max_power = 0;
 		rfft = 0;
 		//Summation for all pixel
-		for (int32_t pix = NUMBER_OF_NOTES; --pix >= 0;)
+		for (int32_t note = NUMBER_OF_NOTES; --note >= 0;)
 		{
 			//store current pixel value
-			curr_pix_val = frameDataBW[pix * PIXEL_PER_COMMA];
+			curr_note_val = frameDataBW[(uint32_t)note];
 			//test for CIS presence
-			if (curr_pix_val > SENSIVITY_THRESHOLD)
+			if (curr_note_val > SENSIVITY_THRESHOLD)
 			{
 				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
 				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-				new_idx = (waves[pix].current_idx + waves[pix].octave_coeff);
-				if (new_idx > waves[pix].aera_size)
-					new_idx -= waves[pix].aera_size;
+				new_idx = (waves[note].current_idx + waves[note].octave_coeff);
+				if (new_idx > waves[note].aera_size)
+					new_idx -= waves[note].aera_size;
 
-				waves[pix].current_idx = new_idx;
+				waves[note].current_idx = new_idx;
 
-				signal_summation += (*(waves[pix].start_ptr + waves[pix].current_idx) * curr_pix_val) >> 16;
+				signal_summation += (*(waves[note].start_ptr + waves[note].current_idx) * curr_note_val) >> 16;
 
 				//read equivalent power of current pixel
-				signal_power_summation += curr_pix_val;
-				if (curr_pix_val > max_power)
-					max_power = curr_pix_val;
+				signal_power_summation += curr_note_val;
+				if (curr_note_val > max_power)
+					max_power = curr_note_val;
 			}
 		}
 
 		rfft = (signal_summation * ((double)max_power / signal_power_summation));
-		pdata[WriteDataNbr] = rfft | (rfft << 16); //stereo
-		//	rfft_buff[audio_buff_idx] = rfft; //mono
+		pdata[WriteDataNbr] = rfft / 2 | ((rfft / 2) << 16); //stereo
+//		pdata[WriteDataNbr] = rfft / 2; //mono
 		WriteDataNbr++;
 	}
 
