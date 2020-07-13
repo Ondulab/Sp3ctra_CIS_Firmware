@@ -18,7 +18,7 @@
 
 /* Exported types ------------------------------------------------------------*/
 struct wave {
-	uint16_t *start_ptr;
+	int16_t *start_ptr;
     uint16_t current_idx;
 	uint16_t aera_size;
 	uint16_t octave_coeff;
@@ -36,7 +36,7 @@ extern volatile uint32_t rfft_cnt;
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synthInit(void);
 int32_t synthTest(void);
-uint16_t synthGetRfftBuffData(uint32_t index);
+int32_t synthGetRfftBuffData(uint32_t index);
 void synthSetFrameBuffData(uint32_t index, uint16_t value);
 uint16_t synthGetFrameBuffData(uint32_t index);
 uint8_t synthAudioProcess(void);
