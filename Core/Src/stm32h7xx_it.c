@@ -315,6 +315,7 @@ void TIM15_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+
 /**
   * @brief  This function handles External lines 15 to 10 interrupt request.
   * @param  None

@@ -1,7 +1,7 @@
 
 /**
  ******************************************************************************
- * @file           : cis.c
+ * @file           : cis_RGB888.c
  * @brief          :
  ******************************************************************************
  */
@@ -45,14 +45,15 @@ ALIGN_32BYTES (static __IO uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 static CIS_BUFF_StateTypeDef  cisBufferState = {0};
 
 /* Private function prototypes -----------------------------------------------*/
-void cisTIM_CLK_Init(uint32_t cis_clk_freq);
-void cisTIM_SP_Init(void);
-void cisTIM_LED_R_Init(void);
-void cisTIM_LED_G_Init(void);
-void cisTIM_LED_B_Init(void);
+void cis_RGB888_TIM_CLK_Init(uint32_t cis_clk_freq);
+void cis_RGB888_TIM_SP_Init(void);
+void cis_RGB888_TIM_LED_R_Init(void);
+void cis_RGB888_TIM_LED_G_Init(void);
+void cis_RGB888_TIM_LED_B_Init(void);
 
-void cisADC_Init(void);
-void cisDisplayLine(void);
+void cis_RGB888_ADC_Init(void);
+
+void cis_RGB888_DisplayLine(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -61,14 +62,14 @@ void cisDisplayLine(void);
  * @param  Void
  * @retval None
  */
-void cisInit(void)
+void cis_RGB888_Init(void)
 {
-	cisADC_Init();
-	cisTIM_CLK_Init(CIS_CLK_FREQ);
-	cisTIM_SP_Init();
-	cisTIM_LED_R_Init();
-	cisTIM_LED_G_Init();
-	cisTIM_LED_B_Init();
+	cis_RGB888_ADC_Init();
+	cis_RGB888_TIM_CLK_Init(CIS_CLK_FREQ);
+	cis_RGB888_TIM_SP_Init();
+	cis_RGB888_TIM_LED_R_Init();
+	cis_RGB888_TIM_LED_G_Init();
+	cis_RGB888_TIM_LED_B_Init();
 
 	// Reset SP counter
 	__HAL_TIM_SET_COUNTER(&htim15, 0);
@@ -91,7 +92,7 @@ void cisInit(void)
  * @param  Void
  * @retval None
  */
-void cisTest(void)
+void cis_RGB888_Test(void)
 {
 	uint32_t j = 0;
 	uint32_t x_size, y_size;
@@ -119,9 +120,9 @@ void cisTest(void)
 			for (uint32_t i = 0; i < x_size; i++)
 			{
 				color = 0xFF000000;
-				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START) << 16;
-				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START) << 8;
-				color |= cisGetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START);
+				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START) << 16;
+				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START) << 8;
+				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START);
 				GUI_SetPixel(i, j + 24, color);
 			}
 			j++;
@@ -138,7 +139,7 @@ void cisTest(void)
  * @param  index
  * @retval value
  */
-uint16_t cisGetBuffData(uint32_t index)
+uint8_t cis_RGB888_GetBuffData(uint32_t index)
 {
 //	if (index >= CIS_PIXELS_NB)
 //		Error_Handler();
@@ -150,7 +151,7 @@ uint16_t cisGetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cisImageProcess(void)
+void cis_RGB888_ImageProcess(void)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == BUFFER_OFFSET_HALF)
@@ -174,7 +175,7 @@ void cisImageProcess(void)
  * @param  sampling_frequency
  * @retval None
  */
-void cisTIM_CLK_Init(uint32_t cis_clk_freq)
+void cis_RGB888_TIM_CLK_Init(uint32_t cis_clk_freq)
 {
 	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
@@ -254,7 +255,7 @@ void cisTIM_CLK_Init(uint32_t cis_clk_freq)
  * @param  Void
  * @retval None
  */
-void cisTIM_SP_Init()
+void cis_RGB888_TIM_SP_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -321,7 +322,7 @@ void cisTIM_SP_Init()
  * @param  Void
  * @retval None
  */
-void cisTIM_LED_R_Init()
+void cis_RGB888_TIM_LED_R_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -379,7 +380,7 @@ void cisTIM_LED_R_Init()
  * @param  Void
  * @retval None
  */
-void cisTIM_LED_G_Init()
+void cis_RGB888_TIM_LED_G_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -428,7 +429,7 @@ void cisTIM_LED_G_Init()
  * @param  Void
  * @retval None
  */
-void cisTIM_LED_B_Init()
+void cis_RGB888_TIM_LED_B_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -486,7 +487,7 @@ void cisTIM_LED_B_Init()
  * @param  Void
  * @retval None
  */
-void cisADC_Init(void)
+void cis_RGB888_ADC_Init(void)
 {
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef ADCsConfig = {0};
@@ -602,6 +603,7 @@ void cisADC_Init(void)
 	}
 }
 
+#ifdef CIS_RGB888
 /**
  * @brief  Conversion DMA half-transfer callback in non-blocking mode
  * @param  hadc: ADC handle
@@ -621,6 +623,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	cisBufferState = BUFFER_OFFSET_FULL;
 }
-
+#endif
 
 

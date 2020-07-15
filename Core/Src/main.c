@@ -40,7 +40,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "paint.h"
-#include "synth_v3.h"
+#include "cisynth.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -130,7 +130,7 @@ int main(void)
 	/* Clear the LCD */
 	GUI_Clear(GUI_COLOR_DARKGRAY);
 
-	synth_v3();
+	cisynth_RGB888_ifft();
 	//		paint();
 
   /* USER CODE END 2 */

@@ -25,6 +25,6 @@
 
 /* Private defines -----------------------------------------------------------*/
 
-int synth_v3(void);
+int cisynth_RGB888_ifft(void);
 
 #endif /* __SYNTH_V3_H */

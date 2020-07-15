@@ -26,9 +26,14 @@
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
-void cisInit(void);
-void cisTest(void);
-uint16_t cisGetBuffData(uint32_t index);
-void cisImageProcess(void);
+void cis_RGB888_Init(void);
+void cis_RGB888_Test(void);
+uint8_t cis_RGB888_GetBuffData(uint32_t index);
+void cis_RGB888_ImageProcess(void);
+
+void cis_BW_Init(void);
+void cis_BW_Test(void);
+uint8_t cis_BW_GetBuffData(uint32_t index);
+void cis_BW_ImageProcess(void);
 
 #endif /* __CIS_H__ */

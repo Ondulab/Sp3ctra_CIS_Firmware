@@ -5,6 +5,7 @@
  *      Author: zhonx
  */
 
+#include <cisynth.h>
 #include "synth.h"
 #include "times_base.h"
 #include "cis.h"
@@ -12,7 +13,6 @@
 #include "wave_sommation.h"
 #include "config.h"
 #include "stdio.h"
-#include "synth_v3.h"
 
 extern __IO uint32_t rfft_cnt;
 static void cisynth_v3_SetHint(void);
@@ -21,12 +21,12 @@ static void cisynth_v3_SetHint(void);
  * @brief  The application entry point.
  * @retval int
  */
-int synth_v3(void)
+int cisynth_RGB888_ifft(void)
 {
 	uint8_t FreqStr[256] = {0};
 	uint32_t color = 0;
 
-	cisInit();
+	cis_RGB888_Init();
 	synthInit();
 
 	cisynth_v3_SetHint();
@@ -45,8 +45,11 @@ int synth_v3(void)
 		start_tick = HAL_GetTick();
 		while (rfft_cnt < (44100 / DISPLAY_REFRESH_FPS))
 		{
-			cisImageProcess();
-f
+			cis_RGB888_ImageProcess();
+			for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
+			{
+				synthSetFrameBuffData(i, 65535 - (cis_RGB888_GetBuffData(i * PIXEL_PER_COMMA) * cis_RGB888_GetBuffData(i * PIXEL_PER_COMMA + CIS_END_CAPTURE)));
+			}
 			synthAudioProcess();
 		}
 		rfft_cnt = 0;
@@ -61,16 +64,18 @@ f
 		{
 			GUI_SetPixel(i, DISPLAY_AERA1_YPOS + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i) >> 16) / 2047) , GUI_COLOR_LIGHTGREEN);
 			GUI_SetPixel(i, DISPLAY_AERA2_YPOS + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i) << 16 >> 16) / 2047) , GUI_COLOR_LIGHTGREEN);
-			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (synthGetFrameBuffData(i * ((float)NUMBER_OF_NOTES / (float)FT5336_MAX_X_LENGTH)) >> 11) , GUI_COLOR_LIGHTMAGENTA);
 		}
 #endif
 #ifdef DEBUG_CIS
+		GUI_FillRect(0, DISPLAY_AERA3_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_ST_GREEN_DARK);
 		for (uint32_t i = 0; i < FT5336_MAX_X_LENGTH; i++)
 		{
-			color = 0xFF000000;
-			color |= cisGetBuffData(i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)) << 16;
-			color |= cisGetBuffData((i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)) + CIS_END_CAPTURE) << 8;
-			color |= cisGetBuffData((i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH))) + (CIS_END_CAPTURE * 2);
+			color = 0;
+			color = cis_RGB888_GetBuffData((i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));// + (CIS_END_CAPTURE * 2);
+			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (color >> 3) , GUI_COLOR_LIGHTMAGENTA);
+			color |= cis_RGB888_GetBuffData((i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)) + CIS_END_CAPTURE) << 8;
+			color |= cis_RGB888_GetBuffData(i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)) << 16;
+			color |= 0xFF000000;
 			GUI_DrawLine(i, DISPLAY_AERA4_YPOS + DISPLAY_INTER_AERAS_HEIGHT, i, DISPLAY_AERA4_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT, color);
 		}
 #endif

@@ -35,11 +35,16 @@
 /**************************************************************************************/
 /********************           Generation definitions             ********************/
 /**************************************************************************************/
-#define SENSIVITY_THRESHOLD 			(0)		    //threshold for detection
+#define SENSIVITY_THRESHOLD 			(10000)		    //threshold for detection
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
+#define CIS_BW
+#ifndef CIS_BW
+#define CIS_RGB888
+#endif
+
 #define CIS_CLK_FREQ					(2000000)
 #define CIS_PIXELS_NB					((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START))		//5530 active pixels
 
