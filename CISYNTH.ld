@@ -16,7 +16,7 @@
 **
 **  Target      : STMicroelectronics STM32
 **
-**  Distribution: The file is distributed “as is,” without any warranty
+**  Distribution: The file is distributed ï¿½as is,ï¿½ without any warranty
 **                of any kind.
 **
 *****************************************************************************
@@ -37,10 +37,10 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = 0x24080000;    /* end of RAM */
+_estack = 0x24080000;    /* end of RAM */    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x400;      /* required amount of heap  */
-_Min_Stack_Size = 0x800; /* required amount of stack */
+_Min_Heap_Size = 0xF000;      /* required amount of heap  */
+_Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY
@@ -51,6 +51,9 @@ RAM_D1 (xrw)       : ORIGIN = 0x24000000, LENGTH = 512K
 RAM_D2 (xrw)       : ORIGIN = 0x30000000, LENGTH = 288K
 RAM_D3 (xrw)       : ORIGIN = 0x38000000, LENGTH = 64K
 ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
+SDRAM1 (rw)         : ORIGIN = 0xD0000000, LENGTH = 1536K
+SDRAM2 (rw)         : ORIGIN = 0xD0180000, LENGTH = 512K
+SDRAM3 (rw)         : ORIGIN = 0xD0200000, LENGTH = 6144K
 }
 
 /* Define output sections */
@@ -160,6 +163,8 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM_D1
+  
+  end_heap = ORIGIN(SDRAM2) + LENGTH(SDRAM2);
 
 /* used by the startup to initialize data */
   _siRAM_D3 = LOADADDR(.data_RAM_D3);

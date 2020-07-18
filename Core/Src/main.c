@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include <cisynth_ifft.h>
 #include "main.h"
 #include "adc.h"
 #include "crc.h"
@@ -40,7 +41,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "paint.h"
-#include "cisynth.h"
+#include "cisynth_ifft.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -130,7 +131,7 @@ int main(void)
 	/* Clear the LCD */
 	GUI_Clear(GUI_COLOR_DARKGRAY);
 
-	cisynth_RGB888_ifft();
+	cisynth_ifft();
 	//		paint();
 
   /* USER CODE END 2 */

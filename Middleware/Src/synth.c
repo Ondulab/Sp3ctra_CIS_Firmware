@@ -48,15 +48,15 @@ typedef enum {
 }AUDIO_PLAYBACK_StateTypeDef;
 
 typedef enum {
-	BUFFER_OFFSET_NONE = 0,
-	BUFFER_OFFSET_HALF,
-	BUFFER_OFFSET_FULL,
-}BUFFER_StateTypeDef;
+	AUDIO_BUFFER_OFFSET_NONE = 0,
+	AUDIO_BUFFER_OFFSET_HALF,
+	AUDIO_BUFFER_OFFSET_FULL,
+}BUFFER_AUDIO_StateTypeDef;
 
 typedef struct {
 	uint8_t buff[AUDIO_BUFFER_SIZE];
 	uint32_t fptr;
-	BUFFER_StateTypeDef state;
+	BUFFER_AUDIO_StateTypeDef state;
 	uint32_t AudioFileSize;
 	uint32_t *SrcAddress;
 }AUDIO_BufferTypeDef;
@@ -163,7 +163,7 @@ int32_t synthInit(void)
 
 	uint32_t bytesread;
 
-	buffer_ctl.state = BUFFER_OFFSET_NONE;
+	buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 	buffer_ctl.AudioFileSize = RFFT_BUFFER_SIZE;
 	buffer_ctl.SrcAddress = (uint32_t*)audioBuff;
 
@@ -346,7 +346,7 @@ uint8_t synthAudioProcess(void)
 		}
 
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
-		if(buffer_ctl.state == BUFFER_OFFSET_HALF)
+		if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_HALF)
 		{
 			bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
 					buffer_ctl.fptr,
@@ -355,7 +355,7 @@ uint8_t synthAudioProcess(void)
 
 			if( bytesread > 0)
 			{
-				buffer_ctl.state = BUFFER_OFFSET_NONE;
+				buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 				buffer_ctl.fptr += bytesread;
 				/* Clean Data Cache to update the content of the SRAM */
 				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
@@ -364,7 +364,7 @@ uint8_t synthAudioProcess(void)
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
-		if(buffer_ctl.state == BUFFER_OFFSET_FULL)
+		if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_FULL)
 		{
 			bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
 					buffer_ctl.fptr,
@@ -372,7 +372,7 @@ uint8_t synthAudioProcess(void)
 					AUDIO_BUFFER_SIZE / 2);
 			if( bytesread > 0)
 			{
-				buffer_ctl.state = BUFFER_OFFSET_NONE;
+				buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 				buffer_ctl.fptr += bytesread;
 				/* Clean Data Cache to update the content of the SRAM */
 				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
@@ -424,7 +424,7 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
 	if(audio_state == AUDIO_STATE_PLAYING)
 	{
 		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
-		buffer_ctl.state = BUFFER_OFFSET_FULL;
+		buffer_ctl.state = AUDIO_BUFFER_OFFSET_FULL;
 	}
 }
 
@@ -438,7 +438,7 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 	if(audio_state == AUDIO_STATE_PLAYING)
 	{
 		/* allows AUDIO_Process() to refill 1st part of the buffer  */
-		buffer_ctl.state = BUFFER_OFFSET_HALF;
+		buffer_ctl.state = AUDIO_BUFFER_OFFSET_HALF;
 	}
 }
 

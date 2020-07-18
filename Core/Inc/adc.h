@@ -27,7 +27,7 @@
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
-
+extern DMA_HandleTypeDef hdma_adc1;
 /* USER CODE END Includes */
 
 extern ADC_HandleTypeDef hadc1;

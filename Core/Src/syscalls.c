@@ -25,7 +25,7 @@ extern int __io_putchar(int ch) __attribute__((weak));
 extern int __io_getchar(void) __attribute__((weak));
 
 #ifndef FreeRTOS
-  register char * stack_ptr asm("sp");
+register char * stack_ptr asm("sp");
 #endif
 
 
@@ -34,6 +34,7 @@ extern int __io_getchar(void) __attribute__((weak));
 caddr_t _sbrk(int incr)
 {
 	extern char end asm("end");
+	extern char end_heap asm("end_heap");
 	static char *heap_end;
 	char *prev_heap_end,*min_stack_ptr;
 
@@ -50,14 +51,15 @@ caddr_t _sbrk(int incr)
 
 	if (heap_end + incr > min_stack_ptr)
 #else
-	if (heap_end + incr > stack_ptr)
+//		if (heap_end + incr > &end_heap)
+		if (heap_end + incr > stack_ptr)
 #endif
-	{
-//		write(1, "Heap and stack collision\n", 25);
-//		abort();
-		errno = ENOMEM;
-		return (caddr_t) -1;
-	}
+		{
+			//		write(1, "Heap and stack collision\n", 25);
+			//		abort();
+			errno = ENOMEM;
+			return (caddr_t) -1;
+		}
 
 	heap_end += incr;
 
@@ -69,14 +71,14 @@ caddr_t _sbrk(int incr)
  * */
 int _gettimeofday (struct timeval * tp, struct timezone * tzp)
 {
-  /* Return fixed data for the timezone.  */
-  if (tzp)
-    {
-      tzp->tz_minuteswest = 0;
-      tzp->tz_dsttime = 0;
-    }
+	/* Return fixed data for the timezone.  */
+	if (tzp)
+	{
+		tzp->tz_minuteswest = 0;
+		tzp->tz_dsttime = 0;
+	}
 
-  return 0;
+	return 0;
 }
 void initialise_monitor_handles()
 {
@@ -103,10 +105,10 @@ int _write(int file, char *ptr, int len)
 {
 	int DataIdx;
 
-		for (DataIdx = 0; DataIdx < len; DataIdx++)
-		{
-		   __io_putchar( *ptr++ );
-		}
+	for (DataIdx = 0; DataIdx < len; DataIdx++)
+	{
+		__io_putchar( *ptr++ );
+	}
 	return len;
 }
 
@@ -137,10 +139,10 @@ int _read(int file, char *ptr, int len)
 
 	for (DataIdx = 0; DataIdx < len; DataIdx++)
 	{
-	  *ptr++ = __io_getchar();
+		*ptr++ = __io_getchar();
 	}
 
-   return len;
+	return len;
 }
 
 int _open(char *path, int flags, ...)

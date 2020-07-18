@@ -61,7 +61,7 @@ typedef struct
   */
 #define SDRAM_INSTANCES_NBR                1U
 #define SDRAM_DEVICE_ADDR                  0xD0000000U
-#define SDRAM_DEVICE_SIZE                  0x200000U
+#define SDRAM_DEVICE_SIZE                  0x800000U
 
 /* DMA definitions for SDRAM DMA transfer */
 #define SDRAM_MDMAx_CLK_ENABLE             __HAL_RCC_MDMA_CLK_ENABLE

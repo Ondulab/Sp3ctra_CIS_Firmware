@@ -23,17 +23,19 @@
 #define CIS_LED_G_Pin ARD_D0_Pin
 #define CIS_LED_B_Pin ARD_D11_Pin
 
+typedef enum
+{
+	CIS_BUFFER_OFFSET_NONE = 0,
+	CIS_BUFFER_OFFSET_HALF,
+	CIS_BUFFER_OFFSET_FULL,
+}CIS_BUFF_StateTypeDef;
+
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
-void cis_RGB888_Init(void);
-void cis_RGB888_Test(void);
-uint8_t cis_RGB888_GetBuffData(uint32_t index);
-void cis_RGB888_ImageProcess(void);
-
-void cis_BW_Init(void);
-void cis_BW_Test(void);
-uint8_t cis_BW_GetBuffData(uint32_t index);
-void cis_BW_ImageProcess(void);
+void cis_Init(void);
+void cis_Test(void);
+uint16_t cis_GetBuffData(uint32_t index);
+void cis_ImageProcess(void);
 
 #endif /* __CIS_H__ */

@@ -1,7 +1,7 @@
 
 /**
  ******************************************************************************
- * @file           : cis_RGB888.c
+ * @file           : cis_BW_.c
  * @brief          :
  ******************************************************************************
  */
@@ -25,35 +25,33 @@
 
 /* Private typedef -----------------------------------------------------------*/
 
-typedef enum
-{
-	BUFFER_OFFSET_NONE = 0,
-	BUFFER_OFFSET_HALF,
-	BUFFER_OFFSET_FULL,
-}CIS_BUFF_StateTypeDef;
-
 /* Private define ------------------------------------------------------------*/
-/* Definition of ADCx conversions data table size this buffer contains RGB conversion */
-#define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
 
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-/* Variable containing ADC conversions data */
+#ifdef CIS_BW
+/* Definition of ADCx conversions data table size this buffer contains BW conversion */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 2) /* Size of array cisData[] */
+ALIGN_32BYTES (static __IO uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+#else
+/* Definition of ADCx conversions data table size this buffer contains RGB conversion */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
 ALIGN_32BYTES (static __IO uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+#endif
 
-static CIS_BUFF_StateTypeDef  cisBufferState = {0};
+CIS_BUFF_StateTypeDef  cisBufferState = {0};
+/* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-void cis_RGB888_TIM_CLK_Init(uint32_t cis_clk_freq);
-void cis_RGB888_TIM_SP_Init(void);
-void cis_RGB888_TIM_LED_R_Init(void);
-void cis_RGB888_TIM_LED_G_Init(void);
-void cis_RGB888_TIM_LED_B_Init(void);
+void cis_TIM_CLK_Init(uint32_t cis_clk_freq);
+void cis_TIM_SP_Init(void);
+void cis_TIM_LED_R_Init(void);
+void cis_TIM_LED_G_Init(void);
+void cis_TIM_LED_B_Init(void);
 
-void cis_RGB888_ADC_Init(void);
-
-void cis_RGB888_DisplayLine(void);
+void cis_ADC_Init(void);
+void cis_DisplayLine(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -62,29 +60,36 @@ void cis_RGB888_DisplayLine(void);
  * @param  Void
  * @retval None
  */
-void cis_RGB888_Init(void)
+void cis_Init(void)
 {
-	cis_RGB888_ADC_Init();
-	cis_RGB888_TIM_CLK_Init(CIS_CLK_FREQ);
-	cis_RGB888_TIM_SP_Init();
-	cis_RGB888_TIM_LED_R_Init();
-	cis_RGB888_TIM_LED_G_Init();
-	cis_RGB888_TIM_LED_B_Init();
-
-	// Reset SP counter
-	__HAL_TIM_SET_COUNTER(&htim15, 0);
-
-	//Set RGB phase shift
-	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
-
+	cis_ADC_Init();
+	cis_TIM_SP_Init();
+	cis_TIM_LED_R_Init();
+	cis_TIM_LED_G_Init();
+	cis_TIM_LED_B_Init();
+	cis_TIM_CLK_Init(CIS_CLK_FREQ);
 	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	HAL_Delay(100);
+	// Reset CLK counter
+	__HAL_TIM_SET_COUNTER(&htim1, 0);
+
+	// Reset SP counter
+	__HAL_TIM_SET_COUNTER(&htim15, 0);
+
+#ifdef CIS_BW
+	//Set BW phase shift
+	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE) - CIS_LED_ON);			//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE) - CIS_LED_ON);			//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
+#else
+	//Set RGB phase shift
+	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
+#endif
 }
 
 /**
@@ -92,7 +97,7 @@ void cis_RGB888_Init(void)
  * @param  Void
  * @retval None
  */
-void cis_RGB888_Test(void)
+void cis_Test(void)
 {
 	uint32_t j = 0;
 	uint32_t x_size, y_size;
@@ -104,26 +109,34 @@ void cis_RGB888_Test(void)
 	while(1)
 	{
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
-		if(cisBufferState == BUFFER_OFFSET_HALF)
+		if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 		{
-			cisBufferState = BUFFER_OFFSET_NONE;
+			cisBufferState = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
 			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
-		if(cisBufferState == BUFFER_OFFSET_FULL)
+		if(cisBufferState == CIS_BUFFER_OFFSET_FULL)
 		{
-			cisBufferState = BUFFER_OFFSET_NONE;
+			cisBufferState = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
 			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
 			for (uint32_t i = 0; i < x_size; i++)
 			{
-				color = 0xFF000000;
-				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START) << 16;
-				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START) << 8;
-				color |= cis_RGB888_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START);
+#ifdef CIS_BW
+				color = (cis_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START)) >> 8;
+				color |= 0xFF000000;
+				color |= color << 8;
+				color |= color << 16;
 				GUI_SetPixel(i, j + 24, color);
+#else
+				color = 0xFF000000;
+				color |= cis_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START) << 16;
+				color |= cis_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_END_CAPTURE + CIS_PIXEX_AERA_START) << 8;
+				color |= cis_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + (CIS_END_CAPTURE * 2) + CIS_PIXEX_AERA_START);
+				GUI_SetPixel(i, j + 24, color);
+#endif
 			}
 			j++;
 			if (j >= (y_size - 24))
@@ -139,10 +152,10 @@ void cis_RGB888_Test(void)
  * @param  index
  * @retval value
  */
-uint8_t cis_RGB888_GetBuffData(uint32_t index)
+uint16_t cis_GetBuffData(uint32_t index)
 {
-//	if (index >= CIS_PIXELS_NB)
-//		Error_Handler();
+	//	if (index >= ADC_CONVERTED_DATA_BUFFER_SIZE)
+	//		Error_Handler();
 	return cisData[index + CIS_PIXEX_AERA_START];
 }
 
@@ -151,20 +164,20 @@ uint8_t cis_RGB888_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_RGB888_ImageProcess(void)
+void cis_ImageProcess(void)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
-	if(cisBufferState == BUFFER_OFFSET_HALF)
+	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 	{
-		cisBufferState = BUFFER_OFFSET_NONE;
+		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
-	if(cisBufferState == BUFFER_OFFSET_FULL)
+	if(cisBufferState == CIS_BUFFER_OFFSET_FULL)
 	{
-		cisBufferState = BUFFER_OFFSET_NONE;
+		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
 	}
@@ -175,7 +188,7 @@ void cis_RGB888_ImageProcess(void)
  * @param  sampling_frequency
  * @retval None
  */
-void cis_RGB888_TIM_CLK_Init(uint32_t cis_clk_freq)
+void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
 {
 	/* Counter Prescaler value */
 	uint32_t uwPrescalerValue = 0;
@@ -255,7 +268,7 @@ void cis_RGB888_TIM_CLK_Init(uint32_t cis_clk_freq)
  * @param  Void
  * @retval None
  */
-void cis_RGB888_TIM_SP_Init()
+void cis_TIM_SP_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -322,7 +335,7 @@ void cis_RGB888_TIM_SP_Init()
  * @param  Void
  * @retval None
  */
-void cis_RGB888_TIM_LED_R_Init()
+void cis_TIM_LED_R_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -331,7 +344,11 @@ void cis_RGB888_TIM_LED_R_Init()
 	htim3.Instance = TIM3;
 	htim3.Init.Prescaler = 0;
 	htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+#ifdef CIS_BW
+	htim3.Init.Period = CIS_END_CAPTURE - 1;
+#else
 	htim3.Init.Period = (CIS_END_CAPTURE * 3) - 1;
+#endif
 	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	htim3.Init.RepetitionCounter = 0;
@@ -380,7 +397,7 @@ void cis_RGB888_TIM_LED_R_Init()
  * @param  Void
  * @retval None
  */
-void cis_RGB888_TIM_LED_G_Init()
+void cis_TIM_LED_G_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -389,7 +406,11 @@ void cis_RGB888_TIM_LED_G_Init()
 	htim4.Instance = TIM4;
 	htim4.Init.Prescaler = 0;
 	htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+#ifdef CIS_BW
+	htim4.Init.Period = CIS_END_CAPTURE - 1;
+#else
 	htim4.Init.Period = (CIS_END_CAPTURE * 3) - 1;
+#endif
 	htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	htim4.Init.RepetitionCounter = 0;
@@ -429,7 +450,7 @@ void cis_RGB888_TIM_LED_G_Init()
  * @param  Void
  * @retval None
  */
-void cis_RGB888_TIM_LED_B_Init()
+void cis_TIM_LED_B_Init()
 {
 	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
 	TIM_MasterConfigTypeDef sMasterConfig = {0};
@@ -438,7 +459,11 @@ void cis_RGB888_TIM_LED_B_Init()
 	htim8.Instance = TIM8;
 	htim8.Init.Prescaler = 0;
 	htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
+#ifdef CIS_BW
+	htim8.Init.Period = CIS_END_CAPTURE - 1;
+#else
 	htim8.Init.Period = (CIS_END_CAPTURE * 3) - 1;
+#endif
 	htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	htim8.Init.RepetitionCounter = 0;
@@ -487,7 +512,7 @@ void cis_RGB888_TIM_LED_B_Init()
  * @param  Void
  * @retval None
  */
-void cis_RGB888_ADC_Init(void)
+void cis_ADC_Init(void)
 {
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef ADCsConfig = {0};
@@ -524,7 +549,7 @@ void cis_RGB888_ADC_Init(void)
 	hopamp1.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
 	hopamp1.Init.PgaConnect = OPAMP_PGA_CONNECT_INVERTINGINPUT_IO0_BIAS;
 	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_4_OR_MINUS_3;
-	hopamp1.Init.UserTrimming = OPAMP_TRIMMING_USER;
+	hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
 	hopamp1.Init.TrimmingValuePHighSpeed = 15;
 	hopamp1.Init.TrimmingValueNHighSpeed = 15;
 	if (HAL_OPAMP_Init(&hopamp1) != HAL_OK)
@@ -537,9 +562,13 @@ void cis_RGB888_ADC_Init(void)
 	}
 
 	/* Set DAC output voltage (use to change OPAMP offset */
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.3/256)); //CLK 2MHZ
+#ifdef CIS_BW
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.35)/(3.30/256.00));
+#else
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.3/256)); 
+#endif
 
-	/*##-3- Enable DAC Channel 1 ##########################################*/
+	/* Enable DAC Channel 1 ##################################################*/
 	if(HAL_DAC_Start(&hdac1, DAC_CHANNEL_1) != HAL_OK)
 	{
 
@@ -553,11 +582,17 @@ void cis_RGB888_ADC_Init(void)
 		Error_Handler();
 	}
 
+	__HAL_LINKDMA(&hadc1,DMA_Handle,hdma_adc1);
+
 	/** Common config
 	 */
 	hadc1.Instance = ADC1;
 	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
+#ifdef CIS_BW
+	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
+#else
 	hadc1.Init.Resolution = ADC_RESOLUTION_8B;
+#endif
 	hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
 	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
 	hadc1.Init.LowPowerAutoWait = DISABLE;
@@ -574,6 +609,37 @@ void cis_RGB888_ADC_Init(void)
 	{
 		Error_Handler();
 	}
+
+	if (HAL_DMA_DeInit(&hdma_adc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/* Configure ADC DMA #####################################################*/
+	/* ADC1 DMA Init */
+	/* ADC1 Init */
+	hdma_adc1.Instance = DMA1_Stream0;
+	hdma_adc1.Init.Request = DMA_REQUEST_ADC1;
+	hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
+	hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
+#ifdef CIS_BW
+	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+#else
+	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+#endif
+	hdma_adc1.Init.Mode = DMA_CIRCULAR;
+	hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+	hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+
+
 	/** Configure the ADC multi-mode
 	 */
 	multimode.Mode = ADC_MODE_INDEPENDENT;
@@ -603,7 +669,6 @@ void cis_RGB888_ADC_Init(void)
 	}
 }
 
-#ifdef CIS_RGB888
 /**
  * @brief  Conversion DMA half-transfer callback in non-blocking mode
  * @param  hadc: ADC handle
@@ -611,7 +676,7 @@ void cis_RGB888_ADC_Init(void)
  */
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	cisBufferState = BUFFER_OFFSET_HALF;
+	cisBufferState = CIS_BUFFER_OFFSET_HALF;
 }
 
 /**
@@ -621,8 +686,8 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
  */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-	cisBufferState = BUFFER_OFFSET_FULL;
+	cisBufferState = CIS_BUFFER_OFFSET_FULL;
 }
-#endif
+
 
 

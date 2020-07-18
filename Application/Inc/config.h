@@ -30,35 +30,39 @@
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
 /**************************************************************************************/
-#define DAC_TIME_FREQ 					(44100)//SAMPLING_FREQUENCY)
+#define DAC_TIME_FREQ 					(SAMPLING_FREQUENCY)
 
 /**************************************************************************************/
 /********************           Generation definitions             ********************/
 /**************************************************************************************/
-#define SENSIVITY_THRESHOLD 			(10000)		    //threshold for detection
+#define SENSIVITY_THRESHOLD 			(0)		    //threshold for detection
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
 #define CIS_BW
-#ifndef CIS_BW
-#define CIS_RGB888
-#endif
 
-#define CIS_CLK_FREQ					(2000000)
+#define CIS_CLK_FREQ					(1500000)
+
 #define CIS_PIXELS_NB					((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START))		//5530 active pixels
 
 #define CIS_SP_OFF						(10)
 #define CIS_LED_ON						(79)
 #define CIS_BLACK_PIX_AERA_START		(99)
 #define CIS_DEAD_ZONE_AERA_START		(157)
-#define CIS_PIXEX_AERA_START			(166)
+#define CIS_PIXEX_AERA_START			(280) //166
 
+#ifdef CIS_BW
+#define CIS_LED_RED_OFF					(3600 / 3)
+#define CIS_LED_GREEN_OFF				(3100 / 3)
+#define CIS_LED_BLUE_OFF				(1600 / 3)
+#else
 #define CIS_LED_RED_OFF					(3600)
 #define CIS_LED_GREEN_OFF				(3100)
 #define CIS_LED_BLUE_OFF				(1600)
+#endif
 
-#define CIS_PIXEX_AERA_STOP				(5333)
+#define CIS_PIXEX_AERA_STOP				(5320) //5333
 #define CIS_END_CAPTURE 				(5696)
 
 /**************************************************************************************/
@@ -66,10 +70,10 @@
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
 #define START_FREQUENCY     			(40)
-#define MAX_OCTAVE_NUMBER   			(11)
+#define MAX_OCTAVE_NUMBER   			(12)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(4)
-#define PIXEL_PER_COMMA     			(15)
+#define COMMA_PER_SEMITONE  			(9)
+#define PIXEL_PER_COMMA     			(6)
 
 #define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 
