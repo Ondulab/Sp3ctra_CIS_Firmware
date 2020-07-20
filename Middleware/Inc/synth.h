@@ -35,11 +35,8 @@ extern volatile uint32_t rfft_cnt;
 
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synthInit(void);
-int32_t synthTest(void);
 int32_t synthGetRfftBuffData(uint32_t index);
-void synthSetFrameBuffData(uint32_t index, uint16_t value);
-uint16_t synthGetFrameBuffData(uint32_t index);
-uint8_t synthAudioProcess(void);
+void synthAudioProcess(void);
 
 /* Private defines -----------------------------------------------------------*/
 

@@ -13,9 +13,11 @@
 #include "wave_sommation.h"
 #include "config.h"
 #include "stdio.h"
+#include "arm_math.h"
 
 extern __IO uint32_t rfft_cnt;
 static void cisynth_ifft_SetHint(void);
+//static int16_t *cisBuff = NULL;
 
 /**
  * @brief  The application entry point.
@@ -31,31 +33,27 @@ int cisynth_ifft(void)
 
 	cisynth_ifft_SetHint();
 
-	//	cisTest();
-//	synthTest();
+//	cis_Test();
 
 	/* Infinite loop */
 	static uint32_t start_tick;
 	static uint32_t old_tick;
 	uint32_t latency;
 	old_tick = HAL_GetTick();
-
+	uint16_t *cisBuff = NULL;
+	uint16_t rfftDataBuff[NUMBER_OF_NOTES] = {0};
+	uint32_t i = 0;
 	while (1)
 	{
 		start_tick = HAL_GetTick();
-		while (rfft_cnt < (44100 / DISPLAY_REFRESH_FPS))
+		while (rfft_cnt < (48000 / DISPLAY_REFRESH_FPS))
 		{
-			cis_ImageProcess();
-			for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
-			{
-				synthSetFrameBuffData(i, 65535 - (cis_GetBuffData(i * PIXEL_PER_COMMA)));
-			}
 			synthAudioProcess();
 		}
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
 #ifdef DEBUG_SYNTH
-		sprintf((char *)FreqStr, "%d KHz", (int)(44100 / (latency * DISPLAY_REFRESH_FPS)));
+		sprintf((char *)FreqStr, "%d KHz", (int)(48000/ (latency * DISPLAY_REFRESH_FPS)));
 		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
 
 		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_BLACK);

@@ -11,6 +11,7 @@
 #include "config.h"
 #include "tim.h"
 #include "rng.h"
+#include "basetypes.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -29,7 +30,7 @@
 /*Since SysTick is set to 1ms (unless to set it quicker) */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
 /* to run up to 96khz, a buffer around 2000 (or more) is requested*/
-#define AUDIO_DEFAULT_VOLUME    		40
+#define AUDIO_DEFAULT_VOLUME    		60
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -41,12 +42,6 @@
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
 
 /* Private typedef -----------------------------------------------------------*/
-typedef enum {
-	AUDIO_STATE_IDLE = 0,
-	AUDIO_STATE_INIT,
-	AUDIO_STATE_PLAYING,
-}AUDIO_PLAYBACK_StateTypeDef;
-
 typedef enum {
 	AUDIO_BUFFER_OFFSET_NONE = 0,
 	AUDIO_BUFFER_OFFSET_HALF,
@@ -67,24 +62,19 @@ static int16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t rfft_cnt = 0;
 
-uint32_t bytesread;
-ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
-static uint32_t audioBuff[RFFT_BUFFER_SIZE * 2] = {0};
-static AUDIO_PLAYBACK_StateTypeDef  audio_state;
-__IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
-uint8_t ReadVol = 0;
-__IO uint32_t uwPauseEnabledStatus = 0;
-uint32_t updown = 1;
-uint32_t AudioFreq[8] = {96000, 48000, 44100, 32000, 22050, 16000, 11025, 8000};
-BSP_AUDIO_Init_t AudioPlayInit;
-uint32_t OutputDevice = 0;
-
 /* Variable containing black and white frame from CIS*/
-ALIGN_32BYTES (static uint16_t frameDataBW[NUMBER_OF_NOTES]) = {0};
+static uint16_t imageData[CIS_PIXELS_NB] = {0};
+static uint32_t audioBuff[RFFT_BUFFER_SIZE * 2] = {0};
+static uint32_t bytesread;
+
+ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
+static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
+static uint32_t AudioFreq[8] = {96000, 48000, 44100, 32000, 22050, 16000, 11025, 8000};
+BSP_AUDIO_Init_t AudioPlayInit;
 
 /* Private function prototypes -----------------------------------------------*/
 static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
-void synthRfftMode(uint16_t *audioData, uint32_t NbrOfData);
+void synthRfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -146,7 +136,7 @@ int32_t synthInit(void)
 
 	uint32_t *AudioFreq_ptr;
 
-	AudioFreq_ptr = &AudioFreq[1]; //44K /*96K*/
+	AudioFreq_ptr = &AudioFreq[2]; //44100 /*96K*/
 
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
 	AudioPlayInit.ChannelsNbr = 2;
@@ -171,7 +161,6 @@ int32_t synthInit(void)
 	if(bytesread > 0)
 	{
 		BSP_AUDIO_OUT_Play(0,(uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
-		audio_state = AUDIO_STATE_PLAYING;
 		buffer_ctl.fptr = bytesread;
 
 		return 0;
@@ -181,66 +170,40 @@ int32_t synthInit(void)
 }
 
 /**
- * @brief  synth Test.
- * @param
- * @retval Error
- */
-int32_t synthTest(void)
-{
-	uint32_t aRandom32bit = 0;
-
-//	for(int i = 0; i < NUMBER_OF_NOTES; i++)
-//	{
-//		frameDataBW[i * PIXEL_PER_COMMA] = 30000;
-//
-//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-//		{
-//			/* Random number generation error */
-//			Error_Handler();
-//		}
-//		frameDataBW[i] = aRandom32bit % 1000;
-//	}
-
-	frameDataBW[50] = 65000;
-
-	return 0;
-}
-
-/**
  * @brief  Get RFFT buffer data
  * @param  Index
  * @retval Value
  */
 int32_t synthGetRfftBuffData(uint32_t index)
 {
-//	if (index >= RFFT_BUFFER_SIZE)
-//		Error_Handler();
+	//	if (index >= RFFT_BUFFER_SIZE)
+	//		Error_Handler();
 	return audioBuff[index];
 }
 
-/**
- * @brief  Set buffer data
- * @param  index
- * @retval None
- */
-void synthSetFrameBuffData(uint32_t index, uint16_t value)
-{
-//	if (index >= NUMBER_OF_NOTES)
-//		Error_Handler();
-	frameDataBW[index] = value;
-}
+///**
+// * @brief  Set buffer data
+// * @param  index
+// * @retval None
+// */
+//void synthSetFrameBuffData(uint32_t index, uint16_t value)
+//{
+//	//	if (index >= NUMBER_OF_NOTES)
+//	//		Error_Handler();
+//	frameDataBW[index] = value;
+//}
 
-/**
- * @brief  Set buffer data
- * @param  index
- * @retval Value
- */
-uint16_t synthGetFrameBuffData(uint32_t index)
-{
-	if (index >= NUMBER_OF_NOTES)
-		return 0;
-	return frameDataBW[index];
-}
+///**
+// * @brief  Set buffer data
+// * @param  index
+// * @retval Value
+// */
+//uint16_t synthGetFrameBuffData(uint32_t index)
+//{
+//	if (index >= NUMBER_OF_NOTES)
+//		return 0;
+//	return frameDataBW[index];
+//}
 
 /**
  * @brief  Period elapsed callback in non blocking mode
@@ -249,56 +212,58 @@ uint16_t synthGetFrameBuffData(uint32_t index)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void synthRfftMode(uint16_t *audioData, uint32_t NbrOfData)
+void synthRfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 {
-	int64_t signal_summation;
-	uint64_t signal_power_summation;
-	uint16_t new_idx;
-	uint16_t max_power;
-	int16_t rfft;
-	uint16_t curr_note_val;
-
-	uint32_t WriteDataNbr;
+	static int32_t signal_summation;
+	static uint32_t signal_power_summation;
+	static int16_t rfft;
+	static uint16_t new_idx;
+	static uint16_t max_power;
+	static uint16_t note_volume;
+	static uint32_t WriteDataNbr;
 
 	WriteDataNbr = 0;
+
 	while(WriteDataNbr < (NbrOfData * 2))
 	{
 		signal_summation = 0;
 		signal_power_summation = 0;
 		max_power = 0;
 		rfft = 0;
+
 		//Summation for all pixel
 		for (int32_t note = NUMBER_OF_NOTES; --note >= 0;)
 		{
-			//store current pixel value
-			curr_note_val = frameDataBW[note];
+			//invert and store current image data pixel
+			note_volume = 65535 - imageData[note];
+
 			//test for CIS presence
-			if (curr_note_val > SENSIVITY_THRESHOLD)
-			{
-				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
-				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-				new_idx = (waves[note].current_idx + waves[note].octave_coeff);
-				if (new_idx > waves[note].aera_size)
-					new_idx -= waves[note].aera_size;
+			//			if (note_volume > SENSIVITY_THRESHOLD)
+			//			{
+			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
+			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
+			new_idx = (waves[note].current_idx + waves[note].octave_coeff);
+			if (new_idx > waves[note].aera_size)
+				new_idx -= waves[note].aera_size;
 
-				waves[note].current_idx = new_idx;
+			signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
 
-				signal_summation += ((*(waves[note].start_ptr + waves[note].current_idx)) * curr_note_val) >> 16;
+			//read equivalent power of current pixel
+			signal_power_summation += note_volume;
+//			if (note_volume > max_power)
+//				max_power = note_volume;
 
-				//read equivalent power of current pixel
-				signal_power_summation += curr_note_val;
-				if (curr_note_val > max_power)
-					max_power = curr_note_val;
-			}
+			waves[note].current_idx = new_idx;
+			//			}
 		}
 
-		rfft = (signal_summation * ((double)max_power / (double)signal_power_summation));
+		rfft = (signal_summation * (65535.00) / (float)signal_power_summation);
 		audioData[WriteDataNbr] = rfft;
 		audioData[WriteDataNbr + 1] = rfft;
 		WriteDataNbr+=2;
 	}
 
-	rfft_cnt += (WriteDataNbr / 2);
+	rfft_cnt += NbrOfData;
 }
 #pragma GCC pop_options
 
@@ -329,63 +294,55 @@ void synthRfftMode(uint16_t *audioData, uint32_t NbrOfData)
  *                                                                                FULL
  *                                                                              COMPLETE
  */
-uint8_t synthAudioProcess(void)
+void synthAudioProcess(void)
 {
 	uint32_t bytesread;
-	AUDIO_ErrorTypeDef error_state = AUDIO_ERROR_NONE;
 
-	switch(audio_state)
+	if(buffer_ctl.fptr >= (buffer_ctl.AudioFileSize * 4))
 	{
-	case AUDIO_STATE_PLAYING:
-
-		if(buffer_ctl.fptr >= (buffer_ctl.AudioFileSize * 4))
-		{
-			/* Play audio sample again ... */
-			buffer_ctl.fptr = 0;
-			error_state = AUDIO_ERROR_EOF;
-		}
-
-		/* 1st half buffer played; so fill it and continue playing from bottom*/
-		if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_HALF)
-		{
-			bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
-					buffer_ctl.fptr,
-					&buffer_ctl.buff[0],
-					AUDIO_BUFFER_SIZE / 2);
-
-			if( bytesread > 0)
-			{
-				buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
-				buffer_ctl.fptr += bytesread;
-				/* Clean Data Cache to update the content of the SRAM */
-				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
-				synthRfftMode((uint16_t*)&audioBuff[0], RFFT_BUFFER_SIZE / 2);
-			}
-		}
-
-		/* 2nd half buffer played; so fill it and continue playing from top */
-		if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_FULL)
-		{
-			bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
-					buffer_ctl.fptr,
-					&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
-					AUDIO_BUFFER_SIZE / 2);
-			if( bytesread > 0)
-			{
-				buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
-				buffer_ctl.fptr += bytesread;
-				/* Clean Data Cache to update the content of the SRAM */
-				SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
-				synthRfftMode((uint16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
-			}
-		}
-		break;
-
-	default:
-		error_state = AUDIO_ERROR_NOTREADY;
-		break;
+		/* Play audio sample again ... */
+		buffer_ctl.fptr = 0;
 	}
-	return (uint8_t) error_state;
+
+	/* 1st half buffer played; so fill it and continue playing from bottom*/
+	if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_HALF)
+	{
+		bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
+				buffer_ctl.fptr,
+				&buffer_ctl.buff[0],
+				AUDIO_BUFFER_SIZE / 2);
+
+		if( bytesread > 0)
+		{
+			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
+			buffer_ctl.fptr += bytesread;
+			/* Clean Data Cache to update the content of the SRAM */
+			cis_ImageProcessBW(imageData);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[0], RFFT_BUFFER_SIZE / 2);
+		}
+		return;
+	}
+
+	/* 2nd half buffer played; so fill it and continue playing from top */
+	if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_FULL)
+	{
+		bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
+				buffer_ctl.fptr,
+				&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
+				AUDIO_BUFFER_SIZE / 2);
+		if( bytesread > 0)
+		{
+			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
+			buffer_ctl.fptr += bytesread;
+			/* Clean Data Cache to update the content of the SRAM */
+			cis_ImageProcessBW(imageData);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
+		}
+		return;
+	}
+	return;
 }
 
 /**
@@ -421,11 +378,8 @@ static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint
  */
 void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
 {
-	if(audio_state == AUDIO_STATE_PLAYING)
-	{
-		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
-		buffer_ctl.state = AUDIO_BUFFER_OFFSET_FULL;
-	}
+	/* allows AUDIO_Process() to refill 2nd part of the buffer  */
+	buffer_ctl.state = AUDIO_BUFFER_OFFSET_FULL;
 }
 
 /**
@@ -435,11 +389,7 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(uint32_t Interface)
  */
 void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 {
-	if(audio_state == AUDIO_STATE_PLAYING)
-	{
-		/* allows AUDIO_Process() to refill 1st part of the buffer  */
-		buffer_ctl.state = AUDIO_BUFFER_OFFSET_HALF;
-	}
+	buffer_ctl.state = AUDIO_BUFFER_OFFSET_HALF;
 }
 
 /**

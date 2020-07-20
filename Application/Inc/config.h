@@ -6,8 +6,6 @@
 /**************************************************************************************/
 /********************              STM32 definitions               ********************/
 /**************************************************************************************/
-#define ADC_VOLTAGE						(3300)                    //STM32 ADC peripheral reference is 3300mV
-#define ADC_COEFF 						((ADC_VOLTAGE) / (4095))  //ADC value/mV
 
 /**************************************************************************************/
 /********************              debug definitions               ********************/
@@ -30,7 +28,6 @@
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
 /**************************************************************************************/
-#define DAC_TIME_FREQ 					(SAMPLING_FREQUENCY)
 
 /**************************************************************************************/
 /********************           Generation definitions             ********************/
@@ -69,11 +66,11 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
-#define START_FREQUENCY     			(40)
+#define START_FREQUENCY     			(100)
 #define MAX_OCTAVE_NUMBER   			(12)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(9)
-#define PIXEL_PER_COMMA     			(6)
+#define COMMA_PER_SEMITONE  			(8)	 //9
+#define PIXEL_PER_COMMA     			(12) //6
 
 #define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 

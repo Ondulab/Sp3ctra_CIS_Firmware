@@ -14,6 +14,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "opamp.h"
+#include "arm_math.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -33,11 +34,11 @@
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
 #define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 2) /* Size of array cisData[] */
-ALIGN_32BYTES (static __IO uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #else
 /* Definition of ADCx conversions data table size this buffer contains RGB conversion */
 #define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
-ALIGN_32BYTES (static __IO uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
 
 CIS_BUFF_StateTypeDef  cisBufferState = {0};
@@ -125,7 +126,7 @@ void cis_Test(void)
 			for (uint32_t i = 0; i < x_size; i++)
 			{
 #ifdef CIS_BW
-				color = (cis_GetBuffData((i * (CIS_PIXELS_NB/x_size)) + CIS_PIXEX_AERA_START)) >> 8;
+				color = color >> 8;
 				color |= 0xFF000000;
 				color |= color << 8;
 				color |= color << 16;
@@ -164,14 +165,20 @@ uint16_t cis_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_ImageProcess(void)
+void cis_ImageProcessBW(uint16_t *cis_buff)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_PIXEX_AERA_START], CIS_PIXELS_NB / 2);
+//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
+		for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
+		{
+			cis_buff[i] = cisData[CIS_PIXEX_AERA_START + (i * PIXEL_PER_COMMA)];
+		}
+		return;
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -179,7 +186,13 @@ void cis_ImageProcess(void)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_PIXEX_AERA_START + CIS_END_CAPTURE], CIS_PIXELS_NB / 2);
+//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
+		for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
+		{
+			cis_buff[i] = cisData[CIS_PIXEX_AERA_START + CIS_END_CAPTURE + (i * PIXEL_PER_COMMA)];
+		}
+		return;
 	}
 }
 

@@ -36,6 +36,6 @@ typedef enum
 void cis_Init(void);
 void cis_Test(void);
 uint16_t cis_GetBuffData(uint32_t index);
-void cis_ImageProcess(void);
+void cis_ImageProcessBW(uint16_t *cis_buff);
 
 #endif /* __CIS_H__ */
