@@ -70,7 +70,7 @@
 #define MAX_OCTAVE_NUMBER   			(12)
 #define SEMITONE_PER_OCTAVE 			(12)
 #define COMMA_PER_SEMITONE  			(8)	 //9
-#define PIXEL_PER_COMMA     			(12) //6
+#define PIXEL_PER_COMMA     			(22) //6
 
 #define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 

@@ -28,12 +28,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /*Since SysTick is set to 1ms (unless to set it quicker) */
-/* to run up to 48khz, a buffer around 1000 (or more) is requested*/
-/* to run up to 96khz, a buffer around 2000 (or more) is requested*/
-#define AUDIO_DEFAULT_VOLUME    		60
+#define AUDIO_DEFAULT_VOLUME    		100
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
+/* to run up to 48khz, a buffer around 1000 (or more) is requested*/
+/* to run up to 96khz, a buffer around 2000 (or more) is requested*/
 #define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
 #define AUDIO_BUFFER_SIZE             	4096
 #define RFFT_BUFFER_SIZE        	  	(AUDIO_BUFFER_SIZE / 4)
@@ -228,8 +228,8 @@ void synthRfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 	{
 		signal_summation = 0;
 		signal_power_summation = 0;
-		max_power = 0;
-		rfft = 0;
+//		max_power = 0;
+//		rfft = 0;
 
 		//Summation for all pixel
 		for (int32_t note = NUMBER_OF_NOTES; --note >= 0;)
@@ -257,7 +257,7 @@ void synthRfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 			//			}
 		}
 
-		rfft = (signal_summation * (65535.00) / (float)signal_power_summation);
+		rfft = signal_summation * (65535.00 / (float)signal_power_summation);
 		audioData[WriteDataNbr] = rfft;
 		audioData[WriteDataNbr + 1] = rfft;
 		WriteDataNbr+=2;
@@ -317,9 +317,9 @@ void synthAudioProcess(void)
 			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 			buffer_ctl.fptr += bytesread;
 			/* Clean Data Cache to update the content of the SRAM */
-			cis_ImageProcessBW(imageData);
 			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
-			synthRfftMode(imageData, (int16_t*)&audioBuff[0], RFFT_BUFFER_SIZE / 2);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
+			cis_ImageProcessBW(imageData);
 		}
 		return;
 	}
@@ -336,9 +336,9 @@ void synthAudioProcess(void)
 			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 			buffer_ctl.fptr += bytesread;
 			/* Clean Data Cache to update the content of the SRAM */
-			cis_ImageProcessBW(imageData);
 			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
-			synthRfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[0], RFFT_BUFFER_SIZE / 2);
+			cis_ImageProcessBW(imageData);
 		}
 		return;
 	}

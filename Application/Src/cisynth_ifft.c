@@ -53,7 +53,7 @@ int cisynth_ifft(void)
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
 #ifdef DEBUG_SYNTH
-		sprintf((char *)FreqStr, "%d KHz", (int)(48000/ (latency * DISPLAY_REFRESH_FPS)));
+		sprintf((char *)FreqStr, "%d Hz", (int)(48000000/ (latency * DISPLAY_REFRESH_FPS)));
 		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
 
 		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_BLACK);
