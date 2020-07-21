@@ -23,6 +23,8 @@ static void cisynth_ifft_SetHint(void);
  * @brief  The application entry point.
  * @retval int
  */
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 int cisynth_ifft(void)
 {
 	uint8_t FreqStr[256] = {0};
@@ -52,23 +54,19 @@ int cisynth_ifft(void)
 		}
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
-#ifdef DEBUG_SYNTH
 		sprintf((char *)FreqStr, "%d Hz", (int)(SAMPLING_FREQUENCY * 1000/ (latency * DISPLAY_REFRESH_FPS)));
 		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
 
-		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_BLACK);
-		GUI_FillRect(0, DISPLAY_AERA2_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_BLACK);
-		for (uint32_t i = 0; i < FT5336_MAX_X_LENGTH; i++)
-		{
-			GUI_SetPixel(i, DISPLAY_AERA1_YPOS + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i) >> 16) / 2047) , GUI_COLOR_LIGHTGREEN);
-			GUI_SetPixel(i, DISPLAY_AERA2_YPOS + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i) << 16 >> 16) / 2047) , GUI_COLOR_LIGHTGREEN);
-		}
-#endif
-#ifdef DEBUG_CIS
+		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_BLACK);
+		GUI_DrawRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH / 2, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_LIGHTRED);
+		GUI_DrawRect(FT5336_MAX_X_LENGTH / 2, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH / 2, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_LIGHTBLUE);
 		GUI_FillRect(0, DISPLAY_AERA3_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_ST_GREEN_DARK);
-		for (uint32_t i = 0; i < FT5336_MAX_X_LENGTH; i++)
+
+		for (uint32_t i = 0; i < (FT5336_MAX_X_LENGTH); i++)
 		{
-			cis_color = cis_GetBuffData((i * ((float)NUMBER_OF_NOTES / (float)FT5336_MAX_X_LENGTH)));
+			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
+			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synthGetRfftBuffData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
+			cis_color = cis_GetBuffData((i * ((float)CIS_EFFECTIVE_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 8;
 			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);
 			cis_color |= 0xFF000000;
@@ -76,11 +74,11 @@ int cisynth_ifft(void)
 			cis_color |= cis_color << 16;
 			GUI_DrawLine(i, DISPLAY_AERA4_YPOS + DISPLAY_INTER_AERAS_HEIGHT, i, DISPLAY_AERA4_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT, cis_color);
 		}
-#endif
+
 		old_tick = HAL_GetTick();
 	}
 }
-
+#pragma GCC pop_options
 /**
  * @brief  Display Audio demo hint
  * @param  None

@@ -28,14 +28,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /*Since SysTick is set to 1ms (unless to set it quicker) */
-#define AUDIO_DEFAULT_VOLUME    		90
+#define AUDIO_DEFAULT_VOLUME    		40
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
 /* to run up to 96khz, a buffer around 2000 (or more) is requested*/
 #define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             	1024
+#define AUDIO_BUFFER_SIZE             	2048
 #define RFFT_BUFFER_SIZE        	  	(AUDIO_BUFFER_SIZE / 4)
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -63,7 +63,7 @@ static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t rfft_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
-static uint16_t imageData[CIS_PIXELS_NB] = {0};
+static uint16_t imageData[CIS_EFFECTIVE_PIXELS_NB] = {0};
 static uint32_t audioBuff[RFFT_BUFFER_SIZE * 2] = {0};
 static uint32_t bytesread;
 
@@ -180,30 +180,6 @@ int32_t synthGetRfftBuffData(uint32_t index)
 	//		Error_Handler();
 	return audioBuff[index];
 }
-
-///**
-// * @brief  Set buffer data
-// * @param  index
-// * @retval None
-// */
-//void synthSetFrameBuffData(uint32_t index, uint16_t value)
-//{
-//	//	if (index >= NUMBER_OF_NOTES)
-//	//		Error_Handler();
-//	frameDataBW[index] = value;
-//}
-
-///**
-// * @brief  Set buffer data
-// * @param  index
-// * @retval Value
-// */
-//uint16_t synthGetFrameBuffData(uint32_t index)
-//{
-//	if (index >= NUMBER_OF_NOTES)
-//		return 0;
-//	return frameDataBW[index];
-//}
 
 /**
  * @brief  Period elapsed callback in non blocking mode

@@ -3,6 +3,8 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#include "stm32h7xx_hal.h"
+
 /**************************************************************************************/
 /********************              STM32 definitions               ********************/
 /**************************************************************************************/
@@ -11,9 +13,11 @@
 /********************              debug definitions               ********************/
 /**************************************************************************************/
 #define PRINT_FREQUENCY
-#define DEBUG_SYNTH
-#define DEBUG_CIS
-//#define DEBUG_SAMPLE_RATE
+
+/**************************************************************************************/
+/********************             Display definitions              ********************/
+/**************************************************************************************/
+#define DISPLAY_REFRESH_FPS			10
 
 /**************************************************************************************/
 /********************                     math                     ********************/
@@ -41,13 +45,11 @@
 
 #define CIS_CLK_FREQ					(1500000)
 
-#define CIS_PIXELS_NB					((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START))		//5530 active pixels
-
 #define CIS_SP_OFF						(10)
 #define CIS_LED_ON						(79)
 #define CIS_BLACK_PIX_AERA_START		(99)
 #define CIS_DEAD_ZONE_AERA_START		(157)
-#define CIS_PIXEX_AERA_START			(280) //166
+#define CIS_PIXEX_AERA_START			(224) //166
 
 #ifdef CIS_BW
 #define CIS_LED_RED_OFF					(3600 / 3)
@@ -59,8 +61,17 @@
 #define CIS_LED_BLUE_OFF				(1600)
 #endif
 
-#define CIS_PIXEX_AERA_STOP				(5320) //5333
+#define CIS_PIXEX_AERA_STOP				(5264) //5333
 #define CIS_END_CAPTURE 				(5696) //(5696)
+
+#define CIS_ADC_BUFF_PIXEX_AERA_START	((CIS_PIXEX_AERA_START) / (CIS_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_PIXEX_AERA_STOP	((CIS_PIXEX_AERA_STOP) / (CIS_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_END_CAPTURE 		((CIS_END_CAPTURE) / (CIS_OVERSAMPLING_RATIO))
+
+#define CIS_EFFECTIVE_PIXELS_NB			(((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START)) / (CIS_OVERSAMPLING_RATIO))	//5530 active pixels
+
+#define CIS_OVERSAMPLING_RATIO			(16)
+#define CIS_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_4
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
@@ -70,9 +81,8 @@
 #define MAX_OCTAVE_NUMBER   			(12)
 #define SEMITONE_PER_OCTAVE 			(12)
 #define COMMA_PER_SEMITONE  			(4)	 //9
-#define PIXEL_PER_COMMA     			(16) //6
 
-#define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
+#define NUMBER_OF_NOTES     			(CIS_EFFECTIVE_PIXELS_NB)
 
 #endif // __CONFIG_H__
 
