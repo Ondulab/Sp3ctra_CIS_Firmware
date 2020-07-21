@@ -46,14 +46,14 @@ int cisynth_ifft(void)
 	while (1)
 	{
 		start_tick = HAL_GetTick();
-		while (rfft_cnt < (48000 / DISPLAY_REFRESH_FPS))
+		while (rfft_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
 			synthAudioProcess();
 		}
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
 #ifdef DEBUG_SYNTH
-		sprintf((char *)FreqStr, "%d Hz", (int)(48000000/ (latency * DISPLAY_REFRESH_FPS)));
+		sprintf((char *)FreqStr, "%d Hz", (int)(SAMPLING_FREQUENCY * 1000/ (latency * DISPLAY_REFRESH_FPS)));
 		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
 
 		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_BLACK);
@@ -68,7 +68,7 @@ int cisynth_ifft(void)
 		GUI_FillRect(0, DISPLAY_AERA3_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_ST_GREEN_DARK);
 		for (uint32_t i = 0; i < FT5336_MAX_X_LENGTH; i++)
 		{
-			cis_color = cis_GetBuffData((i * ((float)CIS_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
+			cis_color = cis_GetBuffData((i * ((float)NUMBER_OF_NOTES / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 8;
 			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);
 			cis_color |= 0xFF000000;

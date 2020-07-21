@@ -28,14 +28,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /*Since SysTick is set to 1ms (unless to set it quicker) */
-#define AUDIO_DEFAULT_VOLUME    		100
+#define AUDIO_DEFAULT_VOLUME    		90
 
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
 /* to run up to 96khz, a buffer around 2000 (or more) is requested*/
 #define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             	4096
+#define AUDIO_BUFFER_SIZE             	1024
 #define RFFT_BUFFER_SIZE        	  	(AUDIO_BUFFER_SIZE / 4)
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
@@ -136,7 +136,7 @@ int32_t synthInit(void)
 
 	uint32_t *AudioFreq_ptr;
 
-	AudioFreq_ptr = &AudioFreq[2]; //44100 /*96K*/
+	AudioFreq_ptr = &AudioFreq[1]; //44100 /*96K*/
 
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
 	AudioPlayInit.ChannelsNbr = 2;
@@ -228,36 +228,36 @@ void synthRfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 	{
 		signal_summation = 0;
 		signal_power_summation = 0;
-//		max_power = 0;
-//		rfft = 0;
+		max_power = 0;
+		//		rfft = 0;
 
 		//Summation for all pixel
 		for (int32_t note = NUMBER_OF_NOTES; --note >= 0;)
 		{
 			//invert and store current image data pixel
-			note_volume = 65535 - imageData[note];
+			note_volume = 65535 - imageData[note]; //65535 -
 
 			//test for CIS presence
-			//			if (note_volume > SENSIVITY_THRESHOLD)
-			//			{
-			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
-			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-			new_idx = (waves[note].current_idx + waves[note].octave_coeff);
-			if (new_idx > waves[note].aera_size)
-				new_idx -= waves[note].aera_size;
+//			if (note_volume > SENSIVITY_THRESHOLD)
+//			{
+				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
+				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
+				new_idx = (waves[note].current_idx + waves[note].octave_coeff);
+				if (new_idx > waves[note].aera_size)
+					new_idx -= waves[note].aera_size;
 
-			signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
+				signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
 
-			//read equivalent power of current pixel
-			signal_power_summation += note_volume;
-//			if (note_volume > max_power)
-//				max_power = note_volume;
+				//read equivalent power of current pixel
+				signal_power_summation += note_volume;
+				if (note_volume > max_power)
+					max_power = note_volume;
 
-			waves[note].current_idx = new_idx;
-			//			}
+				waves[note].current_idx = new_idx;
+//			}
 		}
 
-		rfft = signal_summation * (65535.00 / (float)signal_power_summation);
+		rfft = signal_summation * ((float)max_power / (float)signal_power_summation);
 		audioData[WriteDataNbr] = rfft;
 		audioData[WriteDataNbr + 1] = rfft;
 		WriteDataNbr+=2;
@@ -316,10 +316,10 @@ void synthAudioProcess(void)
 		{
 			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 			buffer_ctl.fptr += bytesread;
+			cis_ImageProcessBW(imageData);
 			/* Clean Data Cache to update the content of the SRAM */
 			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
-			synthRfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], RFFT_BUFFER_SIZE / 2);
-			cis_ImageProcessBW(imageData);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[0], (RFFT_BUFFER_SIZE / 2));
 		}
 		return;
 	}
@@ -335,10 +335,10 @@ void synthAudioProcess(void)
 		{
 			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
 			buffer_ctl.fptr += bytesread;
+			cis_ImageProcessBW(imageData);
 			/* Clean Data Cache to update the content of the SRAM */
 			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE/2], AUDIO_BUFFER_SIZE / 2);
-			synthRfftMode(imageData, (int16_t*)&audioBuff[0], RFFT_BUFFER_SIZE / 2);
-			cis_ImageProcessBW(imageData);
+			synthRfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], (RFFT_BUFFER_SIZE / 2));
 		}
 		return;
 	}

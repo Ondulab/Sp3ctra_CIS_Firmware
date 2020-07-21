@@ -33,7 +33,7 @@
 /* Private variables ---------------------------------------------------------*/
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
-#define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 2) /* Size of array cisData[] */
+#define ADC_CONVERTED_DATA_BUFFER_SIZE ((CIS_END_CAPTURE * 2) / PIXEL_PER_COMMA) /* Size of array cisData[] */
 ALIGN_32BYTES (static uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #else
 /* Definition of ADCx conversions data table size this buffer contains RGB conversion */
@@ -157,7 +157,7 @@ uint16_t cis_GetBuffData(uint32_t index)
 {
 	//	if (index >= ADC_CONVERTED_DATA_BUFFER_SIZE)
 	//		Error_Handler();
-	return cisData[index + CIS_PIXEX_AERA_START];
+	return cisData[index + (CIS_PIXEX_AERA_START / PIXEL_PER_COMMA)];
 }
 
 /**
@@ -172,11 +172,11 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_PIXEX_AERA_START], CIS_PIXELS_NB / 2);
-//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE / 2);
+		//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
 		for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
 		{
-			cis_buff[i] = cisData[CIS_PIXEX_AERA_START + (i * PIXEL_PER_COMMA)];
+			cis_buff[i] = cisData[(CIS_PIXEX_AERA_START / PIXEL_PER_COMMA) + (i)];
 		}
 		return;
 	}
@@ -186,11 +186,11 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_PIXEX_AERA_START + CIS_END_CAPTURE], CIS_PIXELS_NB / 2);
-//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_END_CAPTURE / PIXEL_PER_COMMA], ADC_CONVERTED_DATA_BUFFER_SIZE / 2);
+		//		arm_copy_q15((int16_t*)&cisData[0], (int16_t*)cis_buff, CIS_PIXELS_NB);
 		for (uint32_t i = 0; i < NUMBER_OF_NOTES; i++)
 		{
-			cis_buff[i] = cisData[CIS_PIXEX_AERA_START + CIS_END_CAPTURE + (i * PIXEL_PER_COMMA)];
+			cis_buff[i] = cisData[(CIS_PIXEX_AERA_START + CIS_END_CAPTURE) / PIXEL_PER_COMMA + (i)];
 		}
 		return;
 	}
@@ -617,7 +617,12 @@ void cis_ADC_Init(void)
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-	hadc1.Init.OversamplingMode = DISABLE;
+	//	hadc1.Init.OversamplingMode = DISABLE;
+	hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
+	hadc1.Init.Oversampling.Ratio = PIXEL_PER_COMMA;    /* Oversampling ratio */
+	hadc1.Init.Oversampling.RightBitShift = ADC_RIGHTBITSHIFT_4;         /* Right shift of the oversampled summation */
+	hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
+	hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();

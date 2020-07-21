@@ -23,7 +23,7 @@
 /**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
-#define SAMPLING_FREQUENCY 				(44100)	  	//in hertz
+#define SAMPLING_FREQUENCY 				(48000)	  	//in hertz
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
@@ -60,17 +60,17 @@
 #endif
 
 #define CIS_PIXEX_AERA_STOP				(5320) //5333
-#define CIS_END_CAPTURE 				(5696)
+#define CIS_END_CAPTURE 				(5696) //(5696)
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
-#define START_FREQUENCY     			(100)
+#define START_FREQUENCY     			(70)
 #define MAX_OCTAVE_NUMBER   			(12)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(8)	 //9
-#define PIXEL_PER_COMMA     			(22) //6
+#define COMMA_PER_SEMITONE  			(4)	 //9
+#define PIXEL_PER_COMMA     			(16) //6
 
 #define NUMBER_OF_NOTES     			((CIS_PIXELS_NB) / (PIXEL_PER_COMMA))
 
