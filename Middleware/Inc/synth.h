@@ -35,7 +35,8 @@ extern volatile uint32_t rfft_cnt;
 
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synthInit(void);
-int32_t synthGetRfftBuffData(uint32_t index);
+int32_t synthGetRfftData(uint32_t index);
+int32_t synthGetImageData(uint32_t index);
 void synthAudioProcess(void);
 
 /* Private defines -----------------------------------------------------------*/

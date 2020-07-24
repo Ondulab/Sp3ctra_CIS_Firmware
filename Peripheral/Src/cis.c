@@ -34,7 +34,8 @@
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
 #define ADC_CONVERTED_DATA_BUFFER_SIZE ((CIS_ADC_BUFF_END_CAPTURE * 2)) /* Size of array cisData[] */
-ALIGN_32BYTES (static int16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+ALIGN_32BYTES (static uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+
 #else
 /* Definition of ADCx conversions data table size this buffer contains RGB conversion */
 #define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
@@ -53,6 +54,7 @@ void cis_TIM_LED_B_Init(void);
 
 void cis_ADC_Init(void);
 void cis_DisplayLine(void);
+void cis_ImageAccumulatorBW(uint16_t *cis_buff);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -133,9 +135,9 @@ void cis_Test(void)
 				GUI_SetPixel(i, j + 24, color);
 #else
 				color = 0xFF000000;
-				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_PIXEX_AERA_START) << 16;
-				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEX_AERA_START) << 8;
-				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + (CIS_ADC_BUFF_END_CAPTURE * 2) + CIS_ADC_BUFF_PIXEX_AERA_START);
+				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_PIXEL_AERA_START) << 16;
+				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START) << 8;
+				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + (CIS_ADC_BUFF_END_CAPTURE * 2) + CIS_ADC_BUFF_PIXEL_AERA_START);
 				GUI_SetPixel(i, j + 24, color);
 #endif
 			}
@@ -157,7 +159,7 @@ uint16_t cis_GetBuffData(uint32_t index)
 {
 	//	if (index >= ADC_CONVERTED_DATA_BUFFER_SIZE)
 	//		Error_Handler();
-	return cisData[index + (CIS_ADC_BUFF_PIXEX_AERA_START)];
+	return cisData[index + CIS_ADC_BUFF_PIXEL_AERA_START];
 }
 
 /**
@@ -165,16 +167,24 @@ uint16_t cis_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_ImageProcessBW(uint16_t *cis_buff)
+void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE / 2);
-		arm_copy_q15(&cisData[0], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
-		return;
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
+		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
+
+		cis_ImageAccumulatorBW(cis_buff);
+
+		for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
+		{
+			cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
+			//cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
+		}
+		//		arm_max_q15((int16_t*)imageData, NUMBER_OF_NOTES, (int16_t*)max_power,NULL);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -182,10 +192,45 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 	{
 		cisBufferState = CIS_BUFFER_OFFSET_NONE;
 		/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE], ADC_CONVERTED_DATA_BUFFER_SIZE / 2);
-		arm_copy_q15(&cisData[CIS_ADC_BUFF_END_CAPTURE], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
-		return;
+		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
+		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
+
+		cis_ImageAccumulatorBW(cis_buff);
+
+		for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
+		{
+			cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
+			//cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
+		}
+		//		arm_max_q15((int16_t*)imageData, NUMBER_OF_NOTES, (int16_t*)max_power,NULL);
 	}
+}
+
+/**
+ * @brief  Image accumulation
+ * @param  None
+ * @retval None
+ */
+void cis_ImageAccumulatorBW(uint16_t *cis_buff)
+{
+	ALIGN_32BYTES (static uint32_t cisBuffSommation[CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES]);
+	static uint32_t cnt = 0;
+	static uint32_t pixel_accumulator = 0;
+
+	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
+	{
+		cisBuffSommation[i + cnt] = cis_buff[i];
+
+		for (uint32_t j = 0; j < (CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES); j += CIS_EFFECTIVE_PIXELS_NB)
+		{
+			pixel_accumulator += cisBuffSommation[i + j];
+		}
+		pixel_accumulator /= (CIS_OVERPRINT_CYCLES + 1);
+		cis_buff[i] = pixel_accumulator;
+	}
+	cnt += CIS_EFFECTIVE_PIXELS_NB;
+	if (cnt >= (CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES))
+		cnt = 0;
 }
 
 /**
