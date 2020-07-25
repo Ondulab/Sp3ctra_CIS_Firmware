@@ -55,6 +55,8 @@ void cis_TIM_LED_B_Init(void);
 void cis_ADC_Init(void);
 void cis_DisplayLine(void);
 void cis_ImageAccumulatorBW(uint16_t *cis_buff);
+void cis_ImageFilterBW(uint16_t *cis_buff);
+void cis_ImageMaxBW(uint16_t *cis_buff, uint32_t *max);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -177,14 +179,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
+		cis_ImageFilterBW(cis_buff);
 		cis_ImageAccumulatorBW(cis_buff);
-
-		for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
-		{
-			cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
-			//cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
-		}
-		//		arm_max_q15((int16_t*)imageData, NUMBER_OF_NOTES, (int16_t*)max_power,NULL);
+		cis_ImageMaxBW(cis_buff, max_power);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -195,20 +192,15 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
+		cis_ImageFilterBW(cis_buff);
 		cis_ImageAccumulatorBW(cis_buff);
-
-		for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
-		{
-			cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
-			//cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
-		}
-		//		arm_max_q15((int16_t*)imageData, NUMBER_OF_NOTES, (int16_t*)max_power,NULL);
+		cis_ImageMaxBW(cis_buff, max_power);
 	}
 }
 
 /**
  * @brief  Image accumulation
- * @param  None
+ * @param  Audio buffer
  * @retval None
  */
 void cis_ImageAccumulatorBW(uint16_t *cis_buff)
@@ -231,6 +223,34 @@ void cis_ImageAccumulatorBW(uint16_t *cis_buff)
 	cnt += CIS_EFFECTIVE_PIXELS_NB;
 	if (cnt >= (CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES))
 		cnt = 0;
+}
+
+/**
+ * @brief  Image filtering
+ * @param  Audio buffer
+ * @retval None
+ */
+void cis_ImageFilterBW(uint16_t *cis_buff)
+{
+	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
+	{
+#ifdef CIS_INVERT_COLOR
+		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
+#else
+		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
+#endif
+	}
+}
+
+/**
+ * @brief  Image max
+ * @param  Audio buffer
+ * @param  max
+ * @retval None
+ */
+void cis_ImageMaxBW(uint16_t *cis_buff, uint32_t *max)
+{
+	arm_max_q15((int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB, (int16_t*)max, NULL);
 }
 
 /**

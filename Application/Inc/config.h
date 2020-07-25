@@ -27,7 +27,7 @@
 /**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
-#define AUDIO_DEFAULT_VOLUME    		(100)
+#define AUDIO_DEFAULT_VOLUME    		(90)
 #define SAMPLING_FREQUENCY 				(48000)	  	//in hertz
 
 /**************************************************************************************/
@@ -43,6 +43,7 @@
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
 #define CIS_BW
+#define CIS_INVERT_COLOR
 
 #define CIS_CLK_FREQ					(1500000)
 
@@ -74,16 +75,16 @@
 #define CIS_OVERSAMPLING_RATIO			(16)
 #define CIS_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_4
 
-#define CIS_OVERPRINT_CYCLES			(50)
+#define CIS_OVERPRINT_CYCLES			(20)
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
 #define START_FREQUENCY     			(70)
-#define MAX_OCTAVE_NUMBER   			(11)
+#define MAX_OCTAVE_NUMBER   			(20)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(6)	 //9
+#define COMMA_PER_SEMITONE  			(5)	 //9
 
 #define NUMBER_OF_NOTES     			(CIS_EFFECTIVE_PIXELS_NB)
 
