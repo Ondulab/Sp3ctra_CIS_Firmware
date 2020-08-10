@@ -674,12 +674,15 @@ void cis_ADC_Init(void)
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-	//	hadc1.Init.OversamplingMode = DISABLE;
+#ifdef CIS_OVERSAMPLING_ENABLE
 	hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
 	hadc1.Init.Oversampling.Ratio = CIS_OVERSAMPLING_RATIO;    /* Oversampling ratio */
 	hadc1.Init.Oversampling.RightBitShift = CIS_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
 	hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
 	hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
+#else
+	hadc1.Init.OversamplingMode = DISABLE;
+#endif
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();

@@ -1,5 +1,5 @@
 /*
- * synth_v2.h
+ * synth.h
  *
  *  Created on: May 31, 2020
  *      Author: zhonx
