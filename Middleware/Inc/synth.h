@@ -27,6 +27,11 @@ struct wave {
 #endif
 };
 
+typedef enum {
+	IFFT_MODE = 0,
+	PLAY_MODE,
+}synthModeTypeDef;
+
 extern volatile uint32_t rfft_cnt;
 
 /* Exported constants --------------------------------------------------------*/
@@ -34,10 +39,11 @@ extern volatile uint32_t rfft_cnt;
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
-int32_t synthInit(void);
-int32_t synthGetRfftData(uint32_t index);
-int32_t synthGetImageData(uint32_t index);
-void synthAudioProcess(void);
+int32_t synth_IfftInit(void);
+int32_t synth_PlayInit(void);
+int32_t synth_IfftGetData(uint32_t index);
+int32_t synth_GetImageData(uint32_t index);
+void synth_AudioProcess(synthModeTypeDef mode);
 
 /* Private defines -----------------------------------------------------------*/
 

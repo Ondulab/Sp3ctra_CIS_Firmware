@@ -12,6 +12,7 @@
 #include "basetypes.h"
 #include "menu.h"
 #include "cisynth_ifft.h"
+#include "cisynth_imagePlay.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -83,7 +84,11 @@ uint32_t menu_StartSelection(void)
 			GUI_FillRect((FT5336_MAX_X_LENGTH / 2) - 120, DISPLAY_AERA3_YPOS, 240, DISPLAY_AERAS_HEIGHT, GUI_COLOR_DARKRED);
 			GUI_DisplayStringAt(0, DISPLAY_AERA3_YPOS + 10, (uint8_t *)"Start  iFFT  mode", CENTER_MODE);
 
-			HAL_Delay(200);
+			while(TS_State.TouchDetected)
+			{
+				BSP_TS_GetState(0,&TS_State);
+			}
+			HAL_Delay(100);
 			cisynth_ifft();
 
 			GUI_SetFont(&Font16);
@@ -100,7 +105,12 @@ uint32_t menu_StartSelection(void)
 			GUI_FillRect((FT5336_MAX_X_LENGTH / 2) - 120, DISPLAY_AERA4_YPOS, 240, DISPLAY_AERAS_HEIGHT, GUI_COLOR_DARKRED);
 			GUI_DisplayStringAt(0, DISPLAY_AERA4_YPOS + 10, (uint8_t *)"Start direct mode", CENTER_MODE);
 
-			HAL_Delay(200);
+			while(TS_State.TouchDetected)
+			{
+				BSP_TS_GetState(0,&TS_State);
+			}
+			HAL_Delay(100);
+			cisynth_imagePlay();
 
 			GUI_SetFont(&Font16);
 			GUI_SetTextColor(GUI_COLOR_WHITE);

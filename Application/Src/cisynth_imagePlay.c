@@ -1,11 +1,11 @@
 /*
- * cisynth_ifft.c
+ * cisynth_imagePlay.c
  *
  *  Created on: May 31, 2020
  *      Author: zhonx
  */
 
-#include "cisynth_ifft.h"
+#include "cisynth_imagePlay.h"
 #include "synth.h"
 #include "times_base.h"
 #include "cis.h"
@@ -17,25 +17,22 @@
 #include "menu.h"
 
 extern __IO uint32_t rfft_cnt;
-static void cisynth_ifft_SetHint(void);
-//static int16_t *cisBuff = NULL;
+static void cisynth_imagePlay_SetHint(void);
 
 /**
  * @brief  The application entry point.
  * @retval int
  */
-int cisynth_ifft(void)
+int cisynth_imagePlay(void)
 {
 	uint8_t FreqStr[256] = {0};
 	uint32_t cis_color = 0;
 
-	cisynth_ifft_SetHint();
+	cisynth_imagePlay_SetHint();
 	cis_Init();
-	synth_IfftInit();
+	synth_PlayInit();
 
 	GUI_SetBackColor(GUI_COLOR_DARKRED);
-
-//	cis_Test();
 
 	/* Infinite loop */
 	static uint32_t start_tick;
@@ -50,7 +47,7 @@ int cisynth_ifft(void)
 		start_tick = HAL_GetTick();
 		while (rfft_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
-			synth_AudioProcess(IFFT_MODE);
+			synth_AudioProcess(PLAY_MODE);
 		}
 		rfft_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
@@ -65,8 +62,6 @@ int cisynth_ifft(void)
 
 		for (uint32_t i = 0; i < (FT5336_MAX_X_LENGTH); i++)
 		{
-			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_IfftGetData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
-			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_IfftGetData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
 			cis_color = cis_GetBuffData((i * ((float)CIS_EFFECTIVE_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 8;
 			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);
@@ -87,7 +82,7 @@ int cisynth_ifft(void)
  * @param  None
  * @retval None
  */
-static void cisynth_ifft_SetHint(void)
+static void cisynth_imagePlay_SetHint(void)
 {
 	/* Set Audio iFFT description */
 	GUI_Clear(GUI_COLOR_DARKGRAY);
@@ -97,6 +92,6 @@ static void cisynth_ifft_SetHint(void)
 	GUI_SetFont(&Font20);
 	GUI_DisplayStringAt(0, 2, (uint8_t *)"CISYNTH 3", CENTER_MODE);
 	GUI_SetFont(&Font12);
-	GUI_DisplayStringAt(0, 5, (uint8_t *)"BW ifft", LEFT_MODE);
+	GUI_DisplayStringAt(0, 5, (uint8_t *)"ImagePlay", LEFT_MODE);
 	GUI_FillRect(0, DISPLAY_HEAD_HEIGHT, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT + DISPLAY_INTER_AERAS_HEIGHT, GUI_COLOR_DARKGRAY);
 }
