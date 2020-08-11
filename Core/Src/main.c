@@ -41,7 +41,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "paint.h"
-#include "cisynth_ifft.h"
 #include "menu.h"
 /* USER CODE END Includes */
 
@@ -129,10 +128,11 @@ int main(void)
 	BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
 	BSP_LCD_SetBrightness(0, 1000); //Conflit with TIM8 in CIS
 	GUI_SetFuncDriver(&LCD_Driver);
+	/* Set Foreground Layer */
+	GUI_SetLayer(0);
 	/* Clear the LCD */
 	GUI_Clear(GUI_COLOR_DARKGRAY);
 
-	cisynth_ifft();
 	menu_StartSelection();
 	//		paint();
 

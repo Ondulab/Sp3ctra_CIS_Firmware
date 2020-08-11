@@ -14,6 +14,7 @@
 #include "config.h"
 #include "stdio.h"
 #include "arm_math.h"
+#include "menu.h"
 
 extern __IO uint32_t rfft_cnt;
 static void cisynth_ifft_SetHint(void);
@@ -28,10 +29,9 @@ int cisynth_ifft(void)
 	uint8_t FreqStr[256] = {0};
 	uint32_t cis_color = 0;
 
+	cisynth_ifft_SetHint();
 	cis_Init();
 	synthInit();
-
-	cisynth_ifft_SetHint();
 
 //	cis_Test();
 
@@ -87,13 +87,14 @@ int cisynth_ifft(void)
  */
 static void cisynth_ifft_SetHint(void)
 {
-	/* Set Audio Demo description */
+	/* Set Audio iFFT description */
+	GUI_Clear(GUI_COLOR_DARKGRAY);
 	GUI_FillRect(0, 0, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT, GUI_COLOR_DARKRED);
 	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
 	GUI_SetBackColor(GUI_COLOR_DARKRED);
 	GUI_SetFont(&Font20);
 	GUI_DisplayStringAt(0, 2, (uint8_t *)"CISYNTH 3", CENTER_MODE);
-	GUI_SetFont(&Font16);
+	GUI_SetFont(&Font12);
 	GUI_DisplayStringAt(0, 5, (uint8_t *)"BW ifft", LEFT_MODE);
 	GUI_FillRect(0, DISPLAY_HEAD_HEIGHT, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT + DISPLAY_INTER_AERAS_HEIGHT, GUI_COLOR_DARKGRAY);
 }
