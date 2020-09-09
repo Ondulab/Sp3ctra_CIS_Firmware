@@ -32,7 +32,7 @@ typedef enum {
 	PLAY_MODE,
 }synthModeTypeDef;
 
-extern volatile uint32_t rfft_cnt;
+extern volatile uint32_t synth_process_cnt;
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -41,7 +41,7 @@ extern volatile uint32_t rfft_cnt;
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synth_IfftInit(void);
 int32_t synth_PlayInit(void);
-int32_t synth_IfftGetData(uint32_t index);
+int32_t synth_GetAudioData(uint32_t index);
 int32_t synth_GetImageData(uint32_t index);
 void synth_AudioProcess(synthModeTypeDef mode);
 

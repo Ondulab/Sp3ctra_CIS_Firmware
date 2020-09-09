@@ -16,7 +16,7 @@
 #include "arm_math.h"
 #include "menu.h"
 
-extern __IO uint32_t rfft_cnt;
+extern __IO uint32_t synth_process_cnt;
 static void cisynth_ifft_SetHint(void);
 //static int16_t *cisBuff = NULL;
 
@@ -43,16 +43,15 @@ int cisynth_ifft(void)
 	uint32_t latency;
 	old_tick = HAL_GetTick();
 	uint16_t *cisBuff = NULL;
-	uint16_t rfftDataBuff[NUMBER_OF_NOTES] = {0};
 	uint32_t i = 0;
 	while (1)
 	{
 		start_tick = HAL_GetTick();
-		while (rfft_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
+		while (synth_process_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
 			synth_AudioProcess(IFFT_MODE);
 		}
-		rfft_cnt = 0;
+		synth_process_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
 		sprintf((char *)FreqStr, "%d Hz", (int)(SAMPLING_FREQUENCY * 1000/ (latency * DISPLAY_REFRESH_FPS)));
 		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
@@ -65,8 +64,8 @@ int cisynth_ifft(void)
 
 		for (uint32_t i = 0; i < (FT5336_MAX_X_LENGTH); i++)
 		{
-			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_IfftGetData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
-			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_IfftGetData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
+			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
+			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
 			cis_color = cis_GetBuffData((i * ((float)CIS_EFFECTIVE_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 8;
 			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);

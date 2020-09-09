@@ -35,6 +35,7 @@
 #define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
 #define AUDIO_BUFFER_SIZE             	4096
 #define RFFT_BUFFER_SIZE        	  	(AUDIO_BUFFER_SIZE / 4)
+#define PLAY_BUFFER_SIZE				RFFT_BUFFER_SIZE
 /* Audio file size and start address are defined here since the audio file is
    stored in Flash memory as a constant table of 16-bit data */
 #define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
@@ -53,12 +54,24 @@ typedef struct {
 	uint32_t AudioFileSize;
 	uint32_t *SrcAddress;
 }AUDIO_BufferTypeDef;
+
+typedef enum {
+	RATE_96000KHz = 0,
+	RATE_48000Khz,
+	RATE_44100Khz,
+	RATE_32000Khz,
+	RATE_22050Khz,
+	RATE_16000Khz,
+	RATE_11025Khz,
+	RATE_8000Khz,
+}synthAudioFreqTypeDef;
+
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
 static int16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
-volatile uint32_t rfft_cnt = 0;
+volatile uint32_t synth_process_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
 ALIGN_32BYTES (static uint16_t imageData[CIS_EFFECTIVE_PIXELS_NB]) = {0};
@@ -67,13 +80,13 @@ ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 
 static uint32_t bytesread;
 static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
-static uint32_t AudioFreq[8] = {96000, 48000, 44100, 32000, 22050, 16000, 11025, 8000};
 BSP_AUDIO_Init_t AudioPlayInit;
 
 /* Private function prototypes -----------------------------------------------*/
+static int32_t synth_AudioInit(void);
 static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
-void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power);
-void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power);
+static void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power);
+static void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -84,7 +97,10 @@ void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
  */
 int32_t synth_PlayInit(void)
 {
-	return -1;
+	if (synth_AudioInit() == 0)
+		return 0;
+	else
+		return -1;
 }
 
 /**
@@ -143,13 +159,17 @@ int32_t synth_IfftInit(void)
 	//	printf("---- END ----");
 #endif
 
-	uint32_t *AudioFreq_ptr;
+	if (synth_AudioInit() == 0)
+		return 0;
+	else
+		return -1;
+}
 
-	AudioFreq_ptr = &AudioFreq[1]; //44100 /*96K*/
-
+int32_t synth_AudioInit(void)
+{
 	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
 	AudioPlayInit.ChannelsNbr = 2;
-	AudioPlayInit.SampleRate = *AudioFreq_ptr;
+	AudioPlayInit.SampleRate = SAMPLING_FREQUENCY;
 	AudioPlayInit.BitsPerSample = AUDIO_RESOLUTION_16B;
 	AudioPlayInit.Volume = uwVolume;
 
@@ -183,7 +203,7 @@ int32_t synth_IfftInit(void)
  * @param  Index
  * @retval Value
  */
-int32_t synth_IfftGetData(uint32_t index)
+int32_t synth_GetAudioData(uint32_t index)
 {
 	//	if (index >= RFFT_BUFFER_SIZE)
 	//		Error_Handler();
@@ -207,8 +227,8 @@ int32_t synth_GetImageData(uint32_t index)
  * @param  htim : TIM handle
  * @retval None
  */
-#pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
+//#pragma GCC push_options
+//#pragma GCC optimize ("unroll-loops")
 void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power)
 {
 	static int32_t signal_summation;
@@ -258,9 +278,9 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 		WriteDataNbr+=2;
 	}
 
-	rfft_cnt += NbrOfData;
+	synth_process_cnt += NbrOfData;
 }
-#pragma GCC pop_options
+//#pragma GCC pop_options
 
 /**
  * @brief  Period elapsed callback in non blocking mode
@@ -271,7 +291,35 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 #pragma GCC optimize ("unroll-loops")
 void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power)
 {
+	static uint32_t WriteDataNbr;
+	static uint32_t CurrentPix = 0;
+	static int16_t AudioDot;
+	WriteDataNbr = 0;
 
+	while(WriteDataNbr < (NbrOfData * 2))
+	{
+		if (CurrentPix >= CIS_EFFECTIVE_PIXELS_NB - 4)
+			CurrentPix = 0;
+		AudioDot = (int16_t)((imageData[CurrentPix] >> 4) + (imageData[CurrentPix + 1] >> 4) + (imageData[CurrentPix + 2] >> 4) +  (imageData[CurrentPix + 3] >> 4));
+		audioData[WriteDataNbr] = AudioDot;
+		audioData[WriteDataNbr + 1] = AudioDot;
+		WriteDataNbr+=2;
+
+		CurrentPix++;
+
+//		uint32_t aRandom32bit = 0;
+//
+//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+//		{
+//			/* Random number generation error */
+//			Error_Handler();
+//		}
+//		audioData[WriteDataNbr] = aRandom32bit % 32768;
+//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
+//		WriteDataNbr+=2;
+	}
+
+	synth_process_cnt += NbrOfData;
 }
 #pragma GCC pop_options
 
@@ -329,9 +377,9 @@ void synth_AudioProcess(synthModeTypeDef mode)
 			if (mode == IFFT_MODE)
 				synth_IfftMode(imageData, (int16_t*)&audioBuff[0], (RFFT_BUFFER_SIZE / 2), &max_power);
 			else
-				synth_PlayMode(imageData, (int16_t*)&audioBuff[0], (RFFT_BUFFER_SIZE / 2), &max_power);
+				synth_PlayMode(imageData, (int16_t*)&audioBuff[0], (PLAY_BUFFER_SIZE / 2), &max_power);
 			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 2);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 8);
 		}
 		return;
 	}
@@ -351,9 +399,9 @@ void synth_AudioProcess(synthModeTypeDef mode)
 			if (mode == IFFT_MODE)
 				synth_IfftMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], (RFFT_BUFFER_SIZE / 2), &max_power);
 			else
-				synth_PlayMode(imageData, (int16_t*)&audioBuff[RFFT_BUFFER_SIZE / 2], (RFFT_BUFFER_SIZE / 2), &max_power);
+				synth_PlayMode(imageData, (int16_t*)&audioBuff[PLAY_BUFFER_SIZE / 2], (PLAY_BUFFER_SIZE / 2), &max_power);
 			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
+			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 8);
 		}
 		return;
 	}

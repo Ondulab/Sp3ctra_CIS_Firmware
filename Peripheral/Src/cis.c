@@ -179,9 +179,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-		cis_ImageFilterBW(cis_buff);
-		cis_ImageAccumulatorBW(cis_buff);
-		cis_ImageMaxBW(cis_buff, max_power);
+//		cis_ImageFilterBW(cis_buff);
+//		cis_ImageAccumulatorBW(cis_buff);
+//		cis_ImageMaxBW(cis_buff, max_power);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -192,9 +192,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-		cis_ImageFilterBW(cis_buff);
-		cis_ImageAccumulatorBW(cis_buff);
-		cis_ImageMaxBW(cis_buff, max_power);
+//		cis_ImageFilterBW(cis_buff);
+//		cis_ImageAccumulatorBW(cis_buff);
+//		cis_ImageMaxBW(cis_buff, max_power);
 	}
 }
 
@@ -619,6 +619,7 @@ void cis_ADC_Init(void)
 	hopamp1.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
 	hopamp1.Init.PgaConnect = OPAMP_PGA_CONNECT_INVERTINGINPUT_IO0_BIAS;
 	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_4_OR_MINUS_3;
+//	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2_OR_MINUS_1;
 	hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
 	hopamp1.Init.TrimmingValuePHighSpeed = 15;
 	hopamp1.Init.TrimmingValueNHighSpeed = 15;
@@ -633,7 +634,7 @@ void cis_ADC_Init(void)
 
 	/* Set DAC output voltage (use to change OPAMP offset */
 #ifdef CIS_BW
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.35)/(3.30/256.00));
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.35)/(3.30/256.00)); //1.35
 #else
 	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.3/256)); 
 #endif
