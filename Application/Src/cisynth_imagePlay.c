@@ -29,7 +29,7 @@ int cisynth_imagePlay(void)
 	uint32_t cis_color = 0;
 
 	cisynth_imagePlay_SetHint();
-	cis_Init();
+	cis_Init(PLAY_MODE);
 	synth_PlayInit();
 
 	GUI_SetBackColor(GUI_COLOR_DARKRED);
@@ -63,14 +63,14 @@ int cisynth_imagePlay(void)
 		{
 			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTYELLOW);
 			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTYELLOW);
-			cis_color = cis_GetBuffData((i * ((float)CIS_EFFECTIVE_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
+			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 8;
 			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);
 			cis_color |= 0xFF000000;
 			cis_color |= cis_color << 8;
 			cis_color |= cis_color << 16;
 			GUI_DrawLine(i, DISPLAY_AERA4_YPOS + DISPLAY_INTER_AERAS_HEIGHT, i, DISPLAY_AERA4_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT, cis_color);
-			cis_color = synth_GetImageData((i * ((float)CIS_EFFECTIVE_PIXELS_NB / (float)FT5336_MAX_X_LENGTH)));
+			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)FT5336_MAX_X_LENGTH)));
 			cis_color = cis_color >> 11;
 			GUI_SetPixel(i, DISPLAY_AERA5_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - cis_color , GUI_COLOR_LIGHTYELLOW);
 		}

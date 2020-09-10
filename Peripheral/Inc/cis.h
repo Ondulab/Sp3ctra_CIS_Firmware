@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "main.h"
+#include "synth.h"
 
 #define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
 #define CIS_SP_Pin ARD_D6_Pin
@@ -33,7 +34,8 @@ typedef enum
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
-void cis_Init(void);
+void cis_Init(synthModeTypeDef mode);
+uint16_t cis_GetEffectivePixelNb(void);
 void cis_Test(void);
 uint16_t cis_GetBuffData(uint32_t index);
 void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power);

@@ -74,21 +74,8 @@
 #define CIS_PIXEX_AERA_STOP				(5264) //5333
 #define CIS_END_CAPTURE 				(5696) //(5696)
 
-#define CIS_OVERSAMPLING_ENABLE
-#define CIS_OVERSAMPLING_RATIO			(16)
-#define CIS_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_4
-
-#ifdef CIS_OVERSAMPLING_ENABLE
-#define CIS_EFFECTIVE_PIXELS_NB			(((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START)) / (CIS_OVERSAMPLING_RATIO))	//(5530 / OVERSAMPLING) active pixels
-#define CIS_ADC_BUFF_PIXEL_AERA_START	((CIS_PIXEX_AERA_START) / (CIS_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_PIXEL_AERA_STOP	((CIS_PIXEX_AERA_STOP) / (CIS_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_END_CAPTURE 		((CIS_END_CAPTURE) / (CIS_OVERSAMPLING_RATIO))
-#else
-#define CIS_EFFECTIVE_PIXELS_NB			((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START))	//5530 active pixels
-#define CIS_ADC_BUFF_PIXEL_AERA_START	(CIS_PIXEX_AERA_START)
-#define CIS_ADC_BUFF_PIXEL_AERA_STOP	(CIS_PIXEX_AERA_STOP)
-#define CIS_ADC_BUFF_END_CAPTURE 		(CIS_END_CAPTURE)
-#endif
+#define CIS_OVERSAMPLING_RATIO			(16)				//only for ifft mode
+#define CIS_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_4	//only for ifft mode
 
 #define CIS_OVERPRINT_CYCLES			(20)
 
@@ -96,12 +83,12 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 			(65535)   	//in decimal
-#define START_FREQUENCY     			(170)
+#define START_FREQUENCY     			(70)
 #define MAX_OCTAVE_NUMBER   			(20)
 #define SEMITONE_PER_OCTAVE 			(12)
-#define COMMA_PER_SEMITONE  			(3)	 //9
+#define COMMA_PER_SEMITONE  			(5)	 //9
 
-#define NUMBER_OF_NOTES     			(CIS_EFFECTIVE_PIXELS_NB)
+#define NUMBER_OF_NOTES     			(((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START)) / (CIS_OVERSAMPLING_RATIO))
 
 #endif // __CONFIG_H__
 

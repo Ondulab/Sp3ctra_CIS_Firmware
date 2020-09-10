@@ -20,6 +20,7 @@
 #include "stdio.h"
 #include "stdbool.h"
 
+#include "synth.h"
 #include "cis.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -33,14 +34,20 @@
 /* Private variables ---------------------------------------------------------*/
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
-#define ADC_CONVERTED_DATA_BUFFER_SIZE ((CIS_ADC_BUFF_END_CAPTURE * 2)) /* Size of array cisData[] */
-ALIGN_32BYTES (static uint16_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
+static uint16_t *cisData = NULL;
+static uint16_t *cisBuffSommation = NULL;
 
 #else
 /* Definition of ADCx conversions data table size this buffer contains RGB conversion */
 #define ADC_CONVERTED_DATA_BUFFER_SIZE (CIS_END_CAPTURE * 3) /* Size of array cisData[] */
 ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
+
+static uint16_t CIS_EFFECTIVE_PIXELS_NB			 = 0;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_START	 = 0;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_STOP	 = 0;
+static uint16_t CIS_ADC_BUFF_END_CAPTURE 		 = 0;
+static uint16_t ADC_CONVERTED_DATA_BUFFER_SIZE 	 = 0;
 
 CIS_BUFF_StateTypeDef  cisBufferState = {0};
 /* Variable containing ADC conversions data */
@@ -52,7 +59,7 @@ void cis_TIM_LED_R_Init(void);
 void cis_TIM_LED_G_Init(void);
 void cis_TIM_LED_B_Init(void);
 
-void cis_ADC_Init(void);
+void cis_ADC_Init(synthModeTypeDef mode);
 void cis_DisplayLine(void);
 void cis_ImageAccumulatorBW(uint16_t *cis_buff);
 void cis_ImageFilterBW(uint16_t *cis_buff);
@@ -65,9 +72,40 @@ void cis_ImageMaxBW(uint16_t *cis_buff, uint32_t *max);
  * @param  Void
  * @retval None
  */
-void cis_Init(void)
+void cis_Init(synthModeTypeDef mode)
 {
-	cis_ADC_Init();
+	if (mode == IFFT_MODE)
+	{
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_OVERSAMPLING_RATIO;
+	}
+	else
+	{
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START);	//5530 active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START;
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP;
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE;
+	}
+
+	ADC_CONVERTED_DATA_BUFFER_SIZE 	=	CIS_ADC_BUFF_END_CAPTURE * 2;
+
+	//allocate the contiguous memory area for storage cis data
+	cisData = malloc(CIS_ADC_BUFF_END_CAPTURE * 2 * sizeof(uint16_t*));
+	if (cisData == NULL)
+	{
+		Error_Handler();
+	}
+
+	//allocate the contiguous memory area for storage cisBuffSommation
+	cisBuffSommation = malloc(CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES * sizeof(uint32_t*));
+	if (cisBuffSommation == NULL)
+	{
+		Error_Handler();
+	}
+
+	cis_ADC_Init(mode);
 	cis_TIM_SP_Init();
 	cis_TIM_LED_R_Init();
 	cis_TIM_LED_G_Init();
@@ -95,6 +133,16 @@ void cis_Init(void)
 	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #endif
+}
+
+/**
+ * @brief  GetEffectivePixelNb
+ * @param  Void
+ * @retval Nuber of effective pixels
+ */
+uint16_t cis_GetEffectivePixelNb(void)
+{
+	return CIS_EFFECTIVE_PIXELS_NB;
 }
 
 /**
@@ -179,9 +227,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-//		cis_ImageFilterBW(cis_buff);
-//		cis_ImageAccumulatorBW(cis_buff);
-//		cis_ImageMaxBW(cis_buff, max_power);
+		cis_ImageFilterBW(cis_buff);
+		cis_ImageAccumulatorBW(cis_buff);
+		cis_ImageMaxBW(cis_buff, max_power);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -192,9 +240,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-//		cis_ImageFilterBW(cis_buff);
-//		cis_ImageAccumulatorBW(cis_buff);
-//		cis_ImageMaxBW(cis_buff, max_power);
+		cis_ImageFilterBW(cis_buff);
+		cis_ImageAccumulatorBW(cis_buff);
+		cis_ImageMaxBW(cis_buff, max_power);
 	}
 }
 
@@ -205,7 +253,6 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
  */
 void cis_ImageAccumulatorBW(uint16_t *cis_buff)
 {
-	ALIGN_32BYTES (static uint32_t cisBuffSommation[CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES]);
 	static uint32_t cnt = 0;
 	static uint32_t pixel_accumulator = 0;
 
@@ -582,7 +629,7 @@ void cis_TIM_LED_B_Init()
  * @param  Void
  * @retval None
  */
-void cis_ADC_Init(void)
+void cis_ADC_Init(synthModeTypeDef mode)
 {
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef ADCsConfig = {0};
@@ -619,7 +666,7 @@ void cis_ADC_Init(void)
 	hopamp1.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
 	hopamp1.Init.PgaConnect = OPAMP_PGA_CONNECT_INVERTINGINPUT_IO0_BIAS;
 	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_4_OR_MINUS_3;
-//	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2_OR_MINUS_1;
+	//	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2_OR_MINUS_1;
 	hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
 	hopamp1.Init.TrimmingValuePHighSpeed = 15;
 	hopamp1.Init.TrimmingValueNHighSpeed = 15;
@@ -675,15 +722,19 @@ void cis_ADC_Init(void)
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
-#ifdef CIS_OVERSAMPLING_ENABLE
-	hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
-	hadc1.Init.Oversampling.Ratio = CIS_OVERSAMPLING_RATIO;    /* Oversampling ratio */
-	hadc1.Init.Oversampling.RightBitShift = CIS_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
-	hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
-	hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
-#else
-	hadc1.Init.OversamplingMode = DISABLE;
-#endif
+	if (mode == IFFT_MODE)
+	{
+		hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
+		hadc1.Init.Oversampling.Ratio = CIS_OVERSAMPLING_RATIO;    /* Oversampling ratio */
+		hadc1.Init.Oversampling.RightBitShift = CIS_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
+		hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
+		hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
+	}
+	else
+	{
+		hadc1.Init.OversamplingMode = DISABLE;
+	}
+
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();

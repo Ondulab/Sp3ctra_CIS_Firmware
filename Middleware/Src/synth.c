@@ -74,7 +74,7 @@ static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t synth_process_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
-ALIGN_32BYTES (static uint16_t imageData[CIS_EFFECTIVE_PIXELS_NB]) = {0};
+static uint16_t *imageData = NULL;
 ALIGN_32BYTES (static uint32_t audioBuff[RFFT_BUFFER_SIZE * 2]) = {0};
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 
@@ -112,6 +112,13 @@ int32_t synth_IfftInit(void)
 {
 	int32_t buffer_len = 0;
 	uint32_t aRandom32bit = 0;
+
+	//allocate the contiguous memory area for storage image data
+	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+	if (imageData == NULL)
+	{
+		Error_Handler();
+	}
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -292,13 +299,13 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power)
 {
 	static uint32_t WriteDataNbr;
-	static uint32_t CurrentPix = 0;
+	static int32_t CurrentPix = 0;
 	static int16_t AudioDot;
 	WriteDataNbr = 0;
 
 	while(WriteDataNbr < (NbrOfData * 2))
 	{
-		if (CurrentPix >= CIS_EFFECTIVE_PIXELS_NB - 4)
+		if (CurrentPix >= cis_GetEffectivePixelNb() - 4)
 			CurrentPix = 0;
 		AudioDot = (int16_t)((imageData[CurrentPix] >> 4) + (imageData[CurrentPix + 1] >> 4) + (imageData[CurrentPix + 2] >> 4) +  (imageData[CurrentPix + 3] >> 4));
 		audioData[WriteDataNbr] = AudioDot;
