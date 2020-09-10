@@ -43,11 +43,11 @@ static uint16_t *cisBuffSommation = NULL;
 ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
 
-static uint16_t CIS_EFFECTIVE_PIXELS_NB			 = 0;
-static uint16_t CIS_ADC_BUFF_PIXEL_AERA_START	 = 0;
-static uint16_t CIS_ADC_BUFF_PIXEL_AERA_STOP	 = 0;
-static uint16_t CIS_ADC_BUFF_END_CAPTURE 		 = 0;
-static uint16_t ADC_CONVERTED_DATA_BUFFER_SIZE 	 = 0;
+static uint16_t CIS_EFFECTIVE_PIXELS_NB			 = 	(CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START);	//5530 active pixels;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_START	 = 	CIS_PIXEX_AERA_START;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_STOP	 = 	CIS_PIXEX_AERA_STOP;
+static uint16_t CIS_ADC_BUFF_END_CAPTURE 		 = 	CIS_END_CAPTURE;
+static uint16_t ADC_CONVERTED_DATA_BUFFER_SIZE 	 = 	CIS_END_CAPTURE * 2;
 
 CIS_BUFF_StateTypeDef  cisBufferState = {0};
 /* Variable containing ADC conversions data */
@@ -140,7 +140,7 @@ void cis_Init(synthModeTypeDef mode)
  * @param  Void
  * @retval Nuber of effective pixels
  */
-uint16_t cis_GetEffectivePixelNb(void)
+__inline uint16_t cis_GetEffectivePixelNb(void)
 {
 	return CIS_EFFECTIVE_PIXELS_NB;
 }
