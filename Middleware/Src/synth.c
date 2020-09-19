@@ -233,8 +233,8 @@ int32_t synth_GetImageData(uint32_t index)
  * @param  htim : TIM handle
  * @retval None
  */
-//#pragma GCC push_options
-//#pragma GCC optimize ("unroll-loops")
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData, uint32_t *max_power)
 {
 	static int32_t signal_summation;
@@ -253,30 +253,36 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 		signal_power_summation = 0;
 
 		//Summation for all pixel
-		for (int32_t note = NUMBER_OF_NOTES - 2; --note >= 0;)
+		for (int32_t note = NUMBER_OF_NOTES; --note >= 0;)
 		{
 			//invert and store current image data pixel
 			note_volume = imageData[note];
+			if (note == 165)
+				note_volume = 20000;
 
 			//test for CIS presence
-			//			if (note_volume > SENSIVITY_THRESHOLD)
-			//			{
-			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
-			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-			new_idx = (waves[note].current_idx + waves[note].octave_coeff);
-			if (new_idx > waves[note].aera_size)
-				new_idx -= waves[note].aera_size;
+//			if (note_volume > SENSIVITY_THRESHOLD)
+//			{
+				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
+				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
+				new_idx = (waves[note].current_idx + waves[note].octave_coeff);
+				if (new_idx >= waves[note].aera_size)
+					new_idx -= waves[note].aera_size;
 
-			signal_summation += ((*(waves[note].start_ptr + new_idx)) * (note_volume - (imageData[note+1] + imageData[note+2]) / 2)) >> 16;
+				//			signal_summation += ((*(waves[note].start_ptr + new_idx)) * (note_volume - (imageData[note+1] + imageData[note+2]) / 2)) >> 16;
+				signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
 
-			//read equivalent power of current pixel
-			signal_power_summation += note_volume;
+				//read equivalent power of current pixel
+				signal_power_summation += note_volume;
 
-			waves[note].current_idx = new_idx;
-			//			}
+				waves[note].current_idx = new_idx;
+//			}
 		}
 
-		rfft = signal_summation * ((float)*max_power / (float)signal_power_summation);
+		rfft = (rfft + signal_summation) / 2;
+//		rfft = signal_summation;// * ((float)*max_power / (float)(signal_power_summation));
+		//		rfft = signal_summation * (65535 / (float)(signal_power_summation));
+
 		//		uint32_t tooo = (((double)((*max_power / 2) * NUMBER_OF_NOTES) / (double)signal_power_summation) * NUMBER_OF_NOTES);
 		//		rfft = tooo;//signal_summation / NUMBER_OF_NOTES;
 		audioData[WriteDataNbr] = rfft;
@@ -286,7 +292,7 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 
 	synth_process_cnt += NbrOfData;
 }
-//#pragma GCC pop_options
+#pragma GCC pop_options
 
 /**
  * @brief  Period elapsed callback in non blocking mode
@@ -313,16 +319,16 @@ void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 
 		CurrentPix++;
 
-//		uint32_t aRandom32bit = 0;
-//
-//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-//		{
-//			/* Random number generation error */
-//			Error_Handler();
-//		}
-//		audioData[WriteDataNbr] = aRandom32bit % 32768;
-//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
-//		WriteDataNbr+=2;
+		//		uint32_t aRandom32bit = 0;
+		//
+		//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+		//		{
+		//			/* Random number generation error */
+		//			Error_Handler();
+		//		}
+		//		audioData[WriteDataNbr] = aRandom32bit % 32768;
+		//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
+		//		WriteDataNbr+=2;
 	}
 
 	synth_process_cnt += NbrOfData;
