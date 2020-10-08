@@ -240,8 +240,8 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 	static int32_t signal_summation;
 	static uint32_t signal_power_summation;
 	static int16_t rfft;
+	static int16_t old_rfft;
 	static uint16_t new_idx;
-	//	static uint16_t max_power;
 	static uint16_t note_volume;
 	static uint32_t WriteDataNbr;
 
@@ -257,34 +257,42 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 		{
 			//invert and store current image data pixel
 			note_volume = imageData[note];
-			if (note == 165)
-				note_volume = 20000;
 
 			//test for CIS presence
-//			if (note_volume > SENSIVITY_THRESHOLD)
-//			{
-				//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
-				//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
-				new_idx = (waves[note].current_idx + waves[note].octave_coeff);
-				if (new_idx >= waves[note].aera_size)
-					new_idx -= waves[note].aera_size;
+			//			if (note_volume > SENSIVITY_THRESHOLD)
+			//			{
 
-				//			signal_summation += ((*(waves[note].start_ptr + new_idx)) * (note_volume - (imageData[note+1] + imageData[note+2]) / 2)) >> 16;
-				signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
+			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
+			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
+			new_idx = (waves[note].current_idx + waves[note].octave_coeff);
+			if (new_idx >= waves[note].aera_size)
+				new_idx -= waves[note].aera_size;
 
-				//read equivalent power of current pixel
-				signal_power_summation += note_volume;
+			//			signal_summation += ((*(waves[note].start_ptr + new_idx)) * (note_volume - (imageData[note+1] + imageData[note+2]) / 2)) >> 16;
+			signal_summation += ((*(waves[note].start_ptr + new_idx)) * note_volume) >> 16;
 
-				waves[note].current_idx = new_idx;
-//			}
+			//read equivalent power of current pixel
+			signal_power_summation += note_volume;
+
+			waves[note].current_idx = new_idx;
+			//			}
 		}
 
-		rfft = (rfft + signal_summation) / 2;
-//		rfft = signal_summation;// * ((float)*max_power / (float)(signal_power_summation));
 		//		rfft = signal_summation * (65535 / (float)(signal_power_summation));
+		rfft = signal_summation * (((double) * max_power) / (double)(signal_power_summation));
 
-		//		uint32_t tooo = (((double)((*max_power / 2) * NUMBER_OF_NOTES) / (double)signal_power_summation) * NUMBER_OF_NOTES);
-		//		rfft = tooo;//signal_summation / NUMBER_OF_NOTES;
+
+//		if (old_rfft > rfft)
+//		{
+//			rfft = old_rfft - (pow(rfft /  old_rfft, ((double)(1.4))) * 30);
+//		}
+//		else if (rfft > old_rfft)
+//		{
+//			rfft = old_rfft + (pow(old_rfft / rfft, ((double)(1.4))) * 30);
+//		}
+
+		old_rfft = rfft;
+
 		audioData[WriteDataNbr] = rfft;
 		audioData[WriteDataNbr + 1] = rfft;
 		WriteDataNbr+=2;
@@ -310,9 +318,9 @@ void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData,
 
 	while(WriteDataNbr < (NbrOfData * 2))
 	{
-		if (CurrentPix >= cis_GetEffectivePixelNb())
+		if ((CurrentPix + 1) >= (cis_GetEffectivePixelNb()))
 			CurrentPix = 0;
-		AudioDot = (imageData[CurrentPix] - 32768);// >> 4) + (imageData[CurrentPix + 1] >> 4) + (imageData[CurrentPix + 2] >> 4) +  (imageData[CurrentPix + 3] >> 4));
+		AudioDot = imageData[CurrentPix] - imageData[CurrentPix + 1];
 		audioData[WriteDataNbr] = AudioDot;
 		audioData[WriteDataNbr + 1] = AudioDot;
 		WriteDataNbr+=2;

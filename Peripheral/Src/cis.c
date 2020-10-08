@@ -219,6 +219,10 @@ uint16_t cis_GetBuffData(uint32_t index)
  */
 void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 {
+	static uint32_t toto = 0;
+
+//	if (toto < 100)
+//	{
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 	{
@@ -228,7 +232,7 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
 		cis_ImageFilterBW(cis_buff);
-//		cis_ImageAccumulatorBW(cis_buff);
+		cis_ImageAccumulatorBW(cis_buff);
 		cis_ImageMaxBW(cis_buff, max_power);
 	}
 
@@ -241,9 +245,12 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
 		cis_ImageFilterBW(cis_buff);
-//		cis_ImageAccumulatorBW(cis_buff);
+		cis_ImageAccumulatorBW(cis_buff);
 		cis_ImageMaxBW(cis_buff, max_power);
 	}
+//	toto++;
+//	}
+//	cis_ImageMaxBW(cis_buff, max_power);
 }
 
 /**
