@@ -28,6 +28,8 @@ int cisynth_imagePlay(void)
 	uint8_t FreqStr[256] = {0};
 	uint32_t cis_color = 0;
 
+	printf("Start ImagePlay mode \n");
+
 	cisynth_imagePlay_SetHint();
 	cis_Init(PLAY_MODE);
 	synth_PlayInit();
@@ -85,7 +87,7 @@ int cisynth_imagePlay(void)
  */
 static void cisynth_imagePlay_SetHint(void)
 {
-	/* Set Audio iFFT description */
+	/* Set Audio header description */
 	GUI_Clear(GUI_COLOR_DARKGRAY);
 	GUI_FillRect(0, 0, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT, GUI_COLOR_DARKRED);
 	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);

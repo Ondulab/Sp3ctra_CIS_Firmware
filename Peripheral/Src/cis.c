@@ -63,7 +63,7 @@ void cis_ADC_Init(synthModeTypeDef mode);
 void cis_DisplayLine(void);
 void cis_ImageAccumulatorBW(uint16_t *cis_buff);
 void cis_ImageFilterBW(uint16_t *cis_buff);
-void cis_ImageMaxBW(uint16_t *cis_buff, uint32_t *max);
+void cis_ImageMaxBW(uint16_t *cis_buff, int32_t *max);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -76,17 +76,17 @@ void cis_Init(synthModeTypeDef mode)
 {
 	if (mode == IFFT_MODE)
 	{
-		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
-		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_OVERSAMPLING_RATIO;
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_IFFT_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_IFFT_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO;
 	}
 	else
 	{
-		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START);	//5530 active pixels
-		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START;
-		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP;
-		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE;
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_IMGPLY_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_IMGPLY_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IMGPLY_OVERSAMPLING_RATIO;
 	}
 
 	ADC_CONVERTED_DATA_BUFFER_SIZE 	=	CIS_ADC_BUFF_END_CAPTURE * 2;
@@ -217,12 +217,8 @@ uint16_t cis_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
+void cis_ImageProcessBW(uint16_t *cis_buff, int32_t *max_power)
 {
-	static uint32_t toto = 0;
-
-//	if (toto < 100)
-//	{
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
 	{
@@ -232,7 +228,7 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
 		cis_ImageFilterBW(cis_buff);
-		cis_ImageAccumulatorBW(cis_buff);
+		//		cis_ImageAccumulatorBW(cis_buff);
 		cis_ImageMaxBW(cis_buff, max_power);
 	}
 
@@ -245,12 +241,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power)
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
 		cis_ImageFilterBW(cis_buff);
-		cis_ImageAccumulatorBW(cis_buff);
+		//		cis_ImageAccumulatorBW(cis_buff);
 		cis_ImageMaxBW(cis_buff, max_power);
 	}
-//	toto++;
-//	}
-//	cis_ImageMaxBW(cis_buff, max_power);
 }
 
 /**
@@ -289,9 +282,11 @@ void cis_ImageFilterBW(uint16_t *cis_buff)
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
 	{
 #ifdef CIS_INVERT_COLOR
-		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00);
+		//		cis_buff[i] = (double)(65535 - cis_buff[i]);
+		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00); //sensibility filer generate some glitchs
+
 #else
-		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
+		//		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
 #endif
 	}
 }
@@ -302,7 +297,7 @@ void cis_ImageFilterBW(uint16_t *cis_buff)
  * @param  max
  * @retval None
  */
-void cis_ImageMaxBW(uint16_t *cis_buff, uint32_t *max)
+void cis_ImageMaxBW(uint16_t *cis_buff, int32_t *max)
 {
 	arm_max_q15((int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB, (int16_t*)max, NULL);
 }
@@ -688,9 +683,9 @@ void cis_ADC_Init(synthModeTypeDef mode)
 
 	/* Set DAC output voltage (use to change OPAMP offset */
 #ifdef CIS_BW
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.35)/(3.30/256.00)); //1.35
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.30/256.00)); //1.35
 #else
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.3/256)); 
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.30/256.00));
 #endif
 
 	/* Enable DAC Channel 1 ##################################################*/
@@ -729,18 +724,19 @@ void cis_ADC_Init(synthModeTypeDef mode)
 	hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
 	hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
 	hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
+	hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
 	if (mode == IFFT_MODE)
 	{
-		hadc1.Init.OversamplingMode = ENABLE;                        /* Oversampling enabled */
-		hadc1.Init.Oversampling.Ratio = CIS_OVERSAMPLING_RATIO;    /* Oversampling ratio */
-		hadc1.Init.Oversampling.RightBitShift = CIS_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
-		hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
-		hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
+		hadc1.Init.Oversampling.Ratio = CIS_IFFT_OVERSAMPLING_RATIO;    /* Oversampling ratio */
+		hadc1.Init.Oversampling.RightBitShift = CIS_IFFT_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
 	}
 	else
 	{
-		hadc1.Init.OversamplingMode = DISABLE;
+		hadc1.Init.Oversampling.Ratio = CIS_IMGPLY_OVERSAMPLING_RATIO;    /* Oversampling ratio */
+		hadc1.Init.Oversampling.RightBitShift = CIS_IMGPLY_OVERSAMPLING_RIGHTBITSHIFT;         /* Right shift of the oversampled summation */
 	}
+	hadc1.Init.Oversampling.TriggeredMode = ADC_TRIGGEREDMODE_MULTI_TRIGGER;         /* Specifies whether or not a trigger is needed for each sample */
+	hadc1.Init.Oversampling.OversamplingStopReset = ADC_REGOVERSAMPLING_CONTINUED_MODE; /* Specifies whether or not the oversampling buffer is maintained during injection sequence */
 
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{

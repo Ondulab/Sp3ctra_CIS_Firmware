@@ -34,13 +34,13 @@
 MDMA_HandleTypeDef hmdma_mdma_channel40_dma1_stream0_tc_0;
 MDMA_LinkNodeTypeDef node_mdma_channel40_dma2_stream1_tc_1;
 
-/** 
+/**
   * Enable MDMA controller clock
   * Configure MDMA for global transfers
   *   hmdma_mdma_channel40_dma1_stream0_tc_0
   *   node_mdma_channel40_dma2_stream1_tc_1
   */
-void MX_MDMA_Init(void) 
+void MX_MDMA_Init(void)
 {
 
   /* MDMA controller clock enable */
@@ -70,6 +70,12 @@ void MX_MDMA_Init(void)
     Error_Handler();
   }
 
+  /* Configure post request address and data masks */
+  if (HAL_MDMA_ConfigPostRequestMask(&hmdma_mdma_channel40_dma1_stream0_tc_0, 0, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
   /* Initialize MDMA link node according to specified parameters */
   nodeConfig.Init.Request = MDMA_REQUEST_DMA2_Stream1_TC;
   nodeConfig.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
@@ -87,9 +93,6 @@ void MX_MDMA_Init(void)
   nodeConfig.Init.DestBlockAddressOffset = 0;
   nodeConfig.PostRequestMaskAddress = 0;
   nodeConfig.PostRequestMaskData = 0;
-  /* Template to be copied and modified in the user code section below */
-  /* Please give a value to the following parameters set by default to 0 */
-  /*
   nodeConfig.SrcAddress = 0;
   nodeConfig.DstAddress = 0;
   nodeConfig.BlockDataLength = 0;
@@ -98,7 +101,6 @@ void MX_MDMA_Init(void)
   {
     Error_Handler();
   }
-  */
   /* USER CODE BEGIN mdma_channel40_dma2_stream1_tc_1 */
 
   /* USER CODE END mdma_channel40_dma2_stream1_tc_1 */

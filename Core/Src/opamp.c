@@ -61,11 +61,11 @@ void HAL_OPAMP_MspInit(OPAMP_HandleTypeDef* opampHandle)
   /* USER CODE END OPAMP1_MspInit 0 */
     /* OPAMP1 clock enable */
     __HAL_RCC_OPAMP_CLK_ENABLE();
-  
+
     __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**OPAMP1 GPIO Configuration    
+    /**OPAMP1 GPIO Configuration
     PC4     ------> OPAMP1_VOUT
-    PC5     ------> OPAMP1_VINM 
+    PC5     ------> OPAMP1_VINM
     */
     GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -88,10 +88,10 @@ void HAL_OPAMP_MspDeInit(OPAMP_HandleTypeDef* opampHandle)
   /* USER CODE END OPAMP1_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_OPAMP_CLK_DISABLE();
-  
-    /**OPAMP1 GPIO Configuration    
+
+    /**OPAMP1 GPIO Configuration
     PC4     ------> OPAMP1_VOUT
-    PC5     ------> OPAMP1_VINM 
+    PC5     ------> OPAMP1_VINM
     */
     HAL_GPIO_DeInit(GPIOC, GPIO_PIN_4|GPIO_PIN_5);
 
@@ -99,7 +99,7 @@ void HAL_OPAMP_MspDeInit(OPAMP_HandleTypeDef* opampHandle)
 
   /* USER CODE END OPAMP1_MspDeInit 1 */
   }
-} 
+}
 
 /* USER CODE BEGIN 1 */
 

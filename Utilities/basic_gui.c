@@ -403,7 +403,7 @@ void GUI_DisplayStringAt(uint32_t Xpos, uint32_t Ypos, uint8_t *Text, Text_Align
   uint8_t  *ptr = Text;
 
   /* Get the text size */
-  while (*ptr++) size ++ ;
+  while (*ptr++) size++ ;
 
   /* Characters number per line */
   xsize = (DrawProp->GuiXsize/DrawProp[DrawProp->GuiLayer].pFont->Width);

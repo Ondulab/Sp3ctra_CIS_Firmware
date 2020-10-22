@@ -20,7 +20,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 static uint16_t x = 0, y = 0;
-static uint32_t x_size, y_size;
+static uint32_t x_size = 0, y_size = 0;
 static TS_State_t  TS_State;
 TS_Init_t *hTS;
 
@@ -36,6 +36,21 @@ static void menu_SetHint(void);
  */
 uint32_t menu_StartSelection(void)
 {
+
+	/*##-1- LCD Initialization #################################################*/
+	/* Initialize the LCD */
+	BSP_LCD_DeInit(0);
+	BSP_LCD_Init(0, LCD_ORIENTATION_LANDSCAPE);
+	GUI_SetFuncDriver(&LCD_Driver);
+
+	/* Set Foreground Layer */
+	GUI_SetLayer(0);
+
+	BSP_LCD_SetBrightness(0, 50); //Conflit with TIM8 in CIS
+
+	BSP_LCD_DisplayOff(0);
+	BSP_LCD_DisplayOn(0);
+
 	uint8_t coordinates[256] = {0};
 
 	/* Clear the LCD Background layer */

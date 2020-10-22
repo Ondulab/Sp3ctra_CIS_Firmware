@@ -38,6 +38,6 @@ void cis_Init(synthModeTypeDef mode);
 uint16_t cis_GetEffectivePixelNb(void);
 void cis_Test(void);
 uint16_t cis_GetBuffData(uint32_t index);
-void cis_ImageProcessBW(uint16_t *cis_buff, uint32_t *max_power);
+void cis_ImageProcessBW(uint16_t *cis_buff, int32_t *max_power);
 
 #endif /* __CIS_H__ */

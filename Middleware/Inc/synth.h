@@ -22,6 +22,7 @@ struct wave {
     uint16_t current_idx;
 	uint16_t aera_size;
 	uint16_t octave_coeff;
+	int32_t current_volume;
 #ifdef PRINT_FREQUENCY
 	float frequency;
 #endif

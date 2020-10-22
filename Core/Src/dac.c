@@ -31,14 +31,14 @@ void MX_DAC1_Init(void)
 {
   DAC_ChannelConfTypeDef sConfig = {0};
 
-  /** DAC Initialization 
+  /** DAC Initialization
   */
   hdac1.Instance = DAC1;
   if (HAL_DAC_Init(&hdac1) != HAL_OK)
   {
     Error_Handler();
   }
-  /** DAC channel OUT1 config 
+  /** DAC channel OUT1 config
   */
   sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
@@ -82,7 +82,7 @@ void HAL_DAC_MspDeInit(DAC_HandleTypeDef* dacHandle)
 
   /* USER CODE END DAC1_MspDeInit 1 */
   }
-} 
+}
 
 /* USER CODE BEGIN 1 */
 
