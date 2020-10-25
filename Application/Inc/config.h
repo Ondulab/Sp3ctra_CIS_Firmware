@@ -17,7 +17,7 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
-#define DISPLAY_REFRESH_FPS						(20)
+#define DISPLAY_REFRESH_FPS						(10)
 
 /**************************************************************************************/
 /********************                     math                     ********************/
@@ -27,18 +27,18 @@
 /**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
-#define AUDIO_DEFAULT_VOLUME    				(70)
+#define AUDIO_DEFAULT_VOLUME    				(60)
 
 //#define SAMPLING_FREQUENCY					  (96000)
-//#define SAMPLING_FREQUENCY					  (48000)
-#define SAMPLING_FREQUENCY						(44100)
+//#define SAMPLING_FREQUENCY				      (48000)
+#define SAMPLING_FREQUENCY					  	(44100)
 //#define SAMPLING_FREQUENCY					  (32000)
 //#define SAMPLING_FREQUENCY					  (22050)
 //#define SAMPLING_FREQUENCY					  (16000)
 //#define SAMPLING_FREQUENCY					  (11025)
 //#define SAMPLING_FREQUENCY					  (8000)
 
-#define IFFT_GAP_PER_MS							(882)
+#define IFFT_GAP_PER_MS							(2000)
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
@@ -48,9 +48,9 @@
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
 #define CIS_BW
-#define CIS_INVERT_COLOR
+//#define CIS_INVERT_COLOR
 
-#define CIS_CLK_FREQ							(1500000)
+#define CIS_CLK_FREQ							(1000000)
 
 #define CIS_SP_OFF								(10)
 #define CIS_LED_ON								(79)
@@ -59,9 +59,9 @@
 #define CIS_PIXEX_AERA_START					(224) //166
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(3600 / 3)
-#define CIS_LED_GREEN_OFF						(3100 / 3)
-#define CIS_LED_BLUE_OFF						(1600 / 3)
+#define CIS_LED_RED_OFF							(3600 / 1)
+#define CIS_LED_GREEN_OFF						(3100 / 1)
+#define CIS_LED_BLUE_OFF						(1600 / 1)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
@@ -83,7 +83,7 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 					(65535)   	//in decimal
-#define START_FREQUENCY     					(50)
+#define START_FREQUENCY     					(7<W<<>0)
 #define MAX_OCTAVE_NUMBER   					(20)
 #define SEMITONE_PER_OCTAVE 					(12)
 #define COMMA_PER_SEMITONE  					(5)	 //9

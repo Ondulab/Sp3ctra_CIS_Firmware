@@ -61,9 +61,7 @@ void cis_TIM_LED_B_Init(void);
 
 void cis_ADC_Init(synthModeTypeDef mode);
 void cis_DisplayLine(void);
-void cis_ImageAccumulatorBW(uint16_t *cis_buff);
 void cis_ImageFilterBW(uint16_t *cis_buff);
-void cis_ImageMaxBW(uint16_t *cis_buff, int32_t *max);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -217,7 +215,7 @@ uint16_t cis_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_ImageProcessBW(uint16_t *cis_buff, int32_t *max_power)
+void cis_ImageProcessBW(uint16_t *cis_buff)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
 	if(cisBufferState == CIS_BUFFER_OFFSET_HALF)
@@ -227,9 +225,7 @@ void cis_ImageProcessBW(uint16_t *cis_buff, int32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-		cis_ImageFilterBW(cis_buff);
-		//		cis_ImageAccumulatorBW(cis_buff);
-		cis_ImageMaxBW(cis_buff, max_power);
+//		cis_ImageFilterBW(cis_buff);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -240,36 +236,8 @@ void cis_ImageProcessBW(uint16_t *cis_buff, int32_t *max_power)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-		cis_ImageFilterBW(cis_buff);
-		//		cis_ImageAccumulatorBW(cis_buff);
-		cis_ImageMaxBW(cis_buff, max_power);
+//		cis_ImageFilterBW(cis_buff);
 	}
-}
-
-/**
- * @brief  Image accumulation
- * @param  Audio buffer
- * @retval None
- */
-void cis_ImageAccumulatorBW(uint16_t *cis_buff)
-{
-	static uint32_t cnt = 0;
-	static uint32_t pixel_accumulator = 0;
-
-	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
-	{
-		cisBuffSommation[i + cnt] = cis_buff[i];
-
-		for (uint32_t j = 0; j < (CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES); j += CIS_EFFECTIVE_PIXELS_NB)
-		{
-			pixel_accumulator += cisBuffSommation[i + j];
-		}
-		pixel_accumulator /= (CIS_OVERPRINT_CYCLES + 1);
-		cis_buff[i] = pixel_accumulator;
-	}
-	cnt += CIS_EFFECTIVE_PIXELS_NB;
-	if (cnt >= (CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES))
-		cnt = 0;
 }
 
 /**
@@ -282,24 +250,13 @@ void cis_ImageFilterBW(uint16_t *cis_buff)
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
 	{
 #ifdef CIS_INVERT_COLOR
-		//		cis_buff[i] = (double)(65535 - cis_buff[i]);
+		//				cis_buff[i] = (double)(65535 - cis_buff[i]);
 		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00); //sensibility filer generate some glitchs
 
 #else
-		//		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
+		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
 #endif
 	}
-}
-
-/**
- * @brief  Image max
- * @param  Audio buffer
- * @param  max
- * @retval None
- */
-void cis_ImageMaxBW(uint16_t *cis_buff, int32_t *max)
-{
-	arm_max_q15((int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB, (int16_t*)max, NULL);
 }
 
 /**
@@ -342,7 +299,7 @@ void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
 	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
-	sConfigOC.Pulse 	   = 5;
+	sConfigOC.Pulse 	   = 7;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	{
 		/* Configuration Error */
@@ -351,8 +308,8 @@ void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
 	sConfigOC.OCMode  	 = TIM_OCMODE_PWM2;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.Pulse   	 = 2;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+	sConfigOC.Pulse   	 = 5;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
 	{
 		/* Configuration Error */
@@ -668,7 +625,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 	hopamp1.Init.PowerMode = OPAMP_POWERMODE_HIGHSPEED;
 	hopamp1.Init.PgaConnect = OPAMP_PGA_CONNECT_INVERTINGINPUT_IO0_BIAS;
 	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_4_OR_MINUS_3;
-	//	hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2_OR_MINUS_1;
+	//		hopamp1.Init.PgaGain = OPAMP_PGA_GAIN_2_OR_MINUS_1;
 	hopamp1.Init.UserTrimming = OPAMP_TRIMMING_FACTORY;
 	hopamp1.Init.TrimmingValuePHighSpeed = 15;
 	hopamp1.Init.TrimmingValueNHighSpeed = 15;
@@ -683,7 +640,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 
 	/* Set DAC output voltage (use to change OPAMP offset */
 #ifdef CIS_BW
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.30/256.00)); //1.35
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.25)/(3.30/256.00)); //1.35
 #else
 	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.30/256.00));
 #endif
@@ -784,7 +741,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 	 */
 	ADCsConfig.Channel = ADC_CHANNEL_4;
 	ADCsConfig.Rank = ADC_REGULAR_RANK_1;
-	ADCsConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+	ADCsConfig.SamplingTime = ADC_SAMPLETIME_16CYCLES_5;
 	ADCsConfig.SingleDiff = ADC_SINGLE_ENDED;
 	ADCsConfig.OffsetNumber = ADC_OFFSET_NONE;
 	ADCsConfig.Offset = 0;
