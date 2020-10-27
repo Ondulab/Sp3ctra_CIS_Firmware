@@ -12,7 +12,7 @@
     <IocFile>CISYNTH.ioc</IocFile>
     <Project>
       <ProjectName>CISYNTH</ProjectName>
-      <ProjectNature>C</ProjectNature>
+      <ProjectNature>Cpp</ProjectNature>
       <Secure/>
       <filestoremove/>
       <sourceEntriesToRemove>
@@ -54,6 +54,9 @@
           <Ldefines/>
           <Cincludes>
             <include>Core/Inc</include>
+            <include>TouchGFX/App</include>
+            <include>TouchGFX/target/generated</include>
+            <include>TouchGFX/target</include>
             <include>Drivers/STM32H7xx_HAL_Driver/Inc</include>
             <include>Drivers/STM32H7xx_HAL_Driver/Inc/Legacy</include>
             <include>Drivers/CMSIS/Device/ST/STM32H7xx/Include</include>
@@ -83,6 +86,9 @@
         </sourceEntry>
         <sourceEntry>
           <name>Drivers</name>
+        </sourceEntry>
+        <sourceEntry>
+          <name>TouchGFX</name>
         </sourceEntry>
       </sourceEntries>
       <Groups/>

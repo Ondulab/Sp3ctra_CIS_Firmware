@@ -35,6 +35,7 @@
 #include "usart.h"
 #include "gpio.h"
 #include "fmc.h"
+#include "app_touchgfx.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -112,6 +113,7 @@ int main(void)
   MX_MDMA_Init();
   MX_USART3_UART_Init();
   MX_RNG_Init();
+  MX_TouchGFX_Init();
   /* USER CODE BEGIN 2 */
 	MX_GPIO_Init2();
 	/* When system initialization is finished, Cortex-M7 could wakeup (when needed) the Cortex-M4  by means of
@@ -137,6 +139,7 @@ int main(void)
 	{
     /* USER CODE END WHILE */
 
+  MX_TouchGFX_Process();
     /* USER CODE BEGIN 3 */
 	}
   /* USER CODE END 3 */

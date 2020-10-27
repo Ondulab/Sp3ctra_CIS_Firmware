@@ -1,8 +1,6 @@
 /**
   ******************************************************************************
-  * File Name          : CRC.h
-  * Description        : This file provides code for the configuration
-  *                      of the CRC instances.
+  * File Name          : app_touchgfx.c
   ******************************************************************************
   * @attention
   *
@@ -16,43 +14,37 @@
   *
   ******************************************************************************
   */
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __crc_H
-#define __crc_H
-#ifdef __cplusplus
- extern "C" {
-#endif
 
-/* Includes ------------------------------------------------------------------*/
-#include "main.h"
+#include "app_touchgfx.h"
 
-/* USER CODE BEGIN Includes */
+void touchgfx_init(void);
+void touchgfx_taskEntry(void);
 
-/* USER CODE END Includes */
-
-extern CRC_HandleTypeDef hcrc;
-
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
-
-void MX_CRC_Init(void);
-
-/* USER CODE BEGIN Prototypes */
-
-/* USER CODE END Prototypes */
-
-#ifdef __cplusplus
+/**
+ * Initialize TouchGFX application
+ */
+void MX_TouchGFX_Init(void)
+{
+  // Calling farward to touchgfx_init in C++ domain
+  touchgfx_init();
 }
-#endif
-#endif /*__ crc_H */
 
 /**
-  * @}
-  */
+ * TouchGFX application entry function
+ */
+void MX_TouchGFX_Process(void)
+{
+  // Calling farward to touchgfx_init in C++ domain
+  touchgfx_taskEntry();
+}
 
 /**
-  * @}
-  */
+ * TouchGFX application thread
+ */
+void TouchGFX_Task(void *argument)
+{
+  // Calling farward to touchgfx_init in C++ domain
+  touchgfx_taskEntry();
+}
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
