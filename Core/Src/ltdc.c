@@ -21,7 +21,7 @@
 #include "ltdc.h"
 
 /* USER CODE BEGIN 0 */
-
+#define GFXMMU_VIRTUAL_BUFFER0_BASE 		LCD_LAYER_0_ADDRESS
 /* USER CODE END 0 */
 
 LTDC_HandleTypeDef hltdc;
