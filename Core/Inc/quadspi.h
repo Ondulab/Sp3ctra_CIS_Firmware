@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * File Name          : FMC.h
+  * File Name          : QUADSPI.h
   * Description        : This file provides code for the configuration
-  *                      of the FMC peripheral.
+  *                      of the QUADSPI instances.
   ******************************************************************************
   * @attention
   *
@@ -17,8 +17,8 @@
   ******************************************************************************
   */
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __FMC_H
-#define __FMC_H
+#ifndef __quadspi_H
+#define __quadspi_H
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -30,15 +30,13 @@
 
 /* USER CODE END Includes */
 
-extern SDRAM_HandleTypeDef hsdram2;
+extern QSPI_HandleTypeDef hqspi;
 
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 
-void MX_FMC_Init(void);
-void HAL_SDRAM_MspInit(SDRAM_HandleTypeDef* hsdram);
-void HAL_SDRAM_MspDeInit(SDRAM_HandleTypeDef* hsdram);
+void MX_QUADSPI_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 
@@ -47,7 +45,7 @@ void HAL_SDRAM_MspDeInit(SDRAM_HandleTypeDef* hsdram);
 #ifdef __cplusplus
 }
 #endif
-#endif /*__FMC_H */
+#endif /*__ quadspi_H */
 
 /**
   * @}
