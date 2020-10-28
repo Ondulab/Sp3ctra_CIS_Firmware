@@ -27,7 +27,7 @@
 /**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
-#define AUDIO_DEFAULT_VOLUME    				(60)
+#define AUDIO_DEFAULT_VOLUME    				(80)
 
 //#define SAMPLING_FREQUENCY					  (96000)
 //#define SAMPLING_FREQUENCY				      (48000)
@@ -48,7 +48,7 @@
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
 #define CIS_BW
-//#define CIS_INVERT_COLOR
+#define CIS_INVERT_COLOR
 
 #define CIS_CLK_FREQ							(1000000)
 
@@ -59,9 +59,9 @@
 #define CIS_PIXEX_AERA_START					(224) //166
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(3600 / 1)
-#define CIS_LED_GREEN_OFF						(3100 / 1)
-#define CIS_LED_BLUE_OFF						(1600 / 1)
+#define CIS_LED_RED_OFF							(3600 / 3)
+#define CIS_LED_GREEN_OFF						(3100 / 3)
+#define CIS_LED_BLUE_OFF						(1600 / 3)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
@@ -72,21 +72,19 @@
 #define CIS_END_CAPTURE 						(5696) //(5696)
 
 #define CIS_IFFT_OVERSAMPLING_RATIO				(16)
-#define CIS_IFFT_OVERSAMPLING_RIGHTBITSHIFT		ADC_RIGHTBITSHIFT_4
+#define CIS_IFFT_OVERSAMPLING_RIGHTBITSHIFT		ADC_RIGHTBITSHIFT_NONE
 
-#define CIS_IMGPLY_OVERSAMPLING_RATIO			(4)
-#define CIS_IMGPLY_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_2
-
-#define CIS_OVERPRINT_CYCLES					(10)
+#define CIS_IMGPLY_OVERSAMPLING_RATIO			(16)
+#define CIS_IMGPLY_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_NONE
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 					(65535)   	//in decimal
-#define START_FREQUENCY     					(70)
+#define START_FREQUENCY     					(82)
 #define MAX_OCTAVE_NUMBER   					(20)
 #define SEMITONE_PER_OCTAVE 					(12)
-#define COMMA_PER_SEMITONE  					(5)	 //9
+#define COMMA_PER_SEMITONE  					(7)	 //9
 
 #define NUMBER_OF_NOTES     					(((CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START)) / (CIS_IFFT_OVERSAMPLING_RATIO))
 

@@ -75,9 +75,9 @@ void cis_Init(synthModeTypeDef mode)
 	if (mode == IFFT_MODE)
 	{
 		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_IFFT_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
-		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_IFFT_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / (CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / (CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / (CIS_IFFT_OVERSAMPLING_RATIO);
 	}
 	else
 	{
@@ -92,13 +92,6 @@ void cis_Init(synthModeTypeDef mode)
 	//allocate the contiguous memory area for storage cis data
 	cisData = malloc(CIS_ADC_BUFF_END_CAPTURE * 2 * sizeof(uint16_t*));
 	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-
-	//allocate the contiguous memory area for storage cisBuffSommation
-	cisBuffSommation = malloc(CIS_EFFECTIVE_PIXELS_NB * CIS_OVERPRINT_CYCLES * sizeof(uint32_t*));
-	if (cisBuffSommation == NULL)
 	{
 		Error_Handler();
 	}
@@ -225,7 +218,7 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-//		cis_ImageFilterBW(cis_buff);
+		cis_ImageFilterBW(cis_buff);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
@@ -236,7 +229,7 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 		SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], CIS_EFFECTIVE_PIXELS_NB / 2);
 		arm_copy_q15((int16_t*)&cisData[CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START], (int16_t*)cis_buff, CIS_EFFECTIVE_PIXELS_NB);
 
-//		cis_ImageFilterBW(cis_buff);
+		cis_ImageFilterBW(cis_buff);
 	}
 }
 
@@ -250,7 +243,6 @@ void cis_ImageFilterBW(uint16_t *cis_buff)
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_NB; i++)
 	{
 #ifdef CIS_INVERT_COLOR
-		//				cis_buff[i] = (double)(65535 - cis_buff[i]);
 		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00); //sensibility filer generate some glitchs
 
 #else
@@ -299,7 +291,7 @@ void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
 	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
-	sConfigOC.Pulse 	   = 7;
+	sConfigOC.Pulse 	   = 5;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
 	{
 		/* Configuration Error */
@@ -308,8 +300,8 @@ void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
 
 	/* Output Compare Toggle Mode configuration: Channel1 */
 	sConfigOC.OCMode  	 = TIM_OCMODE_PWM2;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-	sConfigOC.Pulse   	 = 5;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.Pulse   	 = 1;
 	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
 	{
 		/* Configuration Error */
@@ -640,7 +632,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 
 	/* Set DAC output voltage (use to change OPAMP offset */
 #ifdef CIS_BW
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.25)/(3.30/256.00)); //1.35
+	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.35)/(3.30/256.00)); //1.35
 #else
 	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R,(1.44)/(3.30/256.00));
 #endif
@@ -666,7 +658,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 	hadc1.Instance = ADC1;
 	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
 #ifdef CIS_BW
-	hadc1.Init.Resolution = ADC_RESOLUTION_16B;
+	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
 #else
 	hadc1.Init.Resolution = ADC_RESOLUTION_8B;
 #endif
@@ -741,7 +733,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 	 */
 	ADCsConfig.Channel = ADC_CHANNEL_4;
 	ADCsConfig.Rank = ADC_REGULAR_RANK_1;
-	ADCsConfig.SamplingTime = ADC_SAMPLETIME_16CYCLES_5;
+	ADCsConfig.SamplingTime = ADC_SAMPLETIME_8CYCLES_5;
 	ADCsConfig.SingleDiff = ADC_SINGLE_ENDED;
 	ADCsConfig.OffsetNumber = ADC_OFFSET_NONE;
 	ADCsConfig.Offset = 0;
