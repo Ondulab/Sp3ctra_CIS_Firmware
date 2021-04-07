@@ -1,0 +1,2 @@
+wave_generation.c:41:14:calculate_frequency	24	static
+wave_generation.c:55:10:init_waves	64	static
