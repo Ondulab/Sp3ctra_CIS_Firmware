@@ -1,0 +1,2 @@
+cisynth_imagePlay.c:26:5:cisynth_imagePlay	8	static
+cisynth_imagePlay.c:89:13:cisynth_imagePlay_SetHint	4	static
