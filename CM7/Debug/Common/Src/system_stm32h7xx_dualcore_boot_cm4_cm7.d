@@ -35,6 +35,7 @@ Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.o: \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_i2c_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rng.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sai.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sai_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_spi.h \
@@ -113,6 +114,8 @@ Common/Src/system_stm32h7xx_dualcore_boot_cm4_cm7.o: \
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h:
+
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rng.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_sai.h:
 

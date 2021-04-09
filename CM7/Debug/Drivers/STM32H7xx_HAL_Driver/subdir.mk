@@ -25,6 +25,8 @@ C_SRCS += \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_pwr_ex.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c \
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.c \
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai_ex.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_spi.c \
@@ -57,6 +59,8 @@ OBJS += \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_pwr_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc.o \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc_ex.o \
+./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng.o \
+./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai.o \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai_ex.o \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_spi.o \
@@ -89,6 +93,8 @@ C_DEPS += \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_pwr_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc.d \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc_ex.d \
+./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng.d \
+./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai.d \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai_ex.d \
 ./Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_spi.d \
@@ -142,6 +148,10 @@ Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc.o: /home/zhonx/Documents/Workspac
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -D__FPU_PRESENT -DARM_MATH_CM7 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H745xx -c -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc" -I../Core/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc_ex.o: /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rcc_ex.c Drivers/STM32H7xx_HAL_Driver/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -D__FPU_PRESENT -DARM_MATH_CM7 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H745xx -c -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc" -I../Core/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rcc_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng.o: /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng.c Drivers/STM32H7xx_HAL_Driver/subdir.mk
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -D__FPU_PRESENT -DARM_MATH_CM7 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H745xx -c -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc" -I../Core/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
+Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng_ex.o: /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_rng_ex.c Drivers/STM32H7xx_HAL_Driver/subdir.mk
+	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -D__FPU_PRESENT -DARM_MATH_CM7 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H745xx -c -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc" -I../Core/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_rng_ex.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai.o: /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai.c Drivers/STM32H7xx_HAL_Driver/subdir.mk
 	arm-none-eabi-gcc "$<" -mcpu=cortex-m7 -std=gnu11 -g3 -DDEBUG -D__FPU_PRESENT -DARM_MATH_CM7 -DCORE_CM7 -DUSE_HAL_DRIVER -DSTM32H745xx -c -I../../Drivers/STM32H7xx_HAL_Driver/Inc -I../../Drivers/STM32H7xx_HAL_Driver/Inc/Legacy -I../../Drivers/CMSIS/Device/ST/STM32H7xx/Include -I../../Drivers/CMSIS/Include -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc" -I"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc" -I../Core/Inc -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai.d" -MT"$@" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -o "$@"
 Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal_sai_ex.o: /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_sai_ex.c Drivers/STM32H7xx_HAL_Driver/subdir.mk

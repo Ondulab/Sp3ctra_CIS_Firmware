@@ -31,7 +31,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ssd1362_tests.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,12 +82,6 @@ int main(void)
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
   int32_t timeout;
 /* USER CODE END Boot_Mode_Sequence_0 */
-
-  /* Enable I-Cache---------------------------------------------------------*/
-  SCB_EnableICache();
-
-  /* Enable D-Cache---------------------------------------------------------*/
-  SCB_EnableDCache();
 
 /* USER CODE BEGIN Boot_Mode_Sequence_1 */
   /* Wait until CPU2 boots and enters in stop mode or timeout*/
@@ -153,6 +147,8 @@ Error_Handler();
   /* USER CODE BEGIN 2 */
   HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+
+  ssd1362_TestAll();
   /* USER CODE END 2 */
 
   /* Infinite loop */
