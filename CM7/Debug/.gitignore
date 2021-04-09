@@ -1,0 +1,10 @@
+/Application/
+/Common/
+/Core/
+/Drivers/
+/Middleware/
+/Peripheral/
+/makefile
+/objects.list
+/objects.mk
+/sources.mk

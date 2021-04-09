@@ -13,8 +13,8 @@
 #include "main.h"
 #include "synth.h"
 
-#define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
-#define CIS_SP_Pin ARD_D6_Pin
+//#define CIS_SP_GPIO_Port ARD_D6_GPIO_Port
+//#define CIS_SP_Pin ARD_D6_Pin
 
 #define CIS_LED_R_GPIO_Port ARD_D10_GPIO_Port
 #define CIS_LED_G_GPIO_Port ARD_D0_GPIO_Port

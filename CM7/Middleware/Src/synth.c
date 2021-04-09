@@ -75,9 +75,9 @@ static uint16_t *imageData = NULL;
 ALIGN_32BYTES (static uint32_t audioBuff[AUDIO_QUARTER_BUFFER_SIZE * 2]) = {0};
 ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 
-static uint32_t bytesread;
+//static uint32_t bytesread;
 static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
-BSP_AUDIO_Init_t AudioPlayInit;
+//BSP_AUDIO_Init_t AudioPlayInit;
 
 /* Private function prototypes -----------------------------------------------*/
 static int32_t synth_AudioInit(void);
@@ -141,13 +141,13 @@ int32_t synth_IfftInit(void)
 
 #ifdef PRINT_FREQUENCY
 	uint8_t FreqStr[256] = {0};
-	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
-	GUI_SetBackColor(GUI_COLOR_DARKGRAY);
-	GUI_SetFont(&Font12);
+//	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
+//	GUI_SetBackColor(GUI_COLOR_DARKGRAY);
+//	GUI_SetFont(&Font12);
 	sprintf((char *)FreqStr, "FIRST NOTE = %0.2fHz, SIZE = %d, OCTAVE = %d", waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
-	GUI_DisplayStringAt(0, LINE(20), (uint8_t*)FreqStr, LEFT_MODE);
+//	GUI_DisplayStringAt(0, LINE(20), (uint8_t*)FreqStr, LEFT_MODE);
 	sprintf((char *)FreqStr, "LAST NOTE  = %0.2fHz, SIZE = %d, OCTAVE = %d", waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
-	GUI_DisplayStringAt(0, LINE(21), (uint8_t*)FreqStr, LEFT_MODE);
+//	GUI_DisplayStringAt(0, LINE(21), (uint8_t*)FreqStr, LEFT_MODE);
 
 	//	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
 	//	{
@@ -172,18 +172,18 @@ int32_t synth_IfftInit(void)
 
 int32_t synth_AudioInit(void)
 {
-	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
-	AudioPlayInit.ChannelsNbr = 2;
-	AudioPlayInit.SampleRate = SAMPLING_FREQUENCY;
-	AudioPlayInit.BitsPerSample = AUDIO_RESOLUTION_16B;
-	AudioPlayInit.Volume = uwVolume;
-
-
-	if(BSP_AUDIO_OUT_Init(0, &AudioPlayInit) != 0)
-	{
-		GUI_SetBackColor(GUI_COLOR_WHITE);
-		GUI_SetTextColor(GUI_COLOR_RED);
-	}
+//	AudioPlayInit.Device = AUDIO_OUT_DEVICE_HEADPHONE;
+//	AudioPlayInit.ChannelsNbr = 2;
+//	AudioPlayInit.SampleRate = SAMPLING_FREQUENCY;
+//	AudioPlayInit.BitsPerSample = AUDIO_RESOLUTION_16B;
+//	AudioPlayInit.Volume = uwVolume;
+//
+//
+//	if(BSP_AUDIO_OUT_Init(0, &AudioPlayInit) != 0)
+//	{
+//		GUI_SetBackColor(GUI_COLOR_WHITE);
+//		GUI_SetTextColor(GUI_COLOR_RED);
+//	}
 
 	uint32_t bytesread;
 
@@ -194,7 +194,7 @@ int32_t synth_AudioInit(void)
 	bytesread = synthGetDataNb((void *)audioBuff, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
 	if(bytesread > 0)
 	{
-		BSP_AUDIO_OUT_Play(0,(uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
+//		BSP_AUDIO_OUT_Play(0,(uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
 		buffer_ctl.fptr = bytesread;
 
 		return 0;
@@ -373,7 +373,7 @@ void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 void synth_AudioProcess(synthModeTypeDef mode)
 {
 	uint32_t bytesread = 0;
-	int32_t max_power = 0;
+//	int32_t max_power = 0;
 
 	if( buffer_ctl.fptr >= (buffer_ctl.AudioFileSize * 4))
 	{
@@ -484,15 +484,15 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(uint32_t Interface)
 void BSP_AUDIO_OUT_Error_CallBack(uint32_t Interface)
 {
 	/* Display message on the LCD screen */
-	GUI_SetBackColor(GUI_COLOR_RED);
-	GUI_DisplayStringAt(0, LINE(14), (uint8_t *)"       DMA  ERROR     ", CENTER_MODE);
-	GUI_SetBackColor(GUI_COLOR_WHITE);
-
-	/* Stop the program with an infinite loop */
-	while (BSP_PB_GetState(BUTTON_USER) != RESET)
-	{
-		return;
-	}
+//	GUI_SetBackColor(GUI_COLOR_RED);
+//	GUI_DisplayStringAt(0, LINE(14), (uint8_t *)"       DMA  ERROR     ", CENTER_MODE);
+//	GUI_SetBackColor(GUI_COLOR_WHITE);
+//
+//	/* Stop the program with an infinite loop */
+//	while (BSP_PB_GetState(BUTTON_USER) != RESET)
+//	{
+//		return;
+//	}
 
 	/* could also generate a system reset to recover from the error */
 	/* .... */

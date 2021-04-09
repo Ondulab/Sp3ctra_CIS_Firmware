@@ -1,0 +1,12 @@
+synth.c:95:9:synth_PlayInit	8	static
+synth.c:108:9:synth_IfftInit	304	static
+synth.c:173:9:synth_AudioInit	16	static
+synth.c:211:9:synth_GetAudioData	16	static
+synth.c:223:9:synth_GetImageData	16	static
+synth.c:237:6:synth_IfftMode	32	static
+synth.c:312:6:synth_PlayMode	32	static
+synth.c:373:6:synth_AudioProcess	56	static,ignoring_inline_asm
+synth.c:437:17:synthGetDataNb	32	static
+synth.c:463:6:BSP_AUDIO_OUT_TransferComplete_CallBack	16	static
+synth.c:474:6:BSP_AUDIO_OUT_HalfTransfer_CallBack	16	static
+synth.c:484:6:BSP_AUDIO_OUT_Error_CallBack	16	static
