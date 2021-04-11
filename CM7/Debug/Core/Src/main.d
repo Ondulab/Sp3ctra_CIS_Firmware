@@ -46,6 +46,7 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/eth.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/sai.h \
@@ -54,7 +55,7 @@ Core/Src/main.o: ../Core/Src/main.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/usart.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/gpio.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/fmc.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362_tests.h
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
 
@@ -150,6 +151,8 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
 
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h:
+
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/eth.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h:
@@ -166,4 +169,4 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/fmc.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362_tests.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h:

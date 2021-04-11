@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "eth.h"
 #include "rng.h"
 #include "sai.h"
@@ -31,7 +32,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ssd1362_tests.h"
+#include "ssd1362.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -130,6 +131,7 @@ Error_Handler();
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
   MX_ADC3_Init();
@@ -148,15 +150,41 @@ Error_Handler();
   HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-  ssd1362_TestAll();
+  int8_t timeText[] = {'1', '2', ':', '3', '5'};
+  uint32_t framecount = 0;
+
+  ssd1362_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  ssd1362_clearBuffer();
+	  ssd1362_drawHLine(0, 5, 256,0xF, 0);
+	  ssd1362_drawHLine(0, 60, 256,0xF, 0);
+	  ssd1362_drawString(16, 25, (int8_t *)"Hello Spectral Sound Scanner", 0xF, 16);
+	  ssd1362_writeFullBuffer();
+
+//	  framecount++;
+//
+//	  ssd1362_clearBuffer();
+//
+//	  for (int x = 0; x < 128; x++) {
+//	    for (int y = (sin(((float)x+framecount)/16)*32)+64; y < 256; y++) {
+//	    	ssd1362_drawPixel(x, y, 3, false);
+//	     }
+//	  }
+//
+//	  ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
+//	  ssd1362_drawString(0, 112, (int8_t *)"-12.5C", 0xF, 16);
+//	  ssd1362_drawString(84, 112, (int8_t *)"52.1%", 0xF, 16);
+//	  ssd1362_writeFullBuffer();
+//	  HAL_Delay(8);
+
 	  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-	  HAL_Delay(1000);
+	  HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
