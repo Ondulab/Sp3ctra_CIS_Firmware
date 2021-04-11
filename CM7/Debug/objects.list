@@ -53,6 +53,7 @@
 "Middleware/Src/synth.o"
 "Middleware/Src/wave_generation.o"
 "Middleware/Src/wave_sommation.o"
+"Peripheral/Src/buttons.o"
 "Peripheral/Src/cis.o"
 "Peripheral/Src/ssd1362.o"
 "Peripheral/Src/times_base.o"

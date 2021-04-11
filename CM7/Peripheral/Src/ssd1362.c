@@ -1,20 +1,39 @@
+/**
+ ******************************************************************************
+ * @file           : ssd1362.c
+ * @brief          : Oled display driver
+ ******************************************************************************
+ */
+
+/* Includes ------------------------------------------------------------------*/
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>  // For memcpy
-
 #include "basetypes.h"
-#include "ssd1362.h"
 
+/* Private includes ----------------------------------------------------------*/
+#include "ssd1362.h"
 #include "font16x16.h"
 #include "font16x32.h"
 #include "font8x8_basic.h"
 
-void ssd1362_writeCmd(uint8_t reg);
-void SSD1362_writeData(uint8_t data);
-void ssd1362_writeBuffer(uint8_t* buffer, uint16_t buff_size);
+/* Private typedef -----------------------------------------------------------*/
 
+/* Private define ------------------------------------------------------------*/
+
+/* Private macro -------------------------------------------------------------*/
+
+/* Private variables ---------------------------------------------------------*/
 uint8_t frameBuffer[(SSD1362_HEIGHT * SSD1362_WIDTH) / 2];   // Should mirror the display's own frameBuffer.
 uint8_t changedPixels[2048]; // Each bit of this array represets whether a given byte of frameBuffer (e.g. a pair of pixels) is not up to date.
+
+/* Variable containing ADC conversions data */
+
+/* Private function prototypes -----------------------------------------------*/
+void ssd1362_writeCmd(uint8_t reg);
+void ssd1362_writeData(uint8_t data);
+
+/* Private user code ---------------------------------------------------------*/
 
 void ssd1362_Reset(void) {
     // Reset the OLED
@@ -34,11 +53,6 @@ void ssd1362_writeCmd(uint8_t reg)
 void ssd1362_writeData(uint8_t data)
 {
 	HAL_SRAM_Write_8b(&hsram1, (uint32_t *)LCD_RAM, (uint8_t *)&data, 1);
-}
-
-void ssd1362_writeBuffer(uint8_t* buffer, uint16_t buff_size)
-{
-    HAL_SRAM_Write_8b(&hsram1, (uint32_t *)LCD_RAM, (uint8_t *)buffer, buff_size);
 }
 
 void bitWrite(uint8_t *x, uint8_t n, uint8_t value) {
@@ -301,19 +315,11 @@ void ssd1362_clearBuffer()
 //Outputs the full framebuffer to the display
 void ssd1362_writeFullBuffer()
 {
-//	ssd1362_setWriteZone(0, 0, SSD1362_WIDTH - 1, SSD1362_HEIGHT - 1); //Full display
-    ssd1362_writeCmd(0X15); //Set column Address
-    ssd1362_writeCmd(0X00); //Start column Address
-    ssd1362_writeCmd(0X7F); //End column Address
-
-    ssd1362_writeCmd(0X75); //Set Row Address
-    ssd1362_writeCmd(0X00); //Start Row Address
-    ssd1362_writeCmd(0X3F); //End Row Address
+	ssd1362_setWriteZone(0, 0, (SSD1362_WIDTH / 2) - 1, SSD1362_HEIGHT - 1); //Full display
 	for(uint32_t i = 0; i < ((SSD1362_HEIGHT * SSD1362_WIDTH) / 2); i++)
 	{
 		ssd1362_writeData(frameBuffer[i]);
 	}
-//	ssd1362_writeBuffer(&frameBuffer[0], ((SSD1362_HEIGHT * SSD1362_WIDTH) / 2));
 	for (uint32_t i = 0; i < 1024; i++)
 	{
 		changedPixels[i] = 0; // Set all pixels as up to date.
