@@ -8,36 +8,9 @@
 #ifndef __SSD1362_H__
 #define __SSD1362_H__
 
-#include <stddef.h>
-#include <_ansi.h>
+#include <stdbool.h>
 
-_BEGIN_STD_C
-
-#include "ssd1362_conf.h"
 #include "main.h"
-
-#if defined(STM32F0)
-#include "stm32f0xx_hal.h"
-#elif defined(STM32F1)
-#include "stm32f1xx_hal.h"
-#elif defined(STM32F4)
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_gpio.h"
-#elif defined(STM32L0)
-#include "stm32l0xx_hal.h"
-#elif defined(STM32L4)
-#include "stm32l4xx_hal.h"
-#elif defined(STM32F3)
-#include "stm32f3xx_hal.h"
-#elif defined(STM32H7)
-#include "stm32h7xx_hal.h"
-#elif defined(STM32F7)
-#include "stm32f7xx_hal.h"
-#else
-#error "SSD1362 library was tested only on  STM32F0, STM32F1, STM32F3, STM32F4, STM32F7, STM32L0, STM32L4, STM32H7 MCU families. Please modify ssd1362.h if you know what you are doing. Also please send a pull request if it turns out the library works on other MCU's as well!"
-#endif
-
-#include "ssd1362_fonts.h"
 
 #ifndef SSD1362_Reset_Port
 #define SSD1362_Reset_Port      OLED_RESET_GPIO_Port
@@ -46,124 +19,52 @@ _BEGIN_STD_C
 #define SSD1362_Reset_Pin       OLED_RESET_Pin
 #endif
 
-/* ^^^ SPI config ^^^ */
-
-#if defined(SSD1362_USE_I2C)
-extern I2C_HandleTypeDef SSD1362_I2C_PORT;
-#ifndef SSD1362_I2C_PORT
-#define SSD1362_I2C_PORT        hi2c1
-#endif
-
-#ifndef SSD1362_I2C_ADDR
-#define SSD1362_I2C_ADDR        (0x3C << 1)
-#endif
-#elif defined(SSD1362_USE_SPI)
-#ifndef SSD1362_SPI_PORT
-#define SSD1362_SPI_PORT        hspi2
-#endif
-
-#ifndef SSD1362_CS_Port
-#define SSD1362_CS_Port         GPIOB
-#endif
-#ifndef SSD1362_CS_Pin
-#define SSD1362_CS_Pin          GPIO_PIN_12
-#endif
-
-#ifndef SSD1362_DC_Port
-#define SSD1362_DC_Port         GPIOB
-#endif
-#ifndef SSD1362_DC_Pin
-#define SSD1362_DC_Pin          GPIO_PIN_14
-#endif
-extern SPI_HandleTypeDef SSD1362_SPI_PORT;
-#elif defined(SSD1362_USE_8080)
 /* LCD is connected to the FSMC_Bank1_NOR/SRAM1 and NE1 is used as ship select signal */
 /* RS <==> A0 */
 #define LCD_REG   ((uint32_t) 0xC0000000)
-#define LCD_RAM   ((uint32_t) 0xC0000000)
+#define LCD_RAM   ((uint32_t) 0xC0000001)
 
 extern SRAM_HandleTypeDef hsram1;
-#else
-#error "You should define SSD1362_USE_SPI or SSD1362_USE_I2C macro!"
-#endif
 
 // SSD1362 OLED height in pixels
-#ifndef SSD1362_HEIGHT
 #define SSD1362_HEIGHT          64
-#endif
 
 // SSD1362 width in pixels
-#ifndef SSD1362_WIDTH
-#define SSD1362_WIDTH           128
-#endif
+#define SSD1362_WIDTH           256
 
-#ifndef SSD1362_BUFFER_SIZE
-#define SSD1362_BUFFER_SIZE   SSD1362_WIDTH * SSD1362_HEIGHT * 4
-#endif
+// Scroll rate constants. See datasheet page 40.
+#define SSD1327_SCROLL_2   0b111
+#define SSD1327_SCROLL_3   0b100
+#define SSD1327_SCROLL_4   0b101
+#define SSD1327_SCROLL_5   0b110
+#define SSD1327_SCROLL_6   0b000
+#define SSD1327_SCROLL_32  0b001
+#define SSD1327_SCROLL_64  0b010
+#define SSD1327_SCROLL_256 0b011
 
-// Enumeration for screen colors
-typedef enum {
-    Black = 0x00, // Black color, no pixel
-    White = 0x01  // Pixel is set. Color depends on OLED
-} SSD1362_COLOR;
-
-typedef enum {
-    SSD1362_OK = 0x00,
-    SSD1362_ERR = 0x01  // Generic error.
-} SSD1362_Error_t;
-
-// Struct to store transformations
-typedef struct {
-    uint16_t CurrentX;
-    uint16_t CurrentY;
-    uint8_t Inverted;
-    uint8_t Initialized;
-    uint8_t DisplayOn;
-} SSD1362_t;
-typedef struct {
-    uint8_t x;
-    uint8_t y;
-} SSD1362_VERTEX;
-
-// Procedure definitions
-void ssd1362_Init(void);
-void ssd1362_Fill(SSD1362_COLOR color);
-void ssd1362_UpdateScreen(void);
-void ssd1362_DrawPixel(uint8_t x, uint8_t y, SSD1362_COLOR color);
-char ssd1362_WriteChar(char ch, FontDef Font, SSD1362_COLOR color);
-char ssd1362_WriteString(char* str, FontDef Font, SSD1362_COLOR color);
-void ssd1362_SetCursor(uint8_t x, uint8_t y);
-void ssd1362_Line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1362_COLOR color);
-void ssd1362_DrawArc(uint8_t x, uint8_t y, uint8_t radius, uint16_t start_angle, uint16_t sweep, SSD1362_COLOR color);
-void ssd1362_DrawCircle(uint8_t par_x, uint8_t par_y, uint8_t par_r, SSD1362_COLOR color);
-void ssd1362_Polyline(const SSD1362_VERTEX *par_vertex, uint16_t par_size, SSD1362_COLOR color);
-void ssd1362_DrawRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1362_COLOR color);
-/**
- * @brief Sets the contrast of the display.
- * @param[in] value contrast to set.
- * @note Contrast increases as the value increases.
- * @note RESET = 7Fh.
- */
-void ssd1362_SetContrast(const uint8_t value);
-/**
- * @brief Set Display ON/OFF.
- * @param[in] on 0 for OFF, any for ON.
- */
-void ssd1362_SetDisplayOn(const uint8_t on);
-/**
- * @brief Reads DisplayOn state.
- * @return  0: OFF.
- *          1: ON.
- */
-uint8_t ssd1362_GetDisplayOn();
-
-// Low-level procedures
-void ssd1362_Reset(void);
-void ssd1362_WriteCommand(uint8_t byte);
-//void ssd1362_WriteData(uint8_t byte);
-void ssd1362_WriteData(uint8_t* buffer, size_t buff_size);
-SSD1362_Error_t ssd1362_FillBuffer(uint8_t* buf, uint32_t len);
-
-_END_STD_C
+void ssd1362_setWriteZone(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+uint16_t ssd1362_coordsToAddress(uint16_t x, uint16_t y);
+void ssd1362_setPixelChanged(uint16_t x, uint16_t y, bool changed);
+void ssd1362_drawPixel(uint16_t x, uint16_t y, uint8_t color, bool display);
+void ssd1362_drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color, bool display);
+void ssd1362_drawHLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, bool display);
+void ssd1362_drawVLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, bool display);
+void ssd1362_drawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color, bool display);
+void ssd1362_drawByteAsRow(uint16_t x, uint16_t y, uint8_t byte, uint8_t color);
+void ssd1362_drawChar(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color);
+void ssd1362_drawChar16(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color);
+void ssd1362_drawChar32(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color);
+void ssd1362_drawCharArray(uint16_t x, uint16_t y, int8_t text[], uint8_t color, uint32_t size);
+void ssd1362_drawString(uint16_t x, uint16_t y, int8_t textString[], uint8_t color, uint32_t size);
+void ssd1362_setupScrolling(uint8_t startRow, uint8_t endRow, uint8_t startCol, uint8_t endCol, uint8_t scrollSpeed, bool right);
+void ssd1362_startScrolling();
+void ssd1362_stopScrolling();
+void ssd1362_scrollStep(uint8_t startRow, uint8_t endRow, uint8_t startCol, uint8_t endCol, bool right);
+void ssd1362_fillStripes(uint8_t offset);
+void ssd1362_clearBuffer();
+void ssd1362_writeFullBuffer();
+void ssd1362_writeUpdates();
+void ssd1362_setContrast(uint8_t contrast);
+void ssd1362_init();
 
 #endif // __SSD1362_H__
