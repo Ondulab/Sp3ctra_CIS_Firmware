@@ -1,36 +1,39 @@
 /**
- * This Library was originally written by Olivier Van den Eede (4ilo) in 2016.
- * Some refactoring was done and SPI support was added by Aleksander Alekseev (afiskon) in 2018.
- *
- * https://github.com/afiskon/stm32-ssd1362
+ ******************************************************************************
+ * @file           : ssd1362.h
+ * @brief          : Oled display driver
+ ******************************************************************************
  */
 
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __SSD1362_H__
 #define __SSD1362_H__
 
-#include <stdbool.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+/* Includes ------------------------------------------------------------------*/
+
+/* Private includes ----------------------------------------------------------*/
+#include <stdbool.h>
 #include "main.h"
 
-#ifndef SSD1362_Reset_Port
+/* Exported types ------------------------------------------------------------*/
+extern SRAM_HandleTypeDef hsram1;
+
+/* Exported constants --------------------------------------------------------*/
+#define SSD1362_HEIGHT          64		// SSD1362 OLED height in pixels
+#define SSD1362_WIDTH           256 	// SSD1362 width in pixels
 #define SSD1362_Reset_Port      OLED_RESET_GPIO_Port
-#endif
-#ifndef SSD1362_Reset_Pin
 #define SSD1362_Reset_Pin       OLED_RESET_Pin
-#endif
 
 /* LCD is connected to the FSMC_Bank1_NOR/SRAM1 and NE1 is used as ship select signal */
 /* RS <==> A0 */
 #define LCD_REG   ((uint32_t) 0xC0000000)
 #define LCD_RAM   ((uint32_t) 0xC0000001)
-
-extern SRAM_HandleTypeDef hsram1;
-
-// SSD1362 OLED height in pixels
-#define SSD1362_HEIGHT          64
-
-// SSD1362 width in pixels
-#define SSD1362_WIDTH           256
 
 // Scroll rate constants. See datasheet page 40.
 #define SSD1327_SCROLL_2   0b111
@@ -41,7 +44,9 @@ extern SRAM_HandleTypeDef hsram1;
 #define SSD1327_SCROLL_32  0b001
 #define SSD1327_SCROLL_64  0b010
 #define SSD1327_SCROLL_256 0b011
+/* Exported macro ------------------------------------------------------------*/
 
+/* Exported functions prototypes ---------------------------------------------*/
 void ssd1362_setWriteZone(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 uint16_t ssd1362_coordsToAddress(uint16_t x, uint16_t y);
 void ssd1362_setPixelChanged(uint16_t x, uint16_t y, bool changed);
@@ -67,4 +72,10 @@ void ssd1362_writeUpdates();
 void ssd1362_setContrast(uint8_t contrast);
 void ssd1362_init();
 
-#endif // __SSD1362_H__
+/* Private defines -----------------------------------------------------------*/
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /*__SSD1362_H__*/
