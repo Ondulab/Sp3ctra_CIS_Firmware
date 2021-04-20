@@ -1,27 +1,29 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "crc.h"
 #include "dma.h"
-#include "eth.h"
+#include "lwip.h"
+#include "pdm2pcm.h"
 #include "rng.h"
 #include "sai.h"
 #include "spi.h"
@@ -33,6 +35,14 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ssd1362.h"
+#include "icm20602.h"
+#include "stdlib.h"
+#include "stdio.h"
+#include "pcm5102.h"
+
+#include "lwip/udp.h"
+#include <string.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,6 +72,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
+static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -81,8 +92,11 @@ int main(void)
 
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
-  int32_t timeout;
+	int32_t timeout;
 /* USER CODE END Boot_Mode_Sequence_0 */
+
+  /* MPU Configuration--------------------------------------------------------*/
+  MPU_Config();
 
   /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
@@ -91,13 +105,13 @@ int main(void)
   SCB_EnableDCache();
 
 /* USER CODE BEGIN Boot_Mode_Sequence_1 */
-  /* Wait until CPU2 boots and enters in stop mode or timeout*/
-  timeout = 0xFFFF;
-  while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) != RESET) && (timeout-- > 0));
-  if ( timeout < 0 )
-  {
-  Error_Handler();
-  }
+	/* Wait until CPU2 boots and enters in stop mode or timeout*/
+	timeout = 0xFFFF;
+	while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) != RESET) && (timeout-- > 0));
+	if ( timeout < 0 )
+	{
+		Error_Handler();
+	}
 /* USER CODE END Boot_Mode_Sequence_1 */
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -114,21 +128,21 @@ int main(void)
 /* Configure the peripherals common clocks */
   PeriphCommonClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
-/* When system initialization is finished, Cortex-M7 will release Cortex-M4 by means of
+	/* When system initialization is finished, Cortex-M7 will release Cortex-M4 by means of
 HSEM notification */
-/*HW semaphore Clock enable*/
-__HAL_RCC_HSEM_CLK_ENABLE();
-/*Take HSEM */
-HAL_HSEM_FastTake(HSEM_ID_0);
-/*Release HSEM in order to notify the CPU2(CM4)*/
-HAL_HSEM_Release(HSEM_ID_0,0);
-/* wait until CPU2 wakes up from stop mode */
-timeout = 0xFFFF;
-while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
-if ( timeout < 0 )
-{
-Error_Handler();
-}
+	/*HW semaphore Clock enable*/
+	__HAL_RCC_HSEM_CLK_ENABLE();
+	/*Take HSEM */
+	HAL_HSEM_FastTake(HSEM_ID_0);
+	/*Release HSEM in order to notify the CPU2(CM4)*/
+	HAL_HSEM_Release(HSEM_ID_0,0);
+	/* wait until CPU2 wakes up from stop mode */
+	timeout = 0xFFFF;
+	while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) == RESET) && (timeout-- > 0));
+	if ( timeout < 0 )
+	{
+		Error_Handler();
+	}
 /* USER CODE END Boot_Mode_Sequence_2 */
 
   /* USER CODE BEGIN SysInit */
@@ -142,8 +156,7 @@ Error_Handler();
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_FMC_Init();
-  MX_SAI1_Init();
-  MX_ETH_Init();
+//  MX_SAI1_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_TIM1_Init();
@@ -152,49 +165,113 @@ Error_Handler();
   MX_TIM5_Init();
   MX_TIM8_Init();
   MX_RNG_Init();
+  MX_CRC_Init();
+  MX_LWIP_Init();
+  MX_PDM2PCM_Init();
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-//  int8_t timeText[] = {'1', '2', ':', '3', '5'};
-//  uint32_t framecount = 0;
+	//  int8_t timeText[] = {'1', '2', ':', '3', '5'};
+	//  uint32_t framecount = 0;
 
-  ssd1362_init();
+	ssd1362_init();
 
-  ssd1362_clearBuffer();
-  ssd1362_drawHLine(0, 5, 256,0xF, 0);
-  ssd1362_drawHLine(0, 40, 256,0xF, 0);
-  ssd1362_drawString(16, 15, (int8_t *)"Hello Spectral Sound Scanner", 0xF, 16);
-  ssd1362_writeFullBuffer();
+	ssd1362_clearBuffer();
+	ssd1362_drawHLine(0, 5, 256,0xF, 0);
+	ssd1362_drawHLine(0, 40, 256,0xF, 0);
+	ssd1362_drawString(16, 15, (int8_t *)"Hello Spectral Sound Scanner", 0xF, 16);
+	ssd1362_writeFullBuffer();
+
+	HAL_Delay(100);
+
+	pcm5102_Init();
+	uint32_t aRandom32bit = 0;
+	uint8_t buff[1000];
+
+		for (uint32_t i = 0; i < 1000; i++)
+		{
+			if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+			{
+				/* Random number generation error */
+				Error_Handler();
+			}
+			buff[i] = aRandom32bit;
+		}
+	Audio_Player_Play(buff, 1000);
+
+
+	//  HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
+	icm20602_init();
+	int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
+
+
+	const char* message = "Hello UDP message!\n\r";
+
+	ip_addr_t PC_IPADDR;
+	IP_ADDR4(&PC_IPADDR, 192, 168, 1, 1);
+
+	struct udp_pcb* my_udp = udp_new();
+	udp_connect(my_udp, &PC_IPADDR, 55151);
+	struct pbuf* udp_buffer = NULL;
+
+	SCB_CleanInvalidateDCache();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-//	  framecount++;
+	while (1)
+	{
+//		udp_buffer = pbuf_alloc(PBUF_TRANSPORT, strlen(message), PBUF_RAM);
+//		if (udp_buffer != NULL) {
+//			memcpy(udp_buffer->payload, message, strlen(message));
+//			udp_send(my_udp, udp_buffer);
+//			pbuf_free(udp_buffer);
+//		}
 //
-//	  ssd1362_clearBuffer();
+//		 MX_LWIP_Process();
 
-//	  for (int x = 0; x < 256; x++) {
-//	    for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
-//	    	ssd1362_drawPixel(x, y, 3, false);
-//	     }
-//	  }
-//
-//	  ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
-//	  ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
-//	  ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
-//	  ssd1362_writeFullBuffer();
-//	  HAL_Delay(1);
+		//	  framecount++;
+		//
+		//	  ssd1362_clearBuffer();
 
-	  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-	  HAL_Delay(100);
+		//	  for (int x = 0; x < 256; x++) {
+		//	    for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
+		//	    	ssd1362_drawPixel(x, y, 3, false);
+		//	     }
+		//	  }
+		//
+		//	  ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
+		//	  ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
+		//	  ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
+		//	  ssd1362_writeFullBuffer();
+		//	  HAL_Delay(1);
+
+		//	  icm20602_read_accel(&accel_x, &accel_y, &accel_z);
+		//	  icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
+
+		ssd1362_clearBuffer();
+		char text[100] = {0};
+		//	  sprintf(text,"Accel : %.2f  %.2f  %.2f", accel_x, accel_y, accel_z);
+		//	  ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
+		//	  sprintf(text,"Gyro  : %.2f  %.2f  %.2f", gyro_x, gyro_y, gyro_z);
+		//	  ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
+		//	  sprintf(text,"temp. : %.2f", tmp);
+		sprintf(text,"Accel : %d  %d  %d", accel_x, accel_y, accel_z);
+		ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
+		sprintf(text,"Gyro  : %d  %d  %d", gyro_x, gyro_y, gyro_z);
+		ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
+		sprintf(text,"temp. : %d", tmp);
+		ssd1362_drawString(0, 50, (int8_t *)text, 0xF, 16);
+		ssd1362_writeFullBuffer();
+
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -287,6 +364,44 @@ void PeriphCommonClock_Config(void)
 
 /* USER CODE END 4 */
 
+/* MPU Configuration */
+
+void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+  /* Disables the MPU */
+  HAL_MPU_Disable();
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x30040000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.BaseAddress = 0x30044000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_16KB;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  /* Enables the MPU */
+  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+
+}
+
 /**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
@@ -294,11 +409,11 @@ void PeriphCommonClock_Config(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
+	{
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -313,7 +428,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }

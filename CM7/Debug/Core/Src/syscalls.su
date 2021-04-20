@@ -14,5 +14,5 @@ syscalls.c:123:5:_unlink	16	static
 syscalls.c:129:5:_times	16	static
 syscalls.c:134:5:_stat	16	static
 syscalls.c:140:5:_link	16	static
-syscalls.c:146:5:_fork	8	static
+syscalls.c:146:5:_fork	4	static
 syscalls.c:152:5:_execve	24	static

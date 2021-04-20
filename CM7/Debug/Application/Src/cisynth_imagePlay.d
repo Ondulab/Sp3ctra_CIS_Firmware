@@ -1,7 +1,7 @@
 Application/Src/cisynth_imagePlay.o: \
  ../Application/Src/cisynth_imagePlay.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/cisynth_imagePlay.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/config.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/stm32h7xx_hal_conf.h \
@@ -29,6 +29,8 @@ Application/Src/cisynth_imagePlay.o: \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_hsem.h \
@@ -47,18 +49,18 @@ Application/Src/cisynth_imagePlay.o: \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/times_base.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/wave_generation.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/wave_sommation.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_generation.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_sommation.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/cisynth_imagePlay.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/config.h:
 
@@ -114,6 +116,10 @@ Application/Src/cisynth_imagePlay.o: \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h:
 
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h:
+
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h:
+
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h:
@@ -150,7 +156,7 @@ Application/Src/cisynth_imagePlay.o: \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/times_base.h:
 
@@ -158,9 +164,9 @@ Application/Src/cisynth_imagePlay.o: \
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/wave_generation.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_generation.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/wave_sommation.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_sommation.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h:
 

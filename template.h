@@ -5,8 +5,6 @@
  ******************************************************************************
  */
 
-/* USER CODE END Header */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __BUTTONS_H__
 #define __BUTTONS_H__

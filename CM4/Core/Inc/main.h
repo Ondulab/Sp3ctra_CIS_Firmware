@@ -58,6 +58,11 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define DEST_IP_ADDR0 192
+#define DEST_IP_ADDR1 168
+#define DEST_IP_ADDR2 1
+#define DEST_IP_ADDR3 206
+#define DEST_PORT 7
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
