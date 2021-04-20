@@ -175,25 +175,6 @@ HSEM notification */
 	//  int8_t timeText[] = {'1', '2', ':', '3', '5'};
 	//  uint32_t framecount = 0;
 
-	pcm5102_Init();
-	uint32_t aRandom32bit = 0;
-	uint8_t buff[1000];
-
-	for (uint32_t i = 0; i < 1000; i++)
-	{
-		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-		{
-			/* Random number generation error */
-			Error_Handler();
-		}
-		buff[i] = aRandom32bit;
-	}
-	while(1)
-	{
-		Audio_Player_Play(buff, 1000);
-		HAL_Delay(1);
-	}
-
 	ssd1362_init();
 
 	ssd1362_clearBuffer();
@@ -204,6 +185,22 @@ HSEM notification */
 
 	HAL_Delay(100);
 
+	pcm5102_Init();
+	uint32_t aRandom32bit = 0;
+	uint8_t buff[10000];
+
+	for (uint32_t i = 0; i < 10000; i++)
+	{
+		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+		{
+			/* Random number generation error */
+			Error_Handler();
+		}
+		buff[i] = aRandom32bit;
+	}
+
+	Audio_Player_Play(buff, 10000);
+	HAL_Delay(1);
 
 	//  HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 	icm20602_init();
