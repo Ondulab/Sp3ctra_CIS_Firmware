@@ -17,8 +17,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-/* Variable containing ADC conversions data */
-
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private user code ---------------------------------------------------------*/

@@ -5,8 +5,6 @@
  ******************************************************************************
  */
 
-/* USER CODE END Header */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __SSD1362_H__
 #define __SSD1362_H__

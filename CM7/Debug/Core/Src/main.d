@@ -26,6 +26,8 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_hsem.h \
@@ -46,8 +48,42 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/eth.h \
+ ../LWIP/App/lwip.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/opt.h \
+ ../LWIP/Target/lwipopts.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/debug.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/arch.h \
+ ../../Middlewares/Third_Party/LwIP/system/arch/cc.h \
+ ../../Middlewares/Third_Party/LwIP/system/arch/cpu.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/mem.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/memp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_std.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_priv.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/mem_priv.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/stats.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/netif/etharp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/etharp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/pbuf.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/err.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip4_addr.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/def.h \
+ ../../Middlewares/Third_Party/LwIP/system/arch/perf.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/netif.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip_addr.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip6_addr.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/def.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip4.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip4.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ethernet.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ieee.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/etharp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/netif/ethernet.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/dhcp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/timeouts.h \
+ ../LWIP/Target/ethernetif.h ../PDM2PCM/App/pdm2pcm.h \
+ ../../Middlewares/ST/STM32_Audio/Addons/PDM/Inc/pdm2pcm_glo.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/sai.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/spi.h \
@@ -55,7 +91,14 @@ Core/Src/main.o: ../Core/Src/main.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/usart.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/gpio.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/fmc.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/icm20602.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/pcm5102.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/udp.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/ip6.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip.h \
+ ../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/udp.h
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
 
@@ -111,6 +154,10 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h:
 
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h:
+
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h:
+
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h:
@@ -151,9 +198,79 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
 
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h:
+
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/eth.h:
+../LWIP/App/lwip.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/opt.h:
+
+../LWIP/Target/lwipopts.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/debug.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/arch.h:
+
+../../Middlewares/Third_Party/LwIP/system/arch/cc.h:
+
+../../Middlewares/Third_Party/LwIP/system/arch/cpu.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/mem.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/memp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_std.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/memp_priv.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/priv/mem_priv.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/stats.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/netif/etharp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/etharp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/pbuf.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/err.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip4_addr.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/def.h:
+
+../../Middlewares/Third_Party/LwIP/system/arch/perf.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/netif.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip_addr.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip6_addr.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/def.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip4.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip4.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ethernet.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ieee.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/etharp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/netif/ethernet.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/dhcp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/timeouts.h:
+
+../LWIP/Target/ethernetif.h:
+
+../PDM2PCM/App/pdm2pcm.h:
+
+../../Middlewares/ST/STM32_Audio/Addons/PDM/Inc/pdm2pcm_glo.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h:
 
@@ -170,3 +287,17 @@ Core/Src/main.o: ../Core/Src/main.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/fmc.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/icm20602.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/pcm5102.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/udp.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/ip6.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/ip.h:
+
+../../Middlewares/Third_Party/LwIP/src/include/lwip/prot/udp.h:

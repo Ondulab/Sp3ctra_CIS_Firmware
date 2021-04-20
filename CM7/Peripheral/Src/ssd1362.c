@@ -27,8 +27,6 @@
 uint8_t frameBuffer[(SSD1362_HEIGHT * SSD1362_WIDTH) / 2];   // Should mirror the display's own frameBuffer.
 uint8_t changedPixels[2048]; // Each bit of this array represets whether a given byte of frameBuffer (e.g. a pair of pixels) is not up to date.
 
-/* Variable containing ADC conversions data */
-
 /* Private function prototypes -----------------------------------------------*/
 void ssd1362_writeCmd(uint8_t reg);
 void ssd1362_writeData(uint8_t data);

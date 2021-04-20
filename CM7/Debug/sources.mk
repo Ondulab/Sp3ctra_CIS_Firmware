@@ -24,7 +24,12 @@ Application/Src \
 Common/Src \
 Core/Src \
 Core/Startup \
+Drivers/BSP/Components \
 Drivers/STM32H7xx_HAL_Driver \
-Middleware/Src \
+LWIP/App \
+LWIP/Target \
+Middlewares/Src \
+Middlewares/Third_Party/LwIP \
+PDM2PCM/App \
 Peripheral/Src \
 

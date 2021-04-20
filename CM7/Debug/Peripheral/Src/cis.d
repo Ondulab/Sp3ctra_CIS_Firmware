@@ -25,6 +25,8 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_adc.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h \
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_hsem.h \
@@ -50,8 +52,8 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
@@ -106,6 +108,10 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_adc_ex.h:
 
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc.h:
+
+../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_crc_ex.h:
+
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_flash_ex.h:
@@ -156,8 +162,8 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middleware/Inc/synth.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h:
