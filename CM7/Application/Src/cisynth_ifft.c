@@ -15,6 +15,9 @@
 #include "stdio.h"
 #include "arm_math.h"
 #include "menu.h"
+#include "ssd1362.h"
+#include "stdbool.h"
+#include "pcm5102.h"
 
 extern __IO uint32_t synth_process_cnt;
 static void cisynth_ifft_SetHint(void);
@@ -26,61 +29,75 @@ static void cisynth_ifft_SetHint(void);
  */
 int cisynth_ifft(void)
 {
-//	uint8_t FreqStr[256] = {0};
-//	uint32_t cis_color = 0;
+	uint8_t FreqStr[256] = {0};
+	uint32_t cis_color = 0;
 
 	printf("Start BW ifft mode \n");
 
 	cisynth_ifft_SetHint();
+	pcm5102_Init();
 	cis_Init(IFFT_MODE);
 	synth_IfftInit();
 
-//	GUI_SetBackColor(GUI_COLOR_DARKRED);
-
-//	cis_Test();
+	//	cis_Test();
 
 	/* Infinite loop */
-//	static uint32_t start_tick;
-//	static uint32_t old_tick;
-//	uint32_t latency;
-//	old_tick = HAL_GetTick();
-//	uint16_t *cisBuff = NULL;
-//	uint32_t i = 0;
+	static uint32_t start_tick;
+	uint32_t latency;
+	uint32_t i = 0;
+	uint32_t note = 0;
+
 	while (1)
 	{
-//		start_tick = HAL_GetTick();
+		start_tick = HAL_GetTick();
 		while (synth_process_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
 			synth_AudioProcess(IFFT_MODE);
 		}
-//		synth_process_cnt = 0;
-//		latency = HAL_GetTick() - start_tick;
-//		sprintf((char *)FreqStr, "%d Hz", (int)(SAMPLING_FREQUENCY * 1000/ (latency * DISPLAY_REFRESH_FPS)));
-//		GUI_DisplayStringAt(0, 5, (uint8_t*)FreqStr, RIGHT_MODE);
-//
-//		GUI_FillRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_BLACK);
-//		GUI_DrawRect(0, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH / 2, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_LIGHTRED);
-//		GUI_DrawRect(FT5336_MAX_X_LENGTH / 2, DISPLAY_AERA1_YPOS, FT5336_MAX_X_LENGTH / 2, DISPLAY_AERAS_HEIGHT * 2, GUI_COLOR_LIGHTBLUE);
-//		GUI_FillRect(0, DISPLAY_AERA3_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_ST_GREEN_DARK);
-//		GUI_FillRect(0, DISPLAY_AERA5_YPOS, FT5336_MAX_X_LENGTH, DISPLAY_AERAS_HEIGHT, GUI_COLOR_ST_GREEN_DARK);
-//
-//		for (uint32_t i = 0; i < (FT5336_MAX_X_LENGTH); i++)
-//		{
-//			GUI_SetPixel(i / 2, (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) << 16 >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
-//			GUI_SetPixel(i / 2 + (FT5336_MAX_X_LENGTH / 2), (DISPLAY_AERA1_YPOS * 2) + (DISPLAY_AERAS_HEIGHT / 2) + ((synth_GetAudioData(i / 2) >> 16) / 1024) , GUI_COLOR_LIGHTGREEN);
-//			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)FT5336_MAX_X_LENGTH)));
-//			cis_color = cis_color >> 8;
-//			GUI_SetPixel(i, DISPLAY_AERA3_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 3) , GUI_COLOR_LIGHTMAGENTA);
-//			cis_color |= 0xFF000000;
-//			cis_color |= cis_color << 8;
-//			cis_color |= cis_color << 16;
-//			GUI_DrawLine(i, DISPLAY_AERA4_YPOS + DISPLAY_INTER_AERAS_HEIGHT, i, DISPLAY_AERA4_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT, cis_color);
-//			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)FT5336_MAX_X_LENGTH)));
-//			cis_color = cis_color >> 11;
-//			GUI_SetPixel(i, DISPLAY_AERA5_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - cis_color , GUI_COLOR_LIGHTYELLOW);
-//		}
 
-//		old_tick = HAL_GetTick();
+		synth_process_cnt = 0;
+		latency = HAL_GetTick() - start_tick;
+		sprintf((char *)FreqStr, "%dHz", (int)((SAMPLING_FREQUENCY * 1000) / (latency * DISPLAY_REFRESH_FPS)));
+
+		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH / 2 - 1, DISPLAY_AERA1_Y2POS, 3, false);
+		ssd1362_drawRect(DISPLAY_MAX_X_LENGTH / 2 + 1, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS, 4, false);
+		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA2_Y2POS, 3, false);
+		ssd1362_drawRect(0, DISPLAY_AERA3_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA3_Y2POS, 8, false);
+
+		if (note > cis_GetEffectivePixelNb())
+		{
+			note = 0;
+		}
+
+		synth_SetImageData(++note, 65535); //for testing
+		synth_SetImageData(note - 1, 0);
+
+		for (i = 0; i < ((DISPLAY_MAX_X_LENGTH / 2) - 1); i++)
+		{
+			ssd1362_drawPixel(i, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + ((synth_GetAudioData(i) << 16 >> 16) / 4096) - 1, 10, false);
+			ssd1362_drawPixel(i + (DISPLAY_MAX_X_LENGTH / 2) + 1, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + ((synth_GetAudioData(i) >> 16) / 4096) - 1, 10, false);
+		}
+
+		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
+		{
+			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH)));
+			cis_color = cis_color >> 8;
+			ssd1362_drawPixel(i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 5) - 1, 15, false);
+
+			cis_color |= 0xFF000000;
+			cis_color |= cis_color << 8;
+			cis_color |= cis_color << 16;
+			ssd1362_drawVLine(i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
+
+			//			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH)));
+			//			cis_color = cis_color >> 11;
+			//			ssd1362_drawPixel(i, DISPLAY_AERA5_YPOS + DISPLAY_AERAS_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - cis_color, 15, false);
+		}
+		ssd1362_drawRect(200, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
+		ssd1362_drawString(200, 1, (int8_t*)FreqStr, 15, 8);
+		ssd1362_writeFullBuffer();
+
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 	}
 }
 /**
@@ -91,13 +108,9 @@ int cisynth_ifft(void)
 static void cisynth_ifft_SetHint(void)
 {
 	/* Set Audio header description */
-//	GUI_Clear(GUI_COLOR_DARKGRAY);
-//	GUI_FillRect(0, 0, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT, GUI_COLOR_DARKRED);
-//	GUI_SetTextColor(GUI_COLOR_LIGHTGRAY);
-//	GUI_SetBackColor(GUI_COLOR_DARKRED);
-//	GUI_SetFont(&Font20);
-//	GUI_DisplayStringAt(0, 2, (uint8_t *)"CISYNTH 3", CENTER_MODE);
-//	GUI_SetFont(&Font12);
-//	GUI_DisplayStringAt(0, 5, (uint8_t *)"BW ifft", LEFT_MODE);
-//	GUI_FillRect(0, DISPLAY_HEAD_HEIGHT, FT5336_MAX_X_LENGTH, DISPLAY_HEAD_HEIGHT + DISPLAY_INTER_AERAS_HEIGHT, GUI_COLOR_DARKGRAY);
+	ssd1362_clearBuffer();
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
+	ssd1362_drawString(100, 1, (int8_t *)"CISYNTH 3", 0xF, 8);
+	ssd1362_drawString(0, 1, (int8_t *)"BW ifft", 0xF, 8);
+	ssd1362_writeFullBuffer();
 }

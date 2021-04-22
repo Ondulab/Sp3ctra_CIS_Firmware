@@ -41,7 +41,7 @@ static float calculate_frequency(uint32_t comma_cnt);
 static float calculate_frequency(uint32_t comma_cnt)
 {
 	float frequency = 0.0;
-	frequency =  START_FREQUENCY * pow(2, (comma_cnt / (12.0 * (COMMA_PER_OCTAVE / (12.0 / (log(2)) * log((START_FREQUENCY * 2.0) / START_FREQUENCY))))));
+	frequency = START_FREQUENCY * pow(2, (comma_cnt / (12.0 * (COMMA_PER_OCTAVE / (12.0 / (log(2)) * log((START_FREQUENCY * 2.0) / START_FREQUENCY))))));
 
 	return frequency;
 }

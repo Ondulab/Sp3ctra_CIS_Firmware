@@ -95,16 +95,18 @@ void cis_Init(synthModeTypeDef mode)
 		Error_Handler();
 	}
 
-	cis_ADC_Init(mode);
-	cis_TIM_SP_Init();
-	cis_TIM_LED_R_Init();
-	cis_TIM_LED_G_Init();
-	cis_TIM_LED_B_Init();
-	cis_TIM_CLK_Init(CIS_CLK_FREQ);
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	memset(cisData, 0, CIS_ADC_BUFF_END_CAPTURE * 2 * sizeof(uint16_t*)); //clear image
+
+//	cis_ADC_Init(mode);
+//	cis_TIM_SP_Init();
+//	cis_TIM_LED_R_Init();
+//	cis_TIM_LED_G_Init();
+//	cis_TIM_LED_B_Init();
+//	cis_TIM_CLK_Init(CIS_CLK_FREQ);
+//	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
+//	{
+//		Error_Handler();
+//	}
 
 	// Reset CLK counter
 //	__HAL_TIM_SET_COUNTER(&htim1, 0);

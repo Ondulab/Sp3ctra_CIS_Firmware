@@ -116,9 +116,9 @@ void ssd1362_drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_
 	uint16_t xMax = MAX(x1, x2);
 	uint16_t yMin = MIN(y1, y2);
 	uint16_t yMax = MAX(y1, y2);
-	for (uint16_t x = xMin; x <= xMax; x++)
+	for (uint16_t x = xMin; x < xMax; x++)
 	{
-		for (uint16_t y = yMin; y <= yMax; y++)
+		for (uint16_t y = yMin; y < yMax; y++)
 		{
 			ssd1362_drawPixel(x, y, color, display);
 		}

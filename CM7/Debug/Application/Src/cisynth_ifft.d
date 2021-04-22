@@ -55,7 +55,9 @@ Application/Src/cisynth_ifft.o: ../Application/Src/cisynth_ifft.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_generation.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/wave_sommation.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/pcm5102.h
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/cisynth_ifft.h:
 
@@ -170,3 +172,7 @@ Application/Src/cisynth_ifft.o: ../Application/Src/cisynth_ifft.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/pcm5102.h:
