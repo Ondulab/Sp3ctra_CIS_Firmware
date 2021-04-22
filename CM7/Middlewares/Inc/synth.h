@@ -17,6 +17,9 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Exported types ------------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_sai1_a;
+extern SAI_HandleTypeDef hsai_BlockA1;
+
 struct wave {
 	int16_t *start_ptr;
     uint16_t current_idx;
@@ -44,6 +47,7 @@ int32_t synth_IfftInit(void);
 int32_t synth_PlayInit(void);
 int32_t synth_GetAudioData(uint32_t index);
 int32_t synth_GetImageData(uint32_t index);
+int32_t synth_SetImageData(uint32_t index, uint16_t value);
 void synth_AudioProcess(synthModeTypeDef mode);
 
 /* Private defines -----------------------------------------------------------*/

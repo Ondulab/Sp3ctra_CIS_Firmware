@@ -24,6 +24,7 @@ Application/Src \
 Common/Src \
 Core/Src \
 Core/Startup \
+DSP_Lib/Source/SupportFunctions \
 Drivers/BSP/Components \
 Drivers/STM32H7xx_HAL_Driver \
 LWIP/App \

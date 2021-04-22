@@ -17,6 +17,7 @@ RM := rm -rf
 -include LWIP/App/subdir.mk
 -include Drivers/STM32H7xx_HAL_Driver/subdir.mk
 -include Drivers/BSP/Components/subdir.mk
+-include DSP_Lib/Source/SupportFunctions/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
 -include Common/Src/subdir.mk
