@@ -27,16 +27,7 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-/* Audio file size and start address are defined here since the audio file is
-   stored in Flash memory as a constant table of 16-bit data */
-/* to run up to 48khz, a buffer around 1000 (or more) is requested*/
-/* to run up to 96khz, a buffer around 2000 (or more) is requested*/
-#define AUDIO_START_OFFSET_ADDRESS    	0            /* Offset relative to audio file header size */
-#define AUDIO_BUFFER_SIZE             	4096
-#define AUDIO_QUARTER_BUFFER_SIZE       (AUDIO_BUFFER_SIZE / 4)
-/* Audio file size and start address are defined here since the audio file is
-   stored in Flash memory as a constant table of 16-bit data */
-#define AUDIO_START_OFFSET_ADDRESS    0            /* Offset relative to audio file header size */
+#define AUDIO_BUFFER_SIZE             	(512)
 
 /* Private typedef -----------------------------------------------------------*/
 typedef enum {
@@ -45,24 +36,7 @@ typedef enum {
 	AUDIO_BUFFER_OFFSET_FULL,
 }BUFFER_AUDIO_StateTypeDef;
 
-typedef struct {
-	uint8_t buff[AUDIO_BUFFER_SIZE];
-	uint32_t fptr;
-	BUFFER_AUDIO_StateTypeDef state;
-	uint32_t AudioFileSize;
-	uint32_t *SrcAddress;
-}AUDIO_BufferTypeDef;
-
-//typedef enum {
-//	RATE_96000KHz = 0,
-//	RATE_48000Khz,
-//	RATE_44100Khz,
-//	RATE_32000Khz,
-//	RATE_22050Khz,
-//	RATE_16000Khz,
-//	RATE_11025Khz,
-//	RATE_8000Khz,
-//}synthAudioFreqTypeDef;
+BUFFER_AUDIO_StateTypeDef bufferAudioState;
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -73,15 +47,14 @@ volatile uint32_t synth_process_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
 static uint16_t *imageData = NULL;
-ALIGN_32BYTES (static uint32_t audioBuff[AUDIO_QUARTER_BUFFER_SIZE * 2]) = {0};
-ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
+static int16_t audioBuff[AUDIO_BUFFER_SIZE] = {0};
+//ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 
 static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
 //BSP_AUDIO_Init_t AudioPlayInit;
 
 /* Private function prototypes -----------------------------------------------*/
 static int32_t synth_AudioInit(void);
-static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
 static void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 static void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 
@@ -173,20 +146,8 @@ int32_t synth_IfftInit(void)
 
 int32_t synth_AudioInit(void)
 {
-	uint32_t bytesread;
-
-	buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
-	buffer_ctl.AudioFileSize = AUDIO_QUARTER_BUFFER_SIZE;
-	buffer_ctl.SrcAddress = (uint32_t*)audioBuff;
-
-	bytesread = synthGetDataNb((void *)audioBuff, 0, &buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
-	if(bytesread > 0)
-	{
-		HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
-		buffer_ctl.fptr = bytesread;
-
-		return 0;
-	}
+	bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
+	HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)&audioBuff[0], AUDIO_BUFFER_SIZE);
 
 	return -1;
 }
@@ -196,7 +157,7 @@ int32_t synth_AudioInit(void)
  * @param  Index
  * @retval Value
  */
-int32_t synth_GetAudioData(uint32_t index)
+int16_t synth_GetAudioData(uint32_t index)
 {
 	//	if (index >= RFFT_BUFFER_SIZE)
 	//		Error_Handler();
@@ -247,7 +208,7 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 
 	write_data_nbr = 0;
 
-	while(write_data_nbr < (NbrOfData * 2))
+	while(write_data_nbr < NbrOfData)
 	{
 		signal_summation = 0;
 		signal_power_summation = 0;
@@ -294,12 +255,12 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 
 		rfft = (signal_summation * ((double)max_volume) / (double)signal_power_summation);
 
-		audioData[write_data_nbr] = rfft;
-		audioData[write_data_nbr + 1] = rfft;
-		write_data_nbr+=2;
+		audioData[write_data_nbr] = 0;		//L
+		audioData[write_data_nbr + 1] = rfft;	//R
+		write_data_nbr += 2;
 	}
 
-	synth_process_cnt += NbrOfData;
+	synth_process_cnt += NbrOfData / 2;
 }
 #pragma GCC pop_options
 
@@ -373,88 +334,39 @@ void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
  */
 void synth_AudioProcess(synthModeTypeDef mode)
 {
-	uint32_t bytesread = 0;
-//	int32_t max_power = 0;
-
-	if( buffer_ctl.fptr >= (buffer_ctl.AudioFileSize * 4))
-	{
-		/* Play audio sample again ... */
-		buffer_ctl.fptr = 0;
-	}
-
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
-	if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_HALF)
+	if(bufferAudioState == AUDIO_BUFFER_OFFSET_HALF)
 	{
-
-		bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
-				buffer_ctl.fptr,
-				&buffer_ctl.buff[0],
-				AUDIO_BUFFER_SIZE / 2);
-
-		if( bytesread > 0)
-		{
-			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
-			buffer_ctl.fptr += bytesread;
-			cis_ImageProcessBW(imageData);
-			if (mode == IFFT_MODE)
-				synth_IfftMode(imageData, (int16_t*)&audioBuff[0], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-			else
-				synth_PlayMode(imageData, (int16_t*)&audioBuff[0], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE / 8);
-		}
-		return;
+		bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
+		cis_ImageProcessBW(imageData);
+		if (mode == IFFT_MODE)
+			synth_IfftMode(imageData, &audioBuff[0], AUDIO_BUFFER_SIZE / 2);
+		//			else
+		//				synth_PlayMode(imageData, (int16_t*)&audioBuff[0], (AUDIO_QUARTER_BUFFER_SIZE / 2));
+		/* Clean Data Cache to update the content of the SRAM */
+		SCB_CleanDCache_by_Addr((uint32_t *)&audioBuff[0], AUDIO_BUFFER_SIZE);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
-	if(buffer_ctl.state == AUDIO_BUFFER_OFFSET_FULL)
+	if(bufferAudioState == AUDIO_BUFFER_OFFSET_FULL)
 	{
-		bytesread = synthGetDataNb((void *)buffer_ctl.SrcAddress,
-				buffer_ctl.fptr,
-				&buffer_ctl.buff[AUDIO_BUFFER_SIZE / 2],
-				AUDIO_BUFFER_SIZE / 2);
-		if( bytesread > 0)
-		{
-			buffer_ctl.state = AUDIO_BUFFER_OFFSET_NONE;
-			buffer_ctl.fptr += bytesread;
-			cis_ImageProcessBW(imageData);
-			if (mode == IFFT_MODE)
-				synth_IfftMode(imageData, (int16_t*)&audioBuff[AUDIO_QUARTER_BUFFER_SIZE / 2], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-			else
-				synth_PlayMode(imageData, (int16_t*)&audioBuff[AUDIO_QUARTER_BUFFER_SIZE / 2], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-			/* Clean Data Cache to update the content of the SRAM */
-			SCB_CleanDCache_by_Addr((uint32_t*)&buffer_ctl.buff[AUDIO_QUARTER_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 8);
-		}
-		return;
+		bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
+		cis_ImageProcessBW(imageData);
+		if (mode == IFFT_MODE)
+			synth_IfftMode(imageData, &audioBuff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
+		//			else
+		//				synth_PlayMode(imageData, (int16_t*)&audioBuff[AUDIO_QUARTER_BUFFER_SIZE / 2], (AUDIO_QUARTER_BUFFER_SIZE / 2));
+		/* Clean Data Cache to update the content of the SRAM */
+		SCB_CleanDCache_by_Addr((uint32_t *)&audioBuff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE);
 	}
 	return;
-}
-
-/**
- * @brief  Gets Data from storage unit.
- * @param  None
- * @retval None
- */
-static uint32_t synthGetDataNb(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData)
-{
-	uint8_t *lptr = pdata;
-	uint32_t ReadDataNbr;
-
-	ReadDataNbr = 0;
-	while(((offset + ReadDataNbr) < (buffer_ctl.AudioFileSize * 4)) && (ReadDataNbr < NbrOfData))
-	{
-		pbuf[ReadDataNbr]= lptr [offset + ReadDataNbr];
-		ReadDataNbr++;
-	}
-
-	return ReadDataNbr;
 }
 
 void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai_BlockA1)
 {
 	if(hsai_BlockA1->Instance==SAI1_Block_A)
 	{
-		buffer_ctl.state = AUDIO_BUFFER_OFFSET_HALF;
+		bufferAudioState = AUDIO_BUFFER_OFFSET_HALF;
 	}
 }
 
@@ -463,7 +375,7 @@ void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai_BlockA1)
 	if(hsai_BlockA1->Instance==SAI1_Block_A)
 	{
 		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
-		buffer_ctl.state = AUDIO_BUFFER_OFFSET_FULL;
+		bufferAudioState = AUDIO_BUFFER_OFFSET_FULL;
 	}
 }
 
@@ -474,17 +386,6 @@ void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai_BlockA1)
  */
 void BSP_AUDIO_OUT_Error_CallBack(uint32_t Interface)
 {
-	/* Display message on the LCD screen */
-//	GUI_SetBackColor(GUI_COLOR_RED);
-//	GUI_DisplayStringAt(0, LINE(14), (uint8_t *)"       DMA  ERROR     ", CENTER_MODE);
-//	GUI_SetBackColor(GUI_COLOR_WHITE);
-
-	/* Stop the program with an infinite loop */
-//	while (BSP_PB_GetState(BUTTON_USER) != RESET)
-//	{
-//		return;
-//	}
-
 	/* could also generate a system reset to recover from the error */
 	/* .... */
 }
