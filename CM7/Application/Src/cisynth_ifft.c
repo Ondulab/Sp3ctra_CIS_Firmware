@@ -44,20 +44,21 @@ int cisynth_ifft(void)
 	/* Infinite loop */
 	static uint32_t start_tick;
 	uint32_t latency;
-	uint32_t i = 0;
+	int32_t i = 0;
 	uint32_t note = 0;
 
 	while (1)
 	{
 		start_tick = HAL_GetTick();
-		while (synth_process_cnt < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
+//		synth_SetImageData(50, 32760); //for testing
+		while ((synth_process_cnt) < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
 			synth_AudioProcess(IFFT_MODE);
 		}
 
-		synth_process_cnt = 0;
 		latency = HAL_GetTick() - start_tick;
-		sprintf((char *)FreqStr, "%dHz", (int)((SAMPLING_FREQUENCY * 1000) / (latency * DISPLAY_REFRESH_FPS)));
+		sprintf((char *)FreqStr, "%dHz", (int)((synth_process_cnt * 1000) / latency));
+		synth_process_cnt = 0;
 
 		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH / 2 - 1, DISPLAY_AERA1_Y2POS, 3, false);
 		ssd1362_drawRect(DISPLAY_MAX_X_LENGTH / 2 + 1, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS, 4, false);
@@ -69,13 +70,20 @@ int cisynth_ifft(void)
 			note = 0;
 		}
 
-		synth_SetImageData(++note, 65535); //for testing
+		synth_SetImageData(++note, 1000); //for testing
 		synth_SetImageData(note - 1, 0);
+
+//		synth_SetImageData(20, 1000); //for testing
+//		synth_SetImageData(85, 5700);
+//		synth_SetImageData(120, 1000); //for testing
+//		synth_SetImageData(185, 5700);
+//		synth_SetImageData(60, 100); //for testing
+//		synth_SetImageData(105, 5700);
 
 		for (i = 0; i < ((DISPLAY_MAX_X_LENGTH / 2) - 1); i++)
 		{
-			ssd1362_drawPixel(i, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + ((synth_GetAudioData(i) << 16 >> 16) / 4096) - 1, 10, false);
-			ssd1362_drawPixel(i + (DISPLAY_MAX_X_LENGTH / 2) + 1, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + ((synth_GetAudioData(i) >> 16) / 4096) - 1, 10, false);
+			ssd1362_drawPixel(i, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + (synth_GetAudioData(i * 2) / 4096) - 1, 10, false);
+			ssd1362_drawPixel(i + (DISPLAY_MAX_X_LENGTH / 2) + 1, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + (synth_GetAudioData(i * 2 + 1) / 4096) - 1, 10, false);
 		}
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)

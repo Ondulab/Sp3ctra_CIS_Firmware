@@ -28,7 +28,7 @@
 
 void pcm5102_Init(void)
 {
-	HAL_GPIO_WritePin(DAC_FLT_GPIO_Port, DAC_FLT_Pin, GPIO_PIN_RESET); //Filterselect: Normallatency(Low) / Lowlatency(High)
+	HAL_GPIO_WritePin(DAC_FLT_GPIO_Port, DAC_FLT_Pin, GPIO_PIN_SET); //Filterselect: Normallatency(Low) / Lowlatency(High)
 	HAL_GPIO_WritePin(DAC_DEMP_GPIO_Port, DAC_DEMP_Pin, GPIO_PIN_RESET); //De-emphasiscontrol for 44.1kHz sampling rate: Off(Low) / On(High)
 	HAL_GPIO_WritePin(DAC_XSMT_GPIO_Port, DAC_XSMT_Pin, GPIO_PIN_SET); //Soft mute control: Softmute(Low) / soft un-mute(High)
 	HAL_GPIO_WritePin(DAC_FMT_GPIO_Port, DAC_FMT_Pin, GPIO_PIN_RESET); //Audio format selection: I2S(Low)/ Left justified(High)
