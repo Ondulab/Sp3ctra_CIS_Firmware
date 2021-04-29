@@ -46,9 +46,8 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h \
  ../LWIP/App/lwip.h \
  ../../Middlewares/Third_Party/LwIP/src/include/lwip/opt.h \
@@ -82,12 +81,10 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Middlewares/Third_Party/LwIP/src/include/netif/ethernet.h \
  ../../Middlewares/Third_Party/LwIP/src/include/lwip/dhcp.h \
  ../../Middlewares/Third_Party/LwIP/src/include/lwip/timeouts.h \
- ../LWIP/Target/ethernetif.h ../PDM2PCM/App/pdm2pcm.h \
- ../../Middlewares/ST/STM32_Audio/Addons/PDM/Inc/pdm2pcm_glo.h \
+ ../LWIP/Target/ethernetif.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/sai.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/spi.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/tim.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/usart.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/gpio.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/fmc.h \
@@ -196,11 +193,9 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
-
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h:
 
@@ -270,17 +265,11 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 ../LWIP/Target/ethernetif.h:
 
-../PDM2PCM/App/pdm2pcm.h:
-
-../../Middlewares/ST/STM32_Audio/Addons/PDM/Inc/pdm2pcm_glo.h:
-
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/rng.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/sai.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/spi.h:
-
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/tim.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/usart.h:
 

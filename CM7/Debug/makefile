@@ -10,7 +10,6 @@ RM := rm -rf
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include Peripheral/Src/subdir.mk
--include PDM2PCM/App/subdir.mk
 -include Middlewares/Third_Party/LwIP/subdir.mk
 -include Middlewares/Src/subdir.mk
 -include LWIP/Target/subdir.mk
@@ -72,7 +71,7 @@ main-build: SSS_CIS_CM7.elf secondary-outputs
 
 # Tool invocations
 SSS_CIS_CM7.elf: $(OBJS) $(USER_OBJS) /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/STM32H745IIKX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "SSS_CIS_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/STM32H745IIKX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SSS_CIS_CM7.map" -Wl,--gc-sections -static -Wl,--start-group -l:libPDMFilter_CM7_GCC_wc32.a -Wl,--end-group -L/home/zhonx/STM32Cube/Repository/STM32Cube_FW_H7_V1.9.0/Middlewares/ST/STM32_Audio/Addons/PDM/Lib -L../../Middlewares/ST/STM32_Audio/Addons/PDM/Lib --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "SSS_CIS_CM7.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/STM32H745IIKX_FLASH.ld" --specs=nosys.specs -Wl,-Map="SSS_CIS_CM7.map" -Wl,--gc-sections -static -L/home/zhonx/STM32Cube/Repository/STM32Cube_FW_H7_V1.9.0/Middlewares/ST/STM32_Audio/Addons/PDM/Lib --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

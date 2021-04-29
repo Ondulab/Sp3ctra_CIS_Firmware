@@ -255,7 +255,7 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 
 		rfft = (signal_summation * ((double)max_volume) / (double)signal_power_summation);
 
-		audioData[write_data_nbr] = 0;		//L
+		audioData[write_data_nbr] = rfft;		//L
 		audioData[write_data_nbr + 1] = rfft;	//R
 		write_data_nbr += 2;
 	}

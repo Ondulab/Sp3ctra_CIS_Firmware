@@ -31,6 +31,5 @@ LWIP/App \
 LWIP/Target \
 Middlewares/Src \
 Middlewares/Third_Party/LwIP \
-PDM2PCM/App \
 Peripheral/Src \
 

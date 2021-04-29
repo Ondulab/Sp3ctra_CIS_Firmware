@@ -1,4 +1,3 @@
-
 /**
  ******************************************************************************
  * @file           : cis_BW_.c
@@ -42,9 +41,9 @@ static uint16_t *cisData = NULL;
 ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
 
-static uint16_t CIS_EFFECTIVE_PIXELS_NB			 = 	(CIS_PIXEX_AERA_STOP)-(CIS_PIXEX_AERA_START);	//5530 active pixels;
-static uint16_t CIS_ADC_BUFF_PIXEL_AERA_START	 = 	CIS_PIXEX_AERA_START;
-static uint16_t CIS_ADC_BUFF_PIXEL_AERA_STOP	 = 	CIS_PIXEX_AERA_STOP;
+static uint16_t CIS_EFFECTIVE_PIXELS_NB			 = 	CIS_ACTIVE_PIXELS_AREA_SIZE;	//5530 active pixels;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_START	 = 	CIS_PIXEL_AERA_START;
+static uint16_t CIS_ADC_BUFF_PIXEL_AERA_STOP	 = 	CIS_PIXEL_AERA_STOP;
 static uint16_t CIS_ADC_BUFF_END_CAPTURE 		 = 	CIS_END_CAPTURE;
 static uint16_t ADC_CONVERTED_DATA_BUFFER_SIZE 	 = 	CIS_END_CAPTURE * 2;
 
@@ -52,7 +51,7 @@ CIS_BUFF_StateTypeDef  cisBufferState = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-void cis_TIM_CLK_Init(uint32_t cis_clk_freq);
+void cis_TIM_CLK_Init(void);
 void cis_TIM_SP_Init(void);
 void cis_TIM_LED_R_Init(void);
 void cis_TIM_LED_G_Init(void);
@@ -73,16 +72,16 @@ void cis_Init(synthModeTypeDef mode)
 {
 	if (mode == IFFT_MODE)
 	{
-		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_IFFT_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
-		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / (CIS_IFFT_OVERSAMPLING_RATIO);
-		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / (CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEL_AERA_STOP - CIS_PIXEL_AERA_START) / CIS_IFFT_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEL_AERA_START / (CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEL_AERA_STOP / (CIS_IFFT_OVERSAMPLING_RATIO);
 		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / (CIS_IFFT_OVERSAMPLING_RATIO);
 	}
 	else
 	{
-		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEX_AERA_STOP - CIS_PIXEX_AERA_START) / CIS_IMGPLY_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
-		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEX_AERA_START / CIS_IMGPLY_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEX_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO;
+		CIS_EFFECTIVE_PIXELS_NB			=	(CIS_PIXEL_AERA_STOP - CIS_PIXEL_AERA_START) / CIS_IMGPLY_OVERSAMPLING_RATIO;	//5530 / CIS_OVERSAMPLING_RATIO active pixels
+		CIS_ADC_BUFF_PIXEL_AERA_START	=	CIS_PIXEL_AERA_START / CIS_IMGPLY_OVERSAMPLING_RATIO;
+		CIS_ADC_BUFF_PIXEL_AERA_STOP	=	CIS_PIXEL_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO;
 		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IMGPLY_OVERSAMPLING_RATIO;
 	}
 
@@ -97,31 +96,33 @@ void cis_Init(synthModeTypeDef mode)
 
 	memset(cisData, 0, CIS_ADC_BUFF_END_CAPTURE * 2 * sizeof(uint16_t*)); //clear image
 
-//	cis_ADC_Init(mode);
-//	cis_TIM_SP_Init();
-//	cis_TIM_LED_R_Init();
-//	cis_TIM_LED_G_Init();
-//	cis_TIM_LED_B_Init();
-//	cis_TIM_CLK_Init(CIS_CLK_FREQ);
-//	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); //SET : 200DPI   RESET : 400DPI
 
-	// Reset CLK counter
-//	__HAL_TIM_SET_COUNTER(&htim1, 0);
+	//	cis_ADC_Init(mode);
+	cis_TIM_SP_Init();
+	cis_TIM_LED_R_Init();
+	cis_TIM_LED_G_Init();
+	cis_TIM_LED_B_Init();
+	cis_TIM_CLK_Init();
+	//	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, (ADC_CONVERTED_DATA_BUFFER_SIZE)) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 
-	// Reset SP counter
-//	__HAL_TIM_SET_COUNTER(&htim15, 0);
+	//Reset CLK counter
+	__HAL_TIM_SET_COUNTER(&htim1, 0);
+
+	//Reset SP counter
+	__HAL_TIM_SET_COUNTER(&htim8, 0);
 
 #ifdef CIS_BW
 	//Set BW phase shift
-	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE) - CIS_LED_ON);			//B
+	__HAL_TIM_SET_COUNTER(&htim5, (CIS_END_CAPTURE) - CIS_LED_ON);			//B
 	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE) - CIS_LED_ON);			//G
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #else
 	//Set RGB phase shift
-	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
+	__HAL_TIM_SET_COUNTER(&htim5, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
 	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #endif
@@ -149,8 +150,8 @@ void cis_Test(void)
 	uint32_t y_size = 0;
 	uint32_t color = 0;
 
-//	BSP_LCD_GetXSize(0, &x_size);
-//	BSP_LCD_GetYSize(0, &y_size);
+	//	BSP_LCD_GetXSize(0, &x_size);
+	//	BSP_LCD_GetYSize(0, &y_size);
 
 	while(1)
 	{
@@ -175,7 +176,7 @@ void cis_Test(void)
 				color |= 0xFF000000;
 				color |= color << 8;
 				color |= color << 16;
-//				GUI_SetPixel(i, j + 24, color);
+				//				GUI_SetPixel(i, j + 24, color);
 #else
 				color = 0xFF000000;
 				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_PIXEL_AERA_START) << 16;
@@ -258,76 +259,18 @@ void cis_ImageFilterBW(uint16_t *cis_buff)
  * @param  sampling_frequency
  * @retval None
  */
-void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
+void cis_TIM_CLK_Init()
 {
-	/* Counter Prescaler value */
-	uint32_t uwPrescalerValue = 0;
-
-//	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
-	TIM_MasterConfigTypeDef sMasterConfig = {0};
-	TIM_OC_InitTypeDef sConfigOC = {0};
-//	TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
-
-	/* Compute the prescaler value */
-	uwPrescalerValue = (uint32_t)(((SystemCoreClock / 20) / cis_clk_freq) - 1); //cis_clk_freq
-
-
-	htim1.Instance = TIM1;
-
-	htim1.Init.Period        = 10-1;
-	htim1.Init.Prescaler     = uwPrescalerValue;
-	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim1.Init.CounterMode   = TIM_COUNTERMODE_UP;
-	htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	htim1.Init.RepetitionCounter = 0;
-	if(HAL_TIM_OC_Init(&htim1) != HAL_OK)
-	{
-		/* Initialization Error */
-		Error_Handler();
-	}
-
-	/*##-2- Configure the Output Compare channels ##############################*/
-	/* Common configuration for all channels */
-	sConfigOC.OCMode     = TIM_OCMODE_PWM1;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-
-	/* Output Compare Toggle Mode configuration: Channel1 */
-	sConfigOC.Pulse 	   = 5;
-	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-	{
-		/* Configuration Error */
-		Error_Handler();
-	}
-
-	/* Output Compare Toggle Mode configuration: Channel1 */
-	sConfigOC.OCMode  	 = TIM_OCMODE_PWM2;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.Pulse   	 = 1;
-	if(HAL_TIM_OC_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-	{
-		/* Configuration Error */
-		Error_Handler();
-	}
-
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1;
-	sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-
-	HAL_TIM_MspPostInit(&htim1);
-
-	/* Start CLK generation ##################################*/
-	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	MX_TIM1_Init();
 
 	/* Start ADC Timer #######################################*/
-	if(HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
+	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/* Start CLK generation ##################################*/
+	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -340,64 +283,13 @@ void cis_TIM_CLK_Init(uint32_t cis_clk_freq)
  */
 void cis_TIM_SP_Init()
 {
-//	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
-//	TIM_MasterConfigTypeDef sMasterConfig = {0};
-//	TIM_OC_InitTypeDef sConfigOC = {0};
-//	TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+	MX_TIM8_Init();
 
-//	htim15.Instance = TIM15;
-//	htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-//	htim15.Init.Prescaler = 0;
-//	htim15.Init.Period = CIS_END_CAPTURE - 1;
-//	htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-//	htim15.Init.RepetitionCounter = 0;
-//	htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-//	if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-//
-//	if (HAL_TIM_OC_Init(&htim15) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-
-//	sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
-//	sSlaveConfig.InputTrigger = TIM_TS_ITR0;
-//	sSlaveConfig.TriggerPolarity  = TIM_TRIGGERPOLARITY_NONINVERTED;
-//	sSlaveConfig.TriggerPrescaler = TIM_TRIGGERPRESCALER_DIV1;
-//	sSlaveConfig.TriggerFilter    = 0;
-//	if (HAL_TIM_SlaveConfigSynchro(&htim15, &sSlaveConfig) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-
-//	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-//	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-//	if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-
-//	sConfigOC.OCMode = TIM_OCMODE_PWM2;
-//	sConfigOC.Pulse = CIS_SP_OFF;
-//	sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
-//	sConfigOC.OCNPolarity = TIM_OCNPOLARITY_LOW;
-//	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-//	sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-//	sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-//	if (HAL_TIM_OC_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
-
-//	HAL_TIM_MspPostInit(&htim15);
-
-//	/* Start SP generation ##################################*/
-//	if(HAL_TIM_OC_Start(&htim15, TIM_CHANNEL_2) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	/* Start SP generation ##################################*/
+	if(HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 /**
@@ -405,58 +297,12 @@ void cis_TIM_SP_Init()
  * @param  Void
  * @retval None
  */
-void cis_TIM_LED_R_Init()
+void cis_TIM_LED_B_Init()
 {
-	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
-	TIM_MasterConfigTypeDef sMasterConfig = {0};
-	TIM_OC_InitTypeDef sConfigOC = {0};
-
-	htim3.Instance = TIM3;
-	htim3.Init.Prescaler = 0;
-	htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-#ifdef CIS_BW
-	htim3.Init.Period = CIS_END_CAPTURE - 1;
-#else
-	htim3.Init.Period = (CIS_END_CAPTURE * 3) - 1;
-#endif
-	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	htim3.Init.RepetitionCounter = 0;
-	if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	if (HAL_TIM_OC_Init(&htim3) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
-	sSlaveConfig.InputTrigger = TIM_TS_ITR0;
-	sSlaveConfig.TriggerPolarity  = TIM_TRIGGERPOLARITY_INVERTED;
-	sSlaveConfig.TriggerPrescaler = TIM_TRIGGERPRESCALER_DIV1;
-	sSlaveConfig.TriggerFilter    = 0;
-	if (HAL_TIM_SlaveConfigSynchro(&htim3, &sSlaveConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	sConfigOC.Pulse = CIS_LED_RED_OFF;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-	if (HAL_TIM_OC_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	HAL_TIM_MspPostInit(&htim3);
+	MX_TIM3_Init();
 
 	/* Start LED R generation ###############################*/
-	if(HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
+	if(HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -467,49 +313,12 @@ void cis_TIM_LED_R_Init()
  * @param  Void
  * @retval None
  */
-void cis_TIM_LED_G_Init()
+void cis_TIM_LED_R_Init()
 {
-	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
-//	TIM_MasterConfigTypeDef sMasterConfig = {0};
-	TIM_OC_InitTypeDef sConfigOC = {0};
-
-	htim4.Instance = TIM4;
-	htim4.Init.Prescaler = 0;
-	htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-#ifdef CIS_BW
-	htim4.Init.Period = CIS_END_CAPTURE - 1;
-#else
-	htim4.Init.Period = (CIS_END_CAPTURE * 3) - 1;
-#endif
-	htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	htim4.Init.RepetitionCounter = 0;
-	if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	if (HAL_TIM_OC_Init(&htim4) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
-	sSlaveConfig.InputTrigger = TIM_TS_ITR0;
-	if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	sConfigOC.Pulse = CIS_LED_GREEN_OFF;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-	if (HAL_TIM_OC_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	HAL_TIM_MspPostInit(&htim4);
+	MX_TIM4_Init();
 
 	/* Start LED G generation ###############################*/
-	if(HAL_TIM_OC_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
+	if(HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -520,58 +329,12 @@ void cis_TIM_LED_G_Init()
  * @param  Void
  * @retval None
  */
-void cis_TIM_LED_B_Init()
+void cis_TIM_LED_G_Init()
 {
-	TIM_SlaveConfigTypeDef sSlaveConfig = {0};
-	TIM_MasterConfigTypeDef sMasterConfig = {0};
-	TIM_OC_InitTypeDef sConfigOC = {0};
-
-	htim8.Instance = TIM8;
-	htim8.Init.Prescaler = 0;
-	htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
-#ifdef CIS_BW
-	htim8.Init.Period = CIS_END_CAPTURE - 1;
-#else
-	htim8.Init.Period = (CIS_END_CAPTURE * 3) - 1;
-#endif
-	htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	htim8.Init.RepetitionCounter = 0;
-	if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	if (HAL_TIM_OC_Init(&htim8) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
-	sSlaveConfig.InputTrigger = TIM_TS_ITR0;
-	sSlaveConfig.TriggerPolarity  = TIM_TRIGGERPOLARITY_NONINVERTED;
-	sSlaveConfig.TriggerPrescaler = TIM_TRIGGERPRESCALER_DIV1;
-	sSlaveConfig.TriggerFilter    = 0;
-	if (HAL_TIM_SlaveConfigSynchro(&htim8, &sSlaveConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim8, &sMasterConfig) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	sConfigOC.Pulse = CIS_LED_BLUE_OFF;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
-	if (HAL_TIM_OC_ConfigChannel(&htim8, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	HAL_TIM_MspPostInit(&htim8);
+	MX_TIM5_Init();
 
 	/* Start LED B generation ###############################*/
-	if(HAL_TIMEx_OCN_Start(&htim8, TIM_CHANNEL_3) != HAL_OK)
+	if(HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -586,7 +349,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 {
 	ADC_MultiModeTypeDef multimode = {0};
 	ADC_ChannelConfTypeDef ADCsConfig = {0};
-//	DAC_ChannelConfTypeDef DACsConfig = {0};
+	//	DAC_ChannelConfTypeDef DACsConfig = {0};
 
 	if (HAL_ADC_DeInit(&hadc1) != HAL_OK)
 	{
@@ -594,7 +357,7 @@ void cis_ADC_Init(synthModeTypeDef mode)
 		Error_Handler();
 	}
 
-//	__HAL_LINKDMA(&hadc1,DMA_Handle,hdma_adc1);
+	//	__HAL_LINKDMA(&hadc1,DMA_Handle,hdma_adc1);
 
 	/** Common config
 	 */
@@ -635,33 +398,33 @@ void cis_ADC_Init(synthModeTypeDef mode)
 		Error_Handler();
 	}
 
-//	if (HAL_DMA_DeInit(&hdma_adc1) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	//	if (HAL_DMA_DeInit(&hdma_adc1) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 
 	/* Configure ADC DMA #####################################################*/
 	/* ADC1 DMA Init */
 	/* ADC1 Init */
-//	hdma_adc1.Instance = DMA1_Stream0;
-//	hdma_adc1.Init.Request = DMA_REQUEST_ADC1;
-//	hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
-//	hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
-//	hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
-//#ifdef CIS_BW
-//	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-//	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-//#else
-//	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-//	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-//#endif
-//	hdma_adc1.Init.Mode = DMA_CIRCULAR;
-//	hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-//	hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-//	if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
-//	{
-//		Error_Handler();
-//	}
+	//	hdma_adc1.Instance = DMA1_Stream0;
+	//	hdma_adc1.Init.Request = DMA_REQUEST_ADC1;
+	//	hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
+	//	hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
+	//	hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
+	//#ifdef CIS_BW
+	//	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+	//	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+	//#else
+	//	hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+	//	hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+	//#endif
+	//	hdma_adc1.Init.Mode = DMA_CIRCULAR;
+	//	hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+	//	hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+	//	if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
+	//	{
+	//		Error_Handler();
+	//	}
 
 
 

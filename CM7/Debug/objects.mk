@@ -5,5 +5,5 @@
 
 USER_OBJS :=
 
-LIBS := -l:libPDMFilter_CM7_GCC_wc32.a
+LIBS :=
 
