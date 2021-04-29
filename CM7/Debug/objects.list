@@ -159,7 +159,6 @@
 "Middlewares/Third_Party/LwIP/utils.o"
 "Middlewares/Third_Party/LwIP/vj.o"
 "Middlewares/Third_Party/LwIP/zepif.o"
-"PDM2PCM/App/pdm2pcm.o"
 "Peripheral/Src/buttons.o"
 "Peripheral/Src/cis.o"
 "Peripheral/Src/icm20602.o"

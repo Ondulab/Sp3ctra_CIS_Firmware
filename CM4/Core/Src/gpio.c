@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file    dma.c
+  * @file    gpio.c
   * @brief   This file provides code for the configuration
-  *          of all the requested memory to memory DMA transfers.
+  *          of all used GPIO pins.
   ******************************************************************************
   * @attention
   *
@@ -18,29 +18,23 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "dma.h"
+#include "gpio.h"
 
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
-/* Configure DMA                                                              */
+/* Configure GPIO                                                             */
 /*----------------------------------------------------------------------------*/
-
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
 
-/**
-  * Enable DMA controller clock
-  */
-void MX_DMA_Init(void)
+/** Pinout Configuration
+*/
+void MX_GPIO_Init(void)
 {
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-  __HAL_RCC_DMA2_CLK_ENABLE();
 
 }
 

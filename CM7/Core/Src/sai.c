@@ -76,12 +76,12 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* hsai)
   /** Initializes the peripherals clock
   */
     PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SAI1;
-    PeriphClkInitStruct.PLL2.PLL2M = 6;
-    PeriphClkInitStruct.PLL2.PLL2N = 193;
+    PeriphClkInitStruct.PLL2.PLL2M = 12;
+    PeriphClkInitStruct.PLL2.PLL2N = 389;
     PeriphClkInitStruct.PLL2.PLL2P = 11;
     PeriphClkInitStruct.PLL2.PLL2Q = 11;
     PeriphClkInitStruct.PLL2.PLL2R = 11;
-    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
+    PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_1;
     PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
     PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
     PeriphClkInitStruct.Sai1ClockSelection = RCC_SAI1CLKSOURCE_PLL2;
@@ -118,7 +118,7 @@ void HAL_SAI_MspInit(SAI_HandleTypeDef* hsai)
 
     /* Peripheral DMA init*/
 
-    hdma_sai1_a.Instance = DMA1_Stream0;
+    hdma_sai1_a.Instance = DMA1_Stream1;
     hdma_sai1_a.Init.Request = DMA_REQUEST_SAI1_A;
     hdma_sai1_a.Init.Direction = DMA_MEMORY_TO_PERIPH;
     hdma_sai1_a.Init.PeriphInc = DMA_PINC_DISABLE;

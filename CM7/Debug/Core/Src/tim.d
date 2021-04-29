@@ -46,7 +46,12 @@ Core/Src/tim.o: ../Core/Src/tim.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
- ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h
+ ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/config.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/tim.h:
 
@@ -143,3 +148,13 @@ Core/Src/tim.o: ../Core/Src/tim.c \
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h:
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/config.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
