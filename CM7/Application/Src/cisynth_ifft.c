@@ -73,12 +73,12 @@ int cisynth_ifft(void)
 //		synth_SetImageData(++note, 1000); //for testing
 //		synth_SetImageData(note - 1, 0);
 
-		synth_SetImageData(20, 1000); //for testing
-		synth_SetImageData(85, 5700);
-		synth_SetImageData(120, 1000); //for testing
-		synth_SetImageData(185, 5700);
-		synth_SetImageData(60, 100); //for testing
-		synth_SetImageData(105, 5700);
+//		synth_SetImageData(20, 1000); //for testing
+//		synth_SetImageData(85, 5700);
+//		synth_SetImageData(120, 1000); //for testing
+//		synth_SetImageData(185, 5700);
+//		synth_SetImageData(60, 100); //for testing
+//		synth_SetImageData(105, 5700);
 
 		for (i = 0; i < ((DISPLAY_MAX_X_LENGTH / 2) - 1); i++)
 		{

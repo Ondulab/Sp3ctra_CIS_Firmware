@@ -17,7 +17,7 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
-#define DISPLAY_REFRESH_FPS						(60)
+#define DISPLAY_REFRESH_FPS						(40)
 
 /**************************************************************************************/
 /********************                     math                     ********************/
@@ -51,35 +51,38 @@
 #define CIS_PIXEL_AERA_START					(38)
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(620)
-#define CIS_LED_GREEN_OFF						(620)
-#define CIS_LED_BLUE_OFF						(620)
+#define CIS_LED_RED_OFF							(900)
+#define CIS_LED_GREEN_OFF						(900)
+#define CIS_LED_BLUE_OFF						(900)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
 #define CIS_LED_BLUE_OFF						(1600)
 #endif
 
-#define CIS_ACTIVE_PIXELS_AREA_SIZE				(576)
-#define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_AREA_SIZE) + (CIS_PIXEL_AERA_START))
-#define CIS_END_CAPTURE 						(CIS_PIXEL_AERA_STOP + 10) //125ms
+#define CIS_ACTIVE_PIXELS_PER_LINE				(576)
+#define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_PER_LINE) + (CIS_PIXEL_AERA_START))
+#define CIS_OVER_SCAN							(400)
+#define CIS_END_CAPTURE 						(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 
-#define CIS_IFFT_OVERSAMPLING_RATIO				(2)
+#define CIS_ADC_OUT_LINES						(3)
+
+#define CIS_IFFT_OVERSAMPLING_RATIO				(6)
 #define CIS_IFFT_OVERSAMPLING_RIGHTBITSHIFT		ADC_RIGHTBITSHIFT_NONE
 
-#define CIS_IMGPLY_OVERSAMPLING_RATIO			(32)
+#define CIS_IMGPLY_OVERSAMPLING_RATIO			(6)
 #define CIS_IMGPLY_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_NONE
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 					(65535)   	//in decimal
-#define START_FREQUENCY     					(80)
+#define START_FREQUENCY     					(70)
 #define MAX_OCTAVE_NUMBER   					(10)
 #define SEMITONE_PER_OCTAVE 					(12)
-#define COMMA_PER_SEMITONE  					(5)	 //9
+#define COMMA_PER_SEMITONE  					(5)
 
-#define NUMBER_OF_NOTES     					(((CIS_PIXEL_AERA_STOP)-(CIS_PIXEL_AERA_START)) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / (CIS_IFFT_OVERSAMPLING_RATIO))
 
 #endif // __CONFIG_H__
 

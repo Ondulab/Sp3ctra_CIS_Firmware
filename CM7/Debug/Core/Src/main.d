@@ -46,8 +46,9 @@ Core/Src/main.o: ../Core/Src/main.c \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_tim_ex.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
  ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h \
  ../LWIP/App/lwip.h \
  ../../Middlewares/Third_Party/LwIP/src/include/lwip/opt.h \
@@ -193,9 +194,11 @@ Core/Src/main.o: ../Core/Src/main.c \
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h:
 
-/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h:
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/adc.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/main.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/crc.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/dma.h:
 
