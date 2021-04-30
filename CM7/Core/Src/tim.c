@@ -131,7 +131,10 @@ void MX_TIM3_Init(void)
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
 #endif
 
-  pulseValue = CIS_LED_BLUE_OFF - 1;
+  if (CIS_LED_BLUE_OFF > 0)
+	  pulseValue = CIS_LED_BLUE_OFF - 1;
+  else
+    pulseValue = 0;
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
@@ -198,7 +201,10 @@ void MX_TIM4_Init(void)
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
 #endif
 
-  pulseValue = CIS_LED_RED_OFF - 1;
+  if (CIS_LED_RED_OFF > 0)
+	  pulseValue = CIS_LED_RED_OFF - 1;
+  else
+    pulseValue = 0;
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
@@ -265,7 +271,10 @@ void MX_TIM5_Init(void)
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
 #endif
 
-  pulseValue = CIS_LED_GREEN_OFF - 1;
+  if (CIS_LED_GREEN_OFF > 0)
+	  pulseValue = CIS_LED_GREEN_OFF - 1;
+  else
+    pulseValue = 0;
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
