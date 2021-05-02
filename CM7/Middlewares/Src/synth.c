@@ -46,7 +46,9 @@ static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t synth_process_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
-static uint16_t *imageData = NULL;
+//static uint16_t *imageData = NULL;
+static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
+
 static int16_t audioBuff[AUDIO_BUFFER_SIZE] = {0};
 //ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
 
@@ -56,7 +58,7 @@ static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
 /* Private function prototypes -----------------------------------------------*/
 static int32_t synth_AudioInit(void);
 static void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
-static void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
+//static void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -85,13 +87,13 @@ int32_t synth_IfftInit(void)
 	uint8_t FreqStr[256] = {0};
 
 	//allocate the contiguous memory area for storage image data
-	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
-	if (imageData == NULL)
-	{
-		Error_Handler();
-	}
-
-	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+//	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+//	if (imageData == NULL)
+//	{
+//		Error_Handler();
+//	}
+//
+//	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(uint16_t*));
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -271,38 +273,38 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
-{
-	static uint32_t WriteDataNbr;
-	static uint32_t CurrentPix = 0;
-	static int16_t AudioDot;
-	WriteDataNbr = 0;
-
-	while(WriteDataNbr < (NbrOfData * 2))
-	{
-		if ((CurrentPix + 1) >= (cis_GetEffectivePixelNb()))
-			CurrentPix = 0;
-		AudioDot = imageData[CurrentPix] - imageData[CurrentPix + 1];
-		audioData[WriteDataNbr] = AudioDot;
-		audioData[WriteDataNbr + 1] = AudioDot;
-		WriteDataNbr+=2;
-
-		CurrentPix++;
-
-		//		uint32_t aRandom32bit = 0;
-		//
-		//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-		//		{
-		//			/* Random number generation error */
-		//			Error_Handler();
-		//		}
-		//		audioData[WriteDataNbr] = aRandom32bit % 32768;
-		//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
-		//		WriteDataNbr+=2;
-	}
-
-	synth_process_cnt += NbrOfData;
-}
+//void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
+//{
+//	static uint32_t WriteDataNbr;
+//	static uint32_t CurrentPix = 0;
+//	static int16_t AudioDot;
+//	WriteDataNbr = 0;
+//
+//	while(WriteDataNbr < (NbrOfData * 2))
+//	{
+//		if ((CurrentPix + 1) >= (cis_GetEffectivePixelNb()))
+//			CurrentPix = 0;
+//		AudioDot = imageData[CurrentPix] - imageData[CurrentPix + 1];
+//		audioData[WriteDataNbr] = AudioDot;
+//		audioData[WriteDataNbr + 1] = AudioDot;
+//		WriteDataNbr+=2;
+//
+//		CurrentPix++;
+//
+//		//		uint32_t aRandom32bit = 0;
+//		//
+//		//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
+//		//		{
+//		//			/* Random number generation error */
+//		//			Error_Handler();
+//		//		}
+//		//		audioData[WriteDataNbr] = aRandom32bit % 32768;
+//		//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
+//		//		WriteDataNbr+=2;
+//	}
+//
+//	synth_process_cnt += NbrOfData;
+//}
 #pragma GCC pop_options
 
 /**

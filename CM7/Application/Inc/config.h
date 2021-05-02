@@ -43,35 +43,32 @@
 #define CIS_BW
 #define CIS_INVERT_COLOR
 
-#define CIS_CLK_FREQ							(5000000)
+#define CIS_CLK_FREQ							(1000000)
 
-#define CIS_SP_OFF								(2)
+#define CIS_SP_OFF								(12)
 #define CIS_LED_ON								(4)
-#define CIS_INACTIVE_AERA_START					(2)
-#define CIS_PIXEL_AERA_START					(38)
+#define CIS_INACTIVE_AERA_STOP					(48) //38
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(900)
-#define CIS_LED_GREEN_OFF						(900)
-#define CIS_LED_BLUE_OFF						(900)
+#define CIS_LED_RED_OFF							(1200)//900
+#define CIS_LED_GREEN_OFF						(1200)
+#define CIS_LED_BLUE_OFF						(1200)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
 #define CIS_LED_BLUE_OFF						(1600)
 #endif
 
-#define CIS_ACTIVE_PIXELS_PER_LINE				(576)
-#define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_PER_LINE) + (CIS_PIXEL_AERA_START))
-#define CIS_OVER_SCAN							(400)
+#define CIS_ACTIVE_PIXELS_PER_LINE				(1152) //576
+#define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_PER_LINE) + (CIS_INACTIVE_AERA_STOP))
+#define CIS_OVER_SCAN							(64)
 #define CIS_END_CAPTURE 						(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 
 #define CIS_ADC_OUT_LINES						(3)
 
-#define CIS_IFFT_OVERSAMPLING_RATIO				(6)
-#define CIS_IFFT_OVERSAMPLING_RIGHTBITSHIFT		ADC_RIGHTBITSHIFT_NONE
+#define CIS_IFFT_OVERSAMPLING_RATIO				(16)
 
-#define CIS_IMGPLY_OVERSAMPLING_RATIO			(6)
-#define CIS_IMGPLY_OVERSAMPLING_RIGHTBITSHIFT	ADC_RIGHTBITSHIFT_NONE
+#define CIS_IMGPLY_OVERSAMPLING_RATIO			(16)
 
 /**************************************************************************************/
 /********************         Wave generation definitions          ********************/
@@ -82,7 +79,7 @@
 #define SEMITONE_PER_OCTAVE 					(12)
 #define COMMA_PER_SEMITONE  					(5)
 
-#define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / CIS_IFFT_OVERSAMPLING_RATIO)
 
 #endif // __CONFIG_H__
 

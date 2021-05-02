@@ -1,8 +1,8 @@
-cis.c:73:6:cis_Init	16	static
-cis.c:146:19:cis_GetEffectivePixelNb	4	static
-cis.c:156:6:cis_Test	4	static
-cis.c:212:10:cis_GetBuffData	16	static
-cis.c:230:6:cis_ImageProcessBW	16	static
+cis.c:74:6:cis_Init	16	static
+cis.c:147:19:cis_GetEffectivePixelNb	4	static
+cis.c:157:6:cis_Test	4	static
+cis.c:213:10:cis_GetBuffData	16	static
+cis.c:229:6:cis_ImageProcessBW	56	static,ignoring_inline_asm
 cis.c:265:6:cis_ImageFilterBW	32	static
 cis.c:283:6:cis_TIM_CLK_Init	8	static
 cis.c:305:6:cis_TIM_SP_Init	8	static

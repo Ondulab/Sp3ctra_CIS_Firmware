@@ -45,7 +45,7 @@ int cisynth_ifft(void)
 	static uint32_t start_tick;
 	uint32_t latency;
 	int32_t i = 0;
-	uint32_t note = 0;
+//	uint32_t note = 0;
 
 	while (1)
 	{
@@ -88,14 +88,11 @@ int cisynth_ifft(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH)));
-			cis_color = cis_color >> 8;
-			ssd1362_drawPixel(i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color >> 5) - 1, 15, false);
+//			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 10;
+			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 10;
+			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
-			cis_color |= 0xFF000000;
-			cis_color |= cis_color << 8;
-			cis_color |= cis_color << 16;
-			ssd1362_drawVLine(i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
+			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
 
 			//			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH)));
 			//			cis_color = cis_color >> 11;
