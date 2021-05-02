@@ -49,7 +49,7 @@ void MX_TIM1_Init(void)
 	prescalerValue = (uint32_t)(((SystemCoreClock / 96) / (CIS_CLK_FREQ)) - 1);
 	counterPeriod = 48 - 1;
 	pulseValueCH2 = 24 - 1;
-	pulseValueCH1 = 4;
+	pulseValueCH1 = 3 - 1;
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -63,14 +63,14 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
   sConfigOC.Pulse = pulseValueCH1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
@@ -81,6 +81,7 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = pulseValueCH2;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
