@@ -45,12 +45,11 @@ int cisynth_ifft(void)
 	static uint32_t start_tick;
 	uint32_t latency;
 	int32_t i = 0;
-//	uint32_t note = 0;
+	//	uint32_t note = 0;
 
 	while (1)
 	{
 		start_tick = HAL_GetTick();
-//		synth_SetImageData(50, 32760); //for testing
 		while ((synth_process_cnt) < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
 		{
 			synth_AudioProcess(IFFT_MODE);
@@ -65,20 +64,20 @@ int cisynth_ifft(void)
 		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA2_Y2POS, 3, false);
 		ssd1362_drawRect(0, DISPLAY_AERA3_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA3_Y2POS, 8, false);
 
-//		if (note > cis_GetEffectivePixelNb())
-//		{
-//			note = 0;
-//		}
+		//		if (note > cis_GetEffectivePixelNb())
+		//		{
+		//			note = 0;
+		//		}
 
-//		synth_SetImageData(++note, 1000); //for testing
-//		synth_SetImageData(note - 1, 0);
+		//		synth_SetImageData(++note, 1000); //for testing
+		//		synth_SetImageData(note - 1, 0);
 
-//		synth_SetImageData(20, 1000); //for testing
-//		synth_SetImageData(85, 5700);
-//		synth_SetImageData(120, 1000); //for testing
-//		synth_SetImageData(185, 5700);
-//		synth_SetImageData(60, 100); //for testing
-//		synth_SetImageData(105, 5700);
+		//		synth_SetImageData(20, 1000); //for testing
+		//		synth_SetImageData(85, 5700);
+		//		synth_SetImageData(120, 1000); //for testing
+		//		synth_SetImageData(185, 5700);
+		//		synth_SetImageData(60, 100); //for testing
+		//		synth_SetImageData(105, 5700);
 
 		for (i = 0; i < ((DISPLAY_MAX_X_LENGTH / 2) - 1); i++)
 		{
@@ -88,8 +87,8 @@ int cisynth_ifft(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-//			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 10;
-			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 10;
+			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			//			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
 			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
 			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
