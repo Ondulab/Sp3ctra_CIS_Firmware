@@ -27,7 +27,7 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define AUDIO_BUFFER_SIZE             	(512)
+#define AUDIO_BUFFER_SIZE             	(256)
 
 /* Private typedef -----------------------------------------------------------*/
 typedef enum {
@@ -46,14 +46,11 @@ static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t synth_process_cnt = 0;
 
 /* Variable containing black and white frame from CIS*/
-//static uint16_t *imageData = NULL;
-static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
+static uint16_t *imageData = NULL;
+//static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO) - 1]; // for debug
 
 static int16_t audioBuff[AUDIO_BUFFER_SIZE] = {0};
 //ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
-
-static __IO uint32_t uwVolume = AUDIO_DEFAULT_VOLUME;
-//BSP_AUDIO_Init_t AudioPlayInit;
 
 /* Private function prototypes -----------------------------------------------*/
 static int32_t synth_AudioInit(void);
@@ -87,13 +84,13 @@ int32_t synth_IfftInit(void)
 	uint8_t FreqStr[256] = {0};
 
 	//allocate the contiguous memory area for storage image data
-//	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
-//	if (imageData == NULL)
-//	{
-//		Error_Handler();
-//	}
-//
-//	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+	if (imageData == NULL)
+	{
+		Error_Handler();
+	}
+
+	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(uint16_t*));
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 

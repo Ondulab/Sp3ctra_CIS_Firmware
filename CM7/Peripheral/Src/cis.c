@@ -32,9 +32,8 @@
 /* Private variables ---------------------------------------------------------*/
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
-//static uint16_t *cisData = NULL;
-static uint16_t cisData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
-//static uint16_t *cisBuffSommation = NULL;
+static uint16_t *cisData = NULL;
+//static uint16_t cisData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
 
 #else
 /* Definition of ADCx conversions data table size this buffer contains RGB conversion */
@@ -44,9 +43,9 @@ ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 
 static uint16_t CIS_EFFECTIVE_PIXELS	 		= 	(CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO) * CIS_ADC_OUT_LINES;
 static uint16_t CIS_EFFECTIVE_PIXELS_PER_LINE	= 	(CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO);
-static uint16_t CIS_ADC_BUFF_START_OFFSET	 	= 	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
-static uint16_t CIS_ADC_BUFF_STOP_OFFSET	 	= 	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
-static uint16_t CIS_ADC_BUFF_END_CAPTURE 		= 	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
+static uint16_t CIS_ADC_BUFF_START_OFFSET	 	= 	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
+static uint16_t CIS_ADC_BUFF_STOP_OFFSET	 	= 	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
+static uint16_t CIS_ADC_BUFF_END_CAPTURE 		= 	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO);
 static uint16_t CIS_ADC_BUFF_SIZE 	 	 		= 	((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO);
 
 CIS_BUFF_StateTypeDef  cisBufferState[3] = {0};
@@ -76,45 +75,49 @@ void cis_Init(synthModeTypeDef mode)
 	if (mode == IFFT_MODE)
 	{
 		CIS_EFFECTIVE_PIXELS_PER_LINE	=	CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
-		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
-		CIS_ADC_BUFF_END_CAPTURE 		=	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO) - 1;
+		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_END_CAPTURE 		=	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO);
 	}
 	else
 	{
 		CIS_EFFECTIVE_PIXELS_PER_LINE	=	CIS_ACTIVE_PIXELS_PER_LINE / CIS_IMGPLY_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO) - 1;
-		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO) -1;
-		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IMGPLY_OVERSAMPLING_RATIO - 1;
+		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO);
+		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IMGPLY_OVERSAMPLING_RATIO;
 	}
 
 	//allocate the contiguous memory area for storage cis data
-//	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint16_t*));
-//	if (cisData == NULL)
-//	{
-//		Error_Handler();
-//	}
+	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint16_t));
+	if (cisData == NULL)
+	{
+		Error_Handler();
+	}
 
-//	memset(cisData, 0, CIS_ADC_BUFF_SIZE * 2 * sizeof(uint16_t*)); //clear image
+	memset(cisData, 0, CIS_ADC_BUFF_SIZE * sizeof(uint16_t)); //clear image
 
+#ifdef CIS_400DPI
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); //SET : 200DPI   RESET : 400DPI
+#else
+	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); //SET : 200DPI   RESET : 400DPI
+#endif
 
 	cis_ADC_Init(mode);
 	cis_TIM_SP_Init();
 	cis_TIM_LED_R_Init();
 	cis_TIM_LED_G_Init();
 	cis_TIM_LED_B_Init();
-	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, CIS_ADC_BUFF_END_CAPTURE + 1) != HAL_OK)
+	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, CIS_ADC_BUFF_END_CAPTURE) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	if (HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[CIS_ADC_BUFF_END_CAPTURE], CIS_ADC_BUFF_END_CAPTURE + 1) != HAL_OK)
+	if (HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[CIS_ADC_BUFF_END_CAPTURE], CIS_ADC_BUFF_END_CAPTURE) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	if (HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[CIS_ADC_BUFF_END_CAPTURE * 2], CIS_ADC_BUFF_END_CAPTURE + 1) != HAL_OK)
+	if (HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[CIS_ADC_BUFF_END_CAPTURE * 2], CIS_ADC_BUFF_END_CAPTURE) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -230,30 +233,32 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 {
 	for (int32_t line = (CIS_ADC_OUT_LINES); --line >= 0;)
 	{
-//	int32_t line = 0;
-		uint32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) / 2;
-		uint32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
-
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_HALF)
 		{
+			uint32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
+			uint32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
+
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset] , CIS_ADC_BUFF_END_CAPTURE);
-			arm_copy_q15((int16_t*)&cisData[dataOffset + CIS_ADC_BUFF_START_OFFSET], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE);
+			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
-//			cis_ImageFilterBW(cis_buff);
+			cis_ImageFilterBW(&cis_buff[imageOffset]);
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_FULL)
 		{
+			uint32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			uint32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset + (CIS_ADC_BUFF_END_CAPTURE / 2)], CIS_ADC_BUFF_END_CAPTURE);
-			arm_copy_q15((int16_t*)&cisData[dataOffset + CIS_ADC_BUFF_START_OFFSET + (CIS_ADC_BUFF_END_CAPTURE / 2)], (int16_t*)&cis_buff[imageOffset + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2)], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE);
+			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
-//			cis_ImageFilterBW(cis_buff);
+			cis_ImageFilterBW(&cis_buff[imageOffset]);
 		}
 	}
 }
@@ -265,12 +270,15 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
  */
 void cis_ImageFilterBW(uint16_t *cis_buff)
 {
-	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS; i++)
+	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_PER_LINE / 2; i++)
 	{
 #ifdef CIS_INVERT_COLOR
+		cis_buff[i] = (double)(65535 - cis_buff[i]);
+#endif
+#ifdef CIS_INVERT_COLOR_SMOOTH
 		cis_buff[i] = (double)(65535 - cis_buff[i]) * (pow(10.00, ((double)(65535 - cis_buff[i]) / 65535.00)) / 10.00); //sensibility filer generate some glitchs
-
-#else
+#endif
+#ifdef CIS_NORMAL_COLOR_SMOOTH
 		cis_buff[i] = (double)(cis_buff[i]) * (pow(10.00, ((double)(cis_buff[i]) / 65535.00)) / 10.00);
 #endif
 	}
