@@ -24,7 +24,7 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-uint8_t frameBuffer[(SSD1362_HEIGHT * SSD1362_WIDTH) / 2];   // Should mirror the display's own frameBuffer.
+uint8_t frameBuffer[SSD1362_HEIGHT * SSD1362_WIDTH];   // Should mirror the display's own frameBuffer.
 uint8_t changedPixels[2048]; // Each bit of this array represets whether a given byte of frameBuffer (e.g. a pair of pixels) is not up to date.
 
 /* Private function prototypes -----------------------------------------------*/
@@ -238,6 +238,40 @@ void ssd1362_drawChar32(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color)
 	}
 }
 
+/**************************************************************************/
+/*
+ Procedure to use ssd1306DrawBmp function :
+
+ - make your picture with gimp
+ - save to Bitmap file
+ - open Image2LCD
+ - chose into Scan Mode box => Data hor, Bite ver
+ - chose into BitsPixel box => monochrome
+ - check => Antitone pixel in byte
+ - uncheck the rest
+ - select => chose normal
+ - chose into Output file type box => C array (*C)
+ - save
+ - open the file with SublimeText => select all => copy
+ - paste in pictures_bmp.h
+ */
+/**************************************************************************/
+void ssd1362_drawBmp(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color, bool display)
+{
+	uint16_t i, j;
+
+	for (j = 0; j < h; j++)
+	{
+		for (i = 0; i < w; i++)
+		{
+			if (bitmap[i + (j / 8) * w] & 1 << (j % 8))
+			{
+				ssd1362_drawPixel(x + i, y + j, color, display);
+			}
+		}
+	}
+}
+
 //gradient test pattern
 void ssd1362_fillStripes(uint8_t offset)
 {
@@ -354,6 +388,10 @@ void ssd1362_setContrast(uint8_t contrast)
 //Sends all the boilerplate startup and config commands to the driver
 void ssd1362_init()
 {
+	// Enable 12V power DC/DC for CIS
+	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
+    HAL_Delay(100);
+
     // Reset OLED
     ssd1362_Reset();
 

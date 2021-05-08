@@ -20,6 +20,8 @@
 
 #include "synth.h"
 #include "cis.h"
+#include "ssd1362.h"
+#include "menu.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -72,6 +74,9 @@ void cis_ImageFilterBW(uint16_t *cis_buff);
  */
 void cis_Init(synthModeTypeDef mode)
 {
+	// Enable 5V power DC/DC for display
+	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+
 	if (mode == IFFT_MODE)
 	{
 		CIS_EFFECTIVE_PIXELS_PER_LINE	=	CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO;
@@ -153,59 +158,13 @@ __inline uint16_t cis_GetEffectivePixelNb(void)
 }
 
 /**
- * @brief  CIS test
+ * @brief  CIS calibration
  * @param  Void
  * @retval None
  */
-void cis_Test(void)
+void cis_Calibration(void)
 {
-	//	uint32_t j = 0;
-	//	uint32_t x_size = 0;
-	//	uint32_t y_size = 0;
-	//	uint32_t color = 0;
-	//
-	//	//	BSP_LCD_GetXSize(0, &x_size);
-	//	//	BSP_LCD_GetYSize(0, &y_size);
-	//
-	//	while(1)
-	//	{
-	//		/* 1st half buffer played; so fill it and continue playing from bottom*/
-	//		if(cisBufferState[] == CIS_BUFFER_OFFSET_HALF)
-	//		{
-	//			cisBufferState[] = CIS_BUFFER_OFFSET_NONE;
-	//			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-	//			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[0], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
-	//		}
-	//
-	//		/* 2nd half buffer played; so fill it and continue playing from top */
-	//		if(cisBufferState[] == CIS_BUFFER_OFFSET_FULL)
-	//		{
-	//			cisBufferState[] = CIS_BUFFER_OFFSET_NONE;
-	//			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-	//			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[ADC_CONVERTED_DATA_BUFFER_SIZE/2], ADC_CONVERTED_DATA_BUFFER_SIZE/2);
-	//			for (uint32_t i = 0; i < x_size; i++)
-	//			{
-	//#ifdef CIS_BW
-	//				color = color >> 8;
-	//				color |= 0xFF000000;
-	//				color |= color << 8;
-	//				color |= color << 16;
-	//				//				GUI_SetPixel(i, j + 24, color);
-	//#else
-	//				color = 0xFF000000;
-	//				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_PIXEL_AERA_START) << 16;
-	//				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + CIS_ADC_BUFF_END_CAPTURE + CIS_ADC_BUFF_PIXEL_AERA_START) << 8;
-	//				color |= cis_GetBuffData((i * (CIS_EFFECTIVE_PIXELS_NB/x_size)) + (CIS_ADC_BUFF_END_CAPTURE * 2) + CIS_ADC_BUFF_PIXEL_AERA_START);
-	//				GUI_SetPixel(i, j + 24, color);
-	//#endif
-	//			}
-	//			j++;
-	//			if (j >= (y_size - 24))
-	//			{
-	//				j = 0;
-	//			}
-	//		}
-	//	}
+
 }
 
 /**
@@ -444,5 +403,31 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	}
 }
 
+/**
+ * @brief  CIS test
+ * @param  Void
+ * @retval None
+ */
+void cis_Test(void)
+{
+	uint32_t cis_color = 0;
+	uint32_t i = 0;
 
+	while (1)
+	{
+		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA2_Y2POS, 3, false);
+		ssd1362_drawRect(0, DISPLAY_AERA3_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA3_Y2POS, 8, false);
 
+		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
+		{
+			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
+
+			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
+		}
+		ssd1362_drawRect(200, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
+		ssd1362_writeFullBuffer();
+
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+	}
+}

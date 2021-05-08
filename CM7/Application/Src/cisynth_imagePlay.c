@@ -32,7 +32,6 @@ int cisynth_imagePlay(void)
 
 	cisynth_imagePlay_SetHint();
 	cis_Init(PLAY_MODE);
-	synth_PlayInit();
 
 //	GUI_SetBackColor(GUI_COLOR_DARKRED);
 
