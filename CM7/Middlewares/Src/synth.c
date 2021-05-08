@@ -21,22 +21,16 @@
 #include "wave_generation.h"
 #include "synth.h"
 #include "ssd1362.h"
+#include "menu.h"
+#include "pcm5102.h"
 
 /* Private includes ----------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define AUDIO_BUFFER_SIZE             	(256)
 
 /* Private typedef -----------------------------------------------------------*/
-typedef enum {
-	AUDIO_BUFFER_OFFSET_NONE = 0,
-	AUDIO_BUFFER_OFFSET_HALF,
-	AUDIO_BUFFER_OFFSET_FULL,
-}BUFFER_AUDIO_StateTypeDef;
-
-BUFFER_AUDIO_StateTypeDef bufferAudioState;
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -44,33 +38,17 @@ BUFFER_AUDIO_StateTypeDef bufferAudioState;
 static int16_t *unitary_waveform = NULL;
 static struct wave waves[NUMBER_OF_NOTES];
 volatile uint32_t synth_process_cnt = 0;
+static int16_t* half_audio_ptr;
+static int16_t* full_audio_ptr;
 
 /* Variable containing black and white frame from CIS*/
 static uint16_t *imageData = NULL;
 //static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO) - 1]; // for debug
 
-static int16_t audioBuff[AUDIO_BUFFER_SIZE] = {0};
-//ALIGN_32BYTES (static AUDIO_BufferTypeDef  buffer_ctl) = {0};
-
 /* Private function prototypes -----------------------------------------------*/
-static int32_t synth_AudioInit(void);
 static void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
-//static void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 
 /* Private user code ---------------------------------------------------------*/
-
-/**
- * @brief  synth play init.
- * @param
- * @retval Error
- */
-int32_t synth_PlayInit(void)
-{
-	if (synth_AudioInit() == 0)
-		return 0;
-	else
-		return -1;
-}
 
 /**
  * @brief  synth ifft init.
@@ -115,52 +93,31 @@ int32_t synth_IfftInit(void)
 	printf("Buffer lengh = %d\n", (int)buffer_len);
 
 #ifdef PRINT_FREQUENCY
-	ssd1362_drawRect(0, 57, 256, 64, 5, false);
+	ssd1362_drawRect(0, 57, 256, 64, 8, false);
 	sprintf((char *)FreqStr, "%dHz Sz%d Oc%d", (int)waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
 	ssd1362_drawString(0, 57, (int8_t*)FreqStr, 0, 8);
 	sprintf((char *)FreqStr, "%dHz Sz%d Oc%d", (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
 	ssd1362_drawString(128, 57, (int8_t*)FreqStr, 0, 8);
-	ssd1362_writeFullBuffer();
 
-	//	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
-	//	{
-	//		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave_coeff);
-	//		HAL_Delay(10);
-	//		//		uint16_t output = 0;
-	//		//		for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
-	//		//		{
-	//		//			output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
-	//		//			printf("%d\n", output);
-	//		//		}
-	//		//				HAL_Delay(1);
-	//	}
-	//	printf("---- END ----");
+	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
+	{
+		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave_coeff);
+		//					uint16_t output = 0;
+		//					for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
+		//					{
+		//						output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
+		//						printf("%d\n", output);
+		//					}
+	}
+	printf("---- END ----\n");
 #endif
 
-	if (synth_AudioInit() == 0)
-		return 0;
-	else
-		return -1;
-}
+	cis_Init(IFFT_MODE);
+	pcm5102_Init();
+	half_audio_ptr = pcm5102_GetDataPtr(0);
+	full_audio_ptr = pcm5102_GetDataPtr(AUDIO_BUFFER_SIZE / 2);
 
-int32_t synth_AudioInit(void)
-{
-	bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
-	HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)&audioBuff[0], AUDIO_BUFFER_SIZE);
-
-	return -1;
-}
-
-/**
- * @brief  Get RFFT buffer data
- * @param  Index
- * @retval Value
- */
-int16_t synth_GetAudioData(uint32_t index)
-{
-	//	if (index >= RFFT_BUFFER_SIZE)
-	//		Error_Handler();
-	return audioBuff[index];
+	return 0;
 }
 
 /**
@@ -264,47 +221,6 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 #pragma GCC pop_options
 
 /**
- * @brief  Period elapsed callback in non blocking mode
- * @param  htim : TIM handle
- * @retval None
- */
-#pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
-//void synth_PlayMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
-//{
-//	static uint32_t WriteDataNbr;
-//	static uint32_t CurrentPix = 0;
-//	static int16_t AudioDot;
-//	WriteDataNbr = 0;
-//
-//	while(WriteDataNbr < (NbrOfData * 2))
-//	{
-//		if ((CurrentPix + 1) >= (cis_GetEffectivePixelNb()))
-//			CurrentPix = 0;
-//		AudioDot = imageData[CurrentPix] - imageData[CurrentPix + 1];
-//		audioData[WriteDataNbr] = AudioDot;
-//		audioData[WriteDataNbr + 1] = AudioDot;
-//		WriteDataNbr+=2;
-//
-//		CurrentPix++;
-//
-//		//		uint32_t aRandom32bit = 0;
-//		//
-//		//		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-//		//		{
-//		//			/* Random number generation error */
-//		//			Error_Handler();
-//		//		}
-//		//		audioData[WriteDataNbr] = aRandom32bit % 32768;
-//		//		audioData[WriteDataNbr + 1] = aRandom32bit % 32768;
-//		//		WriteDataNbr+=2;
-//	}
-//
-//	synth_process_cnt += NbrOfData;
-//}
-#pragma GCC pop_options
-
-/**
  * @brief  Manages Audio process.
  * @param  None
  * @retval Audio error
@@ -334,57 +250,94 @@ void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 void synth_AudioProcess(synthModeTypeDef mode)
 {
 	/* 1st half buffer played; so fill it and continue playing from bottom*/
-	if(bufferAudioState == AUDIO_BUFFER_OFFSET_HALF)
+	if(*pcm5102_GetBufferState() == AUDIO_BUFFER_OFFSET_HALF)
 	{
-		bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
+		pcm5102_ResetBufferState();
 		cis_ImageProcessBW(imageData);
-		if (mode == IFFT_MODE)
-			synth_IfftMode(imageData, &audioBuff[0], AUDIO_BUFFER_SIZE / 2);
-		//			else
-		//				synth_PlayMode(imageData, (int16_t*)&audioBuff[0], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-		/* Clean Data Cache to update the content of the SRAM */
-		SCB_CleanDCache_by_Addr((uint32_t *)&audioBuff[0], AUDIO_BUFFER_SIZE);
+		synth_IfftMode(imageData, half_audio_ptr, AUDIO_BUFFER_SIZE / 2);
+		SCB_CleanDCache_by_Addr((uint32_t *)half_audio_ptr, AUDIO_BUFFER_SIZE);
 	}
 
 	/* 2nd half buffer played; so fill it and continue playing from top */
-	if(bufferAudioState == AUDIO_BUFFER_OFFSET_FULL)
+	if(*pcm5102_GetBufferState() == AUDIO_BUFFER_OFFSET_FULL)
 	{
-		bufferAudioState = AUDIO_BUFFER_OFFSET_NONE;
+		pcm5102_ResetBufferState();
 		cis_ImageProcessBW(imageData);
-		if (mode == IFFT_MODE)
-			synth_IfftMode(imageData, &audioBuff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE / 2);
-		//			else
-		//				synth_PlayMode(imageData, (int16_t*)&audioBuff[AUDIO_QUARTER_BUFFER_SIZE / 2], (AUDIO_QUARTER_BUFFER_SIZE / 2));
-		/* Clean Data Cache to update the content of the SRAM */
-		SCB_CleanDCache_by_Addr((uint32_t *)&audioBuff[AUDIO_BUFFER_SIZE / 2], AUDIO_BUFFER_SIZE);
-	}
-	return;
-}
-
-void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai_BlockA1)
-{
-	if(hsai_BlockA1->Instance==SAI1_Block_A)
-	{
-		bufferAudioState = AUDIO_BUFFER_OFFSET_HALF;
-	}
-}
-
-void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai_BlockA1)
-{
-	if(hsai_BlockA1->Instance==SAI1_Block_A)
-	{
-		/* allows AUDIO_Process() to refill 2nd part of the buffer  */
-		bufferAudioState = AUDIO_BUFFER_OFFSET_FULL;
+		synth_IfftMode(imageData, full_audio_ptr, AUDIO_BUFFER_SIZE / 2);
+		SCB_CleanDCache_by_Addr((uint32_t *)full_audio_ptr, AUDIO_BUFFER_SIZE);
 	}
 }
 
 /**
- * @brief  Manages the DMA FIFO error event.
- * @param  None
- * @retval None
+ * @brief  synth ifft test without CIS
+ * @param  void
+ * @retval void
  */
-void BSP_AUDIO_OUT_Error_CallBack(uint32_t Interface)
+void synth_Test(void)
 {
-	/* could also generate a system reset to recover from the error */
-	/* .... */
+	uint8_t FreqStr[256] = {0};
+	uint32_t cis_color = 0;
+
+	printf("Start BW ifft test mode \n");
+
+	pcm5102_Init();
+	synth_IfftInit();
+
+	/* Infinite loop */
+	static uint32_t start_tick;
+	uint32_t latency;
+	int32_t i = 0;
+
+	while (1)
+	{
+		start_tick = HAL_GetTick();
+		while ((synth_process_cnt) < (SAMPLING_FREQUENCY / DISPLAY_REFRESH_FPS))
+		{
+			synth_AudioProcess(IFFT_MODE);
+		}
+
+		static uint32_t note = 0;
+		if (note > cis_GetEffectivePixelNb())
+		{
+			note = 0;
+		}
+
+		synth_SetImageData(++note, 10000); //for testing
+		synth_SetImageData(note - 1, 0);
+
+		//	synth_SetImageData(20, 1000); //for testing
+		//	synth_SetImageData(85, 5700);
+		//	synth_SetImageData(120, 1000); //for testing
+		//	synth_SetImageData(185, 5700);
+		//	synth_SetImageData(60, 100); //for testing
+		//	synth_SetImageData(105, 5700);
+
+		latency = HAL_GetTick() - start_tick;
+		sprintf((char *)FreqStr, "%dHz", (int)((synth_process_cnt * 1000) / latency));
+		synth_process_cnt = 0;
+
+		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH / 2 - 1, DISPLAY_AERA1_Y2POS, 3, false);
+		ssd1362_drawRect(DISPLAY_MAX_X_LENGTH / 2 + 1, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS, 4, false);
+		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA2_Y2POS, 3, false);
+		ssd1362_drawRect(0, DISPLAY_AERA3_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA3_Y2POS, 8, false);
+
+		for (i = 0; i < ((DISPLAY_MAX_X_LENGTH / 2) - 1); i++)
+		{
+			ssd1362_drawPixel(i, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + (pcm5102_GetAudioData(i * 2) / 4096) - 1, 10, false);
+			ssd1362_drawPixel(i + (DISPLAY_MAX_X_LENGTH / 2) + 1, DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2) + (pcm5102_GetAudioData(i * 2 + 1) / 4096) - 1, 10, false);
+		}
+
+		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
+		{
+			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
+
+			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
+		}
+		ssd1362_drawRect(200, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
+		ssd1362_drawString(200, 1, (int8_t*)FreqStr, 15, 8);
+		ssd1362_writeFullBuffer();
+
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+	}
 }

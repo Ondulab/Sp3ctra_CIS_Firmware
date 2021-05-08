@@ -54,7 +54,9 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Core/Inc/arm_math.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
  /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h \
- /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h \
+ /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h
 
 ../../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h:
 
@@ -167,3 +169,7 @@ Peripheral/Src/cis.o: ../Peripheral/Src/cis.c \
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Middlewares/Inc/synth.h:
 
 /home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/cis.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Peripheral/Inc/ssd1362.h:
+
+/home/zhonx/Documents/Workspace_Cube2/SSS_CIS/CM7/Application/Inc/menu.h:

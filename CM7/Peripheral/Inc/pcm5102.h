@@ -14,12 +14,16 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
+#include "config.h"
 
 /* Private includes ----------------------------------------------------------*/
 
 /* Exported types ------------------------------------------------------------*/
-extern DMA_HandleTypeDef hdma_sai1_a;
-extern SAI_HandleTypeDef hsai_BlockA1;
+typedef enum {
+	AUDIO_BUFFER_OFFSET_NONE = 0,
+	AUDIO_BUFFER_OFFSET_HALF,
+	AUDIO_BUFFER_OFFSET_FULL,
+}BUFFER_AUDIO_StateTypeDef;
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -27,8 +31,13 @@ extern SAI_HandleTypeDef hsai_BlockA1;
 
 /* Exported functions prototypes ---------------------------------------------*/
 void pcm5102_Init(void);
-void Audio_Player_Play(uint8_t* pBuffer, uint32_t Size);
-void Audio_Player_Stop(void);
+void pcm5102_AudioPause(void);
+void pcm5102_AudioResume(void);
+void pcm5102_AudioStop(void);
+int16_t pcm5102_GetAudioData(uint32_t index);
+int16_t * pcm5102_GetDataPtr(uint32_t idx);
+BUFFER_AUDIO_StateTypeDef * pcm5102_GetBufferState(void);
+void pcm5102_ResetBufferState(void);
 
 /* Private defines -----------------------------------------------------------*/
 

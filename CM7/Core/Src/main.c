@@ -19,10 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "adc.h"
 #include "crc.h"
 #include "dma.h"
-#include "lwip.h"
 #include "rng.h"
 #include "sai.h"
 #include "spi.h"
@@ -32,16 +30,19 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "ssd1362.h"
-#include "icm20602.h"
 #include "stdlib.h"
 #include "stdio.h"
-#include "pcm5102.h"
-#include "cisynth_ifft.h"
 
 #include "lwip/udp.h"
 #include <string.h>
 #include "lwiperf.h"
+
+#include "ssd1362.h"
+#include "pictures.h"
+#include "icm20602.h"
+#include "pcm5102.h"
+#include "cisynth_ifft.h"
+#include "eeprom.h"
 
 /* USER CODE END Includes */
 
@@ -66,7 +67,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+/* Virtual address defined by the user: 0xFFFF value is prohibited */
+uint16_t VirtAddVarTab[NB_OF_VAR] = {0x5555, 0x6666, 0x7777};
+uint16_t VarDataTab[NB_OF_VAR] = {0, 0, 0};
+uint16_t VarValue,VarDataTmp = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -147,54 +151,62 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_ADC2_Init();
-  MX_ADC3_Init();
   MX_FMC_Init();
   MX_SAI1_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_RNG_Init();
   MX_CRC_Init();
-  MX_LWIP_Init();
   /* USER CODE BEGIN 2 */
-	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+
+	/* Unlock the Flash Program Erase controller */
+	HAL_FLASH_Unlock();
+
+	/* EEPROM Init */
+	if( EE_Init() != EE_OK)
+	{
+		Error_Handler();
+	}
+
+	ssd1362_init();
+	ssd1362_clearBuffer();
+	ssd1362_writeFullBuffer();
+
+	for (uint8_t i = 0; i < 16; i++)
+	{
+		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
+		HAL_Delay(30);
+	}
+
+	MX_LWIP_Init();
+
+	//	/* Store 0x2000 values of Variable2 in EEPROM */
+	//	for (VarValue = 1; VarValue <= 0x2000; VarValue++)
+	//	{
+	//		if(EE_WriteVariable(VirtAddVarTab[1], VarValue) != HAL_OK)
+	//		{
+	//			Error_Handler();
+	//		}
+	//
+	//		if(EE_ReadVariable(VirtAddVarTab[1], &VarDataTab[1]) != HAL_OK)
+	//		{
+	//			Error_Handler();
+	//		}
+	//
+	//		if(VarValue != VarDataTab[1])
+	//		{
+	//			Error_Handler();
+	//		}
+	//	}
+
+	cisynth_ifft();
 
 	//  int8_t timeText[] = {'1', '2', ':', '3', '5'};
 	//  uint32_t framecount = 0;
 
-	ssd1362_init();
-
-	ssd1362_clearBuffer();
-	ssd1362_drawHLine(0, 5, 256,0xF, 0);
-	ssd1362_drawHLine(0, 40, 256,0xF, 0);
-	ssd1362_drawString(16, 15, (int8_t *)"Hello Spectral Sound Scanner", 0xF, 16);
-	ssd1362_writeFullBuffer();
-
-	cisynth_ifft();  //while(1)
-
-
-
-	uint32_t aRandom32bit = 0;
-	uint8_t buff[10000];
-
-	for (uint32_t i = 0; i < 10000; i++)
-	{
-		if (HAL_RNG_GenerateRandomNumber(&hrng, &aRandom32bit) != HAL_OK)
-		{
-			/* Random number generation error */
-			Error_Handler();
-		}
-		buff[i] = aRandom32bit;
-	}
-
-	Audio_Player_Play(buff, 10000);
-
 	//  HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 	icm20602_init();
 	int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
-
 
 	const char* message = "Hello UDP message!\n\r";
 
@@ -207,9 +219,7 @@ int main(void)
 
 	SCB_CleanInvalidateDCache();
 
-
 	lwiperf_start_tcp_server_default(NULL, NULL); // TCP Perf = iperf -c 192.168.1.1 -i1 -t60 -u -b 1000M UDP Perf = iperf -c 192.168.1.1 -i1 -t60
-
 
   /* USER CODE END 2 */
 
@@ -356,6 +366,14 @@ void MPU_Config(void)
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
   MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.BaseAddress = ADDR_FLASH_SECTOR_6_BANK2;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */

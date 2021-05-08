@@ -161,6 +161,7 @@
 "Middlewares/Third_Party/LwIP/zepif.o"
 "Peripheral/Src/buttons.o"
 "Peripheral/Src/cis.o"
+"Peripheral/Src/eeprom.o"
 "Peripheral/Src/icm20602.o"
 "Peripheral/Src/pcm5102.o"
 "Peripheral/Src/ssd1362.o"

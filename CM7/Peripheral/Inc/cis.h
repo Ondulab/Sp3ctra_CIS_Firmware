@@ -36,8 +36,9 @@ typedef enum
 
 void cis_Init(synthModeTypeDef mode);
 uint16_t cis_GetEffectivePixelNb(void);
-void cis_Test(void);
+void cis_Calibration(void);
 uint16_t cis_GetBuffData(uint32_t index);
 void cis_ImageProcessBW(uint16_t *cis_buff);
+void cis_Test(void);
 
 #endif /* __CIS_H__ */
