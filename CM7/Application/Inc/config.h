@@ -22,19 +22,21 @@
 #define ADDR_FLASH_SECTOR_7_BANK1     ((uint32_t)0x080E0000) /* Base @ of Sector 7, 128 Kbytes */
 
 /* Base address of the Flash sectors Bank 2 */
-#define ADDR_FLASH_SECTOR_0_BANK2     ((uint32_t)0x08100000) /* Base @ of Sector 0, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_1_BANK2     ((uint32_t)0x08120000) /* Base @ of Sector 1, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_2_BANK2     ((uint32_t)0x08140000) /* Base @ of Sector 2, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_3_BANK2     ((uint32_t)0x08160000) /* Base @ of Sector 3, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_4_BANK2     ((uint32_t)0x08180000) /* Base @ of Sector 4, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_5_BANK2     ((uint32_t)0x081A0000) /* Base @ of Sector 5, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_6_BANK2     ((uint32_t)0x081C0000) /* Base @ of Sector 6, 128 Kbytes */
-#define ADDR_FLASH_SECTOR_7_BANK2     ((uint32_t)0x081E0000) /* Base @ of Sector 7, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_0_BANK2     ((uint32_t)0x08100000) /* Base @ of Sector 8, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_1_BANK2     ((uint32_t)0x08120000) /* Base @ of Sector 9, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_2_BANK2     ((uint32_t)0x08140000) /* Base @ of Sector 10, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_3_BANK2     ((uint32_t)0x08160000) /* Base @ of Sector 11, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_4_BANK2     ((uint32_t)0x08180000) /* Base @ of Sector 12, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_5_BANK2     ((uint32_t)0x081A0000) /* Base @ of Sector 13, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_6_BANK2     ((uint32_t)0x081C0000) /* Base @ of Sector 14, 128 Kbytes */
+#define ADDR_FLASH_SECTOR_7_BANK2     ((uint32_t)0x081E0000) /* Base @ of Sector 15, 128 Kbytes */
 
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-#define PRINT_FREQUENCY
+//#define PRINT_IFFT_FREQUENCY
+//#define PRINT_IFFT_FREQUENCY_FULL
+//#define PRINT_CIS_CALIBRATION
 
 /**************************************************************************************/
 /********************             Display definitions              ********************/
@@ -64,22 +66,23 @@
 //#define CIS_400DPI
 #define CIS_BW
 //#define CIS_INVERT_COLOR
-//#define CIS_INVERT_COLOR_SMOOTH
+#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
 #define CIS_CLK_FREQ							(5000000)
 
+#define CIS_READ_OFFSET_CORRECTION				(4)
 #define CIS_SP_WIDTH							(2)
-#define CIS_SP_ON								(10)
-#define CIS_SP_OFF								(CIS_SP_ON + CIS_SP_WIDTH)
+#define CIS_SP_ON								(CIS_SP_OFF - CIS_SP_WIDTH)
+#define CIS_SP_OFF								(10 - CIS_READ_OFFSET_CORRECTION)
 #define CIS_LED_ON								(CIS_SP_OFF + 4)
-#define CIS_INACTIVE_WIDTH						(38)
-#define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_ON)
+#define CIS_INACTIVE_WIDTH						(38 + CIS_READ_OFFSET_CORRECTION)
+#define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_OFF)
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(1200)//900
-#define CIS_LED_GREEN_OFF						(1200)
-#define CIS_LED_BLUE_OFF						(1200)
+#define CIS_LED_RED_OFF							(300)//900
+#define CIS_LED_GREEN_OFF						(300)
+#define CIS_LED_BLUE_OFF						(300)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)

@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    EEPROM/EEPROM_Emulation/src/eeprom.c 
+  * @file    EEPROM/EEPROM_Emulation/src/eeprom.c
   * @author  MCD Application Team
   * @brief   This file provides all the EEPROM emulation firmware functions.
   ******************************************************************************
@@ -15,11 +15,11 @@
   *                             www.st.com/SLA0044
   *
   ******************************************************************************
-  */ 
+  */
 
 /** @addtogroup EEPROM_Emulation
   * @{
-  */ 
+  */
 
 /* Includes ------------------------------------------------------------------*/
 #include "eeprom.h"
@@ -61,7 +61,7 @@ uint16_t EE_Init(void)
   uint32_t SectorError = 0;
   FLASH_EraseInitTypeDef pEraseInit;
   uint32_t valid[8] = {0x0000};
- 
+
   /* Get Page0 status */
   PageStatus0 = (*(__IO uint16_t*)PAGE0_BASE_ADDRESS);
   /* Get Page1 status */
@@ -72,7 +72,7 @@ uint16_t EE_Init(void)
   pEraseInit.Sector = PAGE0_ID;
   pEraseInit.NbSectors = 1;
   pEraseInit.VoltageRange = VOLTAGE_RANGE;
-  
+
   /* Check for invalid header states and repair if necessary */
   switch (PageStatus0)
   {
@@ -94,7 +94,7 @@ uint16_t EE_Init(void)
       {
         /* Erase Page0 */
         if(!EE_VerifyPageFullyErased(PAGE0_BASE_ADDRESS))
-        { 
+        {
           FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
           /* If erase operation was failed, a Flash error code is returned */
           if (FlashStatus != HAL_OK)
@@ -152,7 +152,7 @@ uint16_t EE_Init(void)
         }
         /* Mark Page0 as valid */
         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, PAGE0_BASE_ADDRESS, ((uint32_t)valid));
-     
+
         /* If program operation was failed, a Flash error code is returned */
         if (FlashStatus != HAL_OK)
         {
@@ -164,7 +164,7 @@ uint16_t EE_Init(void)
         pEraseInit.VoltageRange = VOLTAGE_RANGE;
         /* Erase Page1 */
         if(!EE_VerifyPageFullyErased(PAGE1_BASE_ADDRESS))
-        { 
+        {
           FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
           /* If erase operation was failed, a Flash error code is returned */
           if (FlashStatus != HAL_OK)
@@ -181,7 +181,7 @@ uint16_t EE_Init(void)
         pEraseInit.VoltageRange = VOLTAGE_RANGE;
         /* Erase Page1 */
         if(!EE_VerifyPageFullyErased(PAGE1_BASE_ADDRESS))
-        { 
+        {
           FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
           /* If erase operation was failed, a Flash error code is returned */
           if (FlashStatus != HAL_OK)
@@ -228,7 +228,7 @@ uint16_t EE_Init(void)
         pEraseInit.VoltageRange = VOLTAGE_RANGE;
         /* Erase Page1 */
         if(!EE_VerifyPageFullyErased(PAGE1_BASE_ADDRESS))
-        { 
+        {
           FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
           /* If erase operation was failed, a Flash error code is returned */
           if (FlashStatus != HAL_OK)
@@ -263,7 +263,7 @@ uint16_t EE_Init(void)
             }
           }
         }
-        /* Mark Page1 as valid */         
+        /* Mark Page1 as valid */
         FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, PAGE1_BASE_ADDRESS, ((uint32_t)valid));
 
         /* If program operation was failed, a Flash error code is returned */
@@ -277,7 +277,7 @@ uint16_t EE_Init(void)
         pEraseInit.VoltageRange = VOLTAGE_RANGE;
         /* Erase Page0 */
         if(!EE_VerifyPageFullyErased(PAGE0_BASE_ADDRESS))
-        { 
+        {
           FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
           /* If erase operation was failed, a Flash error code is returned */
           if (FlashStatus != HAL_OK)
@@ -316,7 +316,7 @@ uint16_t EE_VerifyPageFullyErased(uint32_t Address)
 {
   uint32_t ReadStatus = 1;
   uint16_t AddressValue = 0x5555;
-    
+
   /* Check each active page address starting from end */
   while (Address <= PAGE0_END_ADDRESS)
   {
@@ -326,7 +326,7 @@ uint16_t EE_VerifyPageFullyErased(uint32_t Address)
     /* Compare the read address with the virtual address */
     if (AddressValue != ERASED)
     {
-      
+
       /* In case variable value is read, reset ReadStatus flag */
       ReadStatus = 0;
 
@@ -335,7 +335,7 @@ uint16_t EE_VerifyPageFullyErased(uint32_t Address)
     /* Next address location */
     Address = Address + 4;
   }
-  
+
   /* Return ReadStatus value: (0: Page not erased, 1: Sector erased) */
   return ReadStatus;
 }
@@ -400,7 +400,7 @@ uint16_t EE_ReadVariable(uint16_t VirtAddress, uint16_t* Data)
 }
 
 /**
-  * @brief  Writes/upadtes variable data in EEPROM.
+  * @brief  Writes/updates variable data in EEPROM.
   * @param  VirtAddress: Variable virtual address
   * @param  Data: 16 bit data to be written
   * @retval Success or error status:
@@ -412,7 +412,7 @@ uint16_t EE_ReadVariable(uint16_t VirtAddress, uint16_t* Data)
 uint16_t EE_WriteVariable(uint16_t VirtAddress, uint16_t Data)
 {
   uint16_t Status = 0;
-  
+
   /* Write the variable virtual address and value in the EEPROM */
   Status = EE_VerifyPageFullWriteVariable(VirtAddress, Data);
 
@@ -431,7 +431,7 @@ uint16_t EE_WriteVariable(uint16_t VirtAddress, uint16_t Data)
   * @brief  Erases PAGE and PAGE1 and writes VALID_PAGE header to PAGE
   * @param  None
   * @retval Status of the last operation (Flash write or erase) done during
-  *         EEPROM formating
+  *         EEPROM formatting
   */
 static HAL_StatusTypeDef EE_Format(void)
 {
@@ -439,27 +439,27 @@ static HAL_StatusTypeDef EE_Format(void)
   uint32_t SectorError = 0;
   FLASH_EraseInitTypeDef pEraseInit;
   uint32_t valid[8] = {0x0000};
-  
-  pEraseInit.TypeErase = FLASH_TYPEERASE_SECTORS; 
+
+  pEraseInit.TypeErase = FLASH_TYPEERASE_SECTORS;
   pEraseInit.Banks = FLASH_BANK_2 ;
   pEraseInit.Sector = PAGE0_ID;
   pEraseInit.NbSectors = 1;
   pEraseInit.VoltageRange = VOLTAGE_RANGE;
-  
+
   /* Erase Page0 */
   if(!EE_VerifyPageFullyErased(PAGE0_BASE_ADDRESS))
   {
-    FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError); 
+    FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
     /* If erase operation was failed, a Flash error code is returned */
     if (FlashStatus != HAL_OK)
     {
       return FlashStatus;
     }
   }
-  
-  /* Set Page0 as valid page: Write VALID_PAGE at Page0 base address */  
+
+  /* Set Page0 as valid page: Write VALID_PAGE at Page0 base address */
   FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, PAGE0_BASE_ADDRESS,((uint32_t)valid));
-  
+
   /* If program operation was failed, a Flash error code is returned */
   if (FlashStatus != HAL_OK)
   {
@@ -469,15 +469,15 @@ static HAL_StatusTypeDef EE_Format(void)
   pEraseInit.Sector = PAGE1_ID;
   /* Erase Page1 */
   if(!EE_VerifyPageFullyErased(PAGE1_BASE_ADDRESS))
-  {  
-    FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError); 
+  {
+    FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
     /* If erase operation was failed, a Flash error code is returned */
     if (FlashStatus != HAL_OK)
     {
       return FlashStatus;
     }
   }
-  
+
   return HAL_OK;
 }
 
@@ -567,12 +567,12 @@ static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Da
   HAL_StatusTypeDef FlashStatus = HAL_OK;
   uint16_t ValidPage = PAGE0;
   uint32_t Address = EEPROM_START_ADDRESS, PageEndAddress = EEPROM_START_ADDRESS+PAGE_SIZE;
- 
+
   uint32_t data32[8] = {Data};
   uint32_t VirtAddress1[8] = {VirtAddress};
   /* Get valid Page for write operation */
   ValidPage = EE_FindValidPage(WRITE_IN_VALID_PAGE);
-  
+
   /* Check if there is no valid page */
   if (ValidPage == NO_VALID_PAGE)
   {
@@ -585,15 +585,15 @@ static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Da
   /* Get the valid Page end Address */
   PageEndAddress = (uint32_t)((EEPROM_START_ADDRESS - 1) + (uint32_t)((ValidPage + 1) * PAGE_SIZE));
 
-  /* Check each active page address starting from begining */
+  /* Check each active page address starting from beginning */
   while (Address < PageEndAddress)
   {
     /* Verify if Address and Address+2 contents are 0xFFFFFFFF */
-    if ((*(__IO uint32_t*)Address) == 0xFFFFFFFF) 
+    if ((*(__IO uint32_t*)Address) == 0xFFFFFFFF)
     {
       /* Set variable data */
       FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, Address, ((uint32_t)data32));
-   
+
       /* If program operation was failed, a Flash error code is returned */
       if (FlashStatus != HAL_OK)
       {
@@ -608,7 +608,7 @@ static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Da
     else
     {
       /* Next address location */
-      Address = Address + 64; 
+      Address = Address + 64;
     }
   }
 
@@ -653,7 +653,7 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
   {
     /* New page address  where variable will be moved to */
     NewPageAddress = PAGE1_BASE_ADDRESS;
-    
+
     /* Old page ID where variable will be taken from */
     OldPageId = PAGE0_ID;
   }
@@ -663,15 +663,15 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
   }
 
   /* Set the new Page status to RECEIVE_DATA status */
- 
-  FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, NewPageAddress, ((uint32_t)receive));  
+
+  FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, NewPageAddress, ((uint32_t)receive));
 
   /* If program operation was failed, a Flash error code is returned */
   if (FlashStatus != HAL_OK)
   {
     return FlashStatus;
   }
-  
+
   /* Write the variable passed as parameter in the new active page */
   EepromStatus = EE_VerifyPageFullWriteVariable(VirtAddress, Data);
   /* If program operation was failed, a Flash error code is returned */
@@ -702,9 +702,9 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
   }
 
   HAL_FLASH_Unlock();
-  
-  /* Clear pending flags (if any) */  
-  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | 
+
+  /* Clear pending flags (if any) */
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
                          FLASH_FLAG_PGSERR | FLASH_FLAG_WRPERR);
 
   pEraseInit.TypeErase = TYPEERASE_SECTORS;
@@ -712,9 +712,9 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
   pEraseInit.Sector = OldPageId;
   pEraseInit.NbSectors = 1;
   pEraseInit.VoltageRange = VOLTAGE_RANGE;
-  
+
   /* Erase the old Page: Set old Page status to ERASED status */
-  FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);  
+  FlashStatus = HAL_FLASHEx_Erase(&pEraseInit, &SectorError);
   /* If erase operation was failed, a Flash error code is returned */
   if (FlashStatus != HAL_OK)
   {
@@ -722,7 +722,7 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
   }
 
   /* Set new Page status to VALID_PAGE status */
-  FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, NewPageAddress, ((uint32_t)valid));   
+  FlashStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, NewPageAddress, ((uint32_t)valid));
   /* If program operation was failed, a Flash error code is returned */
   if (FlashStatus != HAL_OK)
   {
@@ -735,6 +735,6 @@ static uint16_t EE_PageTransfer(uint16_t VirtAddress, uint16_t Data)
 
 /**
   * @}
-  */ 
+  */
 
-/******************* (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+/******************* (C) COPYRIGHT 2017 STMicroelectronics *****END OF FILE****/

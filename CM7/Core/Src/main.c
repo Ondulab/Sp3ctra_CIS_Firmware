@@ -32,10 +32,11 @@
 /* USER CODE BEGIN Includes */
 #include "stdlib.h"
 #include "stdio.h"
+#include "string.h"
 
 #include "lwip/udp.h"
-#include <string.h>
 #include "lwiperf.h"
+#include "lwip.h"
 
 #include "ssd1362.h"
 #include "pictures.h"
@@ -67,6 +68,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+FLASH_OBProgramInitTypeDef OBInit;
+
 /* Virtual address defined by the user: 0xFFFF value is prohibited */
 uint16_t VirtAddVarTab[NB_OF_VAR] = {0x5555, 0x6666, 0x7777};
 uint16_t VarDataTab[NB_OF_VAR] = {0, 0, 0};
@@ -159,15 +162,20 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
-	/* Unlock the Flash Program Erase controller */
-	HAL_FLASH_Unlock();
+    printf("----------------------------------------------------------\n");
+  	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
+  	printf("----------------------------------------------------------\n");
 
-	/* EEPROM Init */
-	if( EE_Init() != EE_OK)
-	{
-		Error_Handler();
-	}
+    /* Unlock the Flash Program Erase controller */
+    HAL_FLASH_Unlock();
 
+    /* EEPROM Init */
+    if( EE_Init() != EE_OK)
+    {
+      Error_Handler();
+    }
+
+	// Initialize oled display and print logo
 	ssd1362_init();
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
@@ -179,25 +187,6 @@ int main(void)
 	}
 
 	MX_LWIP_Init();
-
-	//	/* Store 0x2000 values of Variable2 in EEPROM */
-	//	for (VarValue = 1; VarValue <= 0x2000; VarValue++)
-	//	{
-	//		if(EE_WriteVariable(VirtAddVarTab[1], VarValue) != HAL_OK)
-	//		{
-	//			Error_Handler();
-	//		}
-	//
-	//		if(EE_ReadVariable(VirtAddVarTab[1], &VarDataTab[1]) != HAL_OK)
-	//		{
-	//			Error_Handler();
-	//		}
-	//
-	//		if(VarValue != VarDataTab[1])
-	//		{
-	//			Error_Handler();
-	//		}
-	//	}
 
 	cisynth_ifft();
 
@@ -392,6 +381,8 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		for(uint32_t i = 0; i < 0xFFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */
 }

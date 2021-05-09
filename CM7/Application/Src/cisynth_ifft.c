@@ -32,10 +32,15 @@ int cisynth_ifft(void)
 	uint8_t FreqStr[256] = {0};
 	uint32_t cis_color = 0;
 
-	printf("Start BW ifft mode \n");
+	printf("------ BW IFFT MODE START -----\n");
+	printf("-------------------------------\n");
 
 	ssd1362_clearBuffer();
+
+	cis_Init(IFFT_MODE);
+
 	synth_IfftInit();
+
 	cisynth_ifft_SetHint();
 
 	//	cis_Test();

@@ -58,6 +58,9 @@ uint32_t init_waves(int16_t **unitary_waveform, struct wave *waves)
 	uint32_t current_unitary_waveform_cell = 0;
 	uint32_t note = 0;
 
+	printf("---------- WAVES INIT ---------\n");
+	printf("-------------------------------\n");
+
 	//compute cell number for storage all oscillators waveform
 	for (uint32_t comma_cnt = 0; comma_cnt < COMMA_PER_OCTAVE; comma_cnt++)
 	{
@@ -106,10 +109,8 @@ uint32_t init_waves(int16_t **unitary_waveform, struct wave *waves)
 			//sanity check, if user demand is't possible
 			if (note < NUMBER_OF_NOTES)
 			{
-#ifdef PRINT_FREQUENCY
 				//store frequencies
 				waves[note].frequency = frequency * pow(2, octave);
-#endif
 				//store octave number
 				waves[note].octave_coeff = pow(2, octave);
 				//store aera size

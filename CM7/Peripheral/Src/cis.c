@@ -22,6 +22,7 @@
 #include "cis.h"
 #include "ssd1362.h"
 #include "menu.h"
+#include "eeprom.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -34,7 +35,9 @@
 /* Private variables ---------------------------------------------------------*/
 #ifdef CIS_BW
 /* Definition of ADCx conversions data table size this buffer contains BW conversion */
-static uint16_t *cisData = NULL;
+static int32_t *cisData = NULL;
+static int32_t *cisCalData = NULL;
+static const uint16_t VirtAddVar = 0x5555;
 //static uint16_t cisData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
 
 #else
@@ -55,15 +58,18 @@ CIS_BUFF_StateTypeDef  cisBufferState[3] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+void cis_StartCalibration(uint16_t iterationNb);
+void cis_LoadCalibration(void);
 void cis_TIM_CLK_Init(void);
 void cis_TIM_SP_Init(void);
 void cis_TIM_LED_R_Init(void);
 void cis_TIM_LED_G_Init(void);
 void cis_TIM_LED_B_Init(void);
+void cis_LedsOff(void);
+void cis_LedsOn(void);
 
 void cis_ADC_Init(synthModeTypeDef mode);
-void cis_DisplayLine(void);
-void cis_ImageFilterBW(uint16_t *cis_buff);
+void cis_ImageFilterBW(int32_t *cis_buff);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -74,6 +80,9 @@ void cis_ImageFilterBW(uint16_t *cis_buff);
  */
 void cis_Init(synthModeTypeDef mode)
 {
+	printf("----------- CIS INIT ----------\n");
+	printf("-------------------------------\n");
+
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
@@ -93,13 +102,19 @@ void cis_Init(synthModeTypeDef mode)
 	}
 
 	//allocate the contiguous memory area for storage cis data
-	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint16_t));
+	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint32_t));
+	if (cisData == NULL)
+	{
+		Error_Handler();
+	}
+	cisCalData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
 	if (cisData == NULL)
 	{
 		Error_Handler();
 	}
 
-	memset(cisData, 0, CIS_ADC_BUFF_SIZE * sizeof(uint16_t)); //clear image
+	memset(cisData, 0, CIS_ADC_BUFF_SIZE * sizeof(uint32_t)); //clear image
+	memset(cisCalData, 0, CIS_EFFECTIVE_PIXELS * sizeof(uint32_t)); //clear calibration data
 
 #ifdef CIS_400DPI
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); //SET : 200DPI   RESET : 400DPI
@@ -112,6 +127,8 @@ void cis_Init(synthModeTypeDef mode)
 	cis_TIM_LED_R_Init();
 	cis_TIM_LED_G_Init();
 	cis_TIM_LED_B_Init();
+	cis_LedsOn();
+
 	if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData, CIS_ADC_BUFF_END_CAPTURE) != HAL_OK)
 	{
 		Error_Handler();
@@ -132,7 +149,7 @@ void cis_Init(synthModeTypeDef mode)
 	__HAL_TIM_SET_COUNTER(&htim1, 0);
 
 	//Reset SP counter
-	__HAL_TIM_SET_COUNTER(&htim8, 0);
+	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE) - CIS_SP_ON);
 
 #ifdef CIS_BW
 	//Set BW phase shift
@@ -145,6 +162,12 @@ void cis_Init(synthModeTypeDef mode)
 	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE * 3) - CIS_LED_ON);		//G
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #endif
+
+
+//	HAL_Delay(1000);
+//	cis_StartCalibration(50);
+	cis_LoadCalibration();
+
 }
 
 /**
@@ -159,12 +182,99 @@ __inline uint16_t cis_GetEffectivePixelNb(void)
 
 /**
  * @brief  CIS calibration
- * @param  Void
+ * @param  calibration iteration
  * @retval None
  */
-void cis_Calibration(void)
+void cis_StartCalibration(uint16_t iterationNb)
 {
+	uint32_t currAvrgPix = 0;
+	uint16_t letfBits = 0;
+	uint16_t rightBits = 0;
 
+	printf("------ START CALIBRATION ------\n");
+
+
+	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	{
+		SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[0] , CIS_ADC_BUFF_SIZE * 4);
+		for (uint32_t sampleNb = 0; sampleNb < iterationNb; sampleNb++)
+		{
+			currAvrgPix += cis_GetBuffData(pix);
+			HAL_Delay(1);
+		}
+		currAvrgPix /= iterationNb;
+
+		letfBits = currAvrgPix >> 16;
+		rightBits = currAvrgPix;
+
+		if((EE_WriteVariable(VirtAddVar + (pix * 2),  letfBits)) != HAL_OK)
+		{
+			Error_Handler();
+		}
+		if((EE_WriteVariable(VirtAddVar + (pix * 2) + 1,  rightBits)) != HAL_OK)
+		{
+			Error_Handler();
+		}
+#ifdef PRINT_CIS_CALIBRATION
+		printf("Pix = %d, Val = %d\n", (int)pix, (int)currAvrgPix);
+#endif
+		currAvrgPix = 0;
+	}
+	printf("-------------------------------\n");
+}
+
+/**
+ * @brief  Load CIS calibration
+ * @param  None
+ * @retval None
+ */
+void cis_LoadCalibration(void)
+{
+	uint16_t letfBits = 0;
+	uint16_t rightBits = 0;
+	int32_t currAvrgPix = 0;
+	int32_t maxAvrgPix = 0;
+	int32_t minAvrgPix = 0;
+	int32_t deltaAvrgPix = 0;
+
+	printf("------- LOAD CALIBRATION ------\n");
+
+	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	{
+		if((EE_ReadVariable(VirtAddVar + (pix * 2),  &letfBits)) != HAL_OK)
+		{
+			Error_Handler();
+		}
+		HAL_Delay(10);
+		if((EE_ReadVariable(VirtAddVar + (pix * 2) + 1,  &rightBits)) != HAL_OK)
+		{
+			Error_Handler();
+		}
+
+		currAvrgPix = letfBits << 16;
+		currAvrgPix |= rightBits;
+
+		cisCalData[pix] = (53000) - currAvrgPix;
+	}
+	arm_max_q31(cisCalData, CIS_EFFECTIVE_PIXELS, &maxAvrgPix, NULL);
+	arm_min_q31(cisCalData, CIS_EFFECTIVE_PIXELS, &minAvrgPix, NULL);
+
+	deltaAvrgPix = maxAvrgPix - minAvrgPix;
+
+	printf("Max   Pix = %d\n", (int)maxAvrgPix);
+	printf("Min   Pix = %d\n", (int)minAvrgPix);
+	printf("Delta Pix = %d\n", (int)deltaAvrgPix);
+	printf("-------------------------------\n");
+
+	arm_offset_q31(cisCalData, minAvrgPix * -1, cisCalData, CIS_EFFECTIVE_PIXELS);
+
+#ifdef PRINT_CIS_CALIBRATION
+	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	{
+		printf("Pix = %d, Val = %d\n", (int)pix, (int)cisCalData[pix]);
+	}
+	printf("-------------------------------\n");
+#endif
 }
 
 /**
@@ -172,7 +282,7 @@ void cis_Calibration(void)
  * @param  index
  * @retval value
  */
-uint16_t cis_GetBuffData(uint32_t index)
+uint32_t cis_GetBuffData(uint32_t index)
 {
 	if (index < CIS_EFFECTIVE_PIXELS_PER_LINE)
 		return cisData[index + CIS_ADC_BUFF_START_OFFSET];
@@ -188,20 +298,21 @@ uint16_t cis_GetBuffData(uint32_t index)
  * @param  None
  * @retval Image error
  */
-void cis_ImageProcessBW(uint16_t *cis_buff)
+void cis_ImageProcessBW(int32_t *cis_buff)
 {
 	for (int32_t line = (CIS_ADC_OUT_LINES); --line >= 0;)
 	{
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_HALF)
 		{
-			uint32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
-			uint32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
+			int32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
+			int32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
 
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE);
-			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE);
+			//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			arm_add_q31(&cisData[dataOffset], &cisCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
 			cis_ImageFilterBW(&cis_buff[imageOffset]);
 		}
@@ -209,13 +320,14 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
 		/* 2nd half buffer played; so fill it and continue playing from top */
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_FULL)
 		{
-			uint32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			uint32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			int32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			int32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
 			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE);
-			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			arm_add_q31(&cisData[dataOffset], &cisCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
 			cis_ImageFilterBW(&cis_buff[imageOffset]);
 		}
@@ -227,9 +339,9 @@ void cis_ImageProcessBW(uint16_t *cis_buff)
  * @param  Audio buffer
  * @retval None
  */
-void cis_ImageFilterBW(uint16_t *cis_buff)
+void cis_ImageFilterBW(int32_t *cis_buff)
 {
-	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS_PER_LINE / 2; i++)
+	for (int32_t i = 0; i < CIS_EFFECTIVE_PIXELS_PER_LINE / 2; i++)
 	{
 #ifdef CIS_INVERT_COLOR
 		cis_buff[i] = (double)(65535 - cis_buff[i]);
@@ -289,12 +401,6 @@ void cis_TIM_SP_Init()
 void cis_TIM_LED_B_Init()
 {
 	MX_TIM3_Init();
-
-	/* Start LED R generation ###############################*/
-	if(HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
 }
 
 /**
@@ -305,12 +411,6 @@ void cis_TIM_LED_B_Init()
 void cis_TIM_LED_R_Init()
 {
 	MX_TIM4_Init();
-
-	/* Start LED G generation ###############################*/
-	if(HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
-	{
-		Error_Handler();
-	}
 }
 
 /**
@@ -321,7 +421,49 @@ void cis_TIM_LED_R_Init()
 void cis_TIM_LED_G_Init()
 {
 	MX_TIM5_Init();
+}
 
+/**
+ * @brief  CIS leds off
+ * @param  Void
+ * @retval None
+ */
+void cis_LedsOff()
+{
+	/* Start LED R generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED G generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED B generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
+
+/**
+ * @brief  CIS leds on
+ * @param  Void
+ * @retval None
+ */
+void cis_LedsOn()
+{
+	/* Start LED R generation ###############################*/
+	if(HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED G generation ###############################*/
+	if(HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 	/* Start LED B generation ###############################*/
 	if(HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) != HAL_OK)
 	{
