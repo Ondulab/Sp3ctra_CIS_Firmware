@@ -53,7 +53,7 @@
 /**************************************************************************************/
 #define SAMPLING_FREQUENCY				      	(48000)
 
-#define IFFT_GAP_PER_MS							(60000)
+#define IFFT_GAP_PER_MS							(20000)
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
@@ -63,10 +63,10 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-//#define CIS_400DPI
+#define CIS_400DPI
 #define CIS_BW
 //#define CIS_INVERT_COLOR
-#define CIS_INVERT_COLOR_SMOOTH
+//#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
 #define CIS_CLK_FREQ							(5000000)
@@ -80,9 +80,9 @@
 #define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_OFF)
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(300)//900
-#define CIS_LED_GREEN_OFF						(300)
-#define CIS_LED_BLUE_OFF						(300)
+#define CIS_LED_RED_OFF							(1200)//900
+#define CIS_LED_GREEN_OFF						(1200)
+#define CIS_LED_BLUE_OFF						(1200)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
@@ -101,7 +101,7 @@
 #define CIS_ADC_OUT_LINES						(3)
 
 #ifdef CIS_400DPI
-#define CIS_IFFT_OVERSAMPLING_RATIO				(16)
+#define CIS_IFFT_OVERSAMPLING_RATIO				(8)
 #else
 #define CIS_IFFT_OVERSAMPLING_RATIO				(8)
 #endif
@@ -112,10 +112,10 @@
 /********************         Wave generation definitions          ********************/
 /**************************************************************************************/
 #define WAVE_AMP_RESOLUTION 					(65535)   	//in decimal
-#define START_FREQUENCY     					(25)
+#define START_FREQUENCY     					(30)
 #define MAX_OCTAVE_NUMBER   					(10)
 #define SEMITONE_PER_OCTAVE 					(12)
-#define COMMA_PER_SEMITONE  					(2)
+#define COMMA_PER_SEMITONE  					(4)
 
 #define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / CIS_IFFT_OVERSAMPLING_RATIO)
 

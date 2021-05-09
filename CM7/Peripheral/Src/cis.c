@@ -65,8 +65,6 @@ void cis_TIM_SP_Init(void);
 void cis_TIM_LED_R_Init(void);
 void cis_TIM_LED_G_Init(void);
 void cis_TIM_LED_B_Init(void);
-void cis_LedsOff(void);
-void cis_LedsOn(void);
 
 void cis_ADC_Init(synthModeTypeDef mode);
 void cis_ImageFilterBW(int32_t *cis_buff);
@@ -165,7 +163,7 @@ void cis_Init(synthModeTypeDef mode)
 
 
 //	HAL_Delay(1000);
-//	cis_StartCalibration(50);
+//	cis_StartCalibration(30);
 	cis_LoadCalibration();
 
 }
@@ -209,10 +207,12 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 		if((EE_WriteVariable(VirtAddVar + (pix * 2),  letfBits)) != HAL_OK)
 		{
+			printf("Flash write fail\n");
 			Error_Handler();
 		}
 		if((EE_WriteVariable(VirtAddVar + (pix * 2) + 1,  rightBits)) != HAL_OK)
 		{
+			printf("Flash write fail\n");
 			Error_Handler();
 		}
 #ifdef PRINT_CIS_CALIBRATION
@@ -243,11 +243,13 @@ void cis_LoadCalibration(void)
 	{
 		if((EE_ReadVariable(VirtAddVar + (pix * 2),  &letfBits)) != HAL_OK)
 		{
+			printf("Flash read fail\n");
 			Error_Handler();
 		}
 		HAL_Delay(10);
 		if((EE_ReadVariable(VirtAddVar + (pix * 2) + 1,  &rightBits)) != HAL_OK)
 		{
+			printf("Flash read fail\n");
 			Error_Handler();
 		}
 

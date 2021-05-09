@@ -49,7 +49,7 @@ void MX_TIM1_Init(void)
 	prescalerValue = (uint32_t)(((SystemCoreClock / 96) / (CIS_CLK_FREQ)) - 1);
 	counterPeriod = 48 - 1;
 	pulseValueCH2 = 24 - 1;
-	pulseValueCH1 = 12 - 1;
+	pulseValueCH1 = 2 - 1;
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -334,10 +334,6 @@ void MX_TIM8_Init(void)
   /* USER CODE BEGIN TIM8_Init 1 */
 
     uint32_t prescalerValue, counterPeriod, pulseValue;
-
-//	prescalerValue = (uint32_t)(((SystemCoreClock / 96) / (CIS_CLK_FREQ)) - 1);
-//	counterPeriod = 480 - 1;
-//	pulseValue = 240 - 1;
 
   prescalerValue = 0;
   counterPeriod = CIS_END_CAPTURE - 1;

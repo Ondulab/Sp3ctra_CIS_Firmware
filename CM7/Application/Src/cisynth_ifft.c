@@ -49,6 +49,7 @@ int cisynth_ifft(void)
 	static uint32_t start_tick;
 	uint32_t latency;
 	int32_t i = 0;
+	int32_t j = 0;
 
 	while (1)
 	{
@@ -75,7 +76,7 @@ int cisynth_ifft(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-//			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			//			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
 			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
 			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
@@ -86,6 +87,11 @@ int cisynth_ifft(void)
 		ssd1362_writeFullBuffer();
 
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		//		j++;
+		//		if (j%2)
+		//			cis_LedsOff();
+		//		else
+		//			cis_LedsOn();
 	}
 }
 /**

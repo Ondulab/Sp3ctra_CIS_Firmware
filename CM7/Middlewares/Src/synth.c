@@ -64,13 +64,13 @@ int32_t synth_IfftInit(void)
 	printf("-------------------------------\n");
 
 	//allocate the contiguous memory area for storage image data
-	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(int32_t*));
+	imageData = malloc(NUMBER_OF_NOTES * sizeof(int32_t*));
 	if (imageData == NULL)
 	{
 		Error_Handler();
 	}
 
-	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(int32_t*));
+	memset(imageData, 0, NUMBER_OF_NOTES * sizeof(int32_t*));
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -92,7 +92,8 @@ int32_t synth_IfftInit(void)
 		return -1;
 	}
 
-	printf("Buffer lengh = %d\n", (int)buffer_len);
+	printf("Note number  = %d\n", (int)NUMBER_OF_NOTES);
+	printf("Buffer lengh = %d uint16\n", (int)buffer_len);
 
 
 	uint8_t FreqStr[256] = {0};
@@ -100,8 +101,8 @@ int32_t synth_IfftInit(void)
 	sprintf((char *)FreqStr, " %d -> %dHz      Octave:%d", (int)waves[0].frequency, (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
 	ssd1362_drawString(0, 57, (int8_t*)FreqStr, 0, 8);
 
-	printf("First wave Freq = %dHz\nSize = %d\n", (int)waves[0].frequency, (int)waves[0].aera_size);
-	printf("Last  wave Freq = %dHz\nSize = %d\nOctave = %d\n", (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
+	printf("First note Freq = %dHz\nSize = %d\n", (int)waves[0].frequency, (int)waves[0].aera_size);
+	printf("Last  note Freq = %dHz\nSize = %d\nOctave = %d\n", (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
 
 	printf("-------------------------------\n");
 
@@ -179,7 +180,7 @@ void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 		max_volume = 0;
 
 		//Summation for all pixel
-		for (int32_t note = NUMBER_OF_NOTES; --note >= 1;)
+		for (int32_t note = NUMBER_OF_NOTES - 150; --note >= 1;)
 		{
 			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
 			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
@@ -305,7 +306,7 @@ void synth_Test(void)
 		}
 
 		static uint32_t note = 0;
-		if (note > cis_GetEffectivePixelNb())
+		if (note > NUMBER_OF_NOTES)
 		{
 			note = 0;
 		}
@@ -337,7 +338,7 @@ void synth_Test(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-			cis_color = synth_GetImageData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			cis_color = synth_GetImageData((i * ((float)NUMBER_OF_NOTES / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
 			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
 			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);
