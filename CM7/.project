@@ -609,5 +609,10 @@
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/LwIP/src/netif/zepif.c</locationURI>
 		</link>
+		<link>
+			<name>Middlewares/Library/DSP Library/DSP Library/arm_math.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/ST/ARM/DSP/Inc/arm_math.h</locationURI>
+		</link>
 	</linkedResources>
 </projectDescription>

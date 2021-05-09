@@ -42,11 +42,11 @@ static int16_t* half_audio_ptr;
 static int16_t* full_audio_ptr;
 
 /* Variable containing black and white frame from CIS*/
-static uint16_t *imageData = NULL;
+static int32_t *imageData = NULL;
 //static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO) - 1]; // for debug
 
 /* Private function prototypes -----------------------------------------------*/
-static void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData);
+static void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -59,16 +59,18 @@ int32_t synth_IfftInit(void)
 {
 	int32_t buffer_len = 0;
 	uint32_t aRandom32bit = 0;
-	uint8_t FreqStr[256] = {0};
+
+	printf("---------- SYNTH INIT ---------\n");
+	printf("-------------------------------\n");
 
 	//allocate the contiguous memory area for storage image data
-	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+	imageData = malloc(cis_GetEffectivePixelNb() * sizeof(int32_t*));
 	if (imageData == NULL)
 	{
 		Error_Handler();
 	}
 
-	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(uint16_t*));
+	memset(imageData, 0, cis_GetEffectivePixelNb() * sizeof(int32_t*));
 
 	buffer_len = init_waves(&unitary_waveform, waves);
 
@@ -92,27 +94,33 @@ int32_t synth_IfftInit(void)
 
 	printf("Buffer lengh = %d\n", (int)buffer_len);
 
-#ifdef PRINT_FREQUENCY
-	ssd1362_drawRect(0, 57, 256, 64, 8, false);
-	sprintf((char *)FreqStr, "%dHz Sz%d Oc%d", (int)waves[0].frequency, (int)waves[0].aera_size, (int)waves[0].octave_coeff);
-	ssd1362_drawString(0, 57, (int8_t*)FreqStr, 0, 8);
-	sprintf((char *)FreqStr, "%dHz Sz%d Oc%d", (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
-	ssd1362_drawString(128, 57, (int8_t*)FreqStr, 0, 8);
 
+	uint8_t FreqStr[256] = {0};
+	ssd1362_drawRect(0, 57, 256, 64, 8, false);
+	sprintf((char *)FreqStr, " %d -> %dHz      Octave:%d", (int)waves[0].frequency, (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
+	ssd1362_drawString(0, 57, (int8_t*)FreqStr, 0, 8);
+
+	printf("First wave Freq = %dHz\nSize = %d\n", (int)waves[0].frequency, (int)waves[0].aera_size);
+	printf("Last  wave Freq = %dHz\nSize = %d\nOctave = %d\n", (int)waves[NUMBER_OF_NOTES - 1].frequency, (int)waves[NUMBER_OF_NOTES - 1].aera_size / (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff), (int)sqrt(waves[NUMBER_OF_NOTES - 1].octave_coeff));
+
+	printf("-------------------------------\n");
+
+#ifdef PRINT_IFFT_FREQUENCY
 	for (uint32_t pix = 0; pix < NUMBER_OF_NOTES; pix++)
 	{
 		printf("FREQ = %0.2f, SIZE = %d, OCTAVE = %d\n", waves[pix].frequency, (int)waves[pix].aera_size, (int)waves[pix].octave_coeff);
-		//					uint16_t output = 0;
-		//					for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
-		//					{
-		//						output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
-		//						printf("%d\n", output);
-		//					}
+#ifdef PRINT_IFFT_FREQUENCY_FULL
+							uint16_t output = 0;
+							for (uint32_t idx = 0; idx < (waves[pix].aera_size / waves[pix].octave_coeff); idx++)
+							{
+								output = *(waves[pix].start_ptr + (idx *  waves[pix].octave_coeff));
+								printf("%d\n", output);
+							}
+#endif
 	}
-	printf("---- END ----\n");
+	printf("-------------------------------\n");
 #endif
 
-	cis_Init(IFFT_MODE);
 	pcm5102_Init();
 	half_audio_ptr = pcm5102_GetDataPtr(0);
 	full_audio_ptr = pcm5102_GetDataPtr(AUDIO_BUFFER_SIZE / 2);
@@ -137,7 +145,7 @@ int32_t synth_GetImageData(uint32_t index)
  * @param  Index
  * @retval Value
  */
-int32_t synth_SetImageData(uint32_t index, uint16_t value)
+int32_t synth_SetImageData(uint32_t index, int32_t value)
 {
 	//	if (index >= RFFT_BUFFER_SIZE)
 	//		Error_Handler();
@@ -152,7 +160,7 @@ int32_t synth_SetImageData(uint32_t index, uint16_t value)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void synth_IfftMode(uint16_t *imageData, int16_t *audioData, uint32_t NbrOfData)
+void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 {
 	static int32_t signal_summation;
 	static uint32_t signal_power_summation;

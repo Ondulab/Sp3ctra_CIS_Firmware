@@ -23,9 +23,7 @@ struct wave {
 	uint16_t aera_size;
 	uint16_t octave_coeff;
 	int32_t current_volume;
-#ifdef PRINT_FREQUENCY
 	float frequency;
-#endif
 };
 
 typedef enum {
@@ -42,7 +40,7 @@ extern volatile uint32_t synth_process_cnt;
 /* Exported functions prototypes ---------------------------------------------*/
 int32_t synth_IfftInit(void);
 int32_t synth_GetImageData(uint32_t index);
-int32_t synth_SetImageData(uint32_t index, uint16_t value);
+int32_t synth_SetImageData(uint32_t index, int32_t value);
 void synth_AudioProcess(synthModeTypeDef mode);
 void synth_Test(void);
 

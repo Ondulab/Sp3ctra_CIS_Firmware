@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file    EEPROM_Emulation/inc/eeprom.h 
+  * @file    EEPROM_Emulation/inc/eeprom.h
   * @author  MCD Application Team
-  * @brief   This file contains all the functions prototypes for the EEPROM 
+  * @brief   This file contains all the functions prototypes for the EEPROM
   *          emulation firmware library.
   ******************************************************************************
   * @attention
@@ -16,7 +16,7 @@
   *                             www.st.com/SLA0044
   *
   ******************************************************************************
-  */ 
+  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __EEPROM_H
@@ -24,8 +24,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
+#include "main.h"
 #include "config.h"
-    
+
 /* Exported constants --------------------------------------------------------*/
 /* EEPROM emulation firmware error codes */
 #define EE_OK      (uint32_t)HAL_OK
@@ -34,28 +35,30 @@
 #define EE_TIMEOUT (uint32_t)HAL_TIMEOUT
 
 /* Define the size of the sectors to be used */
+
 #define PAGE_SIZE               (uint32_t)0x20000  /* Page size = 128KByte */
 
 
-/* Device voltage range supposed to be [2.7V to 3.6V], the operation will 
+/* Device voltage range supposed to be [2.7V to 3.6V], the operation will
    be done by word  */
-#define VOLTAGE_RANGE           (uint8_t)VOLTAGE_RANGE_3
+#define VOLTAGE_RANGE           (uint8_t)VOLTAGE_RANGE_4
 
 /* EEPROM emulation start address in Flash */
-#define EEPROM_START_ADDRESS  ADDR_FLASH_SECTOR_6_BANK2 /* sector6 of bank 1 */
+
+#define EEPROM_START_ADDRESS  ADDR_FLASH_SECTOR_6_BANK2 /* sector6 of bank 2 */
 
 
 /* Pages 0 and 1 base and end addresses */
 #define PAGE0_BASE_ADDRESS    ((uint32_t)(EEPROM_START_ADDRESS + 0x0000))
 #define PAGE0_END_ADDRESS     ((uint32_t)(EEPROM_START_ADDRESS + (PAGE_SIZE - 1)))
 
-#define PAGE0_ID               FLASH_SECTOR_6
+  #define PAGE0_ID               FLASH_SECTOR_6
 
 
 #define PAGE1_BASE_ADDRESS    ((uint32_t)(EEPROM_START_ADDRESS + PAGE_SIZE))
 #define PAGE1_END_ADDRESS     ((uint32_t)(EEPROM_START_ADDRESS + (2 * PAGE_SIZE - 1)))
 
-#define PAGE1_ID               FLASH_SECTOR_7
+  #define PAGE1_ID               FLASH_SECTOR_7
 
 
 /* Used Flash pages for EEPROM emulation */
