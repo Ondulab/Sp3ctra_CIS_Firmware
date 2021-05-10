@@ -292,8 +292,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 5;
   RCC_OscInitStruct.PLL.PLLN = 192;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 8;
-  RCC_OscInitStruct.PLL.PLLR = 2;
+  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLR = 4;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
   RCC_OscInitStruct.PLL.PLLFRACN = 0;
@@ -368,6 +368,26 @@ void MPU_Config(void)
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
+}
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM12 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM12) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
 }
 
 /**
