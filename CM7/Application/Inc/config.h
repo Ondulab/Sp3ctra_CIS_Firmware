@@ -53,7 +53,9 @@
 /**************************************************************************************/
 #define SAMPLING_FREQUENCY				      	(48000)
 
-#define IFFT_GAP_PER_MS							(20000)
+#define IFFT_GAP_PER_MS							(5000)
+
+#define STEREO_1
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
@@ -65,7 +67,7 @@
 /**************************************************************************************/
 #define CIS_400DPI
 #define CIS_BW
-//#define CIS_INVERT_COLOR
+#define CIS_INVERT_COLOR
 //#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
@@ -101,7 +103,7 @@
 #define CIS_ADC_OUT_LINES						(3)
 
 #ifdef CIS_400DPI
-#define CIS_IFFT_OVERSAMPLING_RATIO				(8)
+#define CIS_IFFT_OVERSAMPLING_RATIO				(16)
 #else
 #define CIS_IFFT_OVERSAMPLING_RATIO				(8)
 #endif
@@ -115,7 +117,7 @@
 #define START_FREQUENCY     					(30)
 #define MAX_OCTAVE_NUMBER   					(10)
 #define SEMITONE_PER_OCTAVE 					(12)
-#define COMMA_PER_SEMITONE  					(4)
+#define COMMA_PER_SEMITONE  					(2)
 
 #define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / CIS_IFFT_OVERSAMPLING_RATIO)
 

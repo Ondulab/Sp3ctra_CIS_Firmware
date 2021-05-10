@@ -161,7 +161,6 @@ void cis_Init(synthModeTypeDef mode)
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #endif
 
-
 //	HAL_Delay(1000);
 //	cis_StartCalibration(30);
 	cis_LoadCalibration();
@@ -312,7 +311,7 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
 			//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 			arm_add_q31(&cisData[dataOffset], &cisCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
@@ -327,7 +326,7 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE);
+			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
 			//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 			arm_add_q31(&cisData[dataOffset], &cisCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 

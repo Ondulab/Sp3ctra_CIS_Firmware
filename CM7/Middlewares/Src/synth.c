@@ -163,24 +163,30 @@ int32_t synth_SetImageData(uint32_t index, int32_t value)
 #pragma GCC optimize ("unroll-loops")
 void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 {
-	static int32_t signal_summation;
+	static int32_t signal_summation_R;
+	static int32_t signal_summation_L;
 	static uint32_t signal_power_summation;
-	static int16_t rfft;
+	static int16_t rfft_R;
+	static int16_t rfft_L;
 	static uint16_t new_idx;
 	static uint32_t write_data_nbr;
+	static int32_t note;
 	static int32_t max_volume;
 	static int32_t current_image_data;
+
+//	__disable_irq();
 
 	write_data_nbr = 0;
 
 	while(write_data_nbr < NbrOfData)
 	{
-		signal_summation = 0;
+		signal_summation_R = 0;
+		signal_summation_L = 0;
 		signal_power_summation = 0;
 		max_volume = 0;
 
 		//Summation for all pixel
-		for (int32_t note = NUMBER_OF_NOTES - 150; --note >= 1;)
+		for (note = NUMBER_OF_NOTES; --note >= 1;)
 		{
 			//octave_coeff jump current pointer into the fundamental waveform, for example : the 3th octave increment the current pointer 8 per 8 (2^3)
 			//example for 17 cell waveform and 3th octave : [X][Y][Z][X][Y][Z][X][Y][Z][X][Y][[Z][X][Y][[Z][X][Y], X for the first pass, Y for second etc...
@@ -210,7 +216,8 @@ void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 				max_volume = waves[note].current_volume;
 
 			//current audio point summation
-			signal_summation += ((*(waves[note].start_ptr + new_idx)) * waves[note].current_volume) >> 16;
+			signal_summation_R += ((*(waves[note].start_ptr + new_idx)) * waves[note].current_volume) >> 16;
+			signal_summation_L += ((*(waves[note - 1].start_ptr + new_idx)) * waves[note - 1].current_volume) >> 16;
 
 			//read equivalent power of current pixel
 			signal_power_summation += waves[note].current_volume;
@@ -218,14 +225,20 @@ void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 			waves[note].current_idx = new_idx;
 		}
 
-		rfft = (signal_summation * ((double)max_volume) / (double)signal_power_summation);
+		rfft_R = (signal_summation_R * ((double)max_volume) / (double)signal_power_summation);
+		rfft_L = (signal_summation_L * ((double)max_volume) / (double)signal_power_summation);
 
-		audioData[write_data_nbr] = rfft;		//L
-		audioData[write_data_nbr + 1] = rfft;	//R
+#ifdef STEREO_1
+		audioData[write_data_nbr] = rfft_L;		//L
+#else
+		audioData[write_data_nbr] = rfft_R;
+#endif
+		audioData[write_data_nbr + 1] = rfft_R;	//R
 		write_data_nbr += 2;
 	}
 
 	synth_process_cnt += NbrOfData / 2;
+//	__enable_irq();
 }
 #pragma GCC pop_options
 
