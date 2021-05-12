@@ -1,5 +1,5 @@
 /*
- * cisynth_ifft.c
+ * cisynth_eth.c
  *
  *  Created on: May 31, 2020
  *      Author: zhonx
@@ -36,8 +36,6 @@ int cisynth_ifft(void)
 	printf("-------------------------------\n");
 
 	ssd1362_clearBuffer();
-
-	cis_Init(IFFT_MODE);
 
 	synth_IfftInit();
 

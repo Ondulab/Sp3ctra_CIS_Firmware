@@ -38,11 +38,12 @@
 #include "lwiperf.h"
 #include "lwip.h"
 
+#include "cisynth_ifft.h"
+#include "cisynth_eth.h"
 #include "ssd1362.h"
 #include "pictures.h"
 #include "icm20602.h"
 #include "pcm5102.h"
-#include "cisynth_ifft.h"
 #include "eeprom.h"
 
 /* USER CODE END Includes */
@@ -162,18 +163,18 @@ int main(void)
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
 
-    printf("----------------------------------------------------------\n");
-  	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
-  	printf("----------------------------------------------------------\n");
+	printf("----------------------------------------------------------\n");
+	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
+	printf("----------------------------------------------------------\n");
 
-    /* Unlock the Flash Program Erase controller */
-    HAL_FLASH_Unlock();
+	/* Unlock the Flash Program Erase controller */
+	HAL_FLASH_Unlock();
 
-    /* EEPROM Init */
-    if( EE_Init() != EE_OK)
-    {
-      Error_Handler();
-    }
+	/* EEPROM Init */
+	if( EE_Init() != EE_OK)
+	{
+		Error_Handler();
+	}
 
 	// Initialize oled display and print logo
 	ssd1362_init();
@@ -188,27 +189,17 @@ int main(void)
 
 	MX_LWIP_Init();
 
-	cisynth_ifft();
+	cisynth_eth();
+//	cisynth_ifft();
 
-	//  int8_t timeText[] = {'1', '2', ':', '3', '5'};
-	//  uint32_t framecount = 0;
-
-	//  HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 	icm20602_init();
+
 	int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
 
-	const char* message = "Hello UDP message!\n\r";
+	int8_t timeText[] = {'1', '2', ':', '3', '5'};
+	uint32_t framecount = 0;
 
-	ip_addr_t PC_IPADDR;
-	IP_ADDR4(&PC_IPADDR, 192, 168, 1, 1);
-
-	struct udp_pcb* my_udp = udp_new();
-	udp_connect(my_udp, &PC_IPADDR, 55151);
-	struct pbuf* udp_buffer = NULL;
-
-	SCB_CleanInvalidateDCache();
-
-	lwiperf_start_tcp_server_default(NULL, NULL); // TCP Perf = iperf -c 192.168.1.1 -i1 -t60 -u -b 1000M UDP Perf = iperf -c 192.168.1.1 -i1 -t60
+	HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 
   /* USER CODE END 2 */
 
@@ -216,26 +207,24 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		MX_LWIP_Process();
+		framecount++;
 
-		//	  framecount++;
-		//
-		//	  ssd1362_clearBuffer();
+		ssd1362_clearBuffer();
 
-		//	  for (int x = 0; x < 256; x++) {
-		//	    for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
-		//	    	ssd1362_drawPixel(x, y, 3, false);
-		//	     }
-		//	  }
-		//
-		//	  ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
-		//	  ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
-		//	  ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
-		//	  ssd1362_writeFullBuffer();
-		//	  HAL_Delay(1);
+		for (int x = 0; x < 256; x++) {
+			for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
+				ssd1362_drawPixel(x, y, 3, false);
+			}
+		}
 
-		//	  icm20602_read_accel(&accel_x, &accel_y, &accel_z);
-		//	  icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+		ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
+		ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
+		ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
+		ssd1362_writeFullBuffer();
+		HAL_Delay(1);
+
+		//		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
+		//		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
 		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
 
 		ssd1362_clearBuffer();

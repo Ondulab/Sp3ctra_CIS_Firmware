@@ -6,13 +6,13 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <cisynth_eth.h>
 #include "stm32h7xx_hal.h"
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
 #include "menu.h"
 #include "cisynth_ifft.h"
-#include "cisynth_imagePlay.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

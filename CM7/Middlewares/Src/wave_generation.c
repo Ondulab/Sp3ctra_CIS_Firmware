@@ -12,6 +12,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "math.h"
+#include "arm_math.h"
 
 #include "cis.h"
 #include "wave_generation.h"

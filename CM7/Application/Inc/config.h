@@ -44,11 +44,6 @@
 #define DISPLAY_REFRESH_FPS						(20)
 
 /**************************************************************************************/
-/********************                     math                     ********************/
-/**************************************************************************************/
-#define PI										(3.14159265359)
-
-/**************************************************************************************/
 /********************              Synth definitions               ********************/
 /**************************************************************************************/
 #define SAMPLING_FREQUENCY				      	(48000)
@@ -56,6 +51,40 @@
 #define IFFT_GAP_PER_MS							(5000)
 
 #define STEREO_1
+
+/**************************************************************************************/
+/******************              Ethernet definitions               *******************/
+/**************************************************************************************/
+#define SEND_CIS_LINE_FREQUENCY				    (3000)
+
+/* UDP local connection port */
+#define UDP_SERVER_PORT    ((uint16_t)60U)
+/* UDP remote connection port */
+#define UDP_CLIENT_PORT    ((uint16_t)60U)
+
+/*Static DEST IP ADDRESS: DEST_IP_ADDR0.DEST_IP_ADDR1.DEST_IP_ADDR2.DEST_IP_ADDR3 */
+#define DEST_IP_ADDR0   ((uint8_t)192U)
+#define DEST_IP_ADDR1   ((uint8_t)168U)
+#define DEST_IP_ADDR2   ((uint8_t)0U)
+#define DEST_IP_ADDR3   ((uint8_t)1U)
+
+/*Static IP ADDRESS: IP_ADDR0.IP_ADDR1.IP_ADDR2.IP_ADDR3 */
+#define IP_ADDR0   ((uint8_t) 192U)
+#define IP_ADDR1   ((uint8_t) 168U)
+#define IP_ADDR2   ((uint8_t) 0U)
+#define IP_ADDR3   ((uint8_t) 10U)
+
+/*NETMASK*/
+#define NETMASK_ADDR0   ((uint8_t) 255U)
+#define NETMASK_ADDR1   ((uint8_t) 255U)
+#define NETMASK_ADDR2   ((uint8_t) 255U)
+#define NETMASK_ADDR3   ((uint8_t) 0U)
+
+/*Gateway Address*/
+#define GW_ADDR0   ((uint8_t) 192U)
+#define GW_ADDR1   ((uint8_t) 168U)
+#define GW_ADDR2   ((uint8_t) 0U)
+#define GW_ADDR3   ((uint8_t) 1U)
 
 /**************************************************************************************/
 /********************              DAC definitions                 ********************/
