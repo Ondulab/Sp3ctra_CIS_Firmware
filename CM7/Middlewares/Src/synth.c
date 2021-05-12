@@ -126,6 +126,8 @@ int32_t synth_IfftInit(void)
 	half_audio_ptr = pcm5102_GetDataPtr(0);
 	full_audio_ptr = pcm5102_GetDataPtr(AUDIO_BUFFER_SIZE / 2);
 
+	cis_Init(IFFT_MODE);
+
 	return 0;
 }
 
@@ -227,6 +229,9 @@ void synth_IfftMode(int32_t *imageData, int16_t *audioData, uint32_t NbrOfData)
 
 		rfft_R = (signal_summation_R * ((double)max_volume) / (double)signal_power_summation);
 		rfft_L = (signal_summation_L * ((double)max_volume) / (double)signal_power_summation);
+
+//		rfft_R = (signal_summation_R * (65535.00) / (double)signal_power_summation);
+//		rfft_L = (signal_summation_L * (65535.00) / (double)signal_power_summation);
 
 #ifdef STEREO_1
 		audioData[write_data_nbr] = rfft_L;		//L

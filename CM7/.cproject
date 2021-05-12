@@ -311,6 +311,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="DATA_IN_D2_SRAM"/>
                                     									
+                                    <listOptionValue builtIn="false" value="__FPU_PRESENT"/>
+                                    									
                                     <listOptionValue builtIn="false" value="ARM_MATH_CM7"/>
                                     									
                                     <listOptionValue builtIn="false" value="CORE_CM7"/>

@@ -58,11 +58,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define DEST_IP_ADDR0 192
-#define DEST_IP_ADDR1 168
-#define DEST_IP_ADDR2 1
-#define DEST_IP_ADDR3 206
-#define DEST_PORT 7
 #define OLED_RESET_Pin GPIO_PIN_8
 #define OLED_RESET_GPIO_Port GPIOB
 #define MEMS_FSYNC_Pin GPIO_PIN_15

@@ -6,13 +6,13 @@
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __IMAGE_PLAY_H
-#define __IMAGE_PLAY_H
+#ifndef __CIS_ETH_H
+#define __CIS_ETH_H
 
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
 
-int cisynth_imagePlay(void);
+int cisynth_eth(void);
 
-#endif /* __IMAGE_PLAY_H */
+#endif /* __CIS_ETH_H */
