@@ -13,7 +13,6 @@
 #include "config.h"
 #include "times_base.h"
 #include "cis.h"
-#include "menu.h"
 #include "ssd1362.h"
 #include "udp_client.h"
 
@@ -60,24 +59,24 @@ int cisynth_eth(void)
 	printf("-------------------------------\n");
 
 	//allocate the contiguous memory area for storage image data
-	imageData = malloc(NUMBER_OF_NOTES * sizeof(int32_t*) + 10 * sizeof(int8_t*));
+	imageData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(int32_t*) + 10 * sizeof(int8_t*));
 	if (imageData == NULL)
 	{
 		Error_Handler();
 	}
 
-	memset(imageData, 0, NUMBER_OF_NOTES * sizeof(int32_t*) + 10 * sizeof(int8_t*));
+	memset(imageData, 0, CIS_EFFECTIVE_PIXELS * sizeof(int32_t*) + 10 * sizeof(int8_t*));
 
 	ssd1362_clearBuffer();
 
-	cis_Init(IFFT_MODE);
+	cis_Init();
 
 	udp_clientInit();
 
 	cisynth_eth_SetHint();
 
 	//Add "SSS3" header for synchronization
-	imageData[0] = IMAGE_HEADER;
+	imageData[0] = UDP_HEADER;
 
 	/* Infinite loop */
 	while (1)
@@ -87,7 +86,7 @@ int cisynth_eth(void)
 		{
 			MX_LWIP_Process();
 
-			cis_ImageProcessBW(&imageData[IMAGE_HEADER_SIZE]);
+			cis_ImageProcessBW(&imageData[UDP_HEADER_SIZE]);
 			udp_clientSendImage(imageData);
 
 			eth_process_cnt++;
@@ -104,7 +103,7 @@ int cisynth_eth(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-			cis_color = imageData[(uint32_t)(i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH)) + IMAGE_HEADER_SIZE] >> 12;
+			cis_color = imageData[(uint32_t)(i * ((float)CIS_EFFECTIVE_PIXELS / (float)DISPLAY_MAX_X_LENGTH)) + UDP_HEADER_SIZE] >> 12;
 			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
 			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);

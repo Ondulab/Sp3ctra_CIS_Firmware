@@ -12,17 +12,17 @@
 #include "basetypes.h"
 #include "tim.h"
 #include "adc.h"
+
 #include "arm_math.h"
 
 #include "stdlib.h"
 #include "stdio.h"
 #include "stdbool.h"
 
-#include "synth.h"
-#include "cis.h"
 #include "ssd1362.h"
-#include "menu.h"
 #include "eeprom.h"
+
+#include "cis.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -46,12 +46,7 @@ static const uint16_t VirtAddVar = 0x5555;
 ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
 
-static uint16_t CIS_EFFECTIVE_PIXELS	 		= 	(CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO) * CIS_ADC_OUT_LINES;
-static uint16_t CIS_EFFECTIVE_PIXELS_PER_LINE	= 	(CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO);
-static uint16_t CIS_ADC_BUFF_START_OFFSET	 	= 	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
-static uint16_t CIS_ADC_BUFF_STOP_OFFSET	 	= 	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
-static uint16_t CIS_ADC_BUFF_END_CAPTURE 		= 	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO);
-static uint16_t CIS_ADC_BUFF_SIZE 	 	 		= 	((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO);
+
 
 CIS_BUFF_StateTypeDef  cisBufferState[3] = {0};
 
@@ -66,7 +61,7 @@ void cis_TIM_LED_R_Init(void);
 void cis_TIM_LED_G_Init(void);
 void cis_TIM_LED_B_Init(void);
 
-void cis_ADC_Init(synthModeTypeDef mode);
+void cis_ADC_Init(void);
 void cis_ImageFilterBW(int32_t *cis_buff);
 
 /* Private user code ---------------------------------------------------------*/
@@ -76,28 +71,13 @@ void cis_ImageFilterBW(int32_t *cis_buff);
  * @param  Void
  * @retval None
  */
-void cis_Init(synthModeTypeDef mode)
+void cis_Init(void)
 {
 	printf("----------- CIS INIT ----------\n");
 	printf("-------------------------------\n");
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
-
-	if (mode == IFFT_MODE)
-	{
-		CIS_EFFECTIVE_PIXELS_PER_LINE	=	CIS_ACTIVE_PIXELS_PER_LINE / CIS_IFFT_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
-		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IFFT_OVERSAMPLING_RATIO);
-		CIS_ADC_BUFF_END_CAPTURE 		=	(CIS_END_CAPTURE / CIS_IFFT_OVERSAMPLING_RATIO);
-	}
-	else
-	{
-		CIS_EFFECTIVE_PIXELS_PER_LINE	=	CIS_ACTIVE_PIXELS_PER_LINE / CIS_IMGPLY_OVERSAMPLING_RATIO;
-		CIS_ADC_BUFF_START_OFFSET		=	(CIS_INACTIVE_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO);
-		CIS_ADC_BUFF_STOP_OFFSET		=	(CIS_PIXEL_AERA_STOP / CIS_IMGPLY_OVERSAMPLING_RATIO);
-		CIS_ADC_BUFF_END_CAPTURE 		=	CIS_END_CAPTURE / CIS_IMGPLY_OVERSAMPLING_RATIO;
-	}
 
 	//allocate the contiguous memory area for storage cis data
 	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint32_t));
@@ -120,7 +100,7 @@ void cis_Init(synthModeTypeDef mode)
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); //SET : 200DPI   RESET : 400DPI
 #endif
 
-	cis_ADC_Init(mode);
+	cis_ADC_Init();
 	cis_TIM_SP_Init();
 	cis_TIM_LED_R_Init();
 	cis_TIM_LED_G_Init();
@@ -161,20 +141,10 @@ void cis_Init(synthModeTypeDef mode)
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
 #endif
 
-//	HAL_Delay(1000);
-//	cis_StartCalibration(30);
+	//	HAL_Delay(1000);
+	//	cis_StartCalibration(30);
 	cis_LoadCalibration();
 
-}
-
-/**
- * @brief  GetEffectivePixelNb
- * @param  Void
- * @retval Nuber of effective pixels
- */
-__inline uint16_t cis_GetEffectivePixelNb(void)
-{
-	return CIS_EFFECTIVE_PIXELS;
 }
 
 /**
@@ -477,7 +447,7 @@ void cis_LedsOn()
  * @param  Void
  * @retval None
  */
-void cis_ADC_Init(synthModeTypeDef mode)
+void cis_ADC_Init(void)
 {
 	MX_ADC1_Init();
 	MX_ADC2_Init();
@@ -563,7 +533,7 @@ void cis_Test(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
-			cis_color = cis_GetBuffData((i * ((float)cis_GetEffectivePixelNb() / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
+			cis_color = cis_GetBuffData((i * ((float)CIS_EFFECTIVE_PIXELS / (float)DISPLAY_MAX_X_LENGTH))) >> 12;
 			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT - DISPLAY_INTER_AERAS_HEIGHT - (cis_color) - 1, 15, false);
 
 			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA3_Y1POS + 1, DISPLAY_AERAS3_HEIGHT - 2, cis_color, false);

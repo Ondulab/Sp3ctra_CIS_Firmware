@@ -38,12 +38,10 @@
 #include "lwiperf.h"
 #include "lwip.h"
 
-#include "cisynth_ifft.h"
 #include "cisynth_eth.h"
 #include "ssd1362.h"
 #include "pictures.h"
 #include "icm20602.h"
-#include "pcm5102.h"
 #include "eeprom.h"
 
 /* USER CODE END Includes */
@@ -190,7 +188,6 @@ int main(void)
 	MX_LWIP_Init();
 
 	cisynth_eth();
-//	cisynth_ifft();
 
 	icm20602_init();
 
