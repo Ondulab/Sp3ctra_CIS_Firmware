@@ -34,8 +34,6 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-//#define PRINT_IFFT_FREQUENCY
-//#define PRINT_IFFT_FREQUENCY_FULL
 //#define PRINT_CIS_CALIBRATION
 
 /**************************************************************************************/
@@ -43,21 +41,33 @@
 /**************************************************************************************/
 #define DISPLAY_REFRESH_FPS						(20)
 
-/**************************************************************************************/
-/********************              Synth definitions               ********************/
-/**************************************************************************************/
-#define SAMPLING_FREQUENCY				      	(48000)
+#define DISPLAY_MAX_X_LENGTH		SSD1362_WIDTH
+#define DISPLAY_MAX_Y_LENGTH		SSD1362_HEIGHT
 
-#define IFFT_GAP_PER_MS							(5000)
+#define DISPLAY_HEAD_HEIGHT			(9)
+#define DISPLAY_AERAS1_HEIGHT		(18)
+#define DISPLAY_AERAS2_HEIGHT		(17)
+#define DISPLAY_AERAS3_HEIGHT		(8)
+#define DISPLAY_INTER_AERAS_HEIGHT	(1)
 
-#define STEREO_1
+#define DISPLAY_HEAD_Y1POS			(0)
+#define DISPLAY_HEAD_Y2POS			(DISPLAY_HEAD_HEIGHT)
+
+#define DISPLAY_AERA1_Y1POS			(DISPLAY_HEAD_HEIGHT + DISPLAY_INTER_AERAS_HEIGHT)
+#define DISPLAY_AERA1_Y2POS			(DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT)
+
+#define DISPLAY_AERA2_Y1POS			(DISPLAY_AERA1_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
+#define DISPLAY_AERA2_Y2POS			(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
+
+#define DISPLAY_AERA3_Y1POS			(DISPLAY_AERA2_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
+#define DISPLAY_AERA3_Y2POS			(DISPLAY_AERA3_Y1POS + DISPLAY_AERAS3_HEIGHT)
 
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
 #define SEND_CIS_LINE_FREQUENCY				    (3000)
-#define IMAGE_HEADER							(1397969715) //01010011 01010011 01010011 00110011 SSS3
-#define IMAGE_HEADER_SIZE						(1)//uint32
+#define UDP_HEADER								(1397969715) //01010011 01010011 01010011 00110011 SSS3
+#define UDP_HEADER_SIZE							(1)//uint32
 
 
 /* UDP local connection port */
@@ -88,11 +98,6 @@
 #define GW_ADDR1   								((uint8_t) 168U)
 #define GW_ADDR2   								((uint8_t) 0U)
 #define GW_ADDR3   								((uint8_t) 1U)
-
-/**************************************************************************************/
-/********************              DAC definitions                 ********************/
-/**************************************************************************************/
-#define AUDIO_BUFFER_SIZE             			(256)
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
@@ -142,16 +147,13 @@
 
 #define CIS_IMGPLY_OVERSAMPLING_RATIO			(16)
 
-/**************************************************************************************/
-/********************         Wave generation definitions          ********************/
-/**************************************************************************************/
-#define WAVE_AMP_RESOLUTION 					(65535)   	//in decimal
-#define START_FREQUENCY     					(30)
-#define MAX_OCTAVE_NUMBER   					(10)
-#define SEMITONE_PER_OCTAVE 					(12)
-#define COMMA_PER_SEMITONE  					(2)
+#define CIS_EFFECTIVE_PIXELS	 		 		(((CIS_ACTIVE_PIXELS_PER_LINE) / (CIS_IFFT_OVERSAMPLING_RATIO)) * (CIS_ADC_OUT_LINES))
+#define CIS_EFFECTIVE_PIXELS_PER_LINE	 		((CIS_ACTIVE_PIXELS_PER_LINE) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_START_OFFSET	 	 		((CIS_INACTIVE_AERA_STOP) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_STOP_OFFSET	 	 		((CIS_PIXEL_AERA_STOP) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_END_CAPTURE 		 		((CIS_END_CAPTURE) / (CIS_IFFT_OVERSAMPLING_RATIO))
+#define CIS_ADC_BUFF_SIZE 	 	 		 		((((CIS_END_CAPTURE) * (CIS_ADC_OUT_LINES)) / (CIS_IFFT_OVERSAMPLING_RATIO)))
 
-#define NUMBER_OF_NOTES     					(((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES)) / CIS_IFFT_OVERSAMPLING_RATIO)
 
 #endif // __CONFIG_H__
 
