@@ -70,9 +70,9 @@
 FLASH_OBProgramInitTypeDef OBInit;
 
 /* Virtual address defined by the user: 0xFFFF value is prohibited */
-uint16_t VirtAddVarTab[NB_OF_VAR] = {0x5555, 0x6666, 0x7777};
-uint16_t VarDataTab[NB_OF_VAR] = {0, 0, 0};
-uint16_t VarValue,VarDataTmp = 0;
+uint16_t VirtAddVarTab[NB_OF_VAR] = {0x6666, 0x7777, 0x8888};
+//uint16_t VarDataTab[NB_OF_VAR] = {0, 0, 0};
+//uint16_t VarValue,VarDataTmp = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -167,6 +167,7 @@ int main(void)
 
 	/* Unlock the Flash Program Erase controller */
 	HAL_FLASH_Unlock();
+	HAL_Delay(100);
 
 	/* EEPROM Init */
 	if( EE_Init() != EE_OK)

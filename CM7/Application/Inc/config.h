@@ -45,9 +45,9 @@
 #define DISPLAY_MAX_Y_LENGTH		SSD1362_HEIGHT
 
 #define DISPLAY_HEAD_HEIGHT			(9)
-#define DISPLAY_AERAS1_HEIGHT		(18)
-#define DISPLAY_AERAS2_HEIGHT		(17)
-#define DISPLAY_AERAS3_HEIGHT		(8)
+#define DISPLAY_AERAS1_HEIGHT		(32)
+#define DISPLAY_AERAS2_HEIGHT		(20)
+//#define DISPLAY_AERAS3_HEIGHT		(9)
 #define DISPLAY_INTER_AERAS_HEIGHT	(1)
 
 #define DISPLAY_HEAD_Y1POS			(0)
@@ -59,13 +59,12 @@
 #define DISPLAY_AERA2_Y1POS			(DISPLAY_AERA1_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
 #define DISPLAY_AERA2_Y2POS			(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
 
-#define DISPLAY_AERA3_Y1POS			(DISPLAY_AERA2_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
-#define DISPLAY_AERA3_Y2POS			(DISPLAY_AERA3_Y1POS + DISPLAY_AERAS3_HEIGHT)
+//#define DISPLAY_AERA3_Y1POS			(DISPLAY_AERA2_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
+//#define DISPLAY_AERA3_Y2POS			(DISPLAY_AERA3_Y1POS + DISPLAY_AERAS3_HEIGHT)
 
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
-#define SEND_CIS_LINE_FREQUENCY				    (3000)
 #define UDP_HEADER								(1397969715) //01010011 01010011 01010011 00110011 SSS3
 #define UDP_HEADER_SIZE							(1)//uint32
 
@@ -104,7 +103,7 @@
 /**************************************************************************************/
 #define CIS_400DPI
 #define CIS_BW
-#define CIS_INVERT_COLOR
+//#define CIS_INVERT_COLOR
 //#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
