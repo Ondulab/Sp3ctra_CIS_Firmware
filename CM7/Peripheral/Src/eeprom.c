@@ -608,7 +608,7 @@ static uint16_t EE_VerifyPageFullWriteVariable(uint16_t VirtAddress, uint16_t Da
     else
     {
       /* Next address location */
-      Address = Address + 64;
+      Address = Address + 64;//todo check address offset
     }
   }
 
