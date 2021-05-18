@@ -34,7 +34,8 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-//#define PRINT_CIS_CALIBRATION
+#define PRINT_CIS_CALIBRATION
+#define CIS_GAINS_COMPENSATION_OFF
 
 /**************************************************************************************/
 /********************             Display definitions              ********************/
@@ -101,7 +102,7 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_400DPI
+//#define CIS_400DPI
 #define CIS_BW
 //#define CIS_INVERT_COLOR
 //#define CIS_INVERT_COLOR_SMOOTH
@@ -113,14 +114,15 @@
 #define CIS_SP_WIDTH							(2)
 #define CIS_SP_ON								(CIS_SP_OFF - CIS_SP_WIDTH)
 #define CIS_SP_OFF								(10 - CIS_READ_OFFSET_CORRECTION)
-#define CIS_LED_ON								(CIS_SP_OFF + 4)
+#define CIS_LED_ON_DELAY						(40)
+#define CIS_LED_ON								(CIS_SP_OFF + CIS_LED_ON_DELAY)
 #define CIS_INACTIVE_WIDTH						(38 + CIS_READ_OFFSET_CORRECTION)
 #define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_OFF)
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(1200)//900
-#define CIS_LED_GREEN_OFF						(1200)
-#define CIS_LED_BLUE_OFF						(1200)
+#define CIS_LED_RED_OFF							(350)
+#define CIS_LED_GREEN_OFF						(350)//GREEN AS REFERENCE
+#define CIS_LED_BLUE_OFF						(350)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
@@ -141,7 +143,7 @@
 #ifdef CIS_400DPI
 #define CIS_IFFT_OVERSAMPLING_RATIO				(16)
 #else
-#define CIS_IFFT_OVERSAMPLING_RATIO				(8)
+#define CIS_IFFT_OVERSAMPLING_RATIO				(1)
 #endif
 
 #define CIS_IMGPLY_OVERSAMPLING_RATIO			(16)

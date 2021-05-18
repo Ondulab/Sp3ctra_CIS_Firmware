@@ -42,11 +42,12 @@ static int32_t *cisBlackCalData     = NULL;
 static int32_t *cisOffsetCalData    = NULL;
 static float32_t *cisGainsCalData 	= NULL;
 
-static int32_t minWhitePix = 0;
+static int32_t minBlackPix = 0;
+static int32_t maxBlackPix = 0;
 static int32_t maxWhitePix = 0;
 
-static const uint16_t blackCalibVirtAddVar = 0x6666;
-static const uint16_t whiteCalibVirtAddVar = 0x7777;
+static const uint16_t blackCalibVirtAddVar = 0x2222;
+static const uint16_t whiteCalibVirtAddVar = 0x5555;
 
 //static uint16_t cisData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
 
@@ -177,26 +178,28 @@ void cis_Init(void)
 	//		cis_CalibrationMenu();
 	//	}
 
-//	cis_CalibrationMenu();
+	cis_CalibrationMenu();
 
 	// Load levels and compute calibration gains and offset
 
 	/*-------- 1 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD WHITE LEVELS", 0xF, 8);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD BLACK LEVELS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
-	// Get the white levels
-	cis_LoadCalibration(whiteCalibVirtAddVar, cisWhiteCalData, &minWhitePix, &maxWhitePix);
+	// Get the black levels
+	cis_LoadCalibration(blackCalibVirtAddVar, cisBlackCalData, &minBlackPix, &maxBlackPix);
 
 	// Print curve
 	ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS + 1, 7, false);
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
-		int32_t cis_color = cisWhiteCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
+		int32_t cis_color = cisBlackCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 15, false);
 	}
 	ssd1362_writeFullBuffer();
+
+	HAL_Delay(2000);
 
 	/*-------- 2 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
@@ -206,35 +209,37 @@ void cis_Init(void)
 	// Extract differential offsets
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS; i++)
 	{
-		cisOffsetCalData[i] = maxWhitePix - cisWhiteCalData[i];
+		cisOffsetCalData[i] = maxBlackPix - cisBlackCalData[i];
 	}
 
 	// Print curve
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
 		uint32_t index = i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH);
-		int32_t cis_color = (cisOffsetCalData[index] + cisWhiteCalData[index]) >> 11;
+		int32_t cis_color = (cisOffsetCalData[index] + cisBlackCalData[index]) >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 3, false);
 	}
 	ssd1362_writeFullBuffer();
 
+	HAL_Delay(2000);
 
 	/*-------- 3 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD BLACK LEVELS", 0xF, 8);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD WHITE LEVELS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
-	// Get the black levels
-	cis_LoadCalibration(blackCalibVirtAddVar, cisBlackCalData, NULL, NULL);
+	// Get the white levels
+	cis_LoadCalibration(whiteCalibVirtAddVar, cisWhiteCalData, NULL, NULL);
 
 	// Print curve
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
-		int32_t cis_color = cisBlackCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
+		int32_t cis_color = cisWhiteCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 0, false);
 	}
 	ssd1362_writeFullBuffer();
 
+	HAL_Delay(2000);
 
 	/*-------- 4 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
@@ -244,7 +249,7 @@ void cis_Init(void)
 	// Compute gains
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS; i++)
 	{
-		cisGainsCalData[i] = (float32_t)(65535 - 5535 - maxWhitePix) / (float32_t)(cisBlackCalData[i] - cisWhiteCalData[i]);
+		cisGainsCalData[i] = (float32_t)(40000) / (float32_t)(cisWhiteCalData[i] - cisBlackCalData[i]);
 	}
 
 	printf("-------- COMPUTE GAINS --------\n");
@@ -277,7 +282,6 @@ void cis_StartCalibration(uint16_t VirtAddVar, uint16_t iterationNb)
 		for (uint32_t sampleNb = 0; sampleNb < iterationNb; sampleNb++)
 		{
 			currAvrgPix += cis_GetBuffData(pix);
-			HAL_Delay(1);
 		}
 		currAvrgPix /= iterationNb;
 
@@ -394,13 +398,15 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
-//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-
-			arm_sub_q31(&cisData[dataOffset], &cisWhiteCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#ifdef CIS_GAINS_COMPENSATION_OFF
+			arm_copy_q31(&cisData[dataOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#else
+			arm_sub_q31(&cisData[dataOffset], &cisBlackCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 			arm_mult_f32((float32_t *)(&cis_buff[imageOffset]), &cisGainsCalData[imageOffset],(float32_t *)(&cis_buff[imageOffset]), CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			arm_offset_q31(&cis_buff[imageOffset], maxWhitePix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+//			arm_offset_q31(&cis_buff[imageOffset], maxBlackPix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
 			cis_ImageFilterBW(&cis_buff[imageOffset]);
+#endif
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
@@ -412,13 +418,15 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
 			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
-//			arm_copy_q15((int16_t*)&cisData[dataOffset], (int16_t*)&cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-
-			arm_sub_q31(&cisData[dataOffset], &cisWhiteCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#ifdef CIS_GAINS_COMPENSATION_OFF
+			arm_copy_q31(&cisData[dataOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#else
+			arm_sub_q31(&cisData[dataOffset], &cisBlackCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 			arm_mult_f32((float32_t *)(&cis_buff[imageOffset]), &cisGainsCalData[imageOffset],(float32_t *)(&cis_buff[imageOffset]), CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			arm_offset_q31(&cis_buff[imageOffset], maxWhitePix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+//			arm_offset_q31(&cis_buff[imageOffset], maxBlackPix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 
 			cis_ImageFilterBW(&cis_buff[imageOffset]);
+#endif
 		}
 	}
 }
@@ -676,15 +684,15 @@ static void cis_CalibrationMenu(void)
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"CIS BW QUALIBRATION", 0xF, 8);
 	ssd1362_writeFullBuffer();
-	HAL_Delay(1000);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON BLACK SURFACE", 0xF, 8);
-	ssd1362_writeFullBuffer();
-	HAL_Delay(4000);
-	cis_StartCalibration(whiteCalibVirtAddVar ,10);
+	HAL_Delay(500);
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
 	ssd1362_writeFullBuffer();
-	HAL_Delay(4000);
-	cis_StartCalibration(blackCalibVirtAddVar ,10);
+	HAL_Delay(2000);
+	cis_StartCalibration(whiteCalibVirtAddVar ,20);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON BLACK SURFACE", 0xF, 8);
+	ssd1362_writeFullBuffer();
+	HAL_Delay(2000);
+	cis_StartCalibration(blackCalibVirtAddVar ,20);
 }
