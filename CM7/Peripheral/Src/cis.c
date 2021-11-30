@@ -178,7 +178,7 @@ void cis_Init(void)
 	//		cis_CalibrationMenu();
 	//	}
 
-	cis_CalibrationMenu();
+//	cis_CalibrationMenu();
 
 	// Load levels and compute calibration gains and offset
 

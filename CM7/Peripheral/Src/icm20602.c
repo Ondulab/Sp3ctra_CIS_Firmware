@@ -12,6 +12,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 #include "icm20602.h"
+#include "spi.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -101,10 +102,10 @@
 static float _temp_sensitivity = 326.8;
 
 struct icm20602_dev dev={
-		.accel_dlpf = ICM20602_ACCEL_DLPF_218_1_HZ,
-		.accel_fifo = TRUE,
-		.accel_g = ICM20602_ACCEL_RANGE_4G,
-		.gyro_dlpf = ICM20602_GYRO_DLPF_BYPASS_8173_HZ,
+		.accel_dlpf = ICM20602_ACCEL_DLPF_BYPASS_1046_HZ,
+		.accel_fifo = FALSE,
+		.accel_g = ICM20602_ACCEL_RANGE_16G,
+		.gyro_dlpf = ICM20602_GYRO_DLPF_BYPASS_3281_HZ,
 		.gyro_dps = ICM20602_GYRO_RANGE_1000_DPS,
 		.sample_rate_div = 0,
 		.use_accel = TRUE,
@@ -120,6 +121,7 @@ uint8_t icm20602_write(uint8_t reg, uint8_t *data, uint16_t len)
 {
 	int rv = 0;
 	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
+	HAL_Delay(1);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 	rv = HAL_SPI_Transmit(&hspi2, &reg, 1, 1000);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
@@ -134,6 +136,7 @@ uint8_t icm20602_read(uint8_t reg, uint8_t *data, uint16_t len)
 	int rv = 0;
 	reg |= 0b10000000;
 	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
+	HAL_Delay(1);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 	rv = HAL_SPI_Transmit(&hspi2, &reg, 1, 1000);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
@@ -208,7 +211,7 @@ int8_t icm20602_init(void)
 	r = icm20602_write(REG_PWR_MGMT_1, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
-	HAL_Delay(1000);
+	HAL_Delay(100);
 
 	// verify we are able to read from the chip
 	r = icm20602_read(REG_WHO_AM_I, &tmp, 1);
@@ -223,10 +226,14 @@ int8_t icm20602_init(void)
 	r = icm20602_write(REG_SIGNAL_PATH_RESET, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
+	HAL_Delay(100);
+
 	// set clock to internal PLL
 	tmp = 0x01;
 	r = icm20602_write(REG_PWR_MGMT_1, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
+
+	HAL_Delay(15);
 
 	// place accel and gyro on standby
 	tmp = 0x3F;
