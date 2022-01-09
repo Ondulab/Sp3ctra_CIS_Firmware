@@ -185,10 +185,10 @@ int main(void)
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-		HAL_Delay(10);
+		HAL_Delay(20);
 	}
 
-//	MX_LWIP_Init();
+	MX_LWIP_Init();
 
 	cisynth_eth();
 

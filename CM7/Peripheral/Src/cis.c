@@ -256,7 +256,7 @@ void cis_Init(void)
 		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisGainsCalData[pix]);
 	}
 #endif
-	HAL_Delay(5000);
+	HAL_Delay(1000);
 	printf("-------------------------------\n");
 }
 
@@ -542,7 +542,7 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 	for (int32_t line = 3; --line >= 0;) //CIS_ADC_OUT_LINES
 	{
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
-		if(cisBufferState[line] == CIS_BUFFER_OFFSET_HALF)
+		while(cisBufferState[line] != CIS_BUFFER_OFFSET_HALF)
 		{
 			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
 			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
@@ -550,7 +550,7 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
-		if(cisBufferState[line] == CIS_BUFFER_OFFSET_FULL)
+		while(cisBufferState[line] != CIS_BUFFER_OFFSET_FULL)
 		{
 			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
 			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
