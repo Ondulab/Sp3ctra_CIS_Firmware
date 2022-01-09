@@ -42,12 +42,11 @@ static int32_t *cisBlackCalData     = NULL;
 static int32_t *cisOffsetCalData    = NULL;
 static float32_t *cisGainsCalData 	= NULL;
 
-static int32_t minBlackPix = 0;
-static int32_t maxBlackPix = 0;
+static int32_t minWhitePix = 0;
 static int32_t maxWhitePix = 0;
 
-static const uint16_t blackCalibVirtAddVar = 0x2222;
-static const uint16_t whiteCalibVirtAddVar = 0x5555;
+static const uint32_t blackCalibVirtAddVar = ADDR_FLASH_SECTOR_6_BANK1;
+static const uint32_t whiteCalibVirtAddVar = ADDR_FLASH_SECTOR_7_BANK1;
 
 //static uint16_t cisData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO)]; // for debug
 
@@ -64,8 +63,8 @@ CIS_BUFF_StateTypeDef  cisBufferState[3] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-void cis_StartCalibration(uint16_t VirtAddVar, uint16_t iterationNb);
-void cis_LoadCalibration(uint16_t VirtAddVar, int32_t * cisCalData, int32_t * minPix, int32_t * maxPix);
+void cis_StartCalibration(uint32_t userFlashStartAddress, uint16_t iterationNb);
+void cis_LoadCalibration(uint32_t userFlashStartAddress, int32_t *cisCalData, int32_t *minPix, int32_t *maxPix);
 void cis_TIM_CLK_Init(void);
 void cis_TIM_SP_Init(void);
 void cis_TIM_LED_R_Init(void);
@@ -88,6 +87,8 @@ void cis_Init(void)
 {
 	printf("----------- CIS INIT ----------\n");
 	printf("-------------------------------\n");
+
+	printf("CIS END CAPTURE = %d\n", CIS_END_CAPTURE);
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
@@ -159,13 +160,13 @@ void cis_Init(void)
 	__HAL_TIM_SET_COUNTER(&htim1, 0);
 
 	//Reset SP counter
-	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE) - CIS_SP_ON);
+	__HAL_TIM_SET_COUNTER(&htim8, (CIS_END_CAPTURE) - CIS_SP_WIDTH);
 
 #ifdef CIS_BW
 	//Set BW phase shift
-	__HAL_TIM_SET_COUNTER(&htim5, (CIS_END_CAPTURE) - CIS_LED_ON);			//B
-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE) - CIS_LED_ON);			//G
-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_ON);			//R
+	__HAL_TIM_SET_COUNTER(&htim5, (CIS_END_CAPTURE) - CIS_LED_BLUE_ON);		//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_END_CAPTURE) - CIS_LED_GREEN_ON);	//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_END_CAPTURE) - CIS_LED_RED_ON);		//R
 #else
 	//Set RGB phase shift
 	__HAL_TIM_SET_COUNTER(&htim5, (CIS_END_CAPTURE * 2) - CIS_LED_ON);		//B
@@ -178,78 +179,74 @@ void cis_Init(void)
 	//		cis_CalibrationMenu();
 	//	}
 
-//	cis_CalibrationMenu();
+	//	cis_CalibrationMenu();
 
 	// Load levels and compute calibration gains and offset
 
 	/*-------- 1 --------*/
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD BLACK LEVELS", 0xF, 8);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD WHITE LEVELS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
-	// Get the black levels
-	cis_LoadCalibration(blackCalibVirtAddVar, cisBlackCalData, &minBlackPix, &maxBlackPix);
+	// Get the white levels
+	cis_LoadCalibration(whiteCalibVirtAddVar, cisWhiteCalData, &minWhitePix, &maxWhitePix);
 
 	// Print curve
 	ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS + 1, 7, false);
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
-		int32_t cis_color = cisBlackCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
+		int32_t cis_color = cisWhiteCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 15, false);
 	}
 	ssd1362_writeFullBuffer();
 
-	HAL_Delay(2000);
-
 	/*-------- 2 --------*/
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT DIFFERENTIAL OFFSETS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
 	// Extract differential offsets
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS; i++)
 	{
-		cisOffsetCalData[i] = maxBlackPix - cisBlackCalData[i];
+		cisOffsetCalData[i] = maxWhitePix - cisWhiteCalData[i];
 	}
 
 	// Print curve
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
 		uint32_t index = i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH);
-		int32_t cis_color = (cisOffsetCalData[index] + cisBlackCalData[index]) >> 11;
+		int32_t cis_color = (cisOffsetCalData[index] + cisWhiteCalData[index]) >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 3, false);
 	}
 	ssd1362_writeFullBuffer();
 
-	HAL_Delay(2000);
 
 	/*-------- 3 --------*/
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD WHITE LEVELS", 0xF, 8);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"LOAD BLACK LEVELS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
-	// Get the white levels
-	cis_LoadCalibration(whiteCalibVirtAddVar, cisWhiteCalData, NULL, NULL);
+	// Get the black levels
+	cis_LoadCalibration(blackCalibVirtAddVar, cisBlackCalData, NULL, NULL);
 
 	// Print curve
 	for (uint32_t i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 	{
-		int32_t cis_color = cisWhiteCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
+		int32_t cis_color = cisBlackCalData[(uint32_t)(i * ((float)(CIS_EFFECTIVE_PIXELS) / (float)DISPLAY_MAX_X_LENGTH))] >> 11;
 		ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color, 0, false);
 	}
 	ssd1362_writeFullBuffer();
 
-	HAL_Delay(2000);
 
 	/*-------- 4 --------*/
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"COMPUTE COMPENSATIION GAINS", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
 	// Compute gains
 	for (uint32_t i = 0; i < CIS_EFFECTIVE_PIXELS; i++)
 	{
-		cisGainsCalData[i] = (float32_t)(40000) / (float32_t)(cisWhiteCalData[i] - cisBlackCalData[i]);
+		cisGainsCalData[i] = (float32_t)(65535 - 5535 - maxWhitePix) / (float32_t)(cisBlackCalData[i] - cisWhiteCalData[i]);
 	}
 
 	printf("-------- COMPUTE GAINS --------\n");
@@ -258,51 +255,196 @@ void cis_Init(void)
 	{
 		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisGainsCalData[pix]);
 	}
-	printf("-------------------------------\n");
 #endif
+	HAL_Delay(5000);
+	printf("-------------------------------\n");
 }
+
+/**
+ * @brief  Gets the sector of a given address
+ * @param  Address Address of the FLASH Memory
+ * @retval The sector of a given address
+ */
+uint32_t GetSector(uint32_t Address)
+{
+	uint32_t sector = 0;
+
+	if(((Address < ADDR_FLASH_SECTOR_1_BANK1) && (Address >= ADDR_FLASH_SECTOR_0_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_1_BANK2) && (Address >= ADDR_FLASH_SECTOR_0_BANK2)))
+	{
+		sector = FLASH_SECTOR_0;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_2_BANK1) && (Address >= ADDR_FLASH_SECTOR_1_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_2_BANK2) && (Address >= ADDR_FLASH_SECTOR_1_BANK2)))
+	{
+		sector = FLASH_SECTOR_1;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_3_BANK1) && (Address >= ADDR_FLASH_SECTOR_2_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_3_BANK2) && (Address >= ADDR_FLASH_SECTOR_2_BANK2)))
+	{
+		sector = FLASH_SECTOR_2;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_4_BANK1) && (Address >= ADDR_FLASH_SECTOR_3_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_4_BANK2) && (Address >= ADDR_FLASH_SECTOR_3_BANK2)))
+	{
+		sector = FLASH_SECTOR_3;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_5_BANK1) && (Address >= ADDR_FLASH_SECTOR_4_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_5_BANK2) && (Address >= ADDR_FLASH_SECTOR_4_BANK2)))
+	{
+		sector = FLASH_SECTOR_4;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_6_BANK1) && (Address >= ADDR_FLASH_SECTOR_5_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_6_BANK2) && (Address >= ADDR_FLASH_SECTOR_5_BANK2)))
+	{
+		sector = FLASH_SECTOR_5;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_7_BANK1) && (Address >= ADDR_FLASH_SECTOR_6_BANK1)) || \
+			((Address < ADDR_FLASH_SECTOR_7_BANK2) && (Address >= ADDR_FLASH_SECTOR_6_BANK2)))
+	{
+		sector = FLASH_SECTOR_6;
+	}
+	else if(((Address < ADDR_FLASH_SECTOR_0_BANK2) && (Address >= ADDR_FLASH_SECTOR_7_BANK1)) || \
+			((Address < FLASH_END_ADDR) && (Address >= ADDR_FLASH_SECTOR_7_BANK2)))
+	{
+		sector = FLASH_SECTOR_7;
+	}
+	else
+	{
+		sector = FLASH_SECTOR_7;
+	}
+
+	return sector;
+}
+
 
 /**
  * @brief  CIS calibration
  * @param  calibration iteration
  * @retval None
  */
-void cis_StartCalibration(uint16_t VirtAddVar, uint16_t iterationNb)
+void cis_StartCalibration(uint32_t userFlashStartAddress, uint16_t iterationNb)
 {
-	uint32_t currAvrgPix = 0;
-	uint16_t letfBits = 0;
-	uint16_t rightBits = 0;
+	uint32_t pix = 0, currState = 0;
+	int32_t tmpCalibrationData[CIS_EFFECTIVE_PIXELS] = {0};
+
+	/*Variable used for flash procedure*/
+	static FLASH_EraseInitTypeDef eraseInitStruct;
+	uint32_t firstSector = 0, nbOfSectors = 0;
+	uint32_t address = 0, sectorError = 0;
+	__IO uint32_t memoryProgramStatus = 0;
+	__IO uint32_t data32 = 0;
+
+	//sanity check
+	if (CIS_EFFECTIVE_PIXELS > (32000 - 1))
+	{
+		printf("Flash write fail\n");
+		Error_Handler();
+	}
 
 	printf("------ START CALIBRATION ------\n");
 
-
-	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	for (uint32_t sampleNb = 0; sampleNb < iterationNb; sampleNb++)
 	{
+		//invalidate cache to refresh data
 		SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[0] , CIS_ADC_BUFF_SIZE * 4);
-		for (uint32_t sampleNb = 0; sampleNb < iterationNb; sampleNb++)
-		{
-			currAvrgPix += cis_GetBuffData(pix);
-		}
-		currAvrgPix /= iterationNb;
 
-		letfBits = currAvrgPix >> 16;
-		rightBits = currAvrgPix;
+		for (pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+		{
+			tmpCalibrationData[pix] += cis_GetBuffData(pix);
+		}
 
-		if((EE_WriteVariable(VirtAddVar + (pix * 2),  letfBits)) != HAL_OK)
-		{
-			printf("Flash write fail\n");
-			Error_Handler();
-		}
-		if((EE_WriteVariable(VirtAddVar + (pix * 2) + 1,  rightBits)) != HAL_OK)
-		{
-			printf("Flash write fail\n");
-			Error_Handler();
-		}
-#ifdef PRINT_CIS_CALIBRATION
-		printf("Pix = %d, Val = %d\n", (int)pix, (int)currAvrgPix);
-#endif
-		currAvrgPix = 0;
+		currState = (sampleNb + 1) * 100 / iterationNb;
+		ssd1362_progressBar(30, 30, currState, 0xF);
+
+		HAL_Delay(10);
 	}
+
+	for (pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	{
+		tmpCalibrationData[pix] /= iterationNb;
+
+#ifdef PRINT_CIS_CALIBRATION
+		printf("Pix = %d, Val = %d\n", (int)pix, (int)tmpCalibrationData[pix]);
+#endif
+	}
+
+	//	for (pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++) //For flash write debugging
+	//	{
+	//		tmpCalibrationData[pix] = pix;
+	//	}
+
+	/* -2- Unlock the Flash to enable the flash control register access *************/
+	HAL_FLASH_Unlock();
+
+	/* -3- Erase the user Flash area
+		    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+	/* Get the 1st sector to erase */
+	firstSector = GetSector(userFlashStartAddress);
+	nbOfSectors = 1;
+
+	/* Fill EraseInit structure*/
+	eraseInitStruct.TypeErase     = FLASH_TYPEERASE_SECTORS;
+	eraseInitStruct.VoltageRange  = FLASH_VOLTAGE_RANGE_4;
+	eraseInitStruct.Banks         = FLASH_BANK_1;
+	eraseInitStruct.Sector        = firstSector;
+	eraseInitStruct.NbSectors     = nbOfSectors;
+
+	if (HAL_FLASHEx_Erase(&eraseInitStruct, &sectorError) != HAL_OK)
+	{
+		printf("Flash write fail\n");
+		Error_Handler();
+	}
+
+	/* -4- Program the user Flash area word by word
+		    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
+
+	pix = 0;
+	address = userFlashStartAddress;
+
+	while (address < (userFlashStartAddress + CIS_EFFECTIVE_PIXELS * 4))
+	{
+		if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)&tmpCalibrationData[pix]) == HAL_OK)
+		{
+			address = address + 32; /* increment for the next Flash word*/
+			pix+=8;
+		}
+		else
+		{
+			printf("Flash write fail\n");
+			Error_Handler();
+		}
+	}
+
+	/* -5- Lock the Flash to disable the flash control register access (recommended
+		     to protect the FLASH memory against possible unwanted operation) *********/
+	HAL_FLASH_Lock();
+
+	/* -6- Check if the programmed data is OK
+	      MemoryProgramStatus = 0: data programmed correctly
+	      MemoryProgramStatus != 0: number of words not programmed correctly ******/
+	address = userFlashStartAddress;
+	memoryProgramStatus = 0x0;
+
+	for(pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	{
+		data32 = *(uint32_t*)address;
+		__DSB();
+		if(data32 != tmpCalibrationData[pix])
+		{
+			memoryProgramStatus++;
+		}
+		address+=4;
+	}
+
+	/* -7- Check if there is an issue to program data*/
+	if (memoryProgramStatus != 0)
+	{
+		printf("Flash write fail\n");
+		Error_Handler();
+	}
+
 	printf("-------------------------------\n");
 }
 
@@ -311,37 +453,25 @@ void cis_StartCalibration(uint16_t VirtAddVar, uint16_t iterationNb)
  * @param  None
  * @retval None
  */
-void cis_LoadCalibration(uint16_t VirtAddVar, int32_t * cisCalData, int32_t * minPix, int32_t * maxPix)
+void cis_LoadCalibration(uint32_t userFlashStartAddress, int32_t *cisCalData, int32_t *minPix, int32_t *maxPix)
 {
-	uint16_t letfBits = 0;
-	uint16_t rightBits = 0;
-	int32_t currAvrgPix = 0;
+	uint32_t address = 0, pix = 0;
 	int32_t deltaPix = 0;
 	int32_t maxpix = 0;
 	int32_t minpix = 0;
 
 	printf("------- LOAD CALIBRATION ------\n");
 
-	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	address = userFlashStartAddress;
+
+	for(pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
 	{
-		if((EE_ReadVariable(VirtAddVar + (pix * 2),  &letfBits)) != HAL_OK)
-		{
-			printf("Flash read fail\n");
-			Error_Handler();
-		}
-		if((EE_ReadVariable(VirtAddVar + (pix * 2) + 1,  &rightBits)) != HAL_OK)
-		{
-			printf("Flash read fail\n");
-			Error_Handler();
-		}
+		cisCalData[pix] = *(uint32_t*)address;
+		__DSB();
 
-		currAvrgPix = letfBits << 16;
-		currAvrgPix |= rightBits;
-
-		cisCalData[pix] = currAvrgPix;
-
-		currAvrgPix = 0;
+		address+=4;
 	}
+
 	arm_max_q31(cisCalData, CIS_EFFECTIVE_PIXELS, &maxpix, NULL);
 	arm_min_q31(cisCalData, CIS_EFFECTIVE_PIXELS, &minpix, NULL);
 
@@ -381,53 +511,52 @@ uint32_t cis_GetBuffData(uint32_t index)
 }
 
 /**
+ * @brief  Manages Image compute.
+ * @param
+ * @retval None
+ */
+void cis_ImageComputeBW(int32_t dataOffset, int32_t imageOffset, int32_t *cis_buff)
+{
+	/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
+	SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
+
+#ifndef CIS_DESACTIVATE_CALIBRATION
+	arm_sub_q31(&cisData[dataOffset], &cisWhiteCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+	arm_mult_f32((float32_t *)(&cis_buff[imageOffset]), &cisGainsCalData[imageOffset],(float32_t *)(&cis_buff[imageOffset]), CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+	arm_offset_q31(&cis_buff[imageOffset], maxWhitePix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#else
+	arm_copy_q31(&cisData[dataOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+#endif
+	cis_ImageFilterBW(&cis_buff[imageOffset]);
+}
+
+/**
  * @brief  Manages Image process.
- * @param  None
- * @retval Image error
+ * @param
+ * @retval None
  */
 void cis_ImageProcessBW(int32_t *cis_buff)
 {
-	for (int32_t line = (CIS_ADC_OUT_LINES); --line >= 0;)
+	static int32_t dataOffset, imageOffset;
+
+	for (int32_t line = 3; --line >= 0;) //CIS_ADC_OUT_LINES
 	{
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_HALF)
 		{
-			int32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
-			int32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
-
-			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
-			/* Invalidate Data Cache to get the updated content of the SRAM on the first half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[dataOffset] , CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
-#ifdef CIS_GAINS_COMPENSATION_OFF
-			arm_copy_q31(&cisData[dataOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-#else
-			arm_sub_q31(&cisData[dataOffset], &cisBlackCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			arm_mult_f32((float32_t *)(&cis_buff[imageOffset]), &cisGainsCalData[imageOffset],(float32_t *)(&cis_buff[imageOffset]), CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-//			arm_offset_q31(&cis_buff[imageOffset], maxBlackPix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-
-			cis_ImageFilterBW(&cis_buff[imageOffset]);
-#endif
+			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
+			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
+			cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
 		}
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
 		if(cisBufferState[line] == CIS_BUFFER_OFFSET_FULL)
 		{
-			int32_t dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			int32_t imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-
-			cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
-			/* Invalidate Data Cache to get the updated content of the SRAM on the second half of the ADC converted data buffer */
-			SCB_InvalidateDCache_by_Addr((uint32_t *) &cisData[dataOffset], CIS_EFFECTIVE_PIXELS_PER_LINE * 2);
-#ifdef CIS_GAINS_COMPENSATION_OFF
-			arm_copy_q31(&cisData[dataOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-#else
-			arm_sub_q31(&cisData[dataOffset], &cisBlackCalData[imageOffset], &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			arm_mult_f32((float32_t *)(&cis_buff[imageOffset]), &cisGainsCalData[imageOffset],(float32_t *)(&cis_buff[imageOffset]), CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-//			arm_offset_q31(&cis_buff[imageOffset], maxBlackPix / 2, &cis_buff[imageOffset], CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-
-			cis_ImageFilterBW(&cis_buff[imageOffset]);
-#endif
+			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+			cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
 		}
+		cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
 }
 
@@ -594,6 +723,21 @@ void cis_ADC_Init(void)
 	{
 		Error_Handler();
 	}
+
+	if (HAL_ADCEx_LinearCalibration_FactorLoad(&hadc1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_ADCEx_LinearCalibration_FactorLoad(&hadc2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	if (HAL_ADCEx_LinearCalibration_FactorLoad(&hadc3) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 /**
@@ -681,18 +825,18 @@ static void cis_CalibrationMenu(void)
 	/* Set header description */
 	buttonState[SW1] = SWITCH_RELEASED;
 
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"CIS BW QUALIBRATION", 0xF, 8);
 	ssd1362_writeFullBuffer();
-	HAL_Delay(500);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
-	ssd1362_writeFullBuffer();
-	HAL_Delay(2000);
-	cis_StartCalibration(whiteCalibVirtAddVar ,20);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, true);
+	HAL_Delay(1000);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON BLACK SURFACE", 0xF, 8);
 	ssd1362_writeFullBuffer();
-	HAL_Delay(2000);
-	cis_StartCalibration(blackCalibVirtAddVar ,20);
+	HAL_Delay(1000);
+	cis_StartCalibration(whiteCalibVirtAddVar, 100);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
+	ssd1362_writeFullBuffer();
+	HAL_Delay(1000);
+	cis_StartCalibration(blackCalibVirtAddVar, 100);
 }

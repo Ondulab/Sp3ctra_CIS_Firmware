@@ -272,6 +272,17 @@ void ssd1362_drawBmp(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, 
 	}
 }
 
+void ssd1362_progressBar(uint16_t x, uint16_t y, uint8_t state, uint8_t color)
+{
+	//sanity check
+	if (state > 100)
+		state = 100;
+    ssd1362_drawRect(x, y, 204 + x, 12 + y, 4, false);
+    if ((state > 0) && (state <= 100))
+        ssd1362_drawRect(x + 2, y + 2, state * 2 + x + 2, 8 + y + 2, color, false);
+    ssd1362_writeUpdates();
+}
+
 //gradient test pattern
 void ssd1362_fillStripes(uint8_t offset)
 {
