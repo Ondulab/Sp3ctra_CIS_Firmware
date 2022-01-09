@@ -1,3 +1,4 @@
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file    tim.c
@@ -6,17 +7,16 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2022 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
-
+/* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "tim.h"
 
@@ -46,10 +46,10 @@ void MX_TIM1_Init(void)
 
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / 96) / (CIS_CLK_FREQ)) - 1);
-	counterPeriod = 48 - 1;
-	pulseValueCH2 = 24 - 1;
-	pulseValueCH1 = 2 - 1;
+	prescalerValue = (uint32_t)(((SystemCoreClock / 150) / (CIS_CLK_FREQ)) - 1);
+	counterPeriod = (150 / 2) - 1;
+	pulseValueCH2 = 35 - 1; //CLK OUT
+	pulseValueCH1 = 60 - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -74,7 +74,7 @@ void MX_TIM1_Init(void)
   sConfigOC.Pulse = pulseValueCH1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
@@ -337,7 +337,7 @@ void MX_TIM8_Init(void)
 
   prescalerValue = 0;
   counterPeriod = CIS_END_CAPTURE - 1;
-  pulseValue = CIS_SP_OFF - 1;
+  pulseValue = CIS_SP_WIDTH - 1;
 
   /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;
@@ -651,5 +651,3 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

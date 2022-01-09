@@ -84,10 +84,11 @@ int cisynth_eth(void)
 		start_tick = HAL_GetTick();
 		while ((HAL_GetTick() - start_tick) < DISPLAY_REFRESH_FPS)//todo add TIM us to compute loop latency
 		{
-			MX_LWIP_Process();
+			//Delete image transfert
+//			MX_LWIP_Process();
 
 			cis_ImageProcessBW(&imageData[UDP_HEADER_SIZE]);
-			udp_clientSendImage(imageData);
+//			udp_clientSendImage(imageData);
 
 			eth_process_cnt++;
 		}
@@ -101,19 +102,28 @@ int cisynth_eth(void)
 
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
+			static int32_t y;
 			cis_color = imageData[(uint32_t)(i * ((float)CIS_EFFECTIVE_PIXELS / (float)DISPLAY_MAX_X_LENGTH)) + UDP_HEADER_SIZE] >> 11;
-			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA1_Y2POS - cis_color - 1, 15, false);
-			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color >> 1, false);
+
+			y = (DISPLAY_AERA1_Y2POS - cis_color - 1);
+
+			if (y < DISPLAY_AERA1_Y1POS)
+			{
+				y = DISPLAY_AERA1_Y1POS;
+			}
+
+			if (y > DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1)
+			{
+				y = DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1;
+			}
+
+			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, y, 0xF, false);
+
+			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color / 2, false);
 		}
 		ssd1362_drawRect(195, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
 		ssd1362_drawString(195, 1, (int8_t*)FreqStr, 15, 8);
-		ssd1362_writeFullBuffer();
-
-//		printf("-------------------------------\n");
-//		for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
-//		{
-//			printf("Pix = %d, Val = %d\n", (int)pix, (int)imageData[pix]);
-//		}
+		ssd1362_writeUpdates();
 
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 	}

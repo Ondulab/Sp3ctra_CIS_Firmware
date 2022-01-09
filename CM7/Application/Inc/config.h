@@ -34,8 +34,7 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-#define PRINT_CIS_CALIBRATION
-#define CIS_GAINS_COMPENSATION_OFF
+//#define PRINT_CIS_CALIBRATION
 
 /**************************************************************************************/
 /********************             Display definitions              ********************/
@@ -102,27 +101,26 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-//#define CIS_400DPI
+//#define CIS_DESACTIVATE_CALIBRATION
+#define CIS_400DPI
 #define CIS_BW
 //#define CIS_INVERT_COLOR
 //#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
-#define CIS_CLK_FREQ							(5000000)
+#define CIS_CLK_FREQ							(3200000)//3,5Mhz max
 
-#define CIS_READ_OFFSET_CORRECTION				(4)
 #define CIS_SP_WIDTH							(2)
-#define CIS_SP_ON								(CIS_SP_OFF - CIS_SP_WIDTH)
-#define CIS_SP_OFF								(10 - CIS_READ_OFFSET_CORRECTION)
-#define CIS_LED_ON_DELAY						(40)
-#define CIS_LED_ON								(CIS_SP_OFF + CIS_LED_ON_DELAY)
-#define CIS_INACTIVE_WIDTH						(38 + CIS_READ_OFFSET_CORRECTION)
-#define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_OFF)
+#define CIS_INACTIVE_WIDTH						(38)
+#define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_WIDTH)
 
 #ifdef CIS_BW
-#define CIS_LED_RED_OFF							(350)
-#define CIS_LED_GREEN_OFF						(350)//GREEN AS REFERENCE
-#define CIS_LED_BLUE_OFF						(350)
+#define CIS_LED_RED_ON							(CIS_SP_WIDTH + 100)
+#define CIS_LED_GREEN_ON						(CIS_SP_WIDTH + 80)
+#define CIS_LED_BLUE_ON							(CIS_SP_WIDTH + 110)
+#define CIS_LED_RED_OFF							(150)
+#define CIS_LED_GREEN_OFF						(350)
+#define CIS_LED_BLUE_OFF						(160)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
@@ -135,25 +133,17 @@
 #define CIS_ACTIVE_PIXELS_PER_LINE				(576)
 #endif
 #define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_PER_LINE) + (CIS_INACTIVE_AERA_STOP))
-#define CIS_OVER_SCAN							(64)
+#define CIS_OVER_SCAN							(10)
 #define CIS_END_CAPTURE 						(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 
 #define CIS_ADC_OUT_LINES						(3)
 
-#ifdef CIS_400DPI
-#define CIS_IFFT_OVERSAMPLING_RATIO				(16)
-#else
-#define CIS_IFFT_OVERSAMPLING_RATIO				(1)
-#endif
-
-#define CIS_IMGPLY_OVERSAMPLING_RATIO			(16)
-
-#define CIS_EFFECTIVE_PIXELS	 		 		(((CIS_ACTIVE_PIXELS_PER_LINE) / (CIS_IFFT_OVERSAMPLING_RATIO)) * (CIS_ADC_OUT_LINES))
-#define CIS_EFFECTIVE_PIXELS_PER_LINE	 		((CIS_ACTIVE_PIXELS_PER_LINE) / (CIS_IFFT_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_START_OFFSET	 	 		((CIS_INACTIVE_AERA_STOP) / (CIS_IFFT_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_STOP_OFFSET	 	 		((CIS_PIXEL_AERA_STOP) / (CIS_IFFT_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_END_CAPTURE 		 		((CIS_END_CAPTURE) / (CIS_IFFT_OVERSAMPLING_RATIO))
-#define CIS_ADC_BUFF_SIZE 	 	 		 		((((CIS_END_CAPTURE) * (CIS_ADC_OUT_LINES)) / (CIS_IFFT_OVERSAMPLING_RATIO)))
+#define CIS_EFFECTIVE_PIXELS	 		 		((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES))
+#define CIS_EFFECTIVE_PIXELS_PER_LINE	 		(CIS_ACTIVE_PIXELS_PER_LINE)
+#define CIS_ADC_BUFF_START_OFFSET	 	 		(CIS_INACTIVE_AERA_STOP + 1)
+#define CIS_ADC_BUFF_STOP_OFFSET	 	 		(CIS_PIXEL_AERA_STOP + 1)
+#define CIS_ADC_BUFF_END_CAPTURE 		 		(CIS_END_CAPTURE)
+#define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_END_CAPTURE) * (CIS_ADC_OUT_LINES))
 
 
 #endif // __CONFIG_H__
