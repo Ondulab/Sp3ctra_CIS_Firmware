@@ -188,7 +188,7 @@ SECTIONS
     
     . = ABSOLUTE(0x30040200);
     *(.RxArraySection) 
-  } >RAM3_D2 AT> FLASH
+  } >RAM3_D2
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :
