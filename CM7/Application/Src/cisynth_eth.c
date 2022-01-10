@@ -121,8 +121,8 @@ int cisynth_eth(void)
 
 			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color / 2, false);
 		}
-		ssd1362_drawRect(218, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
-		ssd1362_drawString(218, 1, (int8_t*)FreqStr, 15, 8);
+		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 100, DISPLAY_HEAD_Y2POS, 4, false);
+		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
 		ssd1362_writeUpdates();
 
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
@@ -140,7 +140,7 @@ static void cisynth_eth_SetHint(void)
 	ssd1362_writeFullBuffer();
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
 	ssd1362_drawString(100, 1, (int8_t *)"CISYNTH 3", 0xF, 8);
-	ssd1362_drawString(0, 1, (int8_t *)"ETHERNET", 0xF, 8);
+	ssd1362_drawString(232, 1, (int8_t *)"ETH", 0xF, 8);
 	ssd1362_writeFullBuffer();
 }
 /* Private functions ---------------------------------------------------------*/
