@@ -21,7 +21,6 @@
 #include "stdbool.h"
 
 #include "ssd1362.h"
-#include "eeprom.h"
 
 #include "cis.h"
 
@@ -56,9 +55,8 @@ static const uint32_t whiteCalibVirtAddVar = ADDR_FLASH_SECTOR_7_BANK1;
 ALIGN_32BYTES (static uint8_t cisData[ADC_CONVERTED_DATA_BUFFER_SIZE]);
 #endif
 
-
-
-CIS_BUFF_StateTypeDef  cisBufferState[3] = {0};
+static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
+static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 
 /* Variable containing ADC conversions data */
 
@@ -179,7 +177,7 @@ void cis_Init(void)
 	//		cis_CalibrationMenu();
 	//	}
 
-	//	cis_CalibrationMenu();
+//		cis_CalibrationMenu();
 
 	// Load levels and compute calibration gains and offset
 
@@ -256,7 +254,7 @@ void cis_Init(void)
 		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisGainsCalData[pix]);
 	}
 #endif
-	HAL_Delay(5000);
+	HAL_Delay(1000);
 	printf("-------------------------------\n");
 }
 
@@ -539,24 +537,26 @@ void cis_ImageProcessBW(int32_t *cis_buff)
 {
 	static int32_t dataOffset, imageOffset;
 
-	for (int32_t line = 3; --line >= 0;) //CIS_ADC_OUT_LINES
+	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 1st half buffer played; so fill it and continue playing from bottom*/
-		if(cisBufferState[line] == CIS_BUFFER_OFFSET_HALF)
-		{
-			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
-			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
-			cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
-		}
+		while(cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+
+		dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET;
+		imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line);
+		cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
+
+		cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+
 
 		/* 2nd half buffer played; so fill it and continue playing from top */
-		if(cisBufferState[line] == CIS_BUFFER_OFFSET_FULL)
-		{
-			dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
-			cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
-		}
-		cisBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+		while(cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+
+		dataOffset = (CIS_ADC_BUFF_END_CAPTURE * line) + CIS_ADC_BUFF_START_OFFSET + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+		imageOffset = (CIS_EFFECTIVE_PIXELS_PER_LINE * line) + (CIS_EFFECTIVE_PIXELS_PER_LINE / 2);
+		cis_ImageComputeBW(dataOffset, imageOffset, cis_buff);
+
+		cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
 }
 
@@ -749,17 +749,17 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	if (hadc->Instance == ADC1)
 	{
-		cisBufferState[0] = CIS_BUFFER_OFFSET_HALF;
-		return;
+		cisHalfBufferState[0] = CIS_BUFFER_OFFSET_HALF;
+		//		return;
 	}
 	if (hadc->Instance == ADC2)
 	{
-		cisBufferState[1] = CIS_BUFFER_OFFSET_HALF;
-		return;
+		cisHalfBufferState[1] = CIS_BUFFER_OFFSET_HALF;
+		//		return;
 	}
 	if (hadc->Instance == ADC3)
 	{
-		cisBufferState[2] = CIS_BUFFER_OFFSET_HALF;
+		cisHalfBufferState[2] = CIS_BUFFER_OFFSET_HALF;
 	}
 }
 
@@ -772,17 +772,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	if (hadc->Instance == ADC1)
 	{
-		cisBufferState[0] = CIS_BUFFER_OFFSET_FULL;
-		return;
+		cisFullBufferState[0] = CIS_BUFFER_OFFSET_FULL;
+		//		return;
 	}
 	if (hadc->Instance == ADC2)
 	{
-		cisBufferState[1] = CIS_BUFFER_OFFSET_FULL;
-		return;
+		cisFullBufferState[1] = CIS_BUFFER_OFFSET_FULL;
+		//		return;
 	}
 	if (hadc->Instance == ADC3)
 	{
-		cisBufferState[2] = CIS_BUFFER_OFFSET_FULL;
+		cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
 	}
 }
 

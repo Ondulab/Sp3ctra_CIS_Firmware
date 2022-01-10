@@ -36,12 +36,12 @@
 #include "lwip/udp.h"
 #include "lwiperf.h"
 #include "lwip.h"
+#include "config.h"
 
 #include "cisynth_eth.h"
 #include "ssd1362.h"
 #include "pictures.h"
 #include "icm20602.h"
-#include "eeprom.h"
 
 /* USER CODE END Includes */
 
@@ -68,8 +68,6 @@
 /* USER CODE BEGIN PV */
 FLASH_OBProgramInitTypeDef OBInit;
 
-/* Virtual address defined by the user: 0xFFFF value is prohibited */
-uint16_t VirtAddVarTab[NB_OF_VAR] = {0x6666, 0x7777, 0x8888};
 //uint16_t VarDataTab[NB_OF_VAR] = {0, 0, 0};
 //uint16_t VarValue,VarDataTmp = 0;
 /* USER CODE END PV */
@@ -167,15 +165,7 @@ int main(void)
 	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
 	printf("----------------------------------------------------------\n");
 
-	/* Unlock the Flash Program Erase controller */
-	HAL_FLASH_Unlock();
 	HAL_Delay(100);
-
-	/* EEPROM Init */
-	if( EE_Init() != EE_OK)
-	{
-		Error_Handler();
-	}
 
 	// Initialize oled display and print logo
 	ssd1362_init();
@@ -185,10 +175,10 @@ int main(void)
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-		HAL_Delay(10);
+		HAL_Delay(20);
 	}
 
-//	MX_LWIP_Init();
+	MX_LWIP_Init();
 
 	cisynth_eth();
 
@@ -363,24 +353,22 @@ void MPU_Config(void)
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
   MPU_InitStruct.BaseAddress = 0x30040000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /** Initializes and configures the Region and the memory to be protected
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-  MPU_InitStruct.BaseAddress = 0x30044000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_16KB;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /** Initializes and configures the Region and the memory to be protected
@@ -388,7 +376,9 @@ void MPU_Config(void)
   MPU_InitStruct.Number = MPU_REGION_NUMBER2;
   MPU_InitStruct.BaseAddress = ADDR_FLASH_SECTOR_6_BANK2;
   MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
