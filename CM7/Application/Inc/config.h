@@ -70,9 +70,9 @@
 
 
 /* UDP local connection port */
-#define UDP_SERVER_PORT    						((uint16_t)60U)
+#define UDP_SERVER_PORT    						((uint16_t)55151U)
 /* UDP remote connection port */
-#define UDP_CLIENT_PORT   						((uint16_t)60U)
+#define UDP_CLIENT_PORT   						((uint16_t)55151U)
 
 /*Static DEST IP ADDRESS: DEST_IP_ADDR0.DEST_IP_ADDR1.DEST_IP_ADDR2.DEST_IP_ADDR3 */
 #define DEST_IP_ADDR0   						((uint8_t)192U)
@@ -118,9 +118,9 @@
 #define CIS_LED_RED_ON							(CIS_SP_WIDTH + 100)
 #define CIS_LED_GREEN_ON						(CIS_SP_WIDTH + 80)
 #define CIS_LED_BLUE_ON							(CIS_SP_WIDTH + 110)
-#define CIS_LED_RED_OFF							(150)
-#define CIS_LED_GREEN_OFF						(350)
-#define CIS_LED_BLUE_OFF						(160)
+#define CIS_LED_RED_OFF							(410 - 50)
+#define CIS_LED_GREEN_OFF						(330 - 50)
+#define CIS_LED_BLUE_OFF						(230 - 50)
 #else
 #define CIS_LED_RED_OFF							(3600)
 #define CIS_LED_GREEN_OFF						(3100)
