@@ -833,10 +833,10 @@ static void cis_CalibrationMenu(void)
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON BLACK SURFACE", 0xF, 8);
 	ssd1362_writeFullBuffer();
 	HAL_Delay(1000);
-	cis_StartCalibration(whiteCalibVirtAddVar, 100);
+	cis_StartCalibration(whiteCalibVirtAddVar, 500);
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, TRUE);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
 	ssd1362_writeFullBuffer();
 	HAL_Delay(1000);
-	cis_StartCalibration(blackCalibVirtAddVar, 100);
+	cis_StartCalibration(blackCalibVirtAddVar, 500);
 }
