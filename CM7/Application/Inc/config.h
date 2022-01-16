@@ -39,7 +39,7 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
-#define DISPLAY_REFRESH_FPS						(20)
+#define DISPLAY_REFRESH_FPS			(100)
 
 #define DISPLAY_MAX_X_LENGTH		SSD1362_WIDTH
 #define DISPLAY_MAX_Y_LENGTH		SSD1362_HEIGHT
@@ -67,7 +67,6 @@
 /**************************************************************************************/
 #define UDP_HEADER								(1397969715) //01010011 01010011 01010011 00110011 SSS3
 #define UDP_HEADER_SIZE							(1)//uint32
-
 
 /* UDP local connection port */
 #define UDP_SERVER_PORT    						((uint16_t)55151U)
@@ -101,18 +100,30 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-//#define CIS_DESACTIVATE_CALIBRATION
-#define CIS_400DPI
-#define CIS_BW
+#define CIS_DESACTIVATE_CALIBRATION
+//#define CIS_400DPI
+//#define CIS_BW
+
 //#define CIS_INVERT_COLOR
 //#define CIS_INVERT_COLOR_SMOOTH
 //#define CIS_NORMAL_COLOR_SMOOTH
 
 #define CIS_CLK_FREQ							(3200000)//3,5Mhz max
+#define CIS_ADC_OUT_LINES						(3)
 
 #define CIS_SP_WIDTH							(2)
 #define CIS_INACTIVE_WIDTH						(38)
 #define CIS_INACTIVE_AERA_STOP					(CIS_INACTIVE_WIDTH + CIS_SP_WIDTH)
+
+#ifdef CIS_400DPI
+#define CIS_PIXELS_PER_LINE						(1152)
+#else
+#define CIS_PIXELS_PER_LINE						(576)
+#endif
+#define CIS_PIXELS_NB 		 					((CIS_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES))
+
+#define CIS_PIXEL_AERA_STOP						((CIS_INACTIVE_AERA_STOP) + (CIS_PIXELS_PER_LINE))
+#define CIS_OVER_SCAN							(10)
 
 #ifdef CIS_BW
 #define CIS_LED_RED_ON							(CIS_SP_WIDTH + 100)
@@ -122,29 +133,25 @@
 #define CIS_LED_GREEN_OFF						(330 - 50)
 #define CIS_LED_BLUE_OFF						(230 - 50)
 #else
-#define CIS_LED_RED_OFF							(3600)
-#define CIS_LED_GREEN_OFF						(3100)
-#define CIS_LED_BLUE_OFF						(1600)
+#define CIS_LED_RED_ON							(CIS_SP_WIDTH + 50)
+#define CIS_LED_GREEN_ON						(CIS_SP_WIDTH + 50)
+#define CIS_LED_BLUE_ON							(CIS_SP_WIDTH + 50)
+#define CIS_LED_RED_OFF							(215)
+#define CIS_LED_GREEN_OFF						(335)
+#define CIS_LED_BLUE_OFF						(320)
 #endif
 
-#ifdef CIS_400DPI
-#define CIS_ACTIVE_PIXELS_PER_LINE				(1152)
-#else
-#define CIS_ACTIVE_PIXELS_PER_LINE				(576)
-#endif
-#define CIS_PIXEL_AERA_STOP						((CIS_ACTIVE_PIXELS_PER_LINE) + (CIS_INACTIVE_AERA_STOP))
-#define CIS_OVER_SCAN							(10)
-#define CIS_END_CAPTURE 						(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
+#define CIS_START_OFFSET	 	 				(CIS_INACTIVE_AERA_STOP)
+#define CIS_STOP_OFFSET	 	 					(CIS_PIXEL_AERA_STOP)
+#define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
+#define CIS_END_CAPTURE							(CIS_LINE_SIZE)
 
-#define CIS_ADC_OUT_LINES						(3)
-
-#define CIS_EFFECTIVE_PIXELS	 		 		((CIS_ACTIVE_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES))
-#define CIS_EFFECTIVE_PIXELS_PER_LINE	 		(CIS_ACTIVE_PIXELS_PER_LINE)
-#define CIS_ADC_BUFF_START_OFFSET	 	 		(CIS_INACTIVE_AERA_STOP + 1)
-#define CIS_ADC_BUFF_STOP_OFFSET	 	 		(CIS_PIXEL_AERA_STOP + 1)
-#define CIS_ADC_BUFF_END_CAPTURE 		 		(CIS_END_CAPTURE)
+#ifdef CIS_BW
 #define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_END_CAPTURE) * (CIS_ADC_OUT_LINES))
+#else
 
+#define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LINE_SIZE) * (CIS_ADC_OUT_LINES))
+#endif
 
 #endif // __CONFIG_H__
 

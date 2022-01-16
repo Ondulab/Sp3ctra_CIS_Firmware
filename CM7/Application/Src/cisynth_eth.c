@@ -35,7 +35,6 @@ __IO uint32_t eth_process_cnt;
 
 /* Variable containing black and white frame from CIS*/
 static int32_t *imageData = NULL;
-//static uint16_t imageData[((CIS_END_CAPTURE * CIS_ADC_OUT_LINES) / CIS_IFFT_OVERSAMPLING_RATIO) - 1]; // for debug
 
 /* Private function prototypes -----------------------------------------------*/
 static void cisynth_eth_SetHint(void);
@@ -50,6 +49,7 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 int cisynth_eth(void)
 {
 	uint8_t FreqStr[256] = {0};
+	uint8_t *cis_rgb = NULL;
 	uint32_t cis_color = 0;
 	uint32_t start_tick;
 	uint32_t latency;
@@ -59,13 +59,13 @@ int cisynth_eth(void)
 	printf("-------------------------------\n");
 
 	//allocate the contiguous memory area for storage image data
-	imageData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(int32_t*) + 10 * sizeof(int8_t*));
+	imageData = malloc(CIS_PIXELS_NB * sizeof(int32_t) + UDP_HEADER_SIZE * sizeof(int32_t));
 	if (imageData == NULL)
 	{
 		Error_Handler();
 	}
 
-	memset(imageData, 0, CIS_EFFECTIVE_PIXELS * sizeof(int32_t*) + 10 * sizeof(int8_t*));
+	memset(imageData, 0, CIS_PIXELS_NB * sizeof(int32_t) + UDP_HEADER_SIZE * sizeof(int32_t));
 
 	ssd1362_clearBuffer();
 
@@ -87,7 +87,11 @@ int cisynth_eth(void)
 			//Delete image transfert
 			MX_LWIP_Process();
 
+#ifdef CIS_BW
 			cis_ImageProcessBW(&imageData[UDP_HEADER_SIZE]);
+#else
+			cis_ImageProcessRGB(&imageData[UDP_HEADER_SIZE]);
+#endif
 			udp_clientSendImage(imageData);
 
 			eth_process_cnt++;
@@ -103,7 +107,9 @@ int cisynth_eth(void)
 		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
 		{
 			static int32_t y;
-			cis_color = imageData[(uint32_t)(i * ((float)CIS_EFFECTIVE_PIXELS / (float)DISPLAY_MAX_X_LENGTH)) + UDP_HEADER_SIZE] >> 11;
+			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_MAX_X_LENGTH)) + UDP_HEADER_SIZE]);
+			cis_color = cis_rgb[0] * cis_rgb[1] * cis_rgb[2];
+			cis_color >>= 19;
 
 			y = (DISPLAY_AERA1_Y2POS - cis_color - 1);
 

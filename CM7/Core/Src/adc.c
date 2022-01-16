@@ -46,10 +46,6 @@ void MX_ADC1_Init(void)
 
   /* USER CODE BEGIN ADC1_Init 1 */
 
-  uint32_t oversamplingRatio;
-
-  oversamplingRatio = 0;    /* Oversampling ratio */
-
   /* USER CODE END ADC1_Init 1 */
   /** Common config
   */
@@ -109,10 +105,6 @@ void MX_ADC2_Init(void)
 
   /* USER CODE BEGIN ADC2_Init 1 */
 
-  uint32_t oversamplingRatio;
-
-  oversamplingRatio = 0;    /* Oversampling ratio */
-
   /* USER CODE END ADC2_Init 1 */
   /** Common config
   */
@@ -164,10 +156,6 @@ void MX_ADC3_Init(void)
   ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC3_Init 1 */
-
-  uint32_t oversamplingRatio;
-
-  oversamplingRatio = 0;    /* Oversampling ratio */
 
   /* USER CODE END ADC3_Init 1 */
   /** Common config
@@ -234,7 +222,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     /* ADC1 DMA Init */
     /* ADC1 Init */
-    hdma_adc1.Instance = DMA2_Stream0;
+    hdma_adc1.Instance = DMA1_Stream0;
     hdma_adc1.Init.Request = DMA_REQUEST_ADC1;
     hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -274,7 +262,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     /* ADC2 DMA Init */
     /* ADC2 Init */
-    hdma_adc2.Instance = DMA2_Stream1;
+    hdma_adc2.Instance = DMA1_Stream1;
     hdma_adc2.Init.Request = DMA_REQUEST_ADC2;
     hdma_adc2.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_adc2.Init.PeriphInc = DMA_PINC_DISABLE;
@@ -311,7 +299,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     /* ADC3 DMA Init */
     /* ADC3 Init */
-    hdma_adc3.Instance = DMA2_Stream2;
+    hdma_adc3.Instance = DMA1_Stream2;
     hdma_adc3.Init.Request = DMA_REQUEST_ADC3;
     hdma_adc3.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_adc3.Init.PeriphInc = DMA_PINC_DISABLE;

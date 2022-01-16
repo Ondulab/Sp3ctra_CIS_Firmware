@@ -26,12 +26,12 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef        htim12;
+TIM_HandleTypeDef        htim17;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  This function configures the TIM12 as a time base source.
+  * @brief  This function configures the TIM17 as a time base source.
   *         The time source is configured  to have 1ms time base with a dedicated
   *         Tick interrupt priority.
   * @note   This function is called  automatically at the beginning of program after
@@ -42,17 +42,17 @@ TIM_HandleTypeDef        htim12;
 HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 {
   RCC_ClkInitTypeDef    clkconfig;
-  uint32_t              uwTimclock, uwAPB1Prescaler;
+  uint32_t              uwTimclock;
 
   uint32_t              uwPrescalerValue;
   uint32_t              pFLatency;
-/*Configure the TIM12 IRQ priority */
+/*Configure the TIM17 IRQ priority */
   if (TickPriority < (1UL << __NVIC_PRIO_BITS))
   {
-  HAL_NVIC_SetPriority(TIM8_BRK_TIM12_IRQn, TickPriority ,0U);
+  HAL_NVIC_SetPriority(TIM17_IRQn, TickPriority ,0U);
 
-  /* Enable the TIM12 global Interrupt */
-  HAL_NVIC_EnableIRQ(TIM8_BRK_TIM12_IRQn);
+  /* Enable the TIM17 global Interrupt */
+  HAL_NVIC_EnableIRQ(TIM17_IRQn);
     uwTickPrio = TickPriority;
     }
   else
@@ -60,45 +60,37 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
     return HAL_ERROR;
   }
 
-  /* Enable TIM12 clock */
-  __HAL_RCC_TIM12_CLK_ENABLE();
+  /* Enable TIM17 clock */
+  __HAL_RCC_TIM17_CLK_ENABLE();
 
   /* Get clock configuration */
   HAL_RCC_GetClockConfig(&clkconfig, &pFLatency);
 
-  /* Get APB1 prescaler */
-  uwAPB1Prescaler = clkconfig.APB1CLKDivider;
-  /* Compute TIM12 clock */
-  if (uwAPB1Prescaler == RCC_HCLK_DIV1)
-  {
-    uwTimclock = HAL_RCC_GetPCLK1Freq();
-  }
-  else
-  {
-    uwTimclock = 2UL * HAL_RCC_GetPCLK1Freq();
-  }
+  /* Compute TIM17 clock */
 
-  /* Compute the prescaler value to have TIM12 counter clock equal to 1MHz */
+  uwTimclock = 2*HAL_RCC_GetPCLK2Freq();
+
+  /* Compute the prescaler value to have TIM17 counter clock equal to 1MHz */
   uwPrescalerValue = (uint32_t) ((uwTimclock / 1000000U) - 1U);
 
-  /* Initialize TIM12 */
-  htim12.Instance = TIM12;
+  /* Initialize TIM17 */
+  htim17.Instance = TIM17;
 
   /* Initialize TIMx peripheral as follow:
-  + Period = [(TIM12CLK/1000) - 1]. to have a (1/1000) s time base.
+  + Period = [(TIM17CLK/1000) - 1]. to have a (1/1000) s time base.
   + Prescaler = (uwTimclock/1000000 - 1) to have a 1MHz counter clock.
   + ClockDivision = 0
   + Counter direction = Up
   */
-  htim12.Init.Period = (1000000U / 1000U) - 1U;
-  htim12.Init.Prescaler = uwPrescalerValue;
-  htim12.Init.ClockDivision = 0;
-  htim12.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim17.Init.Period = (1000000U / 1000U) - 1U;
+  htim17.Init.Prescaler = uwPrescalerValue;
+  htim17.Init.ClockDivision = 0;
+  htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
 
-  if(HAL_TIM_Base_Init(&htim12) == HAL_OK)
+  if(HAL_TIM_Base_Init(&htim17) == HAL_OK)
   {
     /* Start the TIM time Base generation in interrupt mode */
-    return HAL_TIM_Base_Start_IT(&htim12);
+    return HAL_TIM_Base_Start_IT(&htim17);
   }
 
   /* Return function status */
@@ -107,25 +99,25 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 
 /**
   * @brief  Suspend Tick increment.
-  * @note   Disable the tick increment by disabling TIM12 update interrupt.
+  * @note   Disable the tick increment by disabling TIM17 update interrupt.
   * @param  None
   * @retval None
   */
 void HAL_SuspendTick(void)
 {
-  /* Disable TIM12 update Interrupt */
-  __HAL_TIM_DISABLE_IT(&htim12, TIM_IT_UPDATE);
+  /* Disable TIM17 update Interrupt */
+  __HAL_TIM_DISABLE_IT(&htim17, TIM_IT_UPDATE);
 }
 
 /**
   * @brief  Resume Tick increment.
-  * @note   Enable the tick increment by Enabling TIM12 update interrupt.
+  * @note   Enable the tick increment by Enabling TIM17 update interrupt.
   * @param  None
   * @retval None
   */
 void HAL_ResumeTick(void)
 {
-  /* Enable TIM12 Update interrupt */
-  __HAL_TIM_ENABLE_IT(&htim12, TIM_IT_UPDATE);
+  /* Enable TIM17 Update interrupt */
+  __HAL_TIM_ENABLE_IT(&htim17, TIM_IT_UPDATE);
 }
 
