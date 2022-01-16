@@ -175,7 +175,7 @@ int main(void)
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-		HAL_Delay(20);
+//		HAL_Delay(20);
 	}
 
 	MX_LWIP_Init();
@@ -368,16 +368,17 @@ void MPU_Config(void)
   MPU_InitStruct.Number = MPU_REGION_NUMBER1;
   MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /** Initializes and configures the Region and the memory to be protected
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-  MPU_InitStruct.BaseAddress = ADDR_FLASH_SECTOR_6_BANK2;
+  MPU_InitStruct.BaseAddress = ADDR_FLASH_SECTOR_6_BANK1;
   MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
@@ -388,7 +389,7 @@ void MPU_Config(void)
 
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM12 interrupt took place, inside
+  * @note   This function is called  when TIM17 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -399,7 +400,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM12) {
+  if (htim->Instance == TIM17) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */

@@ -23,14 +23,11 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define UDP_BUFFER_SIZE		((CIS_EFFECTIVE_PIXELS + 5) * 2)
+
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-int32_t udp_imageData[UDP_BUFFER_SIZE] = {0};
 struct udp_pcb *upcb;
-struct netif gnetif;
-uint8_t data[100];
 __IO uint32_t message_count = 0;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -83,12 +80,12 @@ void udp_clientSendImage(int32_t *image_buff)
 	struct pbuf *p;
 
 	/* allocate pbuf from pool*/
-	p = pbuf_alloc(PBUF_TRANSPORT, (CIS_EFFECTIVE_PIXELS + UDP_HEADER_SIZE) * 4, PBUF_RAM);
+	p = pbuf_alloc(PBUF_TRANSPORT, (CIS_PIXELS_NB + UDP_HEADER_SIZE) * sizeof(uint32_t), PBUF_RAM);
 
 	if (p != NULL)
 	{
 		/* copy data to pbuf */
-		pbuf_take(p, (char*)image_buff, (CIS_EFFECTIVE_PIXELS + UDP_HEADER_SIZE) * 4);
+		pbuf_take(p, (char*)image_buff, (CIS_PIXELS_NB + UDP_HEADER_SIZE) * sizeof(uint32_t));
 
 		/* send udp data */
 		udp_send(upcb, p);
