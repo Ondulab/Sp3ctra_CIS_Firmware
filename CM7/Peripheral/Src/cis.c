@@ -267,7 +267,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
 
-#ifdef CIS_DESACTIVATE_CALIBRATION
+#ifndef CIS_DESACTIVATE_CALIBRATION
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * line) + CIS_RED_LINE_OFFSET;									//Rx
