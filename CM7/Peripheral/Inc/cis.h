@@ -30,17 +30,27 @@ typedef enum
 	CIS_BUFFER_OFFSET_FULL,
 }CIS_BUFF_StateTypeDef;
 
+typedef enum
+{
+	CIS_RED = 0,
+	CIS_GREEN,
+	CIS_BLUE,
+}CIS_Color_TypeDef;
+
+typedef enum
+{
+	CIS_READ_CAL = 0,
+	CIS_WRITE_CAL,
+}CIS_FlashRW_TypeDef;
+
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
 void cis_Init(void);
-uint32_t cis_GetBuffData(uint32_t index);
-void cis_ImageProcessBW(int32_t *cis_buff);
 void cis_ImageProcessRGB(int32_t *cis_buff);
 void cis_Start_capture(void);
 void cis_Stop_capture(void);
 void cis_LedsOff(void);
 void cis_LedsOn(void);
-void cis_Test(void);
 
 #endif /* __CIS_H__ */

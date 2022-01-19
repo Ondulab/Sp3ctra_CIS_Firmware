@@ -101,13 +101,13 @@ int cisynth_eth(void)
 		sprintf((char *)FreqStr, "%dHz", (int)((eth_process_cnt * 1000) / latency));
 		eth_process_cnt = 0;
 
-		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA1_Y2POS, 3, false);
-		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_AERA2_Y2POS, 8, false);
+		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 3, false);
+		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 8, false);
 
-		for (i = 0; i < (DISPLAY_MAX_X_LENGTH); i++)
+		for (i = 0; i < (DISPLAY_WIDTH); i++)
 		{
 			static int32_t y;
-			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_MAX_X_LENGTH)) + UDP_HEADER_SIZE]);
+			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
 			cis_color = cis_rgb[0] * cis_rgb[1] * cis_rgb[2];
 			cis_color >>= 19;
 
@@ -123,9 +123,9 @@ int cisynth_eth(void)
 				y = DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1;
 			}
 
-			ssd1362_drawPixel(DISPLAY_MAX_X_LENGTH - 1 - i, y, 0xF, false);
+			ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, y, 0xF, false);
 
-			ssd1362_drawVLine(DISPLAY_MAX_X_LENGTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color / 2, false);
+			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color / 2, false);
 		}
 		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 100, DISPLAY_HEAD_Y2POS, 4, false);
 		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
@@ -144,7 +144,7 @@ static void cisynth_eth_SetHint(void)
 	/* Set Audio header description */
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_MAX_X_LENGTH, DISPLAY_HEAD_Y2POS, 4, false);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, false);
 	ssd1362_drawString(100, 1, (int8_t *)"CISYNTH 3", 0xF, 8);
 	ssd1362_drawString(232, 1, (int8_t *)"ETH", 0xF, 8);
 	ssd1362_writeFullBuffer();

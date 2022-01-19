@@ -31,6 +31,8 @@
 #define ADDR_FLASH_SECTOR_6_BANK2     			((uint32_t)0x081C0000) /* Base @ of Sector 6, 128 Kbytes */
 #define ADDR_FLASH_SECTOR_7_BANK2     			((uint32_t)0x081E0000) /* Base @ of Sector 7, 128 Kbytes */
 
+#define ADDR_CIS_FLASH_CALIBRATION				(ADDR_FLASH_SECTOR_7_BANK2)
+
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
@@ -41,8 +43,8 @@
 /**************************************************************************************/
 #define DISPLAY_REFRESH_FPS			(100)
 
-#define DISPLAY_MAX_X_LENGTH		SSD1362_WIDTH
-#define DISPLAY_MAX_Y_LENGTH		SSD1362_HEIGHT
+#define DISPLAY_WIDTH				SSD1362_WIDTH
+#define DISPLAY_HEIGHT				SSD1362_HEIGHT
 
 #define DISPLAY_HEAD_HEIGHT			(9)
 #define DISPLAY_AERAS1_HEIGHT		(32)
@@ -100,7 +102,7 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-#define CIS_DESACTIVATE_CALIBRATION
+//#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_400DPI
 //#define CIS_BW
 
