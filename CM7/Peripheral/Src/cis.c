@@ -879,7 +879,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
 		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)(65535 - currColor->maxPix) / (float32_t)(cisCals.blackCal.data[lineOffset + i] - cisCals.whiteCal.data[lineOffset + i]);
+			cisCals.gainsData[lineOffset + i] = (float32_t)(65535 - 5535 - currColor->maxPix) / (float32_t)(cisCals.blackCal.data[lineOffset + i] - cisCals.whiteCal.data[lineOffset + i]);
 		}
 	}
 }

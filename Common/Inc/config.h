@@ -130,12 +130,12 @@
 #define CIS_LED_GREEN_OFF						(330 - 50)
 #define CIS_LED_BLUE_OFF						(230 - 50)
 #else
-#define CIS_LED_RED_ON							(CIS_SP_WIDTH + 50)
-#define CIS_LED_GREEN_ON						(CIS_SP_WIDTH + 50)
-#define CIS_LED_BLUE_ON							(CIS_SP_WIDTH + 50)
-#define CIS_LED_RED_OFF							(215)
-#define CIS_LED_GREEN_OFF						(335)
-#define CIS_LED_BLUE_OFF						(320)
+#define CIS_LED_RED_ON							(CIS_SP_WIDTH + 400)
+#define CIS_LED_GREEN_ON						(CIS_SP_WIDTH + 400)
+#define CIS_LED_BLUE_ON							(CIS_SP_WIDTH + 400)
+#define CIS_LED_RED_OFF							(205) + (400)
+#define CIS_LED_GREEN_OFF						(335) + (400)
+#define CIS_LED_BLUE_OFF						(340) + (400)
 #endif
 
 #define CIS_START_OFFSET	 	 				(CIS_INACTIVE_AERA_STOP)
