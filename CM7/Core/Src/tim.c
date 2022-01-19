@@ -125,12 +125,7 @@ void MX_TIM3_Init(void)
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
   prescalerValue = 0;
-
-#ifdef CIS_BW
-  counterPeriod = CIS_END_CAPTURE - 1;
-#else
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-#endif
 
   if (CIS_LED_BLUE_OFF > 0)
 	  pulseValue = CIS_LED_BLUE_OFF - 1;
@@ -195,12 +190,7 @@ void MX_TIM4_Init(void)
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
   prescalerValue = 0;
-
-#ifdef CIS_BW
-  counterPeriod = CIS_END_CAPTURE - 1;
-#else
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-#endif
 
   if (CIS_LED_RED_OFF > 0)
 	  pulseValue = CIS_LED_RED_OFF - 1;
@@ -265,12 +255,7 @@ void MX_TIM5_Init(void)
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
   prescalerValue = 0;
-
-#ifdef CIS_BW
-  counterPeriod = CIS_END_CAPTURE - 1;
-#else
   counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-#endif
 
   if (CIS_LED_GREEN_OFF > 0)
 	  pulseValue = CIS_LED_GREEN_OFF - 1;

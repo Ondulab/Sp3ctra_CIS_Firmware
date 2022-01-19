@@ -46,21 +46,6 @@
 static int32_t cisData[CIS_ADC_BUFF_SIZE * 3] = {0};
 static int32_t cisDataCpy[CIS_ADC_BUFF_SIZE * 3] = {0};
 
-#ifdef CIS_BW
-static int32_t *cisWhiteCalData     = NULL;
-static int32_t *cisBlackCalData     = NULL;
-static int32_t *cisOffsetCalData    = NULL;
-static float32_t *cisGainsCalData 	= NULL;
-
-static int32_t minWhitePix = 0;
-static int32_t maxWhitePix = 0;
-
-static const uint32_t blackCalibVirtAddVar = ADDR_FLASH_SECTOR_6_BANK1;
-static const uint32_t whiteCalibVirtAddVar = ADDR_FLASH_SECTOR_7_BANK1;
-#else
-
-#endif
-
 static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
 static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 
@@ -97,56 +82,7 @@ void cis_Init(void)
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-#ifdef CIS_BW
-	// Allocate the contiguous memory area for storage cis datas
-	cisData = malloc(CIS_ADC_BUFF_SIZE * sizeof(uint32_t));
-	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-
-	// Clear buffers
-	memset(cisData, 0, CIS_ADC_BUFF_SIZE * sizeof(uint32_t));
-
-	cisWhiteCalData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-	cisBlackCalData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-	cisOffsetCalData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-	cisGainsCalData = malloc(CIS_EFFECTIVE_PIXELS * sizeof(float32_t));
-	if (cisData == NULL)
-	{
-		Error_Handler();
-	}
-
-	// Clear buffers
-	memset(cisWhiteCalData, 0, CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	memset(cisBlackCalData, 0, CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	memset(cisOffsetCalData, 0, CIS_EFFECTIVE_PIXELS * sizeof(uint32_t));
-	memset(cisGainsCalData, 0, CIS_EFFECTIVE_PIXELS * sizeof(float32_t));
-#else
 	memset(&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
-
-	// Allocate the contiguous memory area for storage cis datas
-	//	cisData = malloc(CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
-	//	if (cisData == NULL)
-	//	{
-	//		Error_Handler();
-	//	}
-	//
-	//	// Clear buffers
-	//	memset(cisData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
-#endif
 
 #ifdef CIS_400DPI
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); //SET : 200DPI   RESET : 400DPI

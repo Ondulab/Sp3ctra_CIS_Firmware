@@ -104,11 +104,6 @@
 /**************************************************************************************/
 //#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_400DPI
-//#define CIS_BW
-
-//#define CIS_INVERT_COLOR
-//#define CIS_INVERT_COLOR_SMOOTH
-//#define CIS_NORMAL_COLOR_SMOOTH
 
 #define CIS_CLK_FREQ							(3200000)//3,5Mhz max
 #define CIS_ADC_OUT_LINES						(3)
