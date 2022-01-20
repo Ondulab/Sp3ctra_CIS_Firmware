@@ -97,6 +97,13 @@ int cisynth_eth(void)
 			eth_process_cnt++;
 		}
 
+//		static uint32_t sw = 0;
+//		sw++;
+//		if (sw % 2)
+//			cis_LedsOff();
+//		else
+//			cis_LedsOn();
+
 		latency = HAL_GetTick() - start_tick;
 		sprintf((char *)FreqStr, "%dHz", (int)((eth_process_cnt * 1000) / latency));
 		eth_process_cnt = 0;

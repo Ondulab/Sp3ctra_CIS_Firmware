@@ -37,10 +37,10 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = 0x24080000;
+_estack = ORIGIN(RAM_AXI) + LENGTH(RAM_AXI); /* end of "RAM" Ram type memory */
 
-_Min_Heap_Size = 0x1000 ; /* required amount of heap  */
-_Min_Stack_Size = 0x1000 ; /* required amount of stack */
+_Min_Heap_Size = 0x200 ; /* required amount of heap  */
+_Min_Stack_Size = 0x400 ; /* required amount of stack */
 
 /* Memories definition */
 MEMORY
@@ -48,7 +48,7 @@ MEMORY
   CIS_FLASH (rxw) : ORIGIN = 0x080C0000, LENGTH = 256K
   FLASH   (rx)    : ORIGIN = 0x08000000, LENGTH = 1024K - LENGTH(CIS_FLASH) 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
   DTCMRAM (xrw)   : ORIGIN = 0x20000000, LENGTH = 128K
-  RAM_SHARED (r)  : ORIGIN = 0x24000000, LENGTH = 400K    
+  RAM_SHARED (rw) : ORIGIN = 0x24000000, LENGTH = 256K    
   RAM_AXI (xrw)   : ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 512K - LENGTH(RAM_SHARED)
   RAM_D1 (r)      : ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (r)      : ORIGIN = 0x30020000, LENGTH = 128K
@@ -143,6 +143,8 @@ SECTIONS
     KEEP (*(.params));
     KEEP (*(.cisCals));
     KEEP (*(.image));
+    KEEP (*(.cisData));
+    KEEP (*(.cisDataCpy));    
   } >RAM_SHARED
 
   /* Used by the startup to initialize data */

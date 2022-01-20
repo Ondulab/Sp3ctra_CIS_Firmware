@@ -46,10 +46,10 @@ void MX_TIM1_Init(void)
 
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / 150) / (CIS_CLK_FREQ)) - 1);
-	counterPeriod = (150 / 2) - 1;
-	pulseValueCH2 = 35 - 1; //CLK OUT
-	pulseValueCH1 = 60 - 1; //ADC CC1
+	prescalerValue = (uint32_t)(((SystemCoreClock / 120) / (CIS_CLK_FREQ)) - 1);
+	counterPeriod = (120 / 2) - 1;
+	pulseValueCH2 = 30 - 1; //CLK OUT
+	pulseValueCH1 = 45 - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;

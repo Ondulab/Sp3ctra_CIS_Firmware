@@ -53,3 +53,6 @@ Mkfile.old
 dkms.conf
 */Release/*
 */Debug/*
+
+CM4/.gitignore
+CM7/.gitignore

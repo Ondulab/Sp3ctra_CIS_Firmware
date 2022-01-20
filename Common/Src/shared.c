@@ -28,7 +28,13 @@ __attribute__ ((section(".cisCals")))
 struct cisCals cisCals;
 
 __attribute__ ((section(".image")))
-volatile int32_t imageData[CIS_PIXELS_NB];
+int32_t imageData[CIS_PIXELS_NB];
+
+__attribute__ ((section(".cisData")))
+int32_t cisData[CIS_ADC_BUFF_SIZE * 3];
+
+__attribute__ ((section(".cisDataCpy")))
+int32_t cisDataCpy[CIS_ADC_BUFF_SIZE * 3];
 
 /* Private function prototypes -----------------------------------------------*/
 

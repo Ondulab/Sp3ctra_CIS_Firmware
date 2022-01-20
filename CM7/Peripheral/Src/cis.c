@@ -32,7 +32,7 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LINE_SIZE + CIS_INACTIVE_AERA_STOP))
+#define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LINE_SIZE + CIS_INACTIVE_WIDTH))  //274 (273)
 #define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LINE) - (CIS_GREEN_HALF_SIZE))
 
 #define CIS_RED_LINE_OFFSET 		(CIS_START_OFFSET)
@@ -43,11 +43,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-static int32_t cisData[CIS_ADC_BUFF_SIZE * 3] = {0};
-static int32_t cisDataCpy[CIS_ADC_BUFF_SIZE * 3] = {0};
-
-static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
-static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
+static CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
+static CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 
 /* Variable containing ADC conversions data */
 
@@ -82,7 +79,7 @@ void cis_Init(void)
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-	memset(&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	memset((int32_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 #ifdef CIS_400DPI
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); //SET : 200DPI   RESET : 400DPI
@@ -104,7 +101,7 @@ void cis_Init(void)
 	//		cis_CalibrationMenu(&cisCals);
 	//	}
 
-	cis_StartCalibration(100);
+		cis_StartCalibration(100);
 
 	//	cis_RW_FlashCalibration(CIS_READ_CAL);
 }
@@ -183,11 +180,11 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-		while(cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+		while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
 
 		/* Invalidate Data Cache */
-		SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
-		arm_copy_q31(&cisData[CIS_ADC_BUFF_SIZE * line],&cisDataCpy[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
+				SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+		arm_copy_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line],&cisDataCpy[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
 		cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
 
@@ -195,11 +192,11 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-		while(cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+		while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
 
 		/* Invalidate Data Cache */
-		SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
-		arm_copy_q31(&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)],&cisDataCpy[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
+				SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+		arm_copy_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)],&cisDataCpy[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
 		cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
 
@@ -231,7 +228,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * line) + CIS_RED_LINE_OFFSET;									//Rx
 		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * line) + CIS_GREEN_LINE_OFFSET;									//Gx
 
-		arm_shift_q31(&cisDataCpy[dataOffset_Rx], -8, &cisDataCpy[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 2) - CIS_START_OFFSET); 	//R + Ghalf 8 bit conversion
+		arm_shift_q31(&cisDataCpy[dataOffset_Rx], -4, &cisDataCpy[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 2) - CIS_START_OFFSET); 	//R + Ghalf 8 bit conversion
 		arm_shift_q31(&cisDataCpy[dataOffset_Gx], 8, &cisDataCpy[dataOffset_Gx], CIS_GREEN_HALF_SIZE); 	//Ghalf 8 bit shift
 
 		arm_add_q31(&cisDataCpy[dataOffset_Gx], &cisDataCpy[dataOffset_Rx], &cisDataCpy[dataOffset_Rx], CIS_GREEN_HALF_SIZE); //Add Green
@@ -239,7 +236,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Cx = (CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2);								//Cx
 		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
 
-		arm_shift_q31(&cisDataCpy[dataOffset_Cx], -8, &cisDataCpy[dataOffset_Cx], CIS_ADC_BUFF_SIZE / 2); 	//Gfull + B 8 bit conversion
+		arm_shift_q31(&cisDataCpy[dataOffset_Cx], -4, &cisDataCpy[dataOffset_Cx], CIS_ADC_BUFF_SIZE / 2); 	//Gfull + B 8 bit conversion
 		arm_shift_q31(&cisDataCpy[dataOffset_Cx], 8, &cisDataCpy[dataOffset_Cx], CIS_GREEN_FULL_SIZE); 		//Gfull 8 bit shift
 		arm_shift_q31(&cisDataCpy[dataOffset_Bx], 16, &cisDataCpy[dataOffset_Bx], CIS_PIXELS_PER_LINE); 	//B 16 bit shift
 
@@ -270,9 +267,9 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 			while(cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
-			//			arm_copy_q31(&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
-			arm_add_q31(&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
+						SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+			//			arm_copy_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
+			arm_add_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
 			cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 		}
 
@@ -283,9 +280,10 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 			while(cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
-			//			arm_copy_q31(&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
-			arm_add_q31(&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+						SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+			//			arm_copy_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
+			arm_add_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 		}
 		currState = iteration * 100 / iterationNb;
 		ssd1362_progressBar(30, 30, 100 - currState + 1, 0xF);
@@ -321,7 +319,21 @@ void cis_Start_capture()
 	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LINE_SIZE * 2) - CIS_LED_BLUE_ON);	//B
 
 	/* Start LEDs ############################################*/
-	cis_LedsOn();
+	/* Start LED R generation ###############################*/
+	if(HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED G generation ###############################*/
+	if(HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED B generation ###############################*/
+	if(HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 	/* Start SP generation ##################################*/
 	if(HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3) != HAL_OK)
@@ -345,14 +357,14 @@ void cis_Start_capture()
 		Error_Handler();
 	}
 
-	/* Start CLK generation ##################################*/
-	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
+	/* Start ADC Timer #######################################*/
+	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
 	{
 		Error_Handler();
 	}
 
-	/* Start ADC Timer #######################################*/
-	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1) != HAL_OK)
+	/* Start CLK generation ##################################*/
+	if(HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2) != HAL_OK)
 	{
 		Error_Handler();
 	}
@@ -400,7 +412,21 @@ void cis_Stop_capture()
 	}
 
 	/* Start LEDs ###########################################*/
-	cis_LedsOff();
+	/* Start LED R generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED G generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* Start LED B generation ###############################*/
+	if(HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
 	cisHalfBufferState[0] = CIS_BUFFER_OFFSET_NONE;
 	cisHalfBufferState[1] = CIS_BUFFER_OFFSET_NONE;
@@ -467,21 +493,23 @@ void cis_TIM_LED_G_Init()
  */
 void cis_LedsOff()
 {
-	/* Start LED R generation ###############################*/
-	if(HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/* Start LED G generation ###############################*/
-	if(HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/* Start LED B generation ###############################*/
-	if(HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	HAL_GPIO_WritePin(CIS_VLED_R_GPIO_Port, CIS_VLED_R_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_VLED_G_GPIO_Port, CIS_VLED_G_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_VLED_B_GPIO_Port, CIS_VLED_B_Pin, GPIO_PIN_RESET);
+
+	GPIO_InitStruct.Pin = CIS_VLED_R_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(CIS_VLED_R_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_VLED_G_Pin;
+	HAL_GPIO_Init(CIS_VLED_G_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_VLED_B_Pin;
+	HAL_GPIO_Init(CIS_VLED_B_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -491,21 +519,22 @@ void cis_LedsOff()
  */
 void cis_LedsOn()
 {
-	/* Start LED R generation ###############################*/
-	if(HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/* Start LED G generation ###############################*/
-	if(HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	/* Start LED B generation ###############################*/
-	if(HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	GPIO_InitStruct.Pin = CIS_VLED_R_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
+	HAL_GPIO_Init(CIS_VLED_R_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_VLED_G_Pin;
+	GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
+	HAL_GPIO_Init(CIS_VLED_G_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_VLED_B_Pin;
+	GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+	HAL_GPIO_Init(CIS_VLED_B_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -879,7 +908,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
 		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)(65535 - 5535 - currColor->maxPix) / (float32_t)(cisCals.blackCal.data[lineOffset + i] - cisCals.whiteCal.data[lineOffset + i]);
+			cisCals.gainsData[lineOffset + i] = (float32_t)(4000 - currColor->maxPix) / (float32_t)(cisCals.blackCal.data[lineOffset + i] - cisCals.whiteCal.data[lineOffset + i]);
 		}
 	}
 }
@@ -891,10 +920,6 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
  */
 void cis_StartCalibration(uint16_t iterationNb)
 {
-	//	uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Bx;
-
-	//	int32_t tmpCalibrationData[CIS_ADC_BUFF_SIZE * 3] = {0};
-
 	/* Set header description */
 	buttonState[SW1] = SWITCH_RELEASED;
 
@@ -907,32 +932,10 @@ void cis_StartCalibration(uint16_t iterationNb)
 	HAL_Delay(1000);
 	ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON BLACK SURFACE", 0xF, 8);
-	ssd1362_writeFullBuffer();
-	HAL_Delay(1000);
-	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
-
-	// Print curve
-	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
-	ssd1362_drawString(0, 8, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 10, 8);
-	for (uint32_t i = 1; i < 9; i++)
-	{
-		ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT - DISPLAY_HEAD_Y2POS, 4, false);
-	}
-	for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
-	{
-		int32_t cis_color = cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 10;
-		ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color - 1, 15, false);
-	}
-	ssd1362_writeFullBuffer();
-	HAL_Delay(2000);
-
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
 	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
 	ssd1362_writeFullBuffer();
 	HAL_Delay(1000);
-	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
+	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 
 	// Print curve
 	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
@@ -943,7 +946,26 @@ void cis_StartCalibration(uint16_t iterationNb)
 	}
 	for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 	{
-		int32_t cis_color = cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 10;
+		int32_t cis_color = cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 6;
+		ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color - 1, 15, false);
+	}
+	ssd1362_writeFullBuffer();
+	HAL_Delay(2000);
+
+	cis_LedsOff();
+	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
+	cis_LedsOn();
+
+	// Print curve
+	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
+	ssd1362_drawString(0, 8, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 10, 8);
+	for (uint32_t i = 1; i < 9; i++)
+	{
+		ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT - DISPLAY_HEAD_Y2POS, 4, false);
+	}
+	for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
+	{
+		int32_t cis_color = cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 6;
 		ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color -1, 15, false);
 	}
 	ssd1362_writeFullBuffer();
@@ -982,7 +1004,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 	ssd1362_drawString(0, 55, (int8_t*)textData, 15, 8);
 
 	ssd1362_writeFullBuffer();
-	HAL_Delay(1000);
+	HAL_Delay(5000);
 
 	/*-------- 3 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
@@ -1004,7 +1026,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 	for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 	{
 		uint32_t index = i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH);
-		int32_t cis_color = cisCals.offsetData[index] >> 11;
+		int32_t cis_color = cisCals.offsetData[index] >> 6;
 		ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color, 15, false);
 	}
 	ssd1362_writeFullBuffer();
@@ -1029,7 +1051,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 #endif
 	HAL_Delay(1000);
 
-	cis_RW_FlashCalibration(CIS_WRITE_CAL);
+	//	cis_RW_FlashCalibration(CIS_WRITE_CAL);
 
 	printf("-------------------------------\n");
 }
