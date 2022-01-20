@@ -69,7 +69,7 @@ static void cis_StartCalibration(uint16_t iterationNb);
  * @param  Void
  * @retval None
  */
-void cis_Init(void)
+void cis_Init(uint8_t calRequest)
 {
 	printf("----------- CIS INIT ----------\n");
 	printf("-------------------------------\n");
@@ -96,12 +96,11 @@ void cis_Init(void)
 
 	cis_Start_capture();
 
-	//	if (buttonState[SW1] == SWITCH_PRESSED)
-	//	{
-	//		cis_CalibrationMenu(&cisCals);
-	//	}
+	if (calRequest == TRUE)
+	{
+		cis_StartCalibration(500);
+	}
 
-		cis_StartCalibration(100);
 
 	//	cis_RW_FlashCalibration(CIS_READ_CAL);
 }
@@ -180,10 +179,13 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-		while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+		while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
+		{
+
+		}
 
 		/* Invalidate Data Cache */
-				SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+		SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
 		arm_copy_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line],&cisDataCpy[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
 		cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
@@ -192,10 +194,13 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-		while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+		while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
+		{
+
+		}
 
 		/* Invalidate Data Cache */
-				SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+		SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
 		arm_copy_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)],&cisDataCpy[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
 		cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 	}
@@ -267,7 +272,7 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 			while(cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
 
 			/* Invalidate Data Cache */
-						SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
 			//			arm_copy_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
 			arm_add_q31((int32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], &cisCalData[CIS_ADC_BUFF_SIZE * line], CIS_ADC_BUFF_SIZE / 2);
 			cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
@@ -280,7 +285,7 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 			while(cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
 
 			/* Invalidate Data Cache */
-						SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint32_t)) / 2);
 			//			arm_copy_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);
 			arm_add_q31((int32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], &cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], CIS_ADC_BUFF_SIZE / 2);			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
 			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
@@ -921,8 +926,6 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 void cis_StartCalibration(uint16_t iterationNb)
 {
 	/* Set header description */
-	buttonState[SW1] = SWITCH_RELEASED;
-
 	printf("------ START CALIBRATION ------\n");
 	/*-------- 1 --------*/
 	// Read black and white level

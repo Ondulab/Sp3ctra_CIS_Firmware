@@ -46,7 +46,7 @@ typedef enum
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
-void cis_Init(void);
+void cis_Init(uint8_t calRequest);
 void cis_ImageProcessRGB(int32_t *cis_buff);
 void cis_Start_capture(void);
 void cis_Stop_capture(void);

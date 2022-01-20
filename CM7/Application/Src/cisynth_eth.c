@@ -10,13 +10,15 @@
 #include "stdio.h"
 #include "arm_math.h"
 
-#include "config.h"
 #include "times_base.h"
+#include "udp_client.h"
+#include "lwip.h"
+
+#include "config.h"
+
 #include "cis.h"
 #include "ssd1362.h"
-#include "udp_client.h"
-
-#include "lwip.h"
+#include "buttons.h"
 
 #include "cisynth_eth.h"
 
@@ -38,6 +40,7 @@ static int32_t *imageData = NULL;
 
 /* Private function prototypes -----------------------------------------------*/
 static void cisynth_eth_SetHint(void);
+static void cisynth_interractiveMenu();
 
 extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 
@@ -69,7 +72,7 @@ int cisynth_eth(void)
 
 	ssd1362_clearBuffer();
 
-	cis_Init();
+	cis_Init(buttonState[SW1]);
 
 	udp_clientInit();
 
@@ -87,60 +90,103 @@ int cisynth_eth(void)
 			//Delete image transfert
 			MX_LWIP_Process();
 
-#ifdef CIS_BW
-			cis_ImageProcessBW(&imageData[UDP_HEADER_SIZE]);
-#else
 			cis_ImageProcessRGB(&imageData[UDP_HEADER_SIZE]);
-#endif
+
 			udp_clientSendImage(imageData);
 
 			eth_process_cnt++;
 		}
 
-//		static uint32_t sw = 0;
-//		sw++;
-//		if (sw % 2)
-//			cis_LedsOff();
-//		else
-//			cis_LedsOn();
+		//		static uint32_t sw = 0;
+		//		sw++;
+		//		if (sw % 2)
+		//			cis_LedsOff();
+		//		else
+		//			cis_LedsOn();
 
 		latency = HAL_GetTick() - start_tick;
 		sprintf((char *)FreqStr, "%dHz", (int)((eth_process_cnt * 1000) / latency));
 		eth_process_cnt = 0;
 
 		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 3, false);
-		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 8, false);
 
 		for (i = 0; i < (DISPLAY_WIDTH); i++)
 		{
-			static int32_t y;
 			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
 			cis_color = cis_rgb[0] * cis_rgb[1] * cis_rgb[2];
-			cis_color >>= 19;
+			cis_color >>= 20;
 
-			y = (DISPLAY_AERA1_Y2POS - cis_color - 1);
-
-			if (y < DISPLAY_AERA1_Y1POS)
-			{
-				y = DISPLAY_AERA1_Y1POS;
-			}
-
-			if (y > DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1)
-			{
-				y = DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1;
-			}
-
-			ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, y, 0xF, false);
-
-			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA2_Y1POS + 1, DISPLAY_AERAS2_HEIGHT - 2, cis_color / 2, false);
+			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1, DISPLAY_AERAS1_HEIGHT - 2, cis_color, false);
 		}
 		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 100, DISPLAY_HEAD_Y2POS, 4, false);
 		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
-		ssd1362_writeUpdates();
 
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		cisynth_interractiveMenu();
+		ssd1362_writeUpdates();
 	}
 }
+
+#define BUTTON_DELAY			2000
+
+/**
+ * @brief
+ * @param
+ * @retval None
+ */
+void cisynth_interractiveMenu()
+{
+	static uint32_t button_tick = 0;
+	static uint8_t clear_button = 0;
+
+	if (buttonState[SW1] == SWITCH_PRESSED)
+	{
+		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
+		buttonState[SW1] = SWITCH_RELEASED;
+		button_tick = HAL_GetTick();
+		clear_button = 0;
+	}
+	if (buttonState[SW2] == SWITCH_PRESSED)
+	{
+		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
+		buttonState[SW2] = SWITCH_RELEASED;
+		button_tick = HAL_GetTick();
+		clear_button = 0;
+	}
+	if (buttonState[SW3] == SWITCH_PRESSED)
+	{
+		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
+		buttonState[SW3] = SWITCH_RELEASED;
+		button_tick = HAL_GetTick();
+		clear_button = 0;
+	}
+	if (buttonState[SW4] == SWITCH_PRESSED)
+	{
+		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x0F, false);
+		buttonState[SW4] = SWITCH_RELEASED;
+		button_tick = HAL_GetTick();
+		clear_button = 0;
+	}
+	if (buttonState[SW5] == SWITCH_PRESSED)
+	{
+		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x0F, false);
+		buttonState[SW5] = SWITCH_RELEASED;
+		button_tick = HAL_GetTick();
+		clear_button = 0;
+	}
+
+	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)
+	{
+		clear_button = 1;
+		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
+		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
+		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
+		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
+		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
+		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
+	}
+}
+
 /**
  * @brief  Display Audio demo hint
  * @param  None
