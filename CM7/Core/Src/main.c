@@ -33,9 +33,6 @@
 #include "stdio.h"
 #include "string.h"
 
-#include "lwip/udp.h"
-#include "lwiperf.h"
-#include "lwip.h"
 #include "config.h"
 
 #include "cisynth_eth.h"
@@ -162,20 +159,18 @@ int main(void)
 	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
 	printf("----------------------------------------------------------\n");
 
-	HAL_Delay(100);
-
 	// Initialize oled display and print logo
 	ssd1362_init();
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
 
+#ifndef SKIP_SPLASH
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-//		HAL_Delay(20);
+		HAL_Delay(50);
 	}
-
-	MX_LWIP_Init();
+#endif
 
 	cisynth_eth();
 

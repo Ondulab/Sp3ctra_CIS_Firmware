@@ -98,11 +98,10 @@ void cis_Init(uint8_t calRequest)
 
 	if (calRequest == TRUE)
 	{
-		cis_StartCalibration(500);
+		cis_StartCalibration(1000);
 	}
 
-
-	//	cis_RW_FlashCalibration(CIS_READ_CAL);
+	cis_RW_FlashCalibration(CIS_READ_CAL);
 }
 
 /**
@@ -701,9 +700,9 @@ void cis_RW_FlashCalibration(CIS_FlashRW_TypeDef RW)
 	{
 	case CIS_READ_CAL :
 		address = ADDR_CIS_FLASH_CALIBRATION;
-		for(uint32_t idx = 0; idx < (sizeof(cisCals) / sizeof(uint32_t)); idx++)
+		for(idx = 0; idx < sizeof(cisCals); idx+=4)
 		{
-			*((uint32_t *)&cisCals+idx) = *(uint32_t *)address;
+			*(uint32_t *)((uint32_t)&cisCals + idx) = *(uint32_t *)address;
 			__DSB();
 
 			address+=4;
@@ -735,12 +734,12 @@ void cis_RW_FlashCalibration(CIS_FlashRW_TypeDef RW)
 			    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
 		address = ADDR_CIS_FLASH_CALIBRATION;
 
-		while (address < (ADDR_CIS_FLASH_CALIBRATION + (sizeof(cisCals) / sizeof(uint32_t))))
+		while (address < (ADDR_CIS_FLASH_CALIBRATION + sizeof(cisCals)))
 		{
-			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, *(uint32_t *)&cisCals+idx) == HAL_OK)
+			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)&cisCals + idx) == HAL_OK)
 			{
-				address = address + 32; //increment for the next Flash word
-				idx+=8;
+				address += 32; //increment for the next Flash word
+				idx+=32;
 			}
 			else
 			{
@@ -756,16 +755,16 @@ void cis_RW_FlashCalibration(CIS_FlashRW_TypeDef RW)
 		      MemoryProgramStatus != 0: number of words not programmed correctly **********/
 		address = ADDR_CIS_FLASH_CALIBRATION;
 
-		//		for(idx = 0; idx < (sizeof(cisCals) / sizeof(uint32_t)); idx++)
-		//		{
-		//			data32 = *(uint32_t*)address;
-		//			__DSB();
-		//			if(data32 != *(uint32_t *)&cisCals+idx)
-		//			{
-		//				memoryProgramStatus++;
-		//			}
-		//			address+=4;
-		//		}
+		for(idx = 0; idx < sizeof(cisCals); idx+=4)
+		{
+			data32 = *(uint32_t *)address;
+			__DSB();
+			if(data32 != *(uint32_t *)((uint32_t)&cisCals + idx))
+			{
+				memoryProgramStatus++;
+			}
+			address+=4;
+		}
 
 		/* -6- Check if there is an issue to program data*/
 		if (memoryProgramStatus != 0)
@@ -930,12 +929,12 @@ void cis_StartCalibration(uint16_t iterationNb)
 	/*-------- 1 --------*/
 	// Read black and white level
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"CIS BW QUALIBRATION", 0xF, 8);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"    CIS BW QUALIBRATION     ", 0xF, 8);
 	ssd1362_writeFullBuffer();
 	HAL_Delay(1000);
 	ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"PLACE CIS ON WHITE SURFACE", 0xF, 8);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" PLACE CIS ON WHITE SURFACE ", 0xF, 8);
 	ssd1362_writeFullBuffer();
 	HAL_Delay(1000);
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
@@ -953,7 +952,13 @@ void cis_StartCalibration(uint16_t iterationNb)
 		ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color - 1, 15, false);
 	}
 	ssd1362_writeFullBuffer();
-	HAL_Delay(2000);
+	HAL_Delay(500);
+	ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"          LED OFF           ", 0xF, 8);
+	ssd1362_writeFullBuffer();
+	ssd1362_writeFullBuffer();
+	HAL_Delay(500);
 
 	cis_LedsOff();
 	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
@@ -978,7 +983,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 	/*-------- 2 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT EXTREMUMS AND DELTAS", 0xF, 8);
+	ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" EXTRACT EXTREMUMS AND DELTAS ", 0xF, 8);
 	ssd1362_writeFullBuffer();
 
 	// Extrat Min Max and delta
@@ -1007,7 +1012,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 	ssd1362_drawString(0, 55, (int8_t*)textData, 15, 8);
 
 	ssd1362_writeFullBuffer();
-	HAL_Delay(5000);
+	HAL_Delay(1000);
 
 	/*-------- 3 --------*/
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, true);
@@ -1054,7 +1059,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 #endif
 	HAL_Delay(1000);
 
-	//	cis_RW_FlashCalibration(CIS_WRITE_CAL);
+	cis_RW_FlashCalibration(CIS_WRITE_CAL);
 
 	printf("-------------------------------\n");
 }

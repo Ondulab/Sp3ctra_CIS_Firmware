@@ -37,6 +37,8 @@
 /********************              debug definitions               ********************/
 /**************************************************************************************/
 //#define PRINT_CIS_CALIBRATION
+//#define SKIP_SPLASH
+//#define ETHERNET_OFF
 
 /**************************************************************************************/
 /********************             Display definitions              ********************/
@@ -48,7 +50,7 @@
 
 #define DISPLAY_HEAD_HEIGHT			(9)
 #define DISPLAY_AERAS1_HEIGHT		(40)
-#define DISPLAY_AERAS2_HEIGHT		(12)
+#define DISPLAY_AERAS2_HEIGHT		(13)
 //#define DISPLAY_AERAS3_HEIGHT		(9)
 #define DISPLAY_INTER_AERAS_HEIGHT	(1)
 

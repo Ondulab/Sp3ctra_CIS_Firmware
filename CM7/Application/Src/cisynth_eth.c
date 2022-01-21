@@ -36,7 +36,7 @@
 __IO uint32_t eth_process_cnt;
 
 /* Variable containing black and white frame from CIS*/
-static int32_t *imageData = NULL;
+static int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE] = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 static void cisynth_eth_SetHint(void);
@@ -61,22 +61,14 @@ int cisynth_eth(void)
 	printf("----- ETHERNET MODE START -----\n");
 	printf("-------------------------------\n");
 
-	//allocate the contiguous memory area for storage image data
-	imageData = malloc(CIS_PIXELS_NB * sizeof(int32_t) + UDP_HEADER_SIZE * sizeof(int32_t));
-	if (imageData == NULL)
-	{
-		Error_Handler();
-	}
-
-	memset(imageData, 0, CIS_PIXELS_NB * sizeof(int32_t) + UDP_HEADER_SIZE * sizeof(int32_t));
-
-	ssd1362_clearBuffer();
-
-	cis_Init(buttonState[SW1]);
-
+#ifndef ETHERNET_OFF
+	MX_LWIP_Init();
 	udp_clientInit();
+#endif
 
 	cisynth_eth_SetHint();
+
+	cis_Init(buttonState[SW1]);
 
 	//Add "SSS3" header for synchronization
 	imageData[0] = UDP_HEADER;
@@ -87,12 +79,12 @@ int cisynth_eth(void)
 		start_tick = HAL_GetTick();
 		while ((HAL_GetTick() - start_tick) < DISPLAY_REFRESH_FPS)//todo add TIM us to compute loop latency
 		{
-			//Delete image transfert
-			MX_LWIP_Process();
-
 			cis_ImageProcessRGB(&imageData[UDP_HEADER_SIZE]);
 
+#ifndef ETHERNET_OFF
+			MX_LWIP_Process();
 			udp_clientSendImage(imageData);
+#endif
 
 			eth_process_cnt++;
 		}
@@ -200,6 +192,14 @@ static void cisynth_eth_SetHint(void)
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, false);
 	ssd1362_drawString(100, 1, (int8_t *)"CISYNTH 3", 0xF, 8);
 	ssd1362_drawString(232, 1, (int8_t *)"ETH", 0xF, 8);
+
+	ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
+	ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
+	ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
+	ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
+	ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
+	ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
+
 	ssd1362_writeFullBuffer();
 }
 /* Private functions ---------------------------------------------------------*/
