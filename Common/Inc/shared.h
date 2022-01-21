@@ -46,18 +46,19 @@ struct cisCals {
 
 __attribute__ ((packed))
 struct params {
-	int32_t not_used_params_is_for_example;
+	int32_t cis_dpi; //not use
 };
 
 __attribute__ ((packed))
 struct shared_var {
 	int32_t cis_process_cnt;
+	int32_t calibrationRequest;
 };
 
 extern struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
-extern int32_t imageData[CIS_PIXELS_NB];
+extern int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE];
 extern int32_t cisData[CIS_ADC_BUFF_SIZE * 3];
 extern int32_t cisDataCpy[CIS_ADC_BUFF_SIZE * 3];
 

@@ -25,7 +25,6 @@
 #include "spi.h"
 #include "usart.h"
 #include "gpio.h"
-#include "fmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -35,7 +34,7 @@
 
 #include "config.h"
 
-#include "cisynth_eth.h"
+#include "sss_Scan.h"
 #include "ssd1362.h"
 #include "pictures.h"
 #include "icm20602.h"
@@ -148,7 +147,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_FMC_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_RNG_Init();
@@ -159,20 +157,7 @@ int main(void)
 	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
 	printf("----------------------------------------------------------\n");
 
-	// Initialize oled display and print logo
-	ssd1362_init();
-	ssd1362_clearBuffer();
-	ssd1362_writeFullBuffer();
-
-#ifndef SKIP_SPLASH
-	for (uint8_t i = 0; i < 16; i++)
-	{
-		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-		HAL_Delay(50);
-	}
-#endif
-
-	cisynth_eth();
+	sss_Scan();
 
 	icm20602_init();
 

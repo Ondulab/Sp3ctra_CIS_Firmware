@@ -1,18 +1,18 @@
 /*
- * cisynth_imagePlay.h
+ * sss_Scan.h
  *
  *  Created on: May 31, 2020
  *      Author: zhonx
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __CIS_ETH_H
-#define __CIS_ETH_H
+#ifndef SSS_SCAN_H
+#define SSS_SCAN_H
 
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
 
-int cisynth_eth(void);
+int sss_Scan(void);
 
-#endif /* __CIS_ETH_H */
+#endif /* SSS_SCAN_H */

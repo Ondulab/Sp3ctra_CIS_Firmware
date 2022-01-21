@@ -25,8 +25,8 @@ extern SRAM_HandleTypeDef hsram1;
 /* Exported constants --------------------------------------------------------*/
 #define SSD1362_HEIGHT          64		// SSD1362 OLED height in pixels
 #define SSD1362_WIDTH           256 	// SSD1362 width in pixels
-//#define SSD1362_Reset_Port      OLED_RESET_GPIO_Port
-//#define SSD1362_Reset_Pin       OLED_RESET_Pin
+#define SSD1362_Reset_Port      OLED_RESET_GPIO_Port
+#define SSD1362_Reset_Pin       OLED_RESET_Pin
 
 /* LCD is connected to the FSMC_Bank1_NOR/SRAM1 and NE1 is used as ship select signal */
 /* RS <==> A0 */

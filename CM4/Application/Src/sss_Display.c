@@ -1,5 +1,5 @@
 /*
- * cisynth_eth.c
+ * sss_Display.c
  *
  *  Created on: May 31, 2020
  *      Author: zhonx
@@ -10,17 +10,13 @@
 #include "stdio.h"
 #include "arm_math.h"
 
-#include "times_base.h"
-#include "udp_client.h"
-#include "lwip.h"
-
+#include "shared.h"
 #include "config.h"
 
-#include "cis.h"
 #include "ssd1362.h"
 #include "buttons.h"
 
-#include "cisynth_eth.h"
+#include "sss_Display.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -36,20 +32,17 @@
 __IO uint32_t eth_process_cnt;
 
 /* Variable containing black and white frame from CIS*/
-static int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE] = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 static void cisynth_eth_SetHint(void);
 static void cisynth_interractiveMenu();
-
-extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 
 /* Private user code ---------------------------------------------------------*/
 /**
  * @brief  The application entry point.
  * @retval int
  */
-int cisynth_eth(void)
+int sss_Display(void)
 {
 	uint8_t FreqStr[256] = {0};
 	uint8_t *cis_rgb = NULL;
@@ -61,17 +54,7 @@ int cisynth_eth(void)
 	printf("----- ETHERNET MODE START -----\n");
 	printf("-------------------------------\n");
 
-#ifndef ETHERNET_OFF
-	MX_LWIP_Init();
-	udp_clientInit();
-#endif
-
 	cisynth_eth_SetHint();
-
-	cis_Init(buttonState[SW1]);
-
-	//Add "SSS3" header for synchronization
-	imageData[0] = UDP_HEADER;
 
 	/* Infinite loop */
 	while (1)
@@ -79,22 +62,8 @@ int cisynth_eth(void)
 		start_tick = HAL_GetTick();
 		while ((HAL_GetTick() - start_tick) < DISPLAY_REFRESH_FPS)//todo add TIM us to compute loop latency
 		{
-			cis_ImageProcessRGB(&imageData[UDP_HEADER_SIZE]);
-
-#ifndef ETHERNET_OFF
-			MX_LWIP_Process();
-			udp_clientSendImage(imageData);
-#endif
-
 			eth_process_cnt++;
 		}
-
-		//		static uint32_t sw = 0;
-		//		sw++;
-		//		if (sw % 2)
-		//			cis_LedsOff();
-		//		else
-		//			cis_LedsOn();
 
 		latency = HAL_GetTick() - start_tick;
 		sprintf((char *)FreqStr, "%dHz", (int)((eth_process_cnt * 1000) / latency));
@@ -113,13 +82,12 @@ int cisynth_eth(void)
 		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 100, DISPLAY_HEAD_Y2POS, 4, false);
 		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
 
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 		cisynth_interractiveMenu();
 		ssd1362_writeUpdates();
 	}
 }
 
-#define BUTTON_DELAY			2000
+#define BUTTON_DELAY			500
 
 /**
  * @brief

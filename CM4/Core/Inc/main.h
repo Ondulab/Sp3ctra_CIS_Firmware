@@ -58,6 +58,20 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define OLED_RESET_Pin GPIO_PIN_8
+#define OLED_RESET_GPIO_Port GPIOB
+#define EN_12V_Pin GPIO_PIN_5
+#define EN_12V_GPIO_Port GPIOG
+#define SW_4_Pin GPIO_PIN_14
+#define SW_4_GPIO_Port GPIOE
+#define SW_5_Pin GPIO_PIN_12
+#define SW_5_GPIO_Port GPIOE
+#define SW_1_Pin GPIO_PIN_13
+#define SW_1_GPIO_Port GPIOE
+#define SW_3_Pin GPIO_PIN_15
+#define SW_3_GPIO_Port GPIOE
+#define SW_2_Pin GPIO_PIN_11
+#define SW_2_GPIO_Port GPIOE
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

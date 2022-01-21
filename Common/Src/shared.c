@@ -27,8 +27,8 @@ struct params params;
 __attribute__ ((section(".cisCals")))
 struct cisCals cisCals;
 
-__attribute__ ((section(".image")))
-int32_t imageData[CIS_PIXELS_NB];
+__attribute__ ((section(".imageData")))
+int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE];
 
 __attribute__ ((section(".cisData")))
 int32_t cisData[CIS_ADC_BUFF_SIZE * 3];

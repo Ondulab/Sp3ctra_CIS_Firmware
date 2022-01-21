@@ -20,7 +20,6 @@
 #include "tim.h"
 #include "adc.h"
 
-#include "buttons.h"
 #include "ssd1362.h"
 
 #include "shared.h"

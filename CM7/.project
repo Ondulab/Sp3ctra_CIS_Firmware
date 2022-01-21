@@ -32,7 +32,7 @@
 		<link>
 			<name>Common</name>
 			<type>2</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Common</locationURI>
+			<location>/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/Common</location>
 		</link>
 		<link>
 			<name>Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal.c</name>

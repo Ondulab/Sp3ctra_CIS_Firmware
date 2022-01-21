@@ -21,9 +21,13 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
+#include "fmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sss_Display.h"
+#include "ssd1362.h"
+#include "pictures.h"
 
 /* USER CODE END Includes */
 
@@ -102,7 +106,24 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_DMA_Init();
   MX_GPIO_Init();
+  MX_FMC_Init();
   /* USER CODE BEGIN 2 */
+
+//  HAL_Delay(2000);
+	// Initialize oled display and print logo
+	ssd1362_init();
+	ssd1362_clearBuffer();
+	ssd1362_writeFullBuffer();
+
+#ifndef SKIP_SPLASH
+	for (uint8_t i = 0; i < 16; i++)
+	{
+		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
+		HAL_Delay(50);
+	}
+#endif
+
+	sss_Display();
 
   /* USER CODE END 2 */
 

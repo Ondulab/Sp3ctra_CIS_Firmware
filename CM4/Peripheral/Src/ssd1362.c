@@ -35,10 +35,10 @@ void ssd1362_writeData(uint8_t data);
 
 void ssd1362_Reset(void) {
     // Reset the OLED
-//    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_RESET);
-//    HAL_Delay(10);
-//    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_SET);
-//    HAL_Delay(10);
+    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_RESET);
+    HAL_Delay(10);
+    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_SET);
+    HAL_Delay(10);
 }
 
 //Writes a command byte to the driver
@@ -400,7 +400,7 @@ void ssd1362_setContrast(uint8_t contrast)
 void ssd1362_init()
 {
 	// Enable 12V power DC/DC for CIS
-//	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET); //Init on M4
+	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
     HAL_Delay(100);
 
     // Reset OLED

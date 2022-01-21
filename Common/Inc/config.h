@@ -43,7 +43,7 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
-#define DISPLAY_REFRESH_FPS			(1000)
+#define DISPLAY_REFRESH_FPS			(5)
 
 #define DISPLAY_WIDTH				SSD1362_WIDTH
 #define DISPLAY_HEIGHT				SSD1362_HEIGHT
