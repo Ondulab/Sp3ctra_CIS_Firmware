@@ -35,8 +35,6 @@
 #include "config.h"
 
 #include "sss_Scan.h"
-#include "ssd1362.h"
-#include "pictures.h"
 #include "icm20602.h"
 
 /* USER CODE END Includes */
@@ -174,42 +172,42 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		framecount++;
-
-		ssd1362_clearBuffer();
-
-		for (int x = 0; x < 256; x++) {
-			for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
-				ssd1362_drawPixel(x, y, 3, false);
-			}
-		}
-
-		ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
-		ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
-		ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
-		ssd1362_writeFullBuffer();
-		HAL_Delay(1);
-
-		//		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
-		//		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
-		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
-
-		ssd1362_clearBuffer();
-		char text[100] = {0};
-		//	  sprintf(text,"Accel : %.2f  %.2f  %.2f", accel_x, accel_y, accel_z);
-		//	  ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
-		//	  sprintf(text,"Gyro  : %.2f  %.2f  %.2f", gyro_x, gyro_y, gyro_z);
-		//	  ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
-		//	  sprintf(text,"temp. : %.2f", tmp);
-		sprintf(text,"Accel : %d  %d  %d", accel_x, accel_y, accel_z);
-		ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
-		sprintf(text,"Gyro  : %d  %d  %d", gyro_x, gyro_y, gyro_z);
-		ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
-		sprintf(text,"temp. : %d", tmp);
-		ssd1362_drawString(0, 50, (int8_t *)text, 0xF, 16);
-		ssd1362_writeFullBuffer();
-
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+//		framecount++;
+//
+//		ssd1362_clearBuffer();
+//
+//		for (int x = 0; x < 256; x++) {
+//			for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
+//				ssd1362_drawPixel(x, y, 3, false);
+//			}
+//		}
+//
+//		ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
+//		ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
+//		ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
+//		ssd1362_writeFullBuffer();
+//		HAL_Delay(1);
+//
+//		//		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
+//		//		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+//		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
+//
+//		ssd1362_clearBuffer();
+//		char text[100] = {0};
+//		//	  sprintf(text,"Accel : %.2f  %.2f  %.2f", accel_x, accel_y, accel_z);
+//		//	  ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
+//		//	  sprintf(text,"Gyro  : %.2f  %.2f  %.2f", gyro_x, gyro_y, gyro_z);
+//		//	  ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
+//		//	  sprintf(text,"temp. : %.2f", tmp);
+//		sprintf(text,"Accel : %d  %d  %d", accel_x, accel_y, accel_z);
+//		ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
+//		sprintf(text,"Gyro  : %d  %d  %d", gyro_x, gyro_y, gyro_z);
+//		ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
+//		sprintf(text,"temp. : %d", tmp);
+//		ssd1362_drawString(0, 50, (int8_t *)text, 0xF, 16);
+//		ssd1362_writeFullBuffer();
+//
+//		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -353,9 +351,9 @@ void MPU_Config(void)
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER2;
   MPU_InitStruct.BaseAddress = 0x24000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */

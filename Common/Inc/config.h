@@ -43,8 +43,6 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
-#define DISPLAY_REFRESH_FPS			(5)
-
 #define DISPLAY_WIDTH				SSD1362_WIDTH
 #define DISPLAY_HEIGHT				SSD1362_HEIGHT
 
@@ -131,8 +129,8 @@
 #define CIS_LED_GREEN_OFF						(438)
 #define CIS_LED_BLUE_OFF						(516)
 
-#define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH)
-#define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN) //576+38+10 = 624
+#define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH - 1)
+#define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 #define CIS_END_CAPTURE							(CIS_LINE_SIZE)
 
 #define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LINE_SIZE) * (CIS_ADC_OUT_LINES))

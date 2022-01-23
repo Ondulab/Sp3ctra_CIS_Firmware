@@ -21,6 +21,18 @@ extern "C" {
 #include "arm_math.h"
 
 /* Exported types ------------------------------------------------------------*/
+
+typedef enum
+{
+	CIS_CAL_START = 0,
+	CIS_CAL_PLACE_ON_WHITE_LED_ON,
+	CIS_CAL_PLACE_ON_WHITE_LED_OFF,
+	CIS_CAL_EXTRACT_EXTREMUMS,
+	CIS_CAL_EXTRACT_OFFSETS,
+	CIS_CAL_COMPUTE_GAINS,
+	CIS_CAL_END,
+}CIS_Calibration_StateTypeDef;
+
 __attribute__ ((packed))
 struct cisColorsParams {
 	int32_t maxPix;
@@ -45,14 +57,11 @@ struct cisCals {
 };
 
 __attribute__ ((packed))
-struct params {
-	int32_t cis_dpi; //not use
-};
-
-__attribute__ ((packed))
 struct shared_var {
 	int32_t cis_process_cnt;
-	int32_t calibrationRequest;
+	int32_t cis_cal_request;
+	uint32_t cis_cal_progressbar;
+	CIS_Calibration_StateTypeDef cis_cal_state;
 };
 
 extern struct shared_var shared_var;

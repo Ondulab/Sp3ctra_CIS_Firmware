@@ -44,9 +44,10 @@ _Min_Stack_Size = 0x800 ; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      : ORIGIN = 0x08100000, LENGTH = 1024K
-RAM_D1 (xrw)    : ORIGIN = 0x10000000, LENGTH = 256K
-RAM_SHARED (rw) : ORIGIN = 0x24000000, LENGTH = 480K  
+FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
+RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 256K
+RAM_SHARED (rw) 		: ORIGIN = 0x24000000, LENGTH = 32K
+RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 320K
 }
 
 /* Define output sections */
@@ -116,13 +117,16 @@ SECTIONS
   
   .shared :
   {
-    KEEP (*(.shared_var));
-    KEEP (*(.params));
+    KEEP (*(.shared_var));   
+  } >RAM_SHARED
+  
+  .shared_cached :
+  {
     KEEP (*(.cisCals));
     KEEP (*(.imageData));
     KEEP (*(.cisData));
     KEEP (*(.cisDataCpy));    
-  } >RAM_SHARED
+  } >RAM_SHARED_CACHED
   
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
