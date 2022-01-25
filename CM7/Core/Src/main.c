@@ -23,6 +23,7 @@
 #include "dma.h"
 #include "rng.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -149,6 +150,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_RNG_Init();
   MX_CRC_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("----------------------------------------------------------\n");

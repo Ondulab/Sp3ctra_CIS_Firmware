@@ -16,6 +16,7 @@
 #include "shared.h"
 #include "config.h"
 
+#include "tim.h"
 #include "cis.h"
 
 #include "sss_Scan.h"
@@ -32,6 +33,7 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
+volatile Scan_StateTypeDef main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
 
 /* Variable containing black and white frame from CIS*/
 
@@ -54,6 +56,8 @@ int sss_Scan(void)
 	udp_clientInit();
 #endif
 
+	HAL_TIM_Base_Start_IT(&htim6);
+
 	cis_Init();
 
 	//Add "SSS3" header for synchronization
@@ -64,6 +68,10 @@ int sss_Scan(void)
 	while (1)
 	{
 		MX_LWIP_Process();
+
+		while (main_loop_flg != MAIN_SCAN_LOOP_FLG_SET);
+		main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
+
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
 			cis_StartCalibration(500);
@@ -86,3 +94,11 @@ int sss_Scan(void)
 	//			cis_LedsOn();
 }
 /* Private functions ---------------------------------------------------------*/
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM6)
+	{
+		main_loop_flg = MAIN_SCAN_LOOP_FLG_SET;
+	}
+}

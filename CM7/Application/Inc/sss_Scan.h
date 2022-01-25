@@ -9,6 +9,12 @@
 #ifndef SSS_SCAN_H
 #define SSS_SCAN_H
 
+typedef enum
+{
+	MAIN_SCAN_LOOP_FLG_RESET = 0,
+	MAIN_SCAN_LOOP_FLG_SET,
+}Scan_StateTypeDef;
+
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
