@@ -68,9 +68,9 @@ SourceFiles=;
 
 [CortexM7:ThirdPartyIp]
 ThirdPartyIpNumber=1
-ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.2.0_M7
+ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7
 
-[CortexM7:ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.2.0_M7]
+[CortexM7:ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7]
 header=Middlewares/ST/ARM/DSP/Inc/arm_math.h;
 
 [CortexM4:PreviousGenFiles]
@@ -159,8 +159,8 @@ SourceFiles=;
 
 [ThirdPartyIp]
 ThirdPartyIpNumber=1
-ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.2.0_M7
+ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7
 
-[ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.2.0_M7]
+[ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7]
 header=Middlewares/ST/ARM/DSP/Inc/arm_math.h;
 

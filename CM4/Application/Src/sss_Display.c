@@ -8,7 +8,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stdbool.h"
 #include "stdio.h"
-#include "arm_math.h"
 
 #include "shared.h"
 #include "config.h"
@@ -113,7 +112,7 @@ void cis_StartCalibration()
 	{
 		switch (shared_var.cis_cal_state)
 		{
-		case CIS_CAL_PLACE_ON_WHITE_LED_ON :
+		case CIS_CAL_PLACE_ON_WHITE :
 			/*-------- 1 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
@@ -126,15 +125,15 @@ void cis_StartCalibration()
 			}
 
 			ssd1362_progressBar(30, 30, 99, 0xF);
+			HAL_Delay(100);
 
-			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE_LED_ON);
+			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE);
 			break;
-		case CIS_CAL_PLACE_ON_WHITE_LED_OFF :
+		case CIS_CAL_PLACE_ON_BLACK :
 			/*-------- 2 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"          LED OFF           ", 0xF, 8);
-			ssd1362_writeFullBuffer();
+			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON BLACK SURFACE ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
 			while (shared_var.cis_cal_progressbar < 99)
@@ -161,7 +160,7 @@ void cis_StartCalibration()
 				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color -1, 8, false);
 			}
 			ssd1362_writeFullBuffer();
-			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE_LED_OFF);
+			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_BLACK);
 			break;
 		case CIS_CAL_EXTRACT_EXTREMUMS :
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);

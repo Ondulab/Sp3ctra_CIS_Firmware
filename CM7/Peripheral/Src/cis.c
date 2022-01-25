@@ -16,6 +16,7 @@
 #include "stdbool.h"
 
 #include "arm_math.h"
+#include "basic_math_functions.h"
 
 #include "tim.h"
 #include "adc.h"
@@ -165,6 +166,8 @@ void cis_Init()
  *              M1                                       M2                                       M3
  *
  */
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 void cis_ImageProcessRGB(int32_t *cis_buff)
 {
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
@@ -219,9 +222,9 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		arm_mult_f32((float32_t *)(&cisDataCpy[dataOffset_Gx]), &cisCals.gainsData[dataOffset_Gx], (float32_t *)(&cisDataCpy[dataOffset_Gx]), CIS_PIXELS_PER_LINE);
 		arm_mult_f32((float32_t *)(&cisDataCpy[dataOffset_Bx]), &cisCals.gainsData[dataOffset_Bx], (float32_t *)(&cisDataCpy[dataOffset_Bx]), CIS_PIXELS_PER_LINE);
 
-		arm_offset_q31(&cisDataCpy[dataOffset_Rx], cisCals.blackCal.red.maxPix / 2, &cisDataCpy[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		arm_offset_q31(&cisDataCpy[dataOffset_Gx], cisCals.blackCal.green.maxPix / 2, &cisDataCpy[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		arm_offset_q31(&cisDataCpy[dataOffset_Bx], cisCals.blackCal.blue.maxPix / 2, &cisDataCpy[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+		arm_clip_q31(&cisDataCpy[dataOffset_Rx], &cisDataCpy[dataOffset_Rx], 0, 4095, CIS_PIXELS_PER_LINE);
+		arm_clip_q31(&cisDataCpy[dataOffset_Gx], &cisDataCpy[dataOffset_Gx], 0, 4095, CIS_PIXELS_PER_LINE);
+		arm_clip_q31(&cisDataCpy[dataOffset_Bx], &cisDataCpy[dataOffset_Bx], 0, 4095, CIS_PIXELS_PER_LINE);
 	}
 #endif
 
@@ -233,6 +236,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * line) + CIS_GREEN_LINE_OFFSET;									//Gx
 
 		arm_shift_q31(&cisDataCpy[dataOffset_Rx], -4, &cisDataCpy[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 2) - CIS_START_OFFSET); 	//R + Ghalf 8 bit conversion
+
 		arm_shift_q31(&cisDataCpy[dataOffset_Gx], 8, &cisDataCpy[dataOffset_Gx], CIS_GREEN_HALF_SIZE); 	//Ghalf 8 bit shift
 
 		arm_add_q31(&cisDataCpy[dataOffset_Gx], &cisDataCpy[dataOffset_Rx], &cisDataCpy[dataOffset_Rx], CIS_GREEN_HALF_SIZE); //Add Green
@@ -241,6 +245,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
 
 		arm_shift_q31(&cisDataCpy[dataOffset_Cx], -4, &cisDataCpy[dataOffset_Cx], CIS_ADC_BUFF_SIZE / 2); 	//Gfull + B 8 bit conversion
+
 		arm_shift_q31(&cisDataCpy[dataOffset_Cx], 8, &cisDataCpy[dataOffset_Cx], CIS_GREEN_FULL_SIZE); 		//Gfull 8 bit shift
 		arm_shift_q31(&cisDataCpy[dataOffset_Bx], 16, &cisDataCpy[dataOffset_Bx], CIS_PIXELS_PER_LINE); 	//B 16 bit shift
 
@@ -251,6 +256,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		//		arm_fill_q31(0xFF0000 >> (line * 8), &cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //RGB debug
 	}
 }
+#pragma GCC pop_options
 
 /**
  * @brief  cis_ImageProcessRGB_Calibration
@@ -824,10 +830,10 @@ void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDe
 		arm_max_q31(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMaxpix, NULL);
 		arm_min_q31(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMinpix, NULL);
 
-		if (tmpMaxpix > currColor->maxPix)
+		if (tmpMaxpix >= currColor->maxPix)
 			currColor->maxPix = tmpMaxpix;
 
-		if (tmpMinpix < currColor->minPix)
+		if (tmpMinpix <= currColor->minPix)
 			currColor->minPix = tmpMinpix;
 
 		currColor->deltaPix = currColor->maxPix - currColor->minPix;
@@ -918,7 +924,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
 		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)(4000 - currColor->maxPix) / (float32_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]);
+			cisCals.gainsData[lineOffset + i] = (float32_t)((float64_t)(4095) / (float64_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]));
 		}
 	}
 }
@@ -935,20 +941,21 @@ void cis_StartCalibration(uint16_t iterationNb)
 	/*-------- 1 --------*/
 	// Read black and white level
 	shared_var.cis_cal_progressbar = 0;
-	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE_LED_ON;
-
+	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
 	HAL_Delay(2000);
+
 	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	HAL_Delay(1000);
 
+	HAL_Delay(200);
 	shared_var.cis_cal_progressbar = 0;
-	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE_LED_OFF;
+	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
+	HAL_Delay(2000);
 
-	cis_LedsOff();
+//	cis_LedsOff();
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	cis_LedsOn();
+//	cis_LedsOn();
 	HAL_Delay(4000);
 
 	printf("------- LOAD CALIBRATION ------\n");
@@ -965,7 +972,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
-	HAL_Delay(4000);
+	HAL_Delay(1000);
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
@@ -975,7 +982,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
-	HAL_Delay(2000);
+	HAL_Delay(1000);
 
 	/*-------- 4 --------*/
 	// Compute gains
@@ -985,7 +992,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
-	HAL_Delay(2000);
+	HAL_Delay(1000);
 
 	printf("-------- COMPUTE GAINS --------\n");
 #ifdef PRINT_CIS_CALIBRATION
@@ -999,6 +1006,5 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_END;
-	HAL_Delay(1000);
 	printf("-------------------------------\n");
 }

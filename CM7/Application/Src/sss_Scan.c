@@ -9,7 +9,6 @@
 #include <sss_Scan.h>
 #include "stdbool.h"
 #include "stdio.h"
-#include "arm_math.h"
 
 #include "udp_client.h"
 #include "lwip.h"
@@ -49,8 +48,6 @@ int sss_Scan(void)
 {
 	printf("----- ETHERNET MODE START -----\n");
 	printf("-------------------------------\n");
-
-	HAL_Delay(500);
 
 #ifndef ETHERNET_OFF
 	MX_LWIP_Init();

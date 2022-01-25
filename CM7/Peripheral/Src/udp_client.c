@@ -10,8 +10,6 @@
 #include "main.h"
 #include "config.h"
 
-#include "arm_math.h"
-
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
 #include "lwip/tcp.h"
