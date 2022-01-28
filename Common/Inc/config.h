@@ -71,6 +71,8 @@
 
 #define UDP_HEADER								(1397969715) 	//01010011 01010011 01010011 00110011 SSS3
 #define UDP_HEADER_SIZE							(1)//uint32
+#define UDP_NB_PACKET_PER_LINE					(7)
+#define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) + (UDP_HEADER_SIZE)) / UDP_NB_PACKET_PER_LINE)
 
 /* UDP local connection port */
 #define UDP_SERVER_PORT    						((uint16_t)55151U)
@@ -127,9 +129,9 @@
 #define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH)
 #define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH)
 #define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH)
-#define CIS_LED_RED_OFF							(230)//250
-#define CIS_LED_GREEN_OFF						(319)//319
-#define CIS_LED_BLUE_OFF						(376)//376
+#define CIS_LED_RED_OFF							276
+#define CIS_LED_GREEN_OFF						202
+#define CIS_LED_BLUE_OFF						270
 
 #define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH)
 #define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)

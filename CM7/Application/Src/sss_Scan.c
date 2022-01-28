@@ -83,6 +83,7 @@ int sss_Scan(void)
 #ifndef ETHERNET_OFF
 		udp_clientSendImage(imageData);
 #endif
+
 		shared_var.cis_process_cnt++;
 	}
 

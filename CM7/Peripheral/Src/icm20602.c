@@ -102,10 +102,10 @@
 static float _temp_sensitivity = 326.8;
 
 struct icm20602_dev dev={
-		.accel_dlpf = ICM20602_ACCEL_DLPF_BYPASS_1046_HZ,
+		.accel_dlpf = ICM20602_ACCEL_DLPF_10_2_HZ,
 		.accel_fifo = FALSE,
-		.accel_g = ICM20602_ACCEL_RANGE_16G,
-		.gyro_dlpf = ICM20602_GYRO_DLPF_BYPASS_3281_HZ,
+		.accel_g = ICM20602_ACCEL_RANGE_2G,
+		.gyro_dlpf = ICM20602_GYRO_DLPF_5_HZ,
 		.gyro_dps = ICM20602_GYRO_RANGE_1000_DPS,
 		.sample_rate_div = 0,
 		.use_accel = TRUE,
@@ -121,7 +121,6 @@ uint8_t icm20602_write(uint8_t reg, uint8_t *data, uint16_t len)
 {
 	int rv = 0;
 	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 	rv = HAL_SPI_Transmit(&hspi2, &reg, 1, 1000);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
@@ -136,7 +135,6 @@ uint8_t icm20602_read(uint8_t reg, uint8_t *data, uint16_t len)
 	int rv = 0;
 	reg |= 0b10000000;
 	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 	rv = HAL_SPI_Transmit(&hspi2, &reg, 1, 1000);
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);

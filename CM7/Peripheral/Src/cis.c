@@ -218,6 +218,10 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		arm_sub_q31(&cisDataCpy[dataOffset_Gx], &cisCals.blackCal.data[dataOffset_Gx], &cisDataCpy[dataOffset_Gx], CIS_PIXELS_PER_LINE);
 		arm_sub_q31(&cisDataCpy[dataOffset_Bx], &cisCals.blackCal.data[dataOffset_Bx], &cisDataCpy[dataOffset_Bx], CIS_PIXELS_PER_LINE);
 
+//		arm_offset_q31(&cisDataCpy[dataOffset_Rx], -819, &cisDataCpy[dataOffset_Rx], CIS_PIXELS_PER_LINE);
+//		arm_offset_q31(&cisDataCpy[dataOffset_Gx], -819, &cisDataCpy[dataOffset_Gx], CIS_PIXELS_PER_LINE);
+//		arm_offset_q31(&cisDataCpy[dataOffset_Bx], -819, &cisDataCpy[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+
 		arm_mult_f32((float32_t *)(&cisDataCpy[dataOffset_Rx]), &cisCals.gainsData[dataOffset_Rx], (float32_t *)(&cisDataCpy[dataOffset_Rx]), CIS_PIXELS_PER_LINE);
 		arm_mult_f32((float32_t *)(&cisDataCpy[dataOffset_Gx]), &cisCals.gainsData[dataOffset_Gx], (float32_t *)(&cisDataCpy[dataOffset_Gx]), CIS_PIXELS_PER_LINE);
 		arm_mult_f32((float32_t *)(&cisDataCpy[dataOffset_Bx]), &cisCals.gainsData[dataOffset_Bx], (float32_t *)(&cisDataCpy[dataOffset_Bx]), CIS_PIXELS_PER_LINE);
@@ -924,7 +928,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
 		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)((float64_t)(4095) / (float64_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]));
+			cisCals.gainsData[lineOffset + i] = (float32_t)((float64_t)(3276) / (float64_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]));
 		}
 	}
 }

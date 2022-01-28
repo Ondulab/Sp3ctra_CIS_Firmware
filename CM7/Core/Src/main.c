@@ -161,11 +161,6 @@ int main(void)
 
 	icm20602_init();
 
-	int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
-
-	int8_t timeText[] = {'1', '2', ':', '3', '5'};
-	uint32_t framecount = 0;
-
 	HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 
   /* USER CODE END 2 */
@@ -174,42 +169,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-//		framecount++;
-//
-//		ssd1362_clearBuffer();
-//
-//		for (int x = 0; x < 256; x++) {
-//			for (int y = (sin(((float)x+framecount)/16)*16)+32; y < 64; y++) {
-//				ssd1362_drawPixel(x, y, 3, false);
-//			}
-//		}
-//
-//		ssd1362_drawCharArray(24, 0, (int8_t *)timeText, 0xF, 32);
-//		ssd1362_drawString(0, 40, (int8_t *)"SSS CIS", 0xF, 16);
-//		ssd1362_drawString(84, 40, (int8_t *)"52.1%", 0xF, 16);
-//		ssd1362_writeFullBuffer();
-//		HAL_Delay(1);
-//
-//		//		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
-//		//		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
-//		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
-//
-//		ssd1362_clearBuffer();
-//		char text[100] = {0};
-//		//	  sprintf(text,"Accel : %.2f  %.2f  %.2f", accel_x, accel_y, accel_z);
-//		//	  ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
-//		//	  sprintf(text,"Gyro  : %.2f  %.2f  %.2f", gyro_x, gyro_y, gyro_z);
-//		//	  ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
-//		//	  sprintf(text,"temp. : %.2f", tmp);
-//		sprintf(text,"Accel : %d  %d  %d", accel_x, accel_y, accel_z);
-//		ssd1362_drawString(0, 10, (int8_t *)text, 0xF, 16);
-//		sprintf(text,"Gyro  : %d  %d  %d", gyro_x, gyro_y, gyro_z);
-//		ssd1362_drawString(0, 30, (int8_t *)text, 0xF, 16);
-//		sprintf(text,"temp. : %d", tmp);
-//		ssd1362_drawString(0, 50, (int8_t *)text, 0xF, 16);
-//		ssd1362_writeFullBuffer();
-//
-//		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		//		static int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
+		//		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
+		//		printf("Accel : %d  %d  %d \n", accel_x, accel_y, accel_z);
+		//		printf("Gyro  : %d  %d  %d \n", gyro_x, gyro_y, gyro_z);
+		//		printf("temp. : %d \n", tmp);
+
+		static float accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
+		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
+		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+
+		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
+		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
+
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		HAL_Delay(500);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

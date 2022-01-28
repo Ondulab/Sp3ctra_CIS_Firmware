@@ -75,21 +75,26 @@ void udp_clientInit(void)
  */
 void udp_clientSendImage(int32_t *image_buff)
 {
-	struct pbuf *p;
+	static struct pbuf *p;
+	static uint32_t curr_packet = 0;
 
-	/* allocate pbuf from pool*/
-	p = pbuf_alloc(PBUF_TRANSPORT, (CIS_PIXELS_NB + UDP_HEADER_SIZE) * sizeof(uint32_t), PBUF_RAM);
-
-	if (p != NULL)
+	for (curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
 	{
-		/* copy data to pbuf */
-		pbuf_take(p, (char*)image_buff, (CIS_PIXELS_NB + UDP_HEADER_SIZE) * sizeof(uint32_t));
+		/* allocate pbuf from pool*/
+		p = pbuf_alloc(PBUF_TRANSPORT, UDP_PACKET_SIZE * sizeof(uint32_t), PBUF_RAM);
 
-		/* send udp data */
-		udp_send(upcb, p);
+		if (p != NULL)
+		{
 
-		/* free pbuf */
-		pbuf_free(p);
+			/* copy data to pbuf */
+			pbuf_take(p, (int8_t*)&image_buff[curr_packet * UDP_PACKET_SIZE], UDP_PACKET_SIZE * sizeof(uint32_t));
+
+			/* send udp data */
+			udp_send(upcb, p);
+
+			/* free pbuf */
+			pbuf_free(p);
+		}
 	}
 }
 

@@ -52,7 +52,7 @@ void MX_TIM1_Init(void)
 	prescalerValue = 0;
 	counterPeriod = (120 / 2) - 1;
 	pulseValueCH2 = 30 - 1; //CLK OUT
-	pulseValueCH1 = 45 - 1; //ADC CC1
+	pulseValueCH1 = 55 - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -87,7 +87,7 @@ void MX_TIM1_Init(void)
   sConfigOC.Pulse = pulseValueCH1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
