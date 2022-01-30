@@ -69,27 +69,27 @@
 /**************************************************************************************/
 #define LWIP_CLK_FREQ							(850)			//in Hz
 
-#define UDP_HEADER								(1397969715) 	//01010011 01010011 01010011 00110011 SSS3
+//#define UDP_HEADER								(1397969715) 	//01010011 01010011 01010011 00110011 3SSS
 #define UDP_HEADER_SIZE							(1)//uint32
-#define UDP_NB_PACKET_PER_LINE					(7)
-#define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) + (UDP_HEADER_SIZE)) / UDP_NB_PACKET_PER_LINE)
+#define UDP_NB_PACKET_PER_LINE					(6)
+#define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE)) + (UDP_HEADER_SIZE))
 
 /* UDP local connection port */
 #define UDP_SERVER_PORT    						((uint16_t)55151U)
 /* UDP remote connection port */
 #define UDP_CLIENT_PORT   						((uint16_t)55151U)
 
-/*Static DEST IP ADDRESS: DEST_IP_ADDR0.DEST_IP_ADDR1.DEST_IP_ADDR2.DEST_IP_ADDR3 */
-#define DEST_IP_ADDR0   						((uint8_t)192U)
-#define DEST_IP_ADDR1   						((uint8_t)168U)
-#define DEST_IP_ADDR2   						((uint8_t)0U)
-#define DEST_IP_ADDR3   						((uint8_t)1U)
-
-/*Static IP ADDRESS: IP_ADDR0.IP_ADDR1.IP_ADDR2.IP_ADDR3 */
+/*Static IP ADDRESS: */
 #define IP_ADDR0   								((uint8_t) 192U)
 #define IP_ADDR1   								((uint8_t) 168U)
 #define IP_ADDR2   								((uint8_t) 0U)
 #define IP_ADDR3   								((uint8_t) 10U)
+
+/*Static DESTINATION IP ADDRESS: */
+#define DEST_IP_ADDR0   						((uint8_t)192U)
+#define DEST_IP_ADDR1   						((uint8_t)168U)
+#define DEST_IP_ADDR2   						((uint8_t)0U)
+#define DEST_IP_ADDR3   						((uint8_t)1U)
 
 /*NETMASK*/
 #define NETMASK_ADDR0   						((uint8_t) 255U)
@@ -98,10 +98,10 @@
 #define NETMASK_ADDR3   						((uint8_t) 0U)
 
 /*Gateway Address*/
-#define GW_ADDR0   								((uint8_t) 192U)
-#define GW_ADDR1   								((uint8_t) 168U)
+#define GW_ADDR0   								((uint8_t) 0U)
+#define GW_ADDR1   								((uint8_t) 0U)
 #define GW_ADDR2   								((uint8_t) 0U)
-#define GW_ADDR3   								((uint8_t) 1U)
+#define GW_ADDR3   								((uint8_t) 0U)
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/

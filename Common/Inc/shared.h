@@ -67,7 +67,7 @@ struct shared_var {
 extern struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
-extern int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE];
+extern int32_t imageData[CIS_PIXELS_NB];
 extern int32_t cisData[CIS_ADC_BUFF_SIZE * 3];
 extern int32_t cisDataCpy[CIS_ADC_BUFF_SIZE * 3];
 

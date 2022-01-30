@@ -25,7 +25,7 @@ __attribute__ ((section(".cisCals")))
 struct cisCals cisCals  = {0};
 
 __attribute__ ((section(".imageData")))
-int32_t imageData[CIS_PIXELS_NB + UDP_HEADER_SIZE] = {0};
+int32_t imageData[CIS_PIXELS_NB] = {0};
 
 __attribute__ ((section(".cisData")))
 int32_t cisData[CIS_ADC_BUFF_SIZE * 3] = {0};

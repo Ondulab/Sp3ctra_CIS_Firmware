@@ -900,20 +900,16 @@ void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
 void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 {
 	uint32_t lineOffset = 0, offset;
-	struct cisColorsParams *currColor;
 
 	switch (color)
 	{
 	case CIS_RED :
-		currColor = &cisCals.blackCal.red;
 		offset = CIS_RED_LINE_OFFSET;
 		break;
 	case CIS_GREEN :
-		currColor = &cisCals.blackCal.green;
 		offset = CIS_GREEN_LINE_OFFSET;
 		break;
 	case CIS_BLUE :
-		currColor = &cisCals.blackCal.blue;
 		offset = CIS_BLUE_LINE_OFFSET;
 		break;
 	default :

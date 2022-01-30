@@ -28,6 +28,7 @@
 #include "ethernetif.h"
 
 /* USER CODE BEGIN 0 */
+#include "config.h"
 
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
@@ -74,6 +75,19 @@ void MX_LWIP_Init(void)
   GATEWAY_ADDRESS[3] = 0;
 
 /* USER CODE BEGIN IP_ADDRESSES */
+  IP_ADDRESS[0] = IP_ADDR0;
+  IP_ADDRESS[1] = IP_ADDR1;
+  IP_ADDRESS[2] = IP_ADDR2;
+  IP_ADDRESS[3] = IP_ADDR3;
+  NETMASK_ADDRESS[0] = NETMASK_ADDR0;
+  NETMASK_ADDRESS[1] = NETMASK_ADDR1;
+  NETMASK_ADDRESS[2] = NETMASK_ADDR2;
+  NETMASK_ADDRESS[3] = NETMASK_ADDR3;
+  GATEWAY_ADDRESS[0] = GW_ADDR0;
+  GATEWAY_ADDRESS[1] = GW_ADDR0;
+  GATEWAY_ADDRESS[2] = GW_ADDR0;
+  GATEWAY_ADDRESS[3] = GW_ADDR0;
+
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack without RTOS */

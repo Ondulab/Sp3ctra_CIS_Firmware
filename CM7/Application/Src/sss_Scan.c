@@ -60,8 +60,6 @@ int sss_Scan(void)
 
 	cis_Init();
 
-	//Add "SSS3" header for synchronization
-	imageData[0] = UDP_HEADER;
 	shared_var.cis_cal_state = CIS_CAL_END;
 
 	/* Infinite loop */
@@ -77,8 +75,8 @@ int sss_Scan(void)
 			cis_StartCalibration(500);
 		}
 
-		cis_ImageProcessRGB(&imageData[UDP_HEADER_SIZE]);
-		SCB_CleanDCache_by_Addr((uint32_t *)&imageData[0], ((CIS_PIXELS_NB + UDP_HEADER_SIZE) * sizeof(uint32_t)));
+		cis_ImageProcessRGB(imageData);
+		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
 
 #ifndef ETHERNET_OFF
 		udp_clientSendImage(imageData);

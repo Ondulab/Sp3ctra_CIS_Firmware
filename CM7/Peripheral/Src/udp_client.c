@@ -15,6 +15,8 @@
 #include "lwip/tcp.h"
 #include "lwip.h"
 
+#include "arm_math.h"
+
 /* Private includes ----------------------------------------------------------*/
 #include "udp_client.h"
 
@@ -27,6 +29,7 @@
 /* Private variables ---------------------------------------------------------*/
 struct udp_pcb *upcb;
 __IO uint32_t message_count = 0;
+int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
@@ -85,9 +88,11 @@ void udp_clientSendImage(int32_t *image_buff)
 
 		if (p != NULL)
 		{
+			udp_imageData[0] = (UDP_PACKET_SIZE - UDP_HEADER_SIZE) * curr_packet;
+			arm_copy_q31(&image_buff[(UDP_PACKET_SIZE - UDP_HEADER_SIZE) * curr_packet], &udp_imageData[UDP_HEADER_SIZE], UDP_PACKET_SIZE - UDP_HEADER_SIZE);
 
 			/* copy data to pbuf */
-			pbuf_take(p, (int8_t*)&image_buff[curr_packet * UDP_PACKET_SIZE], UDP_PACKET_SIZE * sizeof(uint32_t));
+			pbuf_take(p, (int8_t*)udp_imageData, UDP_PACKET_SIZE * sizeof(uint32_t));
 
 			/* send udp data */
 			udp_send(upcb, p);
