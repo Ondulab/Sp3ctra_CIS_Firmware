@@ -39,6 +39,7 @@
 //#define PRINT_CIS_CALIBRATION
 //#define SKIP_SPLASH
 //#define ETHERNET_OFF
+//#define CIS_DESACTIVATE_CALIBRATION
 
 /**************************************************************************************/
 /********************             Display definitions              ********************/
@@ -69,7 +70,6 @@
 /**************************************************************************************/
 #define LWIP_CLK_FREQ							(850)			//in Hz
 
-//#define UDP_HEADER								(1397969715) 	//01010011 01010011 01010011 00110011 3SSS
 #define UDP_HEADER_SIZE							(1)//uint32
 #define UDP_NB_PACKET_PER_LINE					(6)
 #define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE)) + (UDP_HEADER_SIZE))
@@ -106,10 +106,12 @@
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-//#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_400DPI
+//#define CIS_MONOCHROME
 
-#define CIS_CLK_FREQ							(4000000)
+#define CIS_CLK_FREQ							(5000000)
+#define CLK_DIVIDER 							((480000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
+
 #define CIS_ADC_OUT_LINES						(3)
 
 #define CIS_SP_WIDTH							(2)
@@ -124,16 +126,16 @@
 #define CIS_PIXELS_NB 		 					((CIS_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES))
 
 #define CIS_PIXEL_AERA_STOP						((CIS_INACTIVE_WIDTH) + (CIS_PIXELS_PER_LINE))
-#define CIS_OVER_SCAN							(6)
+#define CIS_OVER_SCAN							(12)
 
-#define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH)
-#define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH)
-#define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH)
-#define CIS_LED_RED_OFF							276
-#define CIS_LED_GREEN_OFF						202
-#define CIS_LED_BLUE_OFF						270
+#define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_RED_OFF							((202 * 2))
+#define CIS_LED_GREEN_OFF						((244 * 2))
+#define CIS_LED_BLUE_OFF						((243 * 2))
 
-#define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH)
+#define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2)
 #define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 #define CIS_END_CAPTURE							(CIS_LINE_SIZE)
 

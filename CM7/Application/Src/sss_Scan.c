@@ -60,6 +60,8 @@ int sss_Scan(void)
 
 	cis_Init();
 
+//		cis_LedsOff();
+
 	shared_var.cis_cal_state = CIS_CAL_END;
 
 	/* Infinite loop */
@@ -72,7 +74,7 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			cis_StartCalibration(500);
+			cis_StartCalibration(5000);
 		}
 
 		cis_ImageProcessRGB(imageData);
@@ -83,14 +85,20 @@ int sss_Scan(void)
 #endif
 
 		shared_var.cis_process_cnt++;
-	}
 
-	//		static uint32_t sw = 0;
-	//		sw++;
-	//		if (sw % 2)
-	//			cis_LedsOff();
-	//		else
-	//			cis_LedsOn();
+//		if (shared_var.cis_process_cnt % 1000 == 0)
+//		{
+//			static uint32_t sw = 0;
+//			sw++;
+//			if (sw % 2)
+////				cis_LedsOff();
+//				cis_Stop_capture();
+//			else
+////				cis_LedsOn();
+//				cis_Start_capture();
+//		}
+
+	}
 }
 /* Private functions ---------------------------------------------------------*/
 

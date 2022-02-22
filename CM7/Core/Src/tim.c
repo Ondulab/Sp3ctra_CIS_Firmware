@@ -22,6 +22,7 @@
 
 /* USER CODE BEGIN 0 */
 #include "cis.h"
+
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim1;
@@ -50,9 +51,9 @@ void MX_TIM1_Init(void)
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
 	prescalerValue = 0;
-	counterPeriod = (120 / 2) - 1;
-	pulseValueCH2 = 30 - 1; //CLK OUT
-	pulseValueCH1 = 55 - 1; //ADC CC1
+	counterPeriod = (CLK_DIVIDER / 2) - 1;
+	pulseValueCH2 = (CLK_DIVIDER / 4) - 1; //CLK OUT Ton 0.1ms
+	pulseValueCH1 = ((CLK_DIVIDER / 4) * 1.8) - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -76,7 +77,7 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
@@ -137,13 +138,18 @@ void MX_TIM3_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  prescalerValue = 0;
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-
   if (CIS_LED_BLUE_OFF > 0)
 	  pulseValue = CIS_LED_BLUE_OFF - 1;
   else
     pulseValue = 0;
+
+  prescalerValue = 0;
+#ifndef CIS_MONOCHROME
+  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
+#else
+  counterPeriod = (CIS_END_CAPTURE) - 1;
+  pulseValue /= 3;
+#endif
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
@@ -202,13 +208,18 @@ void MX_TIM4_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  prescalerValue = 0;
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-
   if (CIS_LED_RED_OFF > 0)
 	  pulseValue = CIS_LED_RED_OFF - 1;
   else
     pulseValue = 0;
+
+  prescalerValue = 0;
+#ifndef CIS_MONOCHROME
+  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
+#else
+  counterPeriod = (CIS_END_CAPTURE) - 1;
+  pulseValue /= 3;
+#endif
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
@@ -267,13 +278,18 @@ void MX_TIM5_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  prescalerValue = 0;
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-
-  if (CIS_LED_GREEN_OFF > 0)
-	  pulseValue = CIS_LED_GREEN_OFF - 1;
+  if (CIS_LED_RED_OFF > 0)
+	  pulseValue = CIS_LED_RED_OFF - 1;
   else
     pulseValue = 0;
+
+  prescalerValue = 0;
+#ifndef CIS_MONOCHROME
+  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
+#else
+  counterPeriod = (CIS_END_CAPTURE) - 1;
+  pulseValue /= 3;
+#endif
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
@@ -403,9 +419,9 @@ void MX_TIM8_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = pulseValue;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
@@ -450,7 +466,7 @@ void MX_TIM15_Init(void)
   /* USER CODE BEGIN TIM15_Init 1 */
 	uint32_t prescalerValue, counterPeriod, pulseValue;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / 120) / (CIS_CLK_FREQ)) - 1);
+	prescalerValue = (uint32_t)(((SystemCoreClock / CLK_DIVIDER) / (CIS_CLK_FREQ)) - 1);
 	counterPeriod = 1;
 	pulseValue = 0;
 

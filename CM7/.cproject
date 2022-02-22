@@ -179,7 +179,7 @@
 									<listOptionValue builtIn="false" value="../../Drivers/CMSIS/Include"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Drivers/CMSIS/DSP}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SSS_CIS/Common/Inc}&quot;"/>
-									<listOptionValue builtIn="false" value="/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM7/Middlewares/CMSIS/DSP/Include"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SSS_CIS/CM7/Middlewares/CMSIS/DSP/Include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Application/Inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Middlewares/Inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Peripheral/Inc}&quot;"/>

@@ -109,6 +109,9 @@ int main(void)
   MX_FMC_Init();
   /* USER CODE BEGIN 2 */
 
+//  HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_RESET);
+//  while(1);
+
 //  HAL_Delay(2000);
 	// Initialize oled display and print logo
 	ssd1362_init();
