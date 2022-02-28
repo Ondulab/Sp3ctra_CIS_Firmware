@@ -86,17 +86,17 @@ int sss_Scan(void)
 
 		shared_var.cis_process_cnt++;
 
-		if (shared_var.cis_process_cnt % 100 == 0)
-		{
-			static uint32_t sw = 0;
-			sw++;
-			if (sw % 2)
-//				cis_LedsOff();
-				cis_Stop_capture();
-			else
-//				cis_LedsOn();
-				cis_Start_capture();
-		}
+//		if (shared_var.cis_process_cnt % 100 == 0)
+//		{
+//			static uint32_t sw = 0;
+//			sw++;
+//			if (sw % 2)
+////				cis_LedsOff();
+//				cis_Stop_capture();
+//			else
+////				cis_LedsOn();
+//				cis_Start_capture();
+//		}
 
 	}
 }
