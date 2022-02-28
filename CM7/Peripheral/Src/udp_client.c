@@ -50,7 +50,7 @@ void udp_clientInit(void)
 
 	/* Create a new UDP control block  */
 	upcb = udp_new();
-
+//	ip_set_option(upcb, SOF_BROADCAST); // test for broadcast, useless at frist view
 	if (upcb!=NULL)
 	{
 		/*assign destination IP address */

@@ -29,7 +29,6 @@
 
 /* USER CODE BEGIN 0 */
 #include "config.h"
-
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
 static void ethernet_link_status_updated(struct netif *netif);
@@ -84,9 +83,9 @@ void MX_LWIP_Init(void)
   NETMASK_ADDRESS[2] = NETMASK_ADDR2;
   NETMASK_ADDRESS[3] = NETMASK_ADDR3;
   GATEWAY_ADDRESS[0] = GW_ADDR0;
-  GATEWAY_ADDRESS[1] = GW_ADDR0;
-  GATEWAY_ADDRESS[2] = GW_ADDR0;
-  GATEWAY_ADDRESS[3] = GW_ADDR0;
+  GATEWAY_ADDRESS[1] = GW_ADDR1;
+  GATEWAY_ADDRESS[2] = GW_ADDR2;
+  GATEWAY_ADDRESS[3] = GW_ADDR3;
 
 /* USER CODE END IP_ADDRESSES */
 
