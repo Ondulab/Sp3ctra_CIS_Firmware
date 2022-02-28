@@ -89,7 +89,7 @@
 #define DEST_IP_ADDR0   						((uint8_t)192U)
 #define DEST_IP_ADDR1   						((uint8_t)168U)
 #define DEST_IP_ADDR2   						((uint8_t)0U)
-#define DEST_IP_ADDR3   						((uint8_t)1U)
+#define DEST_IP_ADDR3   						((uint8_t)255U)
 
 /*NETMASK*/
 #define NETMASK_ADDR0   						((uint8_t) 255U)

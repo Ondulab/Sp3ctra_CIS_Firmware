@@ -53,7 +53,7 @@ void MX_TIM1_Init(void)
 	prescalerValue = 0;
 	counterPeriod = (CLK_DIVIDER / 2) - 1;
 	pulseValueCH2 = (CLK_DIVIDER / 4) - 1; //CLK OUT Ton 0.1ms
-	pulseValueCH1 = ((CLK_DIVIDER / 4) * 1.9) - 1; //ADC CC1
+	pulseValueCH1 = ((CLK_DIVIDER / 4) * 1.7) - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
