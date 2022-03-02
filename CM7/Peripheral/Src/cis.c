@@ -177,7 +177,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-//		while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
+		while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
 //		{
 //			timeout++;
 //			if (timeout > 1000000)
@@ -198,7 +198,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 	{
 		/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-//		while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
+		while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
 //		{
 //			timeout++;
 //			if (timeout > 1000000)
@@ -286,8 +286,8 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 		// Read and copy half DMAs buffers
 		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 		{
-//			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-//			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
+			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
+			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
 //			{
 //				timeout++;
 //				if (timeout > 1000000)
@@ -306,8 +306,8 @@ void cis_ImageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 		// Read and copy full DMAs buffers
 		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 		{
-//			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-//			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
+			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
+			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
 //			{
 //				timeout++;
 //				if (timeout > 1000000)
