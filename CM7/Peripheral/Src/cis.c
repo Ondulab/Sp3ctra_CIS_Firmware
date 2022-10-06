@@ -320,7 +320,10 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 		{
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
+			{
+				printf("wait \n");
+			}
 
 			/* Invalidate Data Cache */
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
@@ -335,7 +338,11 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
 		{
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
+			{
+				printf("wait \n");
+			}
+
 
 			/* Invalidate Data Cache */
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
@@ -1099,9 +1106,9 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	printf("-------- COMPUTE GAINS --------\n");
 #ifdef PRINT_CIS_CALIBRATION
-	for (uint32_t pix = 0; pix < CIS_EFFECTIVE_PIXELS; pix++)
+	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
 	{
-		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisGainsCalData[pix]);
+		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisCals.gainsData[pix]);
 	}
 #endif
 
