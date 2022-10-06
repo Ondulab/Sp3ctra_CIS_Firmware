@@ -66,13 +66,6 @@ SourcePath#1=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM7/LWIP/App
 SourcePath#2=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM7/LWIP/Target
 SourceFiles=;
 
-[CortexM7:ThirdPartyIp]
-ThirdPartyIpNumber=1
-ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7
-
-[CortexM7:ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7]
-header=Middlewares/ST/ARM/DSP/Inc/arm_math.h;
-
 [CortexM4:PreviousGenFiles]
 AdvancedFolderStructure=true
 HeaderFileListSize=6
@@ -95,9 +88,6 @@ SourceFiles#5=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM4/Core/Src/main
 SourceFolderListSize=1
 SourcePath#0=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM4/Core/Src
 SourceFiles=;
-
-[CortexM4:ThirdPartyIp]
-ThirdPartyIpNumber=0
 
 [PreviousGenFiles]
 AdvancedFolderStructure=true
@@ -156,11 +146,4 @@ SourcePath#1=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM7/LWIP/App
 SourcePath#2=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM7/LWIP/Target
 SourcePath#3=/home/zhonx/Documents/Workspace_Cube_SSS/SSS_CIS/CM4/Core/Src
 SourceFiles=;
-
-[ThirdPartyIp]
-ThirdPartyIpNumber=1
-ThirdPartyIpName#0=STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7
-
-[ThirdPartyIp#STMicroelectronics.X-CUBE-ALGOBUILD.1.3.0_M7]
-header=Middlewares/ST/ARM/DSP/Inc/arm_math.h;
 

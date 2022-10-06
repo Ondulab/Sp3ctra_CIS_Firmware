@@ -153,10 +153,10 @@ void cis_StartCalibration()
 			}
 			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 			{
-				int32_t cis_color = cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 6;
+				int32_t cis_color = (int32_t)(cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
 				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color - 1, 14, false);
 
-				cis_color = cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))] >> 6;
+				cis_color = (int32_t)(cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
 				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color -1, 8, false);
 			}
 			ssd1362_writeFullBuffer();
@@ -202,7 +202,7 @@ void cis_StartCalibration()
 			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 			{
 				uint32_t index = i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH);
-				int32_t cis_color = cisCals.offsetData[index] >> 6;
+				int32_t cis_color = (int32_t)(cisCals.offsetData[index]) >> 6;
 				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color, 15, false);
 			}
 			ssd1362_writeFullBuffer();
@@ -214,6 +214,8 @@ void cis_StartCalibration()
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" COMPUTE COMPENSATIION GAINS", 0xF, 8);
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_COMPUTE_GAINS);
+			break;
+		default:
 			break;
 		}
 	}
