@@ -41,8 +41,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-static CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
-static CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
+static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
+static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 
 /* Variable containing ADC conversions data */
 
@@ -322,7 +322,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
 			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
 			{
-				printf("wait \n");
+//				printf("wait \n");
 			}
 
 			/* Invalidate Data Cache */
@@ -340,7 +340,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
 			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
 			{
-				printf("wait \n");
+//				printf("wait \n");
 			}
 
 

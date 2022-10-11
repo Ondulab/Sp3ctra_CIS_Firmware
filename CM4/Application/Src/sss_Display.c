@@ -109,12 +109,6 @@ void cis_StartCalibration()
 	uint8_t textData[256] = {0};
 	shared_var.cis_cal_state = CIS_CAL_START;
 
-	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-	sprintf((char *)textData, "%d", shared_var.cis_cal_state);
-	ssd1362_drawString(0, 10, (int8_t*)textData, 15, 8);
-	ssd1362_writeFullBuffer();
-
 	while (shared_var.cis_cal_state != CIS_CAL_END)
 	{
 		switch (shared_var.cis_cal_state)
@@ -132,7 +126,7 @@ void cis_StartCalibration()
 			}
 
 			ssd1362_progressBar(30, 30, 99, 0xF);
-			HAL_Delay(100);
+			HAL_Delay(10);
 
 			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE);
 			break;
