@@ -21,6 +21,7 @@
 #include "main.h"
 #include "crc.h"
 #include "dma.h"
+#include "quadspi.h"
 #include "rng.h"
 #include "spi.h"
 #include "tim.h"
@@ -151,6 +152,7 @@ int main(void)
   MX_RNG_Init();
   MX_CRC_Init();
   MX_TIM6_Init();
+  MX_QUADSPI_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("----------------------------------------------------------\n");
@@ -182,7 +184,7 @@ int main(void)
 		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
 		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
 
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 		HAL_Delay(500);
     /* USER CODE END WHILE */
 
@@ -202,17 +204,18 @@ void SystemClock_Config(void)
 
   /** Supply configuration update enable
   */
-  HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
+  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
-  /** Macro to configure the PLL clock source
-  */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
+  __HAL_RCC_SYSCFG_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+
+  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -350,7 +353,7 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
-		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 		for(uint32_t i = 0; i < 0xFFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */

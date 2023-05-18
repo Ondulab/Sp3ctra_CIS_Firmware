@@ -566,21 +566,21 @@ void cis_LedsOff()
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	HAL_GPIO_WritePin(CIS_VLED_R_GPIO_Port, CIS_VLED_R_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(CIS_VLED_G_GPIO_Port, CIS_VLED_G_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(CIS_VLED_B_GPIO_Port, CIS_VLED_B_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
 
-	GPIO_InitStruct.Pin = CIS_VLED_R_Pin;
+	GPIO_InitStruct.Pin = CIS_LED_R_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(CIS_VLED_R_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(CIS_LED_R_GPIO_Port, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = CIS_VLED_G_Pin;
-	HAL_GPIO_Init(CIS_VLED_G_GPIO_Port, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin = CIS_LED_G_Pin;
+	HAL_GPIO_Init(CIS_LED_G_GPIO_Port, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = CIS_VLED_B_Pin;
-	HAL_GPIO_Init(CIS_VLED_B_GPIO_Port, &GPIO_InitStruct);
+	GPIO_InitStruct.Pin = CIS_LED_B_Pin;
+	HAL_GPIO_Init(CIS_LED_B_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
@@ -592,20 +592,20 @@ void cis_LedsOn()
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	GPIO_InitStruct.Pin = CIS_VLED_R_Pin;
+	GPIO_InitStruct.Pin = CIS_LED_R_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
-	HAL_GPIO_Init(CIS_VLED_R_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(CIS_LED_R_GPIO_Port, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = CIS_VLED_G_Pin;
+	GPIO_InitStruct.Pin = CIS_LED_G_Pin;
 	GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
-	HAL_GPIO_Init(CIS_VLED_G_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(CIS_LED_G_GPIO_Port, &GPIO_InitStruct);
 
-	GPIO_InitStruct.Pin = CIS_VLED_B_Pin;
+	GPIO_InitStruct.Pin = CIS_LED_B_Pin;
 	GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
-	HAL_GPIO_Init(CIS_VLED_B_GPIO_Port, &GPIO_InitStruct);
+	HAL_GPIO_Init(CIS_LED_B_GPIO_Port, &GPIO_InitStruct);
 }
 
 /**
