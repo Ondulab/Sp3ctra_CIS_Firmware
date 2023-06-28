@@ -28,6 +28,7 @@
 #include "sss_Display.h"
 #include "ssd1362.h"
 #include "pictures.h"
+#include "shared.h"
 
 /* USER CODE END Includes */
 
@@ -109,9 +110,6 @@ int main(void)
   MX_FMC_Init();
   /* USER CODE BEGIN 2 */
 
-//  HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_RESET);
-//  while(1);
-
 //  HAL_Delay(2000);
 	// Initialize oled display and print logo
 	ssd1362_init();
@@ -125,6 +123,8 @@ int main(void)
 		HAL_Delay(50);
 	}
 #endif
+
+	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
 
 	sss_Display();
 

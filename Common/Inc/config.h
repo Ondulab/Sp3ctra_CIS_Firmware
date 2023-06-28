@@ -32,6 +32,7 @@
 #define ADDR_FLASH_SECTOR_7_BANK2     			((uint32_t)0x081E0000) /* Base @ of Sector 7, 128 Kbytes */
 
 #define ADDR_CIS_FLASH_CALIBRATION				(ADDR_FLASH_SECTOR_7_BANK1)
+#define ADDR_CIS_FLASH_PARAMETERS				(ADDR_FLASH_SECTOR_7_BANK2)
 
 /**************************************************************************************/
 /********************              debug definitions               ********************/
@@ -44,6 +45,8 @@
 /**************************************************************************************/
 /********************             Display definitions              ********************/
 /**************************************************************************************/
+#define ENABLE_SCREEN_ROTATION
+
 #define DISPLAY_WIDTH				SSD1362_WIDTH
 #define DISPLAY_HEIGHT				SSD1362_HEIGHT
 
@@ -83,7 +86,7 @@
 #define IP_ADDR0   								((uint8_t) 192U)
 #define IP_ADDR1   								((uint8_t) 168U)
 #define IP_ADDR2   								((uint8_t) 0U)
-#define IP_ADDR3   								((uint8_t) 1U)
+#define IP_ADDR3   								((uint8_t) 10U)
 
 /*Static DESTINATION IP ADDRESS: */
 #define DEST_IP_ADDR0   						((uint8_t) 192U)
@@ -109,8 +112,8 @@
 //#define CIS_400DPI
 //#define CIS_MONOCHROME
 
-#define CIS_CLK_FREQ							(5000000)
-#define CLK_DIVIDER 							((480000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
+#define CIS_CLK_FREQ							(2500000)
+#define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
 
 #define CIS_ADC_OUT_LINES						(3)
 

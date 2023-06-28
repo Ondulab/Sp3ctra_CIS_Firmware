@@ -16,6 +16,7 @@
 #include "font16x16.h"
 #include "font16x32.h"
 #include "font8x8_basic.h"
+#include "config.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -426,14 +427,28 @@ void ssd1362_init()
     ssd1362_writeCmd(0X81); //Set contrast
     ssd1362_writeCmd(0x2f);
 
+#ifdef ENABLE_SCREEN_ROTATION
+    ssd1362_writeCmd(0XA0); //Set Remap
+    ssd1362_writeCmd(0X52);
+#else
     ssd1362_writeCmd(0XA0); //Set Remap
     ssd1362_writeCmd(0XC3);
+#endif
 
     ssd1362_writeCmd(0XA1); //Set Display Start Line
     ssd1362_writeCmd(0X00);
 
     ssd1362_writeCmd(0XA2); //Set Display Offset
     ssd1362_writeCmd(0X00);
+
+    ssd1362_writeCmd(0XA1); //Set Display Start Line
+    ssd1362_writeCmd(0X00); // Set to the maximum row number for flipping vertically
+
+    ssd1362_writeCmd(0XA2); //Set Display Offset
+    ssd1362_writeCmd(0X00); // Set to the maximum column number for flipping horizontally
+
+
+
 
     ssd1362_writeCmd(0XA4); //Normal Display
 

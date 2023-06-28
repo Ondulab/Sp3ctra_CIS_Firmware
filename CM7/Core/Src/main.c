@@ -37,7 +37,8 @@
 #include "config.h"
 
 #include "sss_Scan.h"
-#include "icm20602.h"
+#include "icm42688.h"
+#include "MX25L.h"
 
 /* USER CODE END Includes */
 
@@ -159,9 +160,25 @@ int main(void)
 	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
 	printf("----------------------------------------------------------\n");
 
+	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
+
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+
+	//MX25L_Test();
+
 	sss_Scan();
 
-	icm20602_init();
+	icm42688_init();
 
 	HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 
@@ -172,19 +189,22 @@ int main(void)
 	while (1)
 	{
 		//		static int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
-		//		icm20602_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
+		//		icm42688_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
 		//		printf("Accel : %d  %d  %d \n", accel_x, accel_y, accel_z);
 		//		printf("Gyro  : %d  %d  %d \n", gyro_x, gyro_y, gyro_z);
 		//		printf("temp. : %d \n", tmp);
 
 		static float accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
-		icm20602_read_accel(&accel_x, &accel_y, &accel_z);
-		icm20602_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+		//Actually we 42688
+		icm42688_read_accel(&accel_x, &accel_y, &accel_z);
+		icm42688_read_gyro(&gyro_x, &gyro_y, &gyro_z);
 
 		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
 		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
 
 		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(500);
     /* USER CODE END WHILE */
 
@@ -204,18 +224,17 @@ void SystemClock_Config(void)
 
   /** Supply configuration update enable
   */
-  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+  HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY);
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
+
+  /** Macro to configure the PLL clock source
+  */
+  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -229,7 +248,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 5;
-  RCC_OscInitStruct.PLL.PLLN = 192;
+  RCC_OscInitStruct.PLL.PLLN = 160;
   RCC_OscInitStruct.PLL.PLLP = 2;
   RCC_OscInitStruct.PLL.PLLQ = 6;
   RCC_OscInitStruct.PLL.PLLR = 4;
@@ -273,7 +292,7 @@ void PeriphCommonClock_Config(void)
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_USART1
                               |RCC_PERIPHCLK_CKPER;
   PeriphClkInitStruct.PLL2.PLL2M = 5;
-  PeriphClkInitStruct.PLL2.PLL2N = 192;
+  PeriphClkInitStruct.PLL2.PLL2N = 160;
   PeriphClkInitStruct.PLL2.PLL2P = 12;
   PeriphClkInitStruct.PLL2.PLL2Q = 12;
   PeriphClkInitStruct.PLL2.PLL2R = 12;

@@ -36,6 +36,8 @@ static void cisynth_eth_SetHint(void);
 static void cisynth_interractiveMenu(void);
 void cis_StartCalibration(void);
 
+//#define DISPLAY_SCOLL_IMAGE
+
 /* Private user code ---------------------------------------------------------*/
 /**
  * @brief  The application entry point.
@@ -50,7 +52,7 @@ int sss_Display(void)
 	int32_t old_cis_process_cnt = 0;
 	uint32_t cis_line_freq = 0;
 	int32_t i = 0;
-	int32_t scroll = 0;
+	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
 
 	printf("----- ETHERNET MODE START -----\n");
 	printf("-------------------------------\n");
@@ -74,11 +76,10 @@ int sss_Display(void)
 
 		sprintf((char *)FreqStr, "%dHz", (int)(cis_line_freq));
 
-		//		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 3, false);
-
-		scroll++;
-		if (scroll > (DISPLAY_AERAS1_HEIGHT - 2))
-			scroll = 0;
+#ifdef DISPLAY_SCOLL_IMAGE
+		line_Ypos++;
+		if (line_Ypos > (DISPLAY_AERAS1_HEIGHT - 2))
+			line_Ypos = 0;
 
 		for (i = 0; i < (DISPLAY_WIDTH); i++)
 		{
@@ -87,16 +88,35 @@ int sss_Display(void)
 			cis_color >>= 20;
 
 			//			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1, (DISPLAY_AERAS1_HEIGHT - 2) / 2, cis_color, false);
-			ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1 + scroll, cis_color, false);
+			ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1 + line_Ypos, cis_color, false);
 
 		}
+#else
+		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
 
-		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 100, DISPLAY_HEAD_Y2POS, 4, false);
+		for (i = 0; i < (DISPLAY_WIDTH); i++)
+		{
+			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
+			cis_color = (299*cis_rgb[0])/1000 + 587 * (cis_rgb[1])/1000 + (114*cis_rgb[2])/1000;
+			cis_color >>= 4;
+
+			if (cis_color > DISPLAY_AERAS1_HEIGHT)
+				cis_color = DISPLAY_AERAS1_HEIGHT;
+
+			//BAR MODE
+			ssd1362_drawVLine(i, line_Ypos - cis_color, cis_color * 2, 15, false);
+
+		}
+#endif
+
+		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 60, DISPLAY_HEAD_Y2POS, 4, false);
 		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
 
 		ssd1362_writeUpdates();
 		//		HAL_Delay(1);
 	}
+
+
 }
 
 /**
@@ -220,14 +240,34 @@ void cis_StartCalibration()
 			break;
 		}
 	}
-	cisynth_eth_SetHint();
+}
+
+/**
+ * @brief  Change CIS oversampling
+ * @param  None
+ * @retval None
+ */
+void cis_ChangeOversampling()
+{
+    static int32_t n = 0;
+	uint8_t textData[256] = {0};
+
+    n = (n + 1) % 6;
+	shared_var.cis_oversampling = pow(2, n);
+
+	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+
+	sprintf((char *)textData, "OVSP %d", (int)shared_var.cis_oversampling);
+	ssd1362_drawString(95, DISPLAY_HEAD_Y1POS + 1, (int8_t *)textData, 0xF, 8);
+	ssd1362_writeFullBuffer();
 }
 
 #define BUTTON_DELAY			500
 
 /**
- * @brief
- * @param
+ * @brief  Get pressed button, call the function and display message
+ * @param  None
  * @retval None
  */
 void cisynth_interractiveMenu()
@@ -238,6 +278,7 @@ void cisynth_interractiveMenu()
 	if (buttonState[SW1] == SWITCH_PRESSED)
 	{
 		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 		buttonState[SW1] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
@@ -246,28 +287,17 @@ void cisynth_interractiveMenu()
 	if (buttonState[SW2] == SWITCH_PRESSED)
 	{
 		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 		buttonState[SW2] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
+		cis_ChangeOversampling();
 	}
 	if (buttonState[SW3] == SWITCH_PRESSED)
 	{
 		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 		buttonState[SW3] = SWITCH_RELEASED;
-		button_tick = HAL_GetTick();
-		clear_button = 0;
-	}
-	if (buttonState[SW4] == SWITCH_PRESSED)
-	{
-		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x0F, false);
-		buttonState[SW4] = SWITCH_RELEASED;
-		button_tick = HAL_GetTick();
-		clear_button = 0;
-	}
-	if (buttonState[SW5] == SWITCH_PRESSED)
-	{
-		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x0F, false);
-		buttonState[SW5] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
@@ -275,17 +305,23 @@ void cisynth_interractiveMenu()
 	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)
 	{
 		clear_button = 1;
+
+		cisynth_eth_SetHint();
+
 		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
 		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 	}
 }
 
 /**
- * @brief  Display Audio demo hint
+ * @brief  Display hint
  * @param  None
  * @retval None
  */

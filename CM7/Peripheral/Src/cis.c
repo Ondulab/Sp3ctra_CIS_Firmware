@@ -177,7 +177,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	static float32_t tmpImmactiveAvrg_G = 0.0;
 	static float32_t tmpImmactiveAvrg_B = 0.0;
 
-	while (acc < 32)
+	while (acc < shared_var.cis_oversampling)
 	{
 		// Read and copy half DMAs buffers
 		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
@@ -215,7 +215,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	}
 
 	acc = 0;
-	arm_scale_f32(cisDataCpy_f32, 1.00 / 32.00, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	arm_scale_f32(cisDataCpy_f32, 1.00 / (float64_t)(shared_var.cis_oversampling), cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 
 #ifndef CIS_DESACTIVATE_CALIBRATION
 	for (line = CIS_ADC_OUT_LINES; --line >= 0;)

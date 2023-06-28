@@ -64,6 +64,8 @@ void Error_Handler(void);
 #define MEMS_CS_GPIO_Port GPIOB
 #define CIS_RS_Pin GPIO_PIN_12
 #define CIS_RS_GPIO_Port GPIOA
+#define ETH_RST_Pin GPIO_PIN_14
+#define ETH_RST_GPIO_Port GPIOC
 #define CIS_CP_Pin GPIO_PIN_9
 #define CIS_CP_GPIO_Port GPIOA
 #define CIS_SP_Pin GPIO_PIN_8
@@ -82,10 +84,14 @@ void Error_Handler(void);
 #define CIS_LED_G_GPIO_Port GPIOH
 #define CIS_ADC_2_Pin GPIO_PIN_1
 #define CIS_ADC_2_GPIO_Port GPIOA
+#define LED3_Pin GPIO_PIN_12
+#define LED3_GPIO_Port GPIOE
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOH
 #define CIS_ADC_1_Pin GPIO_PIN_0
 #define CIS_ADC_1_GPIO_Port GPIOA
+#define LED2_Pin GPIO_PIN_11
+#define LED2_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 

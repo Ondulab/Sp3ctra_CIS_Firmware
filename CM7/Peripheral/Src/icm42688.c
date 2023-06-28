@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : icm20602.c
+ * @file           : icm42688.c
  * @brief          : 6-axis motion tracking chip
  ******************************************************************************
  */
@@ -11,7 +11,7 @@
 #include "basetypes.h"
 
 /* Private includes ----------------------------------------------------------*/
-#include "icm20602.h"
+#include "icm42688.h"
 #include "spi.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,7 +82,7 @@
 #define REG_YA_OFFSET_L 0x7B
 #define REG_ZA_OFFSET_H 0x7D
 #define REG_ZA_OFFSET_L 0x7E
-#define REG_WHO_AM_I_CONST 0X12
+#define REG_WHO_AM_I_CONST 0X2E
 
 /* Private macro -------------------------------------------------------------*/
 #define ON_ERROR_GOTO(cond, symbol) \
@@ -101,12 +101,12 @@
 // TODO: Look into getting real temp sensitivity.
 static float _temp_sensitivity = 326.8;
 
-static struct icm20602_dev dev={
-		.accel_dlpf = ICM20602_ACCEL_DLPF_10_2_HZ,
+static struct icm42688_dev dev={
+		.accel_dlpf = ICM42688_ACCEL_DLPF_10_2_HZ,
 		.accel_fifo = FALSE,
-		.accel_g = ICM20602_ACCEL_RANGE_2G,
-		.gyro_dlpf = ICM20602_GYRO_DLPF_5_HZ,
-		.gyro_dps = ICM20602_GYRO_RANGE_1000_DPS,
+		.accel_g = ICM42688_ACCEL_RANGE_2G,
+		.gyro_dlpf = ICM42688_GYRO_DLPF_5_HZ,
+		.gyro_dps = ICM42688_GYRO_RANGE_1000_DPS,
 		.sample_rate_div = 0,
 		.use_accel = TRUE,
 		.use_gyro = TRUE,
@@ -117,7 +117,7 @@ static struct icm20602_dev dev={
 /* Private user code ---------------------------------------------------------*/
 
 //Writes a register byte to the driver
-uint8_t icm20602_write(uint8_t reg, uint8_t *data, uint16_t len)
+uint8_t icm42688_write(uint8_t reg, uint8_t *data, uint16_t len)
 {
 	int rv = 0;
 	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
@@ -130,7 +130,7 @@ uint8_t icm20602_write(uint8_t reg, uint8_t *data, uint16_t len)
 }
 
 //Read a register byte to the driver
-uint8_t icm20602_read(uint8_t reg, uint8_t *data, uint16_t len)
+uint8_t icm42688_read(uint8_t reg, uint8_t *data, uint16_t len)
 {
 	int rv = 0;
 	reg |= 0b10000000;
@@ -144,21 +144,21 @@ uint8_t icm20602_read(uint8_t reg, uint8_t *data, uint16_t len)
 }
 
 /// Used to convert raw accelerometer readings to G-force.
-float icm20602_get_accel_sensitivity(enum icm20602_accel_g accel_g)
+float icm42688_get_accel_sensitivity(enum icm42688_accel_g accel_g)
 {
 	float f = 0.0;
 
 	switch (accel_g) {
-	case (ICM20602_ACCEL_RANGE_2G):
+	case (ICM42688_ACCEL_RANGE_2G):
     										f = 16384.0;
 	break;
-	case (ICM20602_ACCEL_RANGE_4G):
+	case (ICM42688_ACCEL_RANGE_4G):
     										f = 8192.0;
 	break;
-	case (ICM20602_ACCEL_RANGE_8G):
+	case (ICM42688_ACCEL_RANGE_8G):
     										f = 4096.0;
 	break;
-	case (ICM20602_ACCEL_RANGE_16G):
+	case (ICM42688_ACCEL_RANGE_16G):
     										f = 2048.0;
 	break;
 	}
@@ -167,21 +167,21 @@ float icm20602_get_accel_sensitivity(enum icm20602_accel_g accel_g)
 }
 
 /// Used to convert raw gyroscope readings to degrees per second.
-float icm20602_get_gyro_sensitivity(enum icm20602_gyro_dps gyro_dps)
+float icm42688_get_gyro_sensitivity(enum icm42688_gyro_dps gyro_dps)
 {
 	float f = 0;
 
 	switch (gyro_dps) {
-	case (ICM20602_GYRO_RANGE_250_DPS):
+	case (ICM42688_GYRO_RANGE_250_DPS):
     										f = 131.0;
 	break;
-	case (ICM20602_GYRO_RANGE_500_DPS):
+	case (ICM42688_GYRO_RANGE_500_DPS):
     										f = 65.5;
 	break;
-	case (ICM20602_GYRO_RANGE_1000_DPS):
+	case (ICM42688_GYRO_RANGE_1000_DPS):
     										f = 32.8;
 	break;
-	case (ICM20602_GYRO_RANGE_2000_DPS):
+	case (ICM42688_GYRO_RANGE_2000_DPS):
     										f = 16.4;
 	break;
 	}
@@ -191,7 +191,7 @@ float icm20602_get_gyro_sensitivity(enum icm20602_gyro_dps gyro_dps)
 
 /***** Global Functions *****/
 
-int8_t icm20602_init(void)
+int8_t icm42688_init(void)
 {
 	uint8_t tmp = 0;
 	int8_t r = 0;
@@ -206,13 +206,13 @@ int8_t icm20602_init(void)
 
 	// full reset of chip
 	tmp = 0x80;
-	r = icm20602_write(REG_PWR_MGMT_1, &tmp, 1);
+	r = icm42688_write(REG_PWR_MGMT_1, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	HAL_Delay(100);
 
 	// verify we are able to read from the chip
-	r = icm20602_read(REG_WHO_AM_I, &tmp, 1);
+	r = icm42688_read(REG_WHO_AM_I, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 	if (REG_WHO_AM_I_CONST != tmp) {
 		r = -1;
@@ -221,104 +221,104 @@ int8_t icm20602_init(void)
 
 	/*Reset path*/
 	tmp = 0x03;
-	r = icm20602_write(REG_SIGNAL_PATH_RESET, &tmp, 1);
+	r = icm42688_write(REG_SIGNAL_PATH_RESET, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	HAL_Delay(100);
 
 	// set clock to internal PLL
 	tmp = 0x01;
-	r = icm20602_write(REG_PWR_MGMT_1, &tmp, 1);
+	r = icm42688_write(REG_PWR_MGMT_1, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	HAL_Delay(15);
 
 	// place accel and gyro on standby
 	tmp = 0x3F;
-	r = icm20602_write(REG_PWR_MGMT_2, &tmp, 1);
+	r = icm42688_write(REG_PWR_MGMT_2, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	// disable fifo
 	tmp = 0x01;
-	r = icm20602_write(REG_USER_CTRL, &tmp, 1);
+	r = icm42688_write(REG_USER_CTRL, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	// disable chip I2C communications
 	tmp = 0x40;
-	r = icm20602_write(REG_I2C_IF, &tmp, 1);
+	r = icm42688_write(REG_I2C_IF, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	if (dev.use_accel) {
-		if (ICM20602_ACCEL_DLPF_BYPASS_1046_HZ == dev.accel_dlpf) {
+		if (ICM42688_ACCEL_DLPF_BYPASS_1046_HZ == dev.accel_dlpf) {
 			tmp = (1 << 3);
-			r =  icm20602_write(REG_ACCEL_CONFIG_2, &tmp, 1);
+			r =  icm42688_write(REG_ACCEL_CONFIG_2, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 		}
 		else {
 			tmp = dev.accel_dlpf;
-			r =  icm20602_write(REG_ACCEL_CONFIG_2, &tmp, 1);
+			r =  icm42688_write(REG_ACCEL_CONFIG_2, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 		}
 
 		tmp = (dev.accel_g) << 2;
-		r =  icm20602_write(REG_ACCEL_CONFIG, &tmp, 1);
+		r =  icm42688_write(REG_ACCEL_CONFIG, &tmp, 1);
 		ON_ERROR_GOTO((0 == r), return_err);
 	}
 
 	if (dev.use_gyro) {
-		if (ICM20602_GYRO_DLPF_BYPASS_3281_HZ == dev.gyro_dlpf) {
+		if (ICM42688_GYRO_DLPF_BYPASS_3281_HZ == dev.gyro_dlpf) {
 			// bypass dpf and set dps
 			tmp = 0x00;
-			r =  icm20602_write(REG_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 
 			tmp = (dev.gyro_dps << 3) | 0x02; // see table page 37 of datasheet
-			r =  icm20602_write(REG_GYRO_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_GYRO_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 		}
-		else if (ICM20602_GYRO_DLPF_BYPASS_8173_HZ == dev.gyro_dlpf) {
+		else if (ICM42688_GYRO_DLPF_BYPASS_8173_HZ == dev.gyro_dlpf) {
 			// bypass dpf and set dps
 			tmp = 0x00;
-			r =  icm20602_write(REG_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 
 			tmp = (dev.gyro_dps << 3) | 0x01; // see table page 37 of datasheet
-			r =  icm20602_write(REG_GYRO_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_GYRO_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 		}
 		else {
 			// configure dpf and set dps
 			tmp = dev.gyro_dlpf;
-			r =  icm20602_write(REG_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 
 			tmp = dev.gyro_dps << 3;
-			r =  icm20602_write(REG_GYRO_CONFIG, &tmp, 1);
+			r =  icm42688_write(REG_GYRO_CONFIG, &tmp, 1);
 			ON_ERROR_GOTO((0 == r), return_err);
 		}
 	}
 
 	/*Disale low power mode*/
 	tmp = 0x00;
-	r = icm20602_write(REG_LP_MODE_CFG, &tmp, 1);
+	r = icm42688_write(REG_LP_MODE_CFG, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	// enable FIFO if requested
 	tmp = ((dev.use_accel) && (dev.accel_fifo)) ? 0x08 : 0x00;
 	tmp |= ((dev.use_gyro) && (dev.gyro_fifo)) ? 0x10 : 0x00;
-	r =  icm20602_write(REG_FIFO_EN, &tmp, 1);
+	r =  icm42688_write(REG_FIFO_EN, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	// configure sample rate divider (TODO: is this gyro only?)
 	// note: SAMPLE_RATE = INTERNAL_SAMPLE_RATE / (1 + SMPLRT_DIV)
 	tmp = (0 != dev.sample_rate_div) ? dev.sample_rate_div - 1 : 1;
-	r =  icm20602_write(REG_SMPLRT_DIV, &tmp, 1);
+	r =  icm42688_write(REG_SMPLRT_DIV, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	tmp = 0;
 	tmp |= (dev.use_gyro) ? 0 : 0x07; // 0 - on, 1 - disabled
 	tmp |= (dev.use_accel) ? 0 : 0x38; // 0 - on, 1 - disabled
-	r =  icm20602_write(REG_PWR_MGMT_2, &tmp, 1);
+	r =  icm42688_write(REG_PWR_MGMT_2, &tmp, 1);
 	ON_ERROR_GOTO((0 == r), return_err);
 
 	return_err:
@@ -326,16 +326,16 @@ int8_t icm20602_init(void)
 	return r;
 }
 
-int8_t icm20602_read_accel(float * p_x, float * p_y,
+int8_t icm42688_read_accel(float * p_x, float * p_y,
 		float * p_z)
 {
 	float accel_sensitivity;
 	int16_t x, y, z;
 	int8_t r = 0;
 
-	accel_sensitivity = icm20602_get_accel_sensitivity(dev.accel_g);
+	accel_sensitivity = icm42688_get_accel_sensitivity(dev.accel_g);
 
-	r = icm20602_read_accel_raw(&x, &y, &z);
+	r = icm42688_read_accel_raw(&x, &y, &z);
 	if (0 == r) {
 		*p_x = ((float) x) / accel_sensitivity;
 		*p_y = ((float) y) / accel_sensitivity;
@@ -345,16 +345,16 @@ int8_t icm20602_read_accel(float * p_x, float * p_y,
 	return r;
 }
 
-int8_t icm20602_read_gyro(float * p_x, float * p_y,
+int8_t icm42688_read_gyro(float * p_x, float * p_y,
 		float * p_z)
 {
 	float gyro_sensitivity;
 	int16_t x, y, z;
 	int8_t r = 0;
 
-	gyro_sensitivity = icm20602_get_gyro_sensitivity(dev.gyro_dps);
+	gyro_sensitivity = icm42688_get_gyro_sensitivity(dev.gyro_dps);
 
-	r = icm20602_read_gyro_raw(&x, &y, &z);
+	r = icm42688_read_gyro_raw(&x, &y, &z);
 	if (0 == r) {
 		*p_x = ((float) x) / gyro_sensitivity;
 		*p_y = ((float) y) / gyro_sensitivity;
@@ -364,7 +364,7 @@ int8_t icm20602_read_gyro(float * p_x, float * p_y,
 	return r;
 }
 
-int8_t icm20602_read_data(float * p_ax, float * p_ay,
+int8_t icm42688_read_data(float * p_ax, float * p_ay,
 		float * p_az, float * p_gx, float * p_gy, float * p_gz, float * p_t)
 {
 	float accel_sensitivity;
@@ -372,10 +372,10 @@ int8_t icm20602_read_data(float * p_ax, float * p_ay,
 	int16_t ax, ay, az, gx, gy, gz, t;
 	int8_t r = 0;
 
-	accel_sensitivity = icm20602_get_accel_sensitivity(dev.accel_g);
-	gyro_sensitivity = icm20602_get_gyro_sensitivity(dev.gyro_dps);
+	accel_sensitivity = icm42688_get_accel_sensitivity(dev.accel_g);
+	gyro_sensitivity = icm42688_get_gyro_sensitivity(dev.gyro_dps);
 
-	r = icm20602_read_data_raw(&ax, &ay, &az, &gx, &gy, &gz, &t);
+	r = icm42688_read_data_raw(&ax, &ay, &az, &gx, &gy, &gz, &t);
 	if (0 == r) {
 		*p_ax = ((float) ax) / accel_sensitivity;
 		*p_ay = ((float) ay) / accel_sensitivity;
@@ -389,13 +389,13 @@ int8_t icm20602_read_data(float * p_ax, float * p_ay,
 	return r;
 }
 
-int8_t icm20602_read_accel_raw(int16_t * p_x, int16_t * p_y,
+int8_t icm42688_read_accel_raw(int16_t * p_x, int16_t * p_y,
 		int16_t * p_z)
 {
 	uint8_t buf[8] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_ACCEL_XOUT_H, buf, 8);
+	r = icm42688_read(REG_ACCEL_XOUT_H, buf, 8);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_x, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_y, buf[2], buf[3]);
@@ -406,13 +406,13 @@ int8_t icm20602_read_accel_raw(int16_t * p_x, int16_t * p_y,
 	return r;
 }
 
-int8_t icm20602_read_gyro_raw(int16_t * p_x, int16_t * p_y,
+int8_t icm42688_read_gyro_raw(int16_t * p_x, int16_t * p_y,
 		int16_t * p_z)
 {
 	uint8_t buf[6] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_GYRO_XOUT_H, buf, 6);
+	r = icm42688_read(REG_GYRO_XOUT_H, buf, 6);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_x, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_y, buf[2], buf[3]);
@@ -422,14 +422,14 @@ int8_t icm20602_read_gyro_raw(int16_t * p_x, int16_t * p_y,
 	return r;
 }
 
-int8_t icm20602_read_data_raw(int16_t * p_ax,
+int8_t icm42688_read_data_raw(int16_t * p_ax,
 		int16_t * p_ay, int16_t * p_az, int16_t * p_gx, int16_t * p_gy,
 		int16_t * p_gz, int16_t * p_t)
 {
 	uint8_t buf[14] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_ACCEL_XOUT_H, buf, 14);
+	r = icm42688_read(REG_ACCEL_XOUT_H, buf, 14);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_ax, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_ay, buf[2], buf[3]);
@@ -443,16 +443,16 @@ int8_t icm20602_read_data_raw(int16_t * p_ax,
 	return r;
 }
 
-int8_t icm20602_read_accel_fifo(float * p_x, float * p_y,
+int8_t icm42688_read_accel_fifo(float * p_x, float * p_y,
 		float * p_z)
 {
 	float accel_sensitivity;
 	int16_t x, y, z;
 	int8_t r = 0;
 
-	accel_sensitivity = icm20602_get_accel_sensitivity(dev.accel_g);
+	accel_sensitivity = icm42688_get_accel_sensitivity(dev.accel_g);
 
-	r = icm20602_read_fifo_accel_raw(&x, &y, &z);
+	r = icm42688_read_fifo_accel_raw(&x, &y, &z);
 	if (0 == r) {
 		*p_x = ((float) x) / accel_sensitivity;
 		*p_y = ((float) y) / accel_sensitivity;
@@ -462,16 +462,16 @@ int8_t icm20602_read_accel_fifo(float * p_x, float * p_y,
 	return r;
 }
 
-int8_t icm20602_read_gyro_fifo(float * p_x, float * p_y,
+int8_t icm42688_read_gyro_fifo(float * p_x, float * p_y,
 		float * p_z)
 {
 	float gyro_sensitivity;
 	int16_t x, y, z;
 	int8_t r = 0;
 
-	gyro_sensitivity = _get_gyro_sensitivity(dev.gyro_dps);
+	gyro_sensitivity = icm42688_get_gyro_sensitivity(dev.gyro_dps);
 
-	r = icm20602_read_fifo_gyro_raw(&x, &y, &z);
+	r = icm42688_read_fifo_gyro_raw(&x, &y, &z);
 	if (0 == r) {
 		*p_x = ((float) x) / gyro_sensitivity;
 		*p_y = ((float) y) / gyro_sensitivity;
@@ -481,7 +481,7 @@ int8_t icm20602_read_gyro_fifo(float * p_x, float * p_y,
 	return r;
 }
 
-int8_t icm20602_read_fifo_data(float * p_ax, float * p_ay,
+int8_t icm42688_read_fifo_data(float * p_ax, float * p_ay,
 		float * p_az, float * p_gx, float * p_gy, float * p_gz, float * p_t)
 {
 	float accel_sensitivity;
@@ -489,10 +489,10 @@ int8_t icm20602_read_fifo_data(float * p_ax, float * p_ay,
 	int16_t ax, ay, az, gx, gy, gz, t;
 	int8_t r = 0;
 
-	accel_sensitivity = icm20602_get_accel_sensitivity(dev.accel_g);
-	gyro_sensitivity = icm20602_get_gyro_sensitivity(dev.gyro_dps);
+	accel_sensitivity = icm42688_get_accel_sensitivity(dev.accel_g);
+	gyro_sensitivity = icm42688_get_gyro_sensitivity(dev.gyro_dps);
 
-	r = icm20602_read_fifo_data_raw(&ax, &ay, &az, &gx, &gy, &gz, &t);
+	r = icm42688_read_fifo_data_raw(&ax, &ay, &az, &gx, &gy, &gz, &t);
 	if (0 == r) {
 		*p_ax = ((float) ax) / accel_sensitivity;
 		*p_ay = ((float) ay) / accel_sensitivity;
@@ -506,13 +506,13 @@ int8_t icm20602_read_fifo_data(float * p_ax, float * p_ay,
 	return r;
 }
 
-int8_t icm20602_read_fifo_accel_raw(int16_t * p_x,
+int8_t icm42688_read_fifo_accel_raw(int16_t * p_x,
 		int16_t * p_y, int16_t * p_z)
 {
 	uint8_t buf[6] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_FIFO_R_W, buf, 6);
+	r = icm42688_read(REG_FIFO_R_W, buf, 6);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_x, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_y, buf[2], buf[3]);
@@ -522,13 +522,13 @@ int8_t icm20602_read_fifo_accel_raw(int16_t * p_x,
 	return r;
 }
 
-int8_t icm20602_read_fifo_gyro_raw(int16_t * p_x,
+int8_t icm42688_read_fifo_gyro_raw(int16_t * p_x,
 		int16_t * p_y, int16_t * p_z)
 {
 	uint8_t buf[6] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_FIFO_R_W, buf, 6);
+	r = icm42688_read(REG_FIFO_R_W, buf, 6);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_x, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_y, buf[2], buf[3]);
@@ -538,14 +538,14 @@ int8_t icm20602_read_fifo_gyro_raw(int16_t * p_x,
 	return r;
 }
 
-int8_t icm20602_read_fifo_data_raw(int16_t * p_ax,
+int8_t icm42688_read_fifo_data_raw(int16_t * p_ax,
 		int16_t * p_ay, int16_t * p_az, int16_t * p_gx, int16_t * p_gy,
 		int16_t * p_gz, int16_t * p_t)
 {
 	uint8_t buf[14] = {0};
 	int8_t r = 0;
 
-	r = icm20602_read(REG_FIFO_R_W, buf, 14);
+	r = icm42688_read(REG_FIFO_R_W, buf, 14);
 	if (0 == r) {
 		UINT8_TO_INT16(*p_ax, buf[0], buf[1]);
 		UINT8_TO_INT16(*p_ay, buf[2], buf[3]);
