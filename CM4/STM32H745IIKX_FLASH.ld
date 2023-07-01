@@ -115,6 +115,8 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
   
+    /* autres sections... */
+  
   .shared :
   {
     KEEP (*(.shared_var));   

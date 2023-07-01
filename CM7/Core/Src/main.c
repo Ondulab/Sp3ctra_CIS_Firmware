@@ -35,6 +35,7 @@
 #include "string.h"
 
 #include "config.h"
+#include "shared.h"
 
 #include "sss_Scan.h"
 #include "icm42688.h"
@@ -159,6 +160,9 @@ int main(void)
 	printf("----------------------------------------------------------\n");
 	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
 	printf("----------------------------------------------------------\n");
+
+	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
+	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 
@@ -356,6 +360,7 @@ void MPU_Config(void)
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 

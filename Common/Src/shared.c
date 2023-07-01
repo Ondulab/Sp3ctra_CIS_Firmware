@@ -34,6 +34,7 @@ __attribute__ ((section(".cisDataCpy")))
 float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3] = {0};
 
+
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private user code ---------------------------------------------------------*/

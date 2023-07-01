@@ -138,6 +138,15 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
   
+  /* autres sections... */
+  
+  .tcmram :
+  {
+    . = ALIGN(4);
+    *(.tcmram*) /* toutes les données avec l'attribut .tcmram */
+    . = ALIGN(4);
+  } >DTCM
+  
   .shared :
   {
     KEEP (*(.shared_var));   

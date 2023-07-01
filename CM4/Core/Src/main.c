@@ -124,8 +124,6 @@ int main(void)
 	}
 #endif
 
-	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
-
 	sss_Display();
 
   /* USER CODE END 2 */

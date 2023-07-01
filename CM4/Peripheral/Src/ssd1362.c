@@ -17,6 +17,7 @@
 #include "font16x32.h"
 #include "font8x8_basic.h"
 #include "config.h"
+#include "shared.h"
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -35,11 +36,11 @@ void ssd1362_writeData(uint8_t data);
 /* Private user code ---------------------------------------------------------*/
 
 void ssd1362_Reset(void) {
-    // Reset the OLED
-    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_RESET);
-    HAL_Delay(10);
-    HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_SET);
-    HAL_Delay(10);
+	// Reset the OLED
+	HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_RESET);
+	HAL_Delay(10);
+	HAL_GPIO_WritePin(SSD1362_Reset_Port, SSD1362_Reset_Pin, GPIO_PIN_SET);
+	HAL_Delay(10);
 }
 
 //Writes a command byte to the driver
@@ -55,14 +56,14 @@ void ssd1362_writeData(uint8_t data)
 }
 
 void bitWrite(uint8_t *x, uint8_t n, uint8_t value) {
-   if (value)
-      *x |= (1 << n);
-   else
-      *x &= ~(1 << n);
+	if (value)
+		*x |= (1 << n);
+	else
+		*x &= ~(1 << n);
 }
 
 char bitRead(uint8_t *x, uint8_t n) {
-   return (*x & (1 << n)) ? 1 : 0;
+	return (*x & (1 << n)) ? 1 : 0;
 }
 
 //defines a rectangular area of memory which the driver will itterate through. This function takes memory locations, meaning a 64x256 space
@@ -127,7 +128,7 @@ void ssd1362_drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_
 }
 
 void ssd1362_drawHLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, bool display)
-	{
+{
 	for (uint32_t i = x; i < x+length; i++)
 	{
 		ssd1362_drawPixel(i, y, color, display);
@@ -143,7 +144,7 @@ void ssd1362_drawVLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, b
 }
 
 void ssd1362_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t color, bool display)
-	{ //Bresenham's line algorithm
+{ //Bresenham's line algorithm
 	uint32_t deltaX = abs(x1-x0);
 	uint32_t deltaY = abs(y1-y0);
 	uint32_t signX = x0<x1 ? 1 : -1;
@@ -174,7 +175,7 @@ void ssd1362_drawByteAsRow(uint16_t x, uint16_t y, uint8_t byte, uint8_t color)
 	for (uint32_t i = 0; i < 8; i++)
 	{
 		if(bitRead(&byte, i))
-	{
+		{
 			ssd1362_drawPixel(x+i, y, color, false);
 		}
 	}
@@ -207,7 +208,7 @@ void ssd1362_drawCharArray(uint16_t x, uint16_t y, int8_t text[], uint8_t color,
 			xOffset += 16;
 		}
 	}
-	 else {
+	else {
 		for (thisChar = text; *thisChar != '\0'; thisChar++)
 		{
 			ssd1362_drawChar(x+xOffset, y, *thisChar, color);
@@ -218,8 +219,8 @@ void ssd1362_drawCharArray(uint16_t x, uint16_t y, int8_t text[], uint8_t color,
 
 void ssd1362_drawString(uint16_t x, uint16_t y, int8_t textString[], uint8_t color, uint32_t size)
 {
-//	uint8_t text[64];
-//	textString.toCharArray(text, 64);
+	//	uint8_t text[64];
+	//	textString.toCharArray(text, 64);
 	ssd1362_drawCharArray(x,y, textString, color, size);
 }
 
@@ -278,10 +279,10 @@ void ssd1362_progressBar(uint16_t x, uint16_t y, uint8_t state, uint8_t color)
 	//sanity check
 	if (state > 100)
 		state = 100;
-    ssd1362_drawRect(x, y, 202 + x, 12 + y, 4, false);
-    if ((state > 0) && (state < 100))
-        ssd1362_drawRect(x + 2, y + 2, state * 2 + x + 2, 8 + y + 2, color, false);
-    ssd1362_writeUpdates();
+	ssd1362_drawRect(x, y, 202 + x, 12 + y, 4, false);
+	if ((state > 0) && (state < 100))
+		ssd1362_drawRect(x + 2, y + 2, state * 2 + x + 2, 8 + y + 2, color, false);
+	ssd1362_writeUpdates();
 }
 
 //gradient test pattern
@@ -326,17 +327,17 @@ void ssd1362_setupScrolling(uint8_t startRow, uint8_t endRow, uint8_t startCol, 
 };
 
 void ssd1362_startScrolling()
-	{
+{
 	ssd1362_writeCmd(0x2F);
 }
 
 void ssd1362_stopScrolling()
-	{
+{
 	ssd1362_writeCmd(0x2E);
 }
 
 void ssd1362_scrollStep(uint8_t startRow, uint8_t endRow, uint8_t startCol, uint8_t endCol, bool right)
-	{
+{
 	ssd1362_setupScrolling(startRow, endRow, startCol, endCol, SSD1327_SCROLL_2, right);
 	ssd1362_startScrolling();
 	HAL_Delay(15);
@@ -391,6 +392,21 @@ void ssd1362_writeUpdates()
 	}
 }
 
+// Set screen rotation
+void ssd1362_screenRotation(uint32_t val)
+{
+	if (val == 0)
+	{
+		ssd1362_writeCmd(0XA0); //Set Remap
+		ssd1362_writeCmd(0XC3);
+	}
+	if (val > 0)
+	{
+		ssd1362_writeCmd(0XA0); //Set Remap
+		ssd1362_writeCmd(0X52);
+	}
+}
+
 void ssd1362_setContrast(uint8_t contrast)
 {
 	ssd1362_writeCmd(0x81);  //set contrast control
@@ -402,85 +418,79 @@ void ssd1362_init()
 {
 	// Enable 12V power DC/DC for CIS
 	HAL_GPIO_WritePin(EN_12V_GPIO_Port, EN_12V_Pin, GPIO_PIN_SET);
-    HAL_Delay(100);
+	HAL_Delay(100);
 
-    // Reset OLED
-    ssd1362_Reset();
+	// Reset OLED
+	ssd1362_Reset();
 
-    // Wait for the screen to boot
-    HAL_Delay(100);
+	// Wait for the screen to boot
+	HAL_Delay(100);
 
-    // Init OLED
-    ssd1362_writeCmd(0XFD); //Set Command Lock
-    ssd1362_writeCmd(0X12); //(12H=Unlock,16H=Lock)
+	// Init OLED
+	ssd1362_writeCmd(0XFD); //Set Command Lock
+	ssd1362_writeCmd(0X12); //(12H=Unlock,16H=Lock)
 
-    ssd1362_writeCmd(0XAE); //Display OFF(Sleep Mode)
+	ssd1362_writeCmd(0XAE); //Display OFF(Sleep Mode)
 
-    ssd1362_writeCmd(0X15); //Set column Address
-    ssd1362_writeCmd(0X00); //Start column Address
-    ssd1362_writeCmd(0X7F); //End column Address
+	ssd1362_writeCmd(0X15); //Set column Address
+	ssd1362_writeCmd(0X00); //Start column Address
+	ssd1362_writeCmd(0X7F); //End column Address
 
-    ssd1362_writeCmd(0X75); //Set Row Address
-    ssd1362_writeCmd(0X00); //Start Row Address
-    ssd1362_writeCmd(0X3F); //End Row Address
+	ssd1362_writeCmd(0X75); //Set Row Address
+	ssd1362_writeCmd(0X00); //Start Row Address
+	ssd1362_writeCmd(0X3F); //End Row Address
 
-    ssd1362_writeCmd(0X81); //Set contrast
-    ssd1362_writeCmd(0x2f);
+	ssd1362_writeCmd(0X81); //Set contrast
+	ssd1362_writeCmd(0x2f);
 
-#ifdef ENABLE_SCREEN_ROTATION
-    ssd1362_writeCmd(0XA0); //Set Remap
-    ssd1362_writeCmd(0X52);
-#else
-    ssd1362_writeCmd(0XA0); //Set Remap
-    ssd1362_writeCmd(0XC3);
-#endif
+	ssd1362_screenRotation(shared_var.cis_scanDir);
 
-    ssd1362_writeCmd(0XA1); //Set Display Start Line
-    ssd1362_writeCmd(0X00);
+	ssd1362_writeCmd(0XA1); //Set Display Start Line
+	ssd1362_writeCmd(0X00);
 
-    ssd1362_writeCmd(0XA2); //Set Display Offset
-    ssd1362_writeCmd(0X00);
+	ssd1362_writeCmd(0XA2); //Set Display Offset
+	ssd1362_writeCmd(0X00);
 
-    ssd1362_writeCmd(0XA1); //Set Display Start Line
-    ssd1362_writeCmd(0X00); // Set to the maximum row number for flipping vertically
+	ssd1362_writeCmd(0XA1); //Set Display Start Line
+	ssd1362_writeCmd(0X00); // Set to the maximum row number for flipping vertically
 
-    ssd1362_writeCmd(0XA2); //Set Display Offset
-    ssd1362_writeCmd(0X00); // Set to the maximum column number for flipping horizontally
+	ssd1362_writeCmd(0XA2); //Set Display Offset
+	ssd1362_writeCmd(0X00); // Set to the maximum column number for flipping horizontally
 
 
 
 
-    ssd1362_writeCmd(0XA4); //Normal Display
+	ssd1362_writeCmd(0XA4); //Normal Display
 
-    ssd1362_writeCmd(0XA8); //Set Multiplex Ratio
-    ssd1362_writeCmd(0X3F);
+	ssd1362_writeCmd(0XA8); //Set Multiplex Ratio
+	ssd1362_writeCmd(0X3F);
 
-    ssd1362_writeCmd(0XAB); //Set VDD regulator
-    ssd1362_writeCmd(0X01); //Regulator Enable
+	ssd1362_writeCmd(0XAB); //Set VDD regulator
+	ssd1362_writeCmd(0X01); //Regulator Enable
 
-    ssd1362_writeCmd(0XAD); //External /Internal IREF Selection
-    ssd1362_writeCmd(0X8E);
+	ssd1362_writeCmd(0XAD); //External /Internal IREF Selection
+	ssd1362_writeCmd(0X8E);
 
-    ssd1362_writeCmd(0XB1); //Set Phase Length
-    ssd1362_writeCmd(0X22);
+	ssd1362_writeCmd(0XB1); //Set Phase Length
+	ssd1362_writeCmd(0X22);
 
-    ssd1362_writeCmd(0XB3); //Display clock Divider
-    ssd1362_writeCmd(0XA0);
+	ssd1362_writeCmd(0XB3); //Display clock Divider
+	ssd1362_writeCmd(0XA0);
 
-    ssd1362_writeCmd(0XB6); //Set Second pre-charge Period
-    ssd1362_writeCmd(0X04);
+	ssd1362_writeCmd(0XB6); //Set Second pre-charge Period
+	ssd1362_writeCmd(0X04);
 
-    ssd1362_writeCmd(0XB9); //Set Linear LUT
+	ssd1362_writeCmd(0XB9); //Set Linear LUT
 
-    ssd1362_writeCmd(0XBc); //Set pre-charge voltage level
-    ssd1362_writeCmd(0X10); //0.5*Vcc
+	ssd1362_writeCmd(0XBc); //Set pre-charge voltage level
+	ssd1362_writeCmd(0X10); //0.5*Vcc
 
-    ssd1362_writeCmd(0XBD); //Pre-charge voltage capacitor Selection
-    ssd1362_writeCmd(0X01);
+	ssd1362_writeCmd(0XBD); //Pre-charge voltage capacitor Selection
+	ssd1362_writeCmd(0X01);
 
-    ssd1362_writeCmd(0XBE); //Set COM deselect voltage level
-    ssd1362_writeCmd(0X07); //0.82*Vcc
+	ssd1362_writeCmd(0XBE); //Set COM deselect voltage level
+	ssd1362_writeCmd(0X07); //0.82*Vcc
 
-    ssd1362_writeCmd(0XAF); //Display ON
+	ssd1362_writeCmd(0XAF); //Display ON
 }
 

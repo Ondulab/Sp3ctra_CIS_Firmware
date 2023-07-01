@@ -101,6 +101,22 @@ void cis_Init()
 	cis_Start_capture();
 }
 
+void cis_reverseArray(int32_t *arr, int32_t len)
+{
+    int32_t *start_ptr = arr;
+    int32_t *end_ptr = arr + len - 1;
+    int32_t temp;
+
+    while (start_ptr < end_ptr)
+    {
+        temp = *start_ptr;
+        *start_ptr = *end_ptr;
+        *end_ptr = temp;
+        start_ptr++;
+        end_ptr--;
+    }
+}
+
 /**
  * @brief  Manages Image process.
  * @param cis image buffer ptr
@@ -172,10 +188,11 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 {
 	static int32_t acc = 0;
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
-	static int32_t line, i, timeout = 0;
+	static int32_t line, i;
 	static float32_t tmpImmactiveAvrg_R = 0.0;
 	static float32_t tmpImmactiveAvrg_G = 0.0;
 	static float32_t tmpImmactiveAvrg_B = 0.0;
+	static int32_t tmp_cis_buff[CIS_PIXELS_NB];
 
 	while (acc < shared_var.cis_oversampling)
 	{
@@ -225,17 +242,17 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
 
 		//offset compensation
-//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
-//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
-//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
-//
-//		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[line];
-//		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[line];
-//		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[line];
-//
-//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
+		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
+		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
+		//
+		//		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[line];
+		//		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[line];
+		//		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[line];
+		//
+		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
+		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
+		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
 		//end offset compensation
 
 		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.blackCal.data[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
@@ -282,9 +299,25 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 
 		arm_add_q31(&cisDataCpy_q31[dataOffset_Cx], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], CIS_GREEN_FULL_SIZE); //Add Green
 
-		arm_add_q31(&cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Bx], &cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //Half + Full Data
+		arm_add_q31(&cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Bx], &tmp_cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //Half + Full Data
+
 
 		//		arm_fill_q31(0xFF0000 >> (line * 8), &cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //RGB debug
+	}
+
+	if (shared_var.cis_scanDir)
+	{
+		for (i = CIS_PIXELS_NB; --i >= 0;)
+		{
+			cis_buff[i] = tmp_cis_buff[CIS_PIXELS_NB - i];
+		}
+	}
+	else
+	{
+		for (i = CIS_PIXELS_NB; --i >= 0;)
+		{
+			cis_buff[i] = tmp_cis_buff[i];
+		}
 	}
 
 	//	//debug
@@ -309,7 +342,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
  */
 void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
 {
-	static int32_t line, iteration, pix, i, timeout = 0;
+	static int32_t line, iteration, pix, i;
 	shared_var.cis_cal_progressbar = 0;
 
 	memset(cisCalData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
@@ -322,7 +355,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
 			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
 			{
-//				printf("wait \n");
+				//				printf("wait \n");
 			}
 
 			/* Invalidate Data Cache */
@@ -340,7 +373,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
 			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
 			{
-//				printf("wait \n");
+				//				printf("wait \n");
 			}
 
 

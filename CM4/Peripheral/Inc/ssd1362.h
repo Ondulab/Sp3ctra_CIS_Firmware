@@ -69,6 +69,7 @@ void ssd1362_fillStripes(uint8_t offset);
 void ssd1362_clearBuffer();
 void ssd1362_writeFullBuffer();
 void ssd1362_writeUpdates();
+void ssd1362_screenRotation(uint32_t val);
 void ssd1362_setContrast(uint8_t contrast);
 void ssd1362_init();
 

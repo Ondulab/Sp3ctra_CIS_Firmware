@@ -47,11 +47,12 @@ int sss_Display(void)
 {
 	uint8_t FreqStr[256] = {0};
 	uint8_t *cis_rgb = NULL;
-	uint32_t cis_color = 0;
+	int32_t cis_color = 0;
 	int32_t start_tick = 0;
 	int32_t old_cis_process_cnt = 0;
 	uint32_t cis_line_freq = 0;
 	int32_t i = 0;
+	int32_t y = 0;
 	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
 
 	printf("----- ETHERNET MODE START -----\n");
@@ -92,19 +93,57 @@ int sss_Display(void)
 
 		}
 #else
+		static int32_t line_length, line_intensity, pixel_intensity;
 		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
 
 		for (i = 0; i < (DISPLAY_WIDTH); i++)
 		{
+			// cast imageData pointer to a uint8_t pointer, and offset by calculated index value
+			// the index is calculated as the product of the current horizontal pixel position 'i'
+			// and the ratio of total CIS_PIXELS_NB and DISPLAY_WIDTH. UDP_HEADER_SIZE is then added to this
+			// to skip the header bytes in imageData.
 			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
-			cis_color = (299*cis_rgb[0])/1000 + 587 * (cis_rgb[1])/1000 + (114*cis_rgb[2])/1000;
-			cis_color >>= 4;
 
-			if (cis_color > DISPLAY_AERAS1_HEIGHT)
-				cis_color = DISPLAY_AERAS1_HEIGHT;
+			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
+			// are weights given to the R, G, and B components respectively,
+			// according to the ITU-R BT.601 standard for converting color to grayscale.
+			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
+			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
+			cis_color = (299*cis_rgb[0]) + 587 * (cis_rgb[1]) + (114*cis_rgb[2]);
 
-			//BAR MODE
-			ssd1362_drawVLine(i, line_Ypos - cis_color, cis_color * 2, 15, false);
+			// Ensure that cis_color is within the expected range
+			cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;
+
+			// Calculate the length of the line in pixels (0 to 20)
+			// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
+			line_length = (int)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
+
+			// Make sure line_length does not exceed 20
+			line_length = line_length > (DISPLAY_AERAS1_HEIGHT / 2) ? (DISPLAY_AERAS1_HEIGHT / 2) : line_length;
+
+			// Calculate the intensity of the line (0 to 15)
+			// Again, dividing by 1000 because cis_color is scaled up
+			line_intensity = (cis_color / 255.0 * 15) / 1000;
+
+			// Ensure that the line intensity is within the expected range
+			line_intensity = line_intensity < 0 ? 0 : line_intensity > 15 ? 15 : line_intensity;
+
+			// Draw each pixel of the line
+			for (y = 0; y < line_length; y++)
+			{
+			    // Decrease intensity for each additional pixel
+			    pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
+
+
+			    // Ensure that the pixel intensity is within the expected range
+			    pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+			    // Draw a pixel above the center of the line for symmetry
+			    ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos + y, pixel_intensity, false);
+
+			    // Draw a pixel below the center of the line for symmetry
+			    ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos - y, pixel_intensity, false);
+			}
 
 		}
 #endif
@@ -263,6 +302,29 @@ void cis_ChangeOversampling()
 	ssd1362_writeFullBuffer();
 }
 
+/**
+ * @brief  Change scan direction
+ * @param  None
+ * @retval None
+ */
+void cis_ChangeScanDir()
+{
+	uint8_t textData[256] = {0};
+
+	shared_var.cis_scanDir = !shared_var.cis_scanDir;
+	shared_var.cis_scanDir = shared_var.cis_scanDir < 0 ? 0 : shared_var.cis_scanDir > 1 ? 1 : shared_var.cis_scanDir;
+
+
+	ssd1362_screenRotation(shared_var.cis_scanDir);
+
+	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+
+	sprintf((char *)textData, "DIR %d", (int)shared_var.cis_scanDir);
+	ssd1362_drawString(100, DISPLAY_HEAD_Y1POS + 1, (int8_t *)textData, 0xF, 8);
+	ssd1362_writeFullBuffer();
+}
+
 #define BUTTON_DELAY			500
 
 /**
@@ -277,7 +339,7 @@ void cisynth_interractiveMenu()
 
 	if (buttonState[SW1] == SWITCH_PRESSED)
 	{
-		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
+		//ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 		buttonState[SW1] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
@@ -286,7 +348,7 @@ void cisynth_interractiveMenu()
 	}
 	if (buttonState[SW2] == SWITCH_PRESSED)
 	{
-		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
+		//ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 		buttonState[SW2] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
@@ -295,11 +357,12 @@ void cisynth_interractiveMenu()
 	}
 	if (buttonState[SW3] == SWITCH_PRESSED)
 	{
-		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
+		//ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 		buttonState[SW3] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
+		cis_ChangeScanDir();
 	}
 
 	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)
@@ -307,13 +370,14 @@ void cisynth_interractiveMenu()
 		clear_button = 1;
 
 		cisynth_eth_SetHint();
-
+		/*
 		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
 		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
+		*/
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
@@ -335,12 +399,12 @@ static void cisynth_eth_SetHint(void)
 	ssd1362_drawString(232, 1, (int8_t *)"ETH", 0xF, 8);
 
 	ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
-	ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
-	ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
-	ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
-	ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
-	ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
+	//ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
+	//ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
+	//ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
+	//ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
+	//ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
 
-	ssd1362_writeFullBuffer();
+	//ssd1362_writeFullBuffer();
 }
 /* Private functions ---------------------------------------------------------*/
