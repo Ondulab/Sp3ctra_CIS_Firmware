@@ -176,7 +176,7 @@ void cis_StartCalibration()
 			/*-------- 1 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE ", 0xF, 8);
+			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - HL ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
 			while (shared_var.cis_cal_progressbar < 99)
@@ -193,7 +193,7 @@ void cis_StartCalibration()
 			/*-------- 2 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON BLACK SURFACE ", 0xF, 8);
+			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - LL ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
 			while (shared_var.cis_cal_progressbar < 99)

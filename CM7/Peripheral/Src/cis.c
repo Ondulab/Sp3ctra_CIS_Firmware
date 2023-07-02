@@ -76,7 +76,6 @@ void cis_Init()
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
-	//	HAL_Delay(1000);
 
 	memset((int16_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
 	memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
@@ -103,18 +102,18 @@ void cis_Init()
 
 void cis_reverseArray(int32_t *arr, int32_t len)
 {
-    int32_t *start_ptr = arr;
-    int32_t *end_ptr = arr + len - 1;
-    int32_t temp;
+	int32_t *start_ptr = arr;
+	int32_t *end_ptr = arr + len - 1;
+	int32_t temp;
 
-    while (start_ptr < end_ptr)
-    {
-        temp = *start_ptr;
-        *start_ptr = *end_ptr;
-        *end_ptr = temp;
-        start_ptr++;
-        end_ptr--;
-    }
+	while (start_ptr < end_ptr)
+	{
+		temp = *start_ptr;
+		*start_ptr = *end_ptr;
+		*end_ptr = temp;
+		start_ptr++;
+		end_ptr--;
+	}
 }
 
 /**
@@ -591,32 +590,6 @@ void cis_TIM_LED_G_Init()
 }
 
 /**
- * @brief  CIS leds off
- * @param  None
- * @retval None
- */
-void cis_LedsOff()
-{
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
-
-	GPIO_InitStruct.Pin = CIS_LED_R_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(CIS_LED_R_GPIO_Port, &GPIO_InitStruct);
-
-	GPIO_InitStruct.Pin = CIS_LED_G_Pin;
-	HAL_GPIO_Init(CIS_LED_G_GPIO_Port, &GPIO_InitStruct);
-
-	GPIO_InitStruct.Pin = CIS_LED_B_Pin;
-	HAL_GPIO_Init(CIS_LED_B_GPIO_Port, &GPIO_InitStruct);
-}
-
-/**
  * @brief  CIS leds on
  * @param  None
  * @retval None
@@ -639,6 +612,66 @@ void cis_LedsOn()
 	GPIO_InitStruct.Pin = CIS_LED_B_Pin;
 	GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
 	HAL_GPIO_Init(CIS_LED_B_GPIO_Port, &GPIO_InitStruct);
+}
+
+/**
+ * @brief  CIS leds off
+ * @param  None
+ * @retval None
+ */
+void cis_LedsOff()
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+	HAL_GPIO_WritePin(CIS_LED_R_GPIO_Port, CIS_LED_R_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_G_GPIO_Port, CIS_LED_G_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(CIS_LED_B_GPIO_Port, CIS_LED_B_Pin, GPIO_PIN_RESET);
+
+	GPIO_InitStruct.Pin = CIS_LED_R_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(CIS_LED_R_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_LED_G_Pin;
+	HAL_GPIO_Init(CIS_LED_G_GPIO_Port, &GPIO_InitStruct);
+
+	GPIO_InitStruct.Pin = CIS_LED_B_Pin;
+	HAL_GPIO_Init(CIS_LED_B_GPIO_Port, &GPIO_InitStruct);
+}
+
+/**
+ * @brief  CIS change led power
+ * @param  None
+ * @retval None
+ */
+void cis_LedPowerAdj(int32_t powerVal)
+{
+	int32_t pulseValue = 0;
+
+	// Ensure that the power intensity is within the expected range
+	powerVal = powerVal < 0 ? 0 : powerVal > 100 ? 100 : powerVal;
+
+	pulseValue = CIS_LED_GREEN_OFF - 1;
+#ifdef CIS_MONOCHROME
+	pulseValue /= 3;
+#endif
+	pulseValue = (pulseValue * powerVal) / 100;
+	__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_3, pulseValue);
+
+	pulseValue = CIS_LED_RED_OFF - 1;
+#ifdef CIS_MONOCHROME
+	pulseValue /= 3;
+#endif
+	pulseValue = (pulseValue * powerVal) / 100;
+	__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, pulseValue);
+
+	pulseValue = CIS_LED_BLUE_OFF - 1;
+#ifdef CIS_MONOCHROME
+	pulseValue /= 3;
+#endif
+	pulseValue = (pulseValue * powerVal) / 100;
+	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulseValue);
 }
 
 /**
@@ -1068,9 +1101,10 @@ void cis_StartCalibration(uint16_t iterationNb)
 	printf("------ START CALIBRATION ------\n");
 	/*-------- 1 --------*/
 	// Read black and white level
+	cis_LedPowerAdj(95);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
-	HAL_Delay(2000);
+	HAL_Delay(200);
 
 	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
@@ -1078,13 +1112,13 @@ void cis_StartCalibration(uint16_t iterationNb)
 	HAL_Delay(200);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
-	HAL_Delay(2000);
+	cis_LedPowerAdj(5);
+	HAL_Delay(20);
 
-	//	cis_LedsOff();
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	//	cis_LedsOn();
-	HAL_Delay(4000);
+	cis_LedPowerAdj(100);
+	HAL_Delay(2000);
 
 	printf("------- LOAD CALIBRATION ------\n");
 	/*-------- 1 --------*/
@@ -1100,7 +1134,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
-	HAL_Delay(1000);
+	HAL_Delay(500);
 
 	/*-------- 2 --------*/
 	// Extrat Min Max and delta
@@ -1115,7 +1149,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
-	HAL_Delay(1000);
+	HAL_Delay(500);
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
@@ -1125,7 +1159,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
-	HAL_Delay(1000);
+	HAL_Delay(500);
 
 	/*-------- 4 --------*/
 	// Compute gains
@@ -1135,7 +1169,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
-	HAL_Delay(1000);
+	HAL_Delay(500);
 
 	printf("-------- COMPUTE GAINS --------\n");
 #ifdef PRINT_CIS_CALIBRATION

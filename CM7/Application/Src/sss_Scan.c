@@ -60,8 +60,6 @@ int sss_Scan(void)
 
 	cis_Init();
 
-//		cis_LedsOff();
-
 	shared_var.cis_cal_state = CIS_CAL_END;
 
 	/* Infinite loop */
@@ -74,7 +72,7 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			cis_StartCalibration(5000);
+			cis_StartCalibration(500);
 		}
 
 		cis_ImageProcessRGB(imageData);

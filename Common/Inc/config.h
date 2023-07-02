@@ -132,9 +132,9 @@
 #define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
 #define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
 #define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_RED_OFF							((202 * 2))
-#define CIS_LED_GREEN_OFF						((244 * 2))
-#define CIS_LED_BLUE_OFF						((243 * 2))
+#define CIS_LED_RED_OFF							((202.0 * 2.5))
+#define CIS_LED_GREEN_OFF						((244.0 * 2.5))
+#define CIS_LED_BLUE_OFF						((243.0 * 2.5))
 
 #define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2)
 #define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
