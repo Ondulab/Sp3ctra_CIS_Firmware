@@ -241,7 +241,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
     hdma_adc1.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-    hdma_adc1.Init.MemBurst = DMA_MBURST_INC8;
+    hdma_adc1.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc1.Init.PeriphBurst = DMA_PBURST_SINGLE;
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
     {
@@ -284,7 +284,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc2.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     hdma_adc2.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
     hdma_adc2.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-    hdma_adc2.Init.MemBurst = DMA_MBURST_INC8;
+    hdma_adc2.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc2.Init.PeriphBurst = DMA_PBURST_SINGLE;
     if (HAL_DMA_Init(&hdma_adc2) != HAL_OK)
     {
@@ -334,7 +334,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc3.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     hdma_adc3.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
     hdma_adc3.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
-    hdma_adc3.Init.MemBurst = DMA_MBURST_INC8;
+    hdma_adc3.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc3.Init.PeriphBurst = DMA_PBURST_SINGLE;
     if (HAL_DMA_Init(&hdma_adc3) != HAL_OK)
     {
