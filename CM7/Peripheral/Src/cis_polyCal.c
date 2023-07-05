@@ -23,9 +23,16 @@
 
 /* Private includes ----------------------------------------------------------*/
 
-/* Private typedef -----------------------------------------------------------*/
-
 /* Private define ------------------------------------------------------------*/
+#define LEDS_CAL_MEASURE_CYCLES		500
+#define LEDS_MAX_PWM				101
+
+/* Private typedef -----------------------------------------------------------*/
+struct cisLeds_Power2PWM {
+	int32_t redLed[LEDS_MAX_PWM];
+	int32_t greenLed[LEDS_MAX_PWM];
+	int32_t blueLed[LEDS_MAX_PWM];
+};
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -34,9 +41,36 @@
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+void cis_CalibrateLeds(struct cisLeds_Power2PWM *power2PWM);
 
 /* Private user code ---------------------------------------------------------*/
 
+void cis_CalibrateLeds(struct cisLeds_Power2PWM *power2PWM)
+{
+	int32_t led_PWM;
+	float32_t redLine[CIS_LINE_SIZE], greenLine[CIS_LINE_SIZE], blueLine[CIS_LINE_SIZE];
+	float32_t meanRedValue[LEDS_MAX_PWM], meanGreenValue[LEDS_MAX_PWM], meanBlueValue[LEDS_MAX_PWM];
+	float32_t redRange, greenRange, blueRange;
+
+	for (led_PWM = LEDS_MAX_PWM; --led_PWM >= 0;)
+	{
+		cis_LedPowerAdj(led_PWM);
+		cis_GetRGBImage(redLine, greenLine, blueLine, LEDS_CAL_MEASURE_CYCLES);
+		arm_mean_f32(redLine, CIS_LINE_SIZE, &meanRedValue[led_PWM]);
+		arm_mean_f32(greenLine, CIS_LINE_SIZE, &meanGreenValue[led_PWM]);
+		arm_mean_f32(blueLine, CIS_LINE_SIZE, &meanBlueValue[led_PWM]);
+	}
+	redRange = meanRedValue[LEDS_MAX_PWM - 1] - meanRedValue[0];
+	greenRange = meanGreenValue[LEDS_MAX_PWM - 1] - meanGreenValue[0];
+	blueRange = meanBlueValue[LEDS_MAX_PWM - 1] - meanBlueValue[0];
+
+	for (led_PWM = LEDS_MAX_PWM; --led_PWM >= 0;)
+	{
+		power2PWM->redLed[led_PWM] = ((meanRedValue[led_PWM] - meanRedValue[0]) * 100) / redRange;
+		power2PWM->greenLed[led_PWM] = ((meanGreenValue[led_PWM] - meanGreenValue[0]) * 100) / greenRange;
+		power2PWM->blueLed[led_PWM] = ((meanBlueValue[led_PWM] - meanBlueValue[0]) * 100) / blueRange;
+	}
+}
 
 /**
  * @brief  CIS start calibration
