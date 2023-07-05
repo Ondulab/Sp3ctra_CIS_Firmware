@@ -110,6 +110,7 @@ int sss_Display(void)
 			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
 			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
 			cis_color = (299*cis_rgb[0]) + 587 * (cis_rgb[1]) + (114*cis_rgb[2]);
+			cis_color = 255000 - cis_color;
 
 			// Ensure that cis_color is within the expected range
 			cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;

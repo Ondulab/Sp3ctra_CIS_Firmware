@@ -6,10 +6,10 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32h7xx_hal.h"
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
+#include "shared.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -21,7 +21,9 @@
 #include "adc.h"
 #include "dma.h"
 
-#include "shared.h"
+#include "stm32_flash.h"
+#include "cis_linearCal.h"
+#include "cis_polyCal.h"
 
 #include "cis.h"
 
@@ -33,10 +35,6 @@
 #define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LINE_SIZE + CIS_INACTIVE_WIDTH))
 #define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LINE) - (CIS_GREEN_HALF_SIZE))
 
-#define CIS_RED_LINE_OFFSET 		(CIS_START_OFFSET)
-#define CIS_GREEN_LINE_OFFSET 		((CIS_LINE_SIZE) + (CIS_START_OFFSET))
-#define CIS_BLUE_LINE_OFFSET  		((CIS_LINE_SIZE * 2)) + (CIS_START_OFFSET)
-
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
@@ -47,7 +45,6 @@ static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb);
 static void cis_TIM_MAIN_Init(void);
 static void cis_TIM_CLK_Init(void);
 static void cis_TIM_SP_Init(void);
@@ -55,10 +52,6 @@ static void cis_TIM_LED_R_Init(void);
 static void cis_TIM_LED_G_Init(void);
 static void cis_TIM_LED_B_Init(void);
 static void cis_ADC_Init(void);
-static void cis_RW_FlashCalibration(CIS_FlashRW_TypeDef RW);
-static void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
-static void cis_ComputeCalsOffsets(CIS_Color_TypeDef color);
-static void cis_ComputeCalsGains(CIS_Color_TypeDef color);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -95,25 +88,9 @@ void cis_Init()
 	cis_TIM_CLK_Init();
 	cis_TIM_MAIN_Init();
 
-	cis_RW_FlashCalibration(CIS_READ_CAL);
+	cis_linealCalibrationInit();
 
 	cis_Start_capture();
-}
-
-void cis_reverseArray(int32_t *arr, int32_t len)
-{
-	int32_t *start_ptr = arr;
-	int32_t *end_ptr = arr + len - 1;
-	int32_t temp;
-
-	while (start_ptr < end_ptr)
-	{
-		temp = *start_ptr;
-		*start_ptr = *end_ptr;
-		*end_ptr = temp;
-		start_ptr++;
-		end_ptr--;
-	}
 }
 
 /**
@@ -183,14 +160,75 @@ void cis_reverseArray(int32_t *arr, int32_t len)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
+void cis_GetRGBImage(float32_t *redLine, float32_t *greenLine, float32_t *blueLine, int32_t oversampling)
+{
+	static int32_t acc = 0;
+	static int32_t line, i;
+
+	while (acc < oversampling)
+	{
+		// Read and copy half DMAs buffers
+		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		{
+			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
+			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+
+			/* Invalidate Data Cache */
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
+			{
+				cisDataCpy_f32[CIS_ADC_BUFF_SIZE * line + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * line + i]);
+			}
+
+			cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+		}
+
+		// Read and copy full DMAs buffers
+		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		{
+			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
+			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+
+			/* Invalidate Data Cache */
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
+			{
+				cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+			}
+
+			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+		}
+		acc ++;
+	}
+
+	acc = 0;
+
+	arm_scale_f32(cisDataCpy_f32, 1.00 / (float64_t)oversampling, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * CIS_ADC_OUT_LINES);
+
+	// Get the segments and copy them to the full red line buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], redLine, CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &redLine[CIS_ADC_BUFF_SIZE], CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &redLine[CIS_ADC_BUFF_SIZE * 2], CIS_ADC_BUFF_SIZE);
+
+	// Get the segments and copy them to the full green line buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET], greenLine, CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &greenLine[CIS_ADC_BUFF_SIZE], CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &greenLine[CIS_ADC_BUFF_SIZE * 2], CIS_ADC_BUFF_SIZE);
+
+	// Get the segments and copy them to the full blue line buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET], blueLine, CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &blueLine[CIS_ADC_BUFF_SIZE], CIS_ADC_BUFF_SIZE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &blueLine[CIS_ADC_BUFF_SIZE * 2], CIS_ADC_BUFF_SIZE);
+}
+#pragma GCC pop_options
+
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
 void cis_ImageProcessRGB(int32_t *cis_buff)
 {
 	static int32_t acc = 0;
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
 	static int32_t line, i;
-	static float32_t tmpImmactiveAvrg_R = 0.0;
-	static float32_t tmpImmactiveAvrg_G = 0.0;
-	static float32_t tmpImmactiveAvrg_B = 0.0;
 	static int32_t tmp_cis_buff[CIS_PIXELS_NB];
 
 	while (acc < shared_var.cis_oversampling)
@@ -241,17 +279,22 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
 
 		//offset compensation
-		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
-		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
-		//		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
-		//
-		//		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[line];
-		//		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[line];
-		//		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[line];
-		//
-		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		//		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+		/*
+		static float32_t tmpImmactiveAvrg_R = 0.0;
+		static float32_t tmpImmactiveAvrg_G = 0.0;
+		static float32_t tmpImmactiveAvrg_B = 0.0;
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
+
+		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[line];
+		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[line];
+		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[line];
+
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+		*/
 		//end offset compensation
 
 		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.blackCal.data[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
@@ -757,431 +800,4 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	{
 		cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
 	}
-}
-
-/**
- * @brief  Gets the sector of a given address
- * @param  Address Address of the FLASH Memory
- * @retval The sector of a given address
- */
-uint32_t GetSector(uint32_t Address)
-{
-	uint32_t sector = 0;
-
-	if(((Address < ADDR_FLASH_SECTOR_1_BANK1) && (Address >= ADDR_FLASH_SECTOR_0_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_1_BANK2) && (Address >= ADDR_FLASH_SECTOR_0_BANK2)))
-	{
-		sector = FLASH_SECTOR_0;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_2_BANK1) && (Address >= ADDR_FLASH_SECTOR_1_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_2_BANK2) && (Address >= ADDR_FLASH_SECTOR_1_BANK2)))
-	{
-		sector = FLASH_SECTOR_1;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_3_BANK1) && (Address >= ADDR_FLASH_SECTOR_2_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_3_BANK2) && (Address >= ADDR_FLASH_SECTOR_2_BANK2)))
-	{
-		sector = FLASH_SECTOR_2;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_4_BANK1) && (Address >= ADDR_FLASH_SECTOR_3_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_4_BANK2) && (Address >= ADDR_FLASH_SECTOR_3_BANK2)))
-	{
-		sector = FLASH_SECTOR_3;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_5_BANK1) && (Address >= ADDR_FLASH_SECTOR_4_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_5_BANK2) && (Address >= ADDR_FLASH_SECTOR_4_BANK2)))
-	{
-		sector = FLASH_SECTOR_4;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_6_BANK1) && (Address >= ADDR_FLASH_SECTOR_5_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_6_BANK2) && (Address >= ADDR_FLASH_SECTOR_5_BANK2)))
-	{
-		sector = FLASH_SECTOR_5;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_7_BANK1) && (Address >= ADDR_FLASH_SECTOR_6_BANK1)) || \
-			((Address < ADDR_FLASH_SECTOR_7_BANK2) && (Address >= ADDR_FLASH_SECTOR_6_BANK2)))
-	{
-		sector = FLASH_SECTOR_6;
-	}
-	else if(((Address < ADDR_FLASH_SECTOR_0_BANK2) && (Address >= ADDR_FLASH_SECTOR_7_BANK1)) || \
-			((Address < FLASH_END_ADDR) && (Address >= ADDR_FLASH_SECTOR_7_BANK2)))
-	{
-		sector = FLASH_SECTOR_7;
-	}
-	else
-	{
-		sector = FLASH_SECTOR_7;
-	}
-
-	return sector;
-}
-
-/**
- * @brief  CIS calibration
- * @param  cisData ptr
- * @param  calibration iteration
- * @retval None
- */
-void cis_RW_FlashCalibration(CIS_FlashRW_TypeDef RW)
-{
-	static FLASH_EraseInitTypeDef eraseInitStruct = {0};
-	uint32_t firstSector = 0, nbOfSectors = 0, sectorError = 0, address = 0, idx = 0;
-	__IO uint32_t memoryProgramStatus = 0;
-	__IO uint32_t data32 = 0;
-
-	switch (RW)
-	{
-	case CIS_READ_CAL :
-		address = ADDR_CIS_FLASH_CALIBRATION;
-		for(idx = 0; idx < sizeof(cisCals); idx+=4)
-		{
-			*(uint32_t *)((uint32_t)&cisCals + idx) = *(uint32_t *)address;
-			__DSB();
-
-			address+=4;
-		}
-		break;
-	case CIS_WRITE_CAL :
-		/* -1- Unlock the Flash to enable the flash control register access ***************/
-		HAL_FLASH_Unlock();
-		/* -2- Erase the user Flash area
-			    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
-
-		/* Get the 1st sector to erase */
-		firstSector = GetSector(ADDR_CIS_FLASH_CALIBRATION);
-		nbOfSectors = GetSector(FLASH_END_ADDR) - firstSector + 1;
-
-		/* Fill EraseInit structure*/
-		eraseInitStruct.TypeErase     = FLASH_TYPEERASE_SECTORS;
-		eraseInitStruct.VoltageRange  = FLASH_VOLTAGE_RANGE_4;
-		eraseInitStruct.Banks         = FLASH_BANK_1;
-		eraseInitStruct.Sector        = firstSector;
-		eraseInitStruct.NbSectors     = nbOfSectors;
-
-		if (HAL_FLASHEx_Erase(&eraseInitStruct, &sectorError) != HAL_OK)
-		{
-			printf("Flash write fail\n");
-			Error_Handler();
-		}
-		/* -3- Program the user Flash area word by word
-			    (area defined by FLASH_USER_START_ADDR and FLASH_USER_END_ADDR) ***********/
-		address = ADDR_CIS_FLASH_CALIBRATION;
-
-		while (address < (ADDR_CIS_FLASH_CALIBRATION + sizeof(cisCals)))
-		{
-			if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)&cisCals + idx) == HAL_OK)
-			{
-				address += 32; //increment for the next Flash word
-				idx+=32;
-			}
-			else
-			{
-				printf("Flash write fail\n");
-				Error_Handler();
-			}
-		}
-		/* -4- Lock the Flash to disable the flash control register access (recommended
-			     to protect the FLASH memory against possible unwanted operation) *********/
-		HAL_FLASH_Lock();
-		/* -5- Check if the programmed data is OK
-		      MemoryProgramStatus = 0: data programmed correctly
-		      MemoryProgramStatus != 0: number of words not programmed correctly **********/
-		address = ADDR_CIS_FLASH_CALIBRATION;
-
-		for(idx = 0; idx < sizeof(cisCals); idx+=4)
-		{
-			data32 = *(uint32_t *)address;
-			__DSB();
-			if(data32 != *(uint32_t *)((uint32_t)&cisCals + idx))
-			{
-				memoryProgramStatus++;
-			}
-			address+=4;
-		}
-
-		/* -6- Check if there is an issue to program data*/
-		if (memoryProgramStatus != 0)
-		{
-			printf("Flash write fail\n");
-			Error_Handler();
-		}
-		break;
-	default :
-		Error_Handler();
-	}
-}
-
-/**
- * @brief  CIS get inactive pixels average
- * @param  current calibration type : white or black
- * @param  current color calibration
- * @retval None
- */
-void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
-{
-	int32_t lineOffset = 0, offset = 0;
-	struct cisColorsParams *currColor;
-
-	switch (color)
-	{
-	case CIS_RED :
-		currColor = &currCisCals->red;
-		offset = CIS_RED_LINE_OFFSET - CIS_INACTIVE_WIDTH;
-		break;
-	case CIS_GREEN :
-		currColor = &currCisCals->green;
-		offset = CIS_GREEN_LINE_OFFSET - CIS_INACTIVE_WIDTH;
-		break;
-	case CIS_BLUE :
-		currColor = &currCisCals->blue;
-		offset = CIS_BLUE_LINE_OFFSET - CIS_INACTIVE_WIDTH;
-		break;
-	default :
-		Error_Handler();
-		return;
-	}
-
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
-	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
-		// Extrat average value for innactives pixels
-		arm_mean_f32(&currCisCals->data[lineOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[line]);
-	}
-
-#ifdef PRINT_CIS_CALIBRATION
-	printf("Avrg    Pix = %d\n", (int)currColor->inactiveAvrgPix);
-	printf("-------------------------------\n");
-#endif
-}
-
-/**
- * @brief  CIS get Min Max and Delta
- * @param  current calibration type : white or black
- * @param  current color calibration
- * @retval None
- */
-void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
-{
-	float32_t tmpMaxpix = 0, tmpMinpix = 0;
-	int32_t lineOffset = 0, offset = 0;
-	struct cisColorsParams *currColor;
-
-	switch (color)
-	{
-	case CIS_RED :
-		currColor = &currCisCals->red;
-		offset = CIS_RED_LINE_OFFSET;
-		break;
-	case CIS_GREEN :
-		currColor = &currCisCals->green;
-		offset = CIS_GREEN_LINE_OFFSET;
-		break;
-	case CIS_BLUE :
-		currColor = &currCisCals->blue;
-		offset = CIS_BLUE_LINE_OFFSET;
-		break;
-	default :
-		Error_Handler();
-		return;
-	}
-
-	currColor->maxPix = 0;
-	currColor->minPix = 0xFFFF;
-
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
-	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
-		// Extrat Min Max and delta
-		arm_max_f32(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMaxpix, NULL);
-		arm_min_f32(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMinpix, NULL);
-
-		if (tmpMaxpix >= currColor->maxPix)
-			currColor->maxPix = tmpMaxpix;
-
-		if (tmpMinpix <= currColor->minPix)
-			currColor->minPix = tmpMinpix;
-
-		currColor->deltaPix = currColor->maxPix - currColor->minPix;
-	}
-
-#ifdef PRINT_CIS_CALIBRATION
-	printf("Max     Pix = %d\n", (int)currColor->maxPix);
-	printf("Min     Pix = %d\n", (int)currColor->minPix);
-	printf("Delta   Pix = %d\n", (int)currColor->deltaPix);
-	printf("-------------------------------\n");
-#endif
-}
-
-/**
- * @brief  CIS compute differential offsets
- * @param  current color calibration
- * @retval None
- */
-void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
-{
-	uint32_t lineOffset = 0, offset = 0;
-	struct cisColorsParams *currColor;
-
-	switch (color)
-	{
-	case CIS_RED :
-		currColor = &cisCals.blackCal.red;
-		offset = CIS_RED_LINE_OFFSET;
-		break;
-	case CIS_GREEN :
-		currColor = &cisCals.blackCal.green;
-		offset = CIS_GREEN_LINE_OFFSET;
-		break;
-	case CIS_BLUE :
-		currColor = &cisCals.blackCal.blue;
-		offset = CIS_BLUE_LINE_OFFSET;
-		break;
-	default :
-		Error_Handler();
-		return;
-	}
-
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
-	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
-
-		// Extract differential offsets
-		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
-		{
-			cisCals.offsetData[lineOffset + i] = currColor->maxPix - cisCals.blackCal.data[lineOffset + i];
-		}
-	}
-}
-
-/**
- * @brief  CIS compute gains
- * @param  current color calibration
- * @retval None
- */
-void cis_ComputeCalsGains(CIS_Color_TypeDef color)
-{
-	uint32_t lineOffset = 0, offset;
-
-	switch (color)
-	{
-	case CIS_RED :
-		offset = CIS_RED_LINE_OFFSET;
-		break;
-	case CIS_GREEN :
-		offset = CIS_GREEN_LINE_OFFSET;
-		break;
-	case CIS_BLUE :
-		offset = CIS_BLUE_LINE_OFFSET;
-		break;
-	default :
-		Error_Handler();
-		return;
-	}
-
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
-	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
-
-		// Extract differential offsets
-		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
-		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)(4096) / (float32_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]);
-		}
-	}
-}
-
-/**
- * @brief  CIS start calibration
- * @param  calibration iteration
- * @retval None
- */
-void cis_StartCalibration(uint16_t iterationNb)
-{
-	/* Set header description */
-	printf("------ START CALIBRATION ------\n");
-	/*-------- 1 --------*/
-	// Read black and white level
-	cis_LedPowerAdj(95);
-	shared_var.cis_cal_progressbar = 0;
-	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
-	HAL_Delay(200);
-
-	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-
-	HAL_Delay(200);
-	shared_var.cis_cal_progressbar = 0;
-	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
-	cis_LedPowerAdj(5);
-	HAL_Delay(20);
-
-	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	cis_LedPowerAdj(100);
-	HAL_Delay(2000);
-
-	printf("------- LOAD CALIBRATION ------\n");
-	/*-------- 1 --------*/
-	// Extrat Min Max and delta
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_RED);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_RED);
-
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_GREEN);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_GREEN);
-
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_BLUE);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_BLUE);
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
-	HAL_Delay(500);
-
-	/*-------- 2 --------*/
-	// Extrat Min Max and delta
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_RED);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_RED);
-
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_GREEN);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_GREEN);
-
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_BLUE);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_BLUE);
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
-	HAL_Delay(500);
-
-	/*-------- 3 --------*/
-	// Extract differential offsets
-	cis_ComputeCalsOffsets(CIS_RED);
-	cis_ComputeCalsOffsets(CIS_GREEN);
-	cis_ComputeCalsOffsets(CIS_BLUE);
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
-	HAL_Delay(500);
-
-	/*-------- 4 --------*/
-	// Compute gains
-	cis_ComputeCalsGains(CIS_RED);
-	cis_ComputeCalsGains(CIS_GREEN);
-	cis_ComputeCalsGains(CIS_BLUE);
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
-	HAL_Delay(500);
-
-	printf("-------- COMPUTE GAINS --------\n");
-#ifdef PRINT_CIS_CALIBRATION
-	for (uint32_t pix = 0; pix < CIS_PIXELS_NB; pix++)
-	{
-		printf("Pix = %d, Val = %0.3f\n", (int)pix, (float)cisCals.gainsData[pix]);
-	}
-#endif
-
-	cis_RW_FlashCalibration(CIS_WRITE_CAL);
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	shared_var.cis_cal_state = CIS_CAL_END;
-	printf("-------------------------------\n");
 }
