@@ -688,32 +688,34 @@ void cis_LedsOff()
  * @param  None
  * @retval None
  */
-void cis_LedPowerAdj(int32_t powerVal)
+void cis_LedPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm)
 {
 	int32_t pulseValue = 0;
 
 	// Ensure that the power intensity is within the expected range
-	powerVal = powerVal < 0 ? 0 : powerVal > 100 ? 100 : powerVal;
-
-	pulseValue = CIS_LED_GREEN_OFF - 1;
-#ifdef CIS_MONOCHROME
-	pulseValue /= 3;
-#endif
-	pulseValue = (pulseValue * powerVal) / 100;
-	__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_3, pulseValue);
+	red_pwm = red_pwm < 0 ? 0 : red_pwm > 100 ? 100 : red_pwm;
+	green_pwm = green_pwm < 0 ? 0 : green_pwm > 100 ? 100 : green_pwm;
+	blue_pwm = blue_pwm < 0 ? 0 : blue_pwm > 100 ? 100 : blue_pwm;
 
 	pulseValue = CIS_LED_RED_OFF - 1;
 #ifdef CIS_MONOCHROME
 	pulseValue /= 3;
 #endif
-	pulseValue = (pulseValue * powerVal) / 100;
+	pulseValue = (pulseValue * red_pwm) / 100;
 	__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, pulseValue);
+
+	pulseValue = CIS_LED_GREEN_OFF - 1;
+#ifdef CIS_MONOCHROME
+	pulseValue /= 3;
+#endif
+	pulseValue = (pulseValue * green_pwm) / 100;
+	__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_3, pulseValue);
 
 	pulseValue = CIS_LED_BLUE_OFF - 1;
 #ifdef CIS_MONOCHROME
 	pulseValue /= 3;
 #endif
-	pulseValue = (pulseValue * powerVal) / 100;
+	pulseValue = (pulseValue * blue_pwm) / 100;
 	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulseValue);
 }
 

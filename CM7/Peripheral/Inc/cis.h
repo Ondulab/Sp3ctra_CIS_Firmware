@@ -42,6 +42,6 @@ void cis_Start_capture(void);
 void cis_Stop_capture(void);
 void cis_LedsOn(void);
 void cis_LedsOff(void);
-void cis_LedPowerAdj(int32_t powerVal);
+void cis_LedPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm);
 
 #endif /* __CIS_H__ */

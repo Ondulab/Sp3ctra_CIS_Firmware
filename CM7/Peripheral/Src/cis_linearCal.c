@@ -237,7 +237,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 	printf("------ START CALIBRATION ------\n");
 	/*-------- 1 --------*/
 	// Read black and white level
-	cis_LedPowerAdj(95);
+	cis_LedPowerAdj(95, 95, 95);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
 	HAL_Delay(200);
@@ -248,12 +248,12 @@ void cis_StartCalibration(uint16_t iterationNb)
 	HAL_Delay(200);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
-	cis_LedPowerAdj(5);
+	cis_LedPowerAdj(5, 5, 5);
 	HAL_Delay(20);
 
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	cis_LedPowerAdj(100);
+	cis_LedPowerAdj(100, 100, 100);
 	HAL_Delay(2000);
 
 	printf("------- LOAD CALIBRATION ------\n");
