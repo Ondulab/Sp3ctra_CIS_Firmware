@@ -67,17 +67,19 @@ extern "C"
 #define __STATIC_FORCEINLINE static __forceinline
 #define __STATIC_INLINE static __inline
 #define __ALIGNED(x) __declspec(align(x))
+#define __WEAK
 #elif defined ( __APPLE_CC__ )
 #include <stdint.h>
 #define  __ALIGNED(x) __attribute__((aligned(x)))
 #define __STATIC_FORCEINLINE static inline __attribute__((always_inline)) 
 #define __STATIC_INLINE static inline
+#define __WEAK
 #elif defined (__GNUC_PYTHON__)
 #include <stdint.h>
 #define  __ALIGNED(x) __attribute__((aligned(x)))
 #define __STATIC_FORCEINLINE static inline __attribute__((always_inline)) 
 #define __STATIC_INLINE static inline
-
+#define __WEAK
 #else
 #include "cmsis_compiler.h"
 #endif
@@ -95,12 +97,16 @@ extern "C"
 #endif
 
 #if defined(ARM_MATH_NEON)
-#include <arm_neon.h>
-#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-  #if !defined(ARM_MATH_NEON_FLOAT16)
-  #define ARM_MATH_NEON_FLOAT16
+  #if defined(_MSC_VER) && defined(_M_ARM64EC)
+    #include <arm64_neon.h>
+  #else
+    #include <arm_neon.h>
   #endif
-#endif
+  #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC) && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    #if !defined(ARM_MATH_NEON_FLOAT16)
+      #define ARM_MATH_NEON_FLOAT16
+    #endif
+  #endif
 #endif
 
 #if !defined(ARM_MATH_AUTOVECTORIZE)
@@ -265,6 +271,10 @@ extern "C"
 
 #if defined(__ARM_FEATURE_MVE) && __ARM_FEATURE_MVE
 #include <arm_mve.h>
+#endif
+
+#if defined(ARM_DSP_CONFIG_TABLES)
+#error("-DARM_DSP_CONFIG_TABLES no more supported. Use the new initialization functions to let the linker optimize the code size.")
 #endif
 
 #ifdef   __cplusplus

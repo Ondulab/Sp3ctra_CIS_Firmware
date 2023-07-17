@@ -74,7 +74,7 @@ void cis_leastSquares(float32_t* x, float32_t* y, uint32_t n, float32_t* a, floa
     arm_mat_init_f32(&vectorX, 3, 1, vectorB_data); // Reuse vectorB_data for storing result
 
     // Solve AX = B for X
-    arm_mat_solve_f32(&matrixA, &vectorB, &vectorX);
+    arm_mat_solve_lower_triangular_f32(&matrixA, &vectorB, &vectorX);
 
     // Coefficients are stored in vectorX
     *a = vectorX.pData[0];

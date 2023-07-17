@@ -1,8 +1,8 @@
 /******************************************************************************
  * @file     statistics_functions_f16.h
  * @brief    Public header file for CMSIS DSP Library
- * @version  V1.10.0
- * @date     08 July 2021
+ * @version  V1.10.1
+ * @date     14 July 2022
  * Target Processor: Cortex-M and Cortex-A cores
  ******************************************************************************/
 /*
@@ -242,6 +242,34 @@ float16_t arm_kullback_leibler_f16(const float16_t * pSrcA
       const float16_t *pSrc,
       uint32_t   blockSize,
       float16_t *pResult);
+
+/**
+  @brief         Mean square error between two half precision float vectors.
+  @param[in]     pSrcA       points to the first input vector
+  @param[in]     pSrcB       points to the second input vector
+  @param[in]     blockSize  number of samples in input vector
+  @param[out]    pResult    mean square error
+  @return        none 
+*/
+  
+void arm_mse_f16(
+  const float16_t * pSrcA,
+  const float16_t * pSrcB,
+        uint32_t blockSize,
+        float16_t * pResult);
+
+
+/**
+  * @brief  Sum value of a floating-point vector.
+  * @param[in]  pSrc       is input pointer
+  * @param[in]  blockSize  is the number of samples to process
+  * @param[out] pResult    is output value.
+  */
+ void arm_accumulate_f16(
+ const float16_t * pSrc,
+       uint32_t blockSize,
+       float16_t * pResult);
+
 
 #endif /*defined(ARM_FLOAT16_SUPPORTED)*/
 #ifdef   __cplusplus

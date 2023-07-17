@@ -33,6 +33,10 @@
 #include "dsp/none.h"
 #include "dsp/utils.h"
 
+#include "dsp/basic_math_functions.h"
+
+#include <math.h>
+
 #ifdef   __cplusplus
 extern "C"
 {
@@ -50,6 +54,11 @@ extern "C"
   #define PI               3.14159265358979f
 #endif
 
+#ifndef PI_F64 
+  #define PI_F64 3.14159265358979323846
+#endif
+
+
 
 /**
  * @defgroup groupFastMath Fast Math Functions
@@ -60,17 +69,8 @@ extern "C"
  *
  */
 
-  /**
-   * @ingroup groupFastMath
-   */
 
-
-/**
-  @addtogroup sin
-  @{
- */
-
-/**
+   /**
    * @brief  Fast approximation to the trigonometric sine function for floating-point data.
    * @param[in] x  input value in radians.
    * @return  sin(x).
@@ -87,7 +87,6 @@ extern "C"
   q31_t arm_sin_q31(
   q31_t x);
 
-
   /**
    * @brief  Fast approximation to the trigonometric sine function for Q15 data.
    * @param[in] x  Scaled input value in radians.
@@ -96,14 +95,6 @@ extern "C"
   q15_t arm_sin_q15(
   q15_t x);
 
-/**
-  @} end of sin group
- */
-
-/**
-  @addtogroup cos
-  @{
- */
 
   /**
    * @brief  Fast approximation to the trigonometric cosine function for floating-point data.
@@ -131,10 +122,6 @@ extern "C"
   q15_t arm_cos_q15(
   q15_t x);
 
-/**
-  @} end of cos group
- */
-
 
 /**
   @brief         Floating-point vector of log values.
@@ -159,8 +146,8 @@ extern "C"
  */
   void arm_vlog_f64(
   const float64_t * pSrc,
-		float64_t * pDst,
-		uint32_t blockSize);
+        float64_t * pDst,
+        uint32_t blockSize);
 
 
 
@@ -270,6 +257,16 @@ __STATIC_FORCEINLINE arm_status arm_sqrt_f32(
       *pOut = sqrtf(in);
   #endif
 
+#elif defined ( __ARMCC_VERSION ) && ( __ARMCC_VERSION >= 6010050 )
+      *pOut = _sqrtf(in);
+#elif defined(__GNUC_PYTHON__)
+      *pOut = sqrtf(in);
+#elif defined ( __GNUC__ )
+  #if defined (__VFP_FP__) && !defined(__SOFTFP__)
+      __ASM("VSQRT.F32 %0,%1" : "=t"(*pOut) : "t"(in));
+  #else
+      *pOut = sqrtf(in);
+  #endif
 #else
       *pOut = sqrtf(in);
 #endif
@@ -349,6 +346,35 @@ arm_status arm_divide_q31(q31_t numerator,
   q31_t *quotient,
   int16_t *shift);
 
+
+
+  /**
+     @brief  Arc tangent in radian of y/x using sign of x and y to determine right quadrant.
+     @param[in]   y  y coordinate
+     @param[in]   x  x coordinate
+     @param[out]  result  Result
+     @return  error status.
+   */
+  arm_status arm_atan2_f32(float32_t y,float32_t x,float32_t *result);
+
+
+  /**
+     @brief  Arc tangent in radian of y/x using sign of x and y to determine right quadrant.
+     @param[in]   y  y coordinate
+     @param[in]   x  x coordinate
+     @param[out]  result  Result in Q2.29
+     @return  error status.
+   */
+  arm_status arm_atan2_q31(q31_t y,q31_t x,q31_t *result);
+
+  /**
+     @brief  Arc tangent in radian of y/x using sign of x and y to determine right quadrant.
+     @param[in]   y  y coordinate
+     @param[in]   x  x coordinate
+     @param[out]  result  Result in Q2.13
+     @return  error status.
+   */
+  arm_status arm_atan2_q15(q15_t y,q15_t x,q15_t *result);
 
 #ifdef   __cplusplus
 }
