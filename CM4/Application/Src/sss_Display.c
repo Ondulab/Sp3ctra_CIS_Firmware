@@ -114,6 +114,8 @@ int sss_Display(void)
 			// Ensure that cis_color is within the expected range
 			cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;
 
+			cis_color = 255000 - cis_color;
+
 			// Calculate the length of the line in pixels (0 to 20)
 			// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
 			line_length = (int)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
