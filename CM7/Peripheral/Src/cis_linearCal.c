@@ -231,7 +231,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
  * @param  calibration iteration
  * @retval None
  */
-void cis_StartCalibration(uint16_t iterationNb)
+void cis_StartLinearCalibration(uint16_t iterationNb)
 {
 	/* Set header description */
 	printf("------ START CALIBRATION ------\n");

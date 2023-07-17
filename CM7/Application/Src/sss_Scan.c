@@ -18,6 +18,8 @@
 
 #include "tim.h"
 #include "cis.h"
+#include "cis_linearCal.h"
+
 
 #include "sss_Scan.h"
 
@@ -72,7 +74,7 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			cis_StartCalibration(500);
+			cis_StartLinearCalibration(500);
 		}
 
 		cis_ImageProcessRGB(imageData);
