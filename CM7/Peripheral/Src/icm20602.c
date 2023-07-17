@@ -469,7 +469,7 @@ int8_t icm20602_read_gyro_fifo(float * p_x, float * p_y,
 	int16_t x, y, z;
 	int8_t r = 0;
 
-	gyro_sensitivity = _get_gyro_sensitivity(dev.gyro_dps);
+	//gyro_sensitivity = _get_gyro_sensitivity(dev.gyro_dps);
 
 	r = icm20602_read_fifo_gyro_raw(&x, &y, &z);
 	if (0 == r) {
