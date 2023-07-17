@@ -35,6 +35,13 @@ typedef enum
 }CIS_Calibration_StateTypeDef;
 
 __attribute__ ((packed))
+struct cisPolyCoefs {
+    float32_t a0[CIS_ADC_BUFF_SIZE * 3]; //Coefficients of degree 0 (i.e. the constant terms)
+    float32_t a1[CIS_ADC_BUFF_SIZE * 3]; // Coefficients of degree 1 (i.e. the linear terms)
+    float32_t a2[CIS_ADC_BUFF_SIZE * 3]; // Coefficients of degree 2 (i.e. the quadratic terms)
+};
+
+__attribute__ ((packed))
 struct cisColorsParams {
 	float32_t maxPix;
 	float32_t minPix;
