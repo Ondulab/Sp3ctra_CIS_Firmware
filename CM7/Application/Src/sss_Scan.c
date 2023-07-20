@@ -77,7 +77,7 @@ int sss_Scan(void)
 			cis_StartLinearCalibration(500);
 		}
 
-		cis_ImageProcessRGB(imageData);
+		cis_ImageProcessRGB_2(imageData);
 		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
 
 #ifndef ETHERNET_OFF
