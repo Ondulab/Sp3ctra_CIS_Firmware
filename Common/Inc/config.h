@@ -129,18 +129,23 @@
 #define CIS_PIXEL_AERA_STOP						((CIS_INACTIVE_WIDTH) + (CIS_PIXELS_PER_LINE))
 #define CIS_OVER_SCAN							(12)
 
-#define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_RED_OFF							((202.0 * 2.5))
-#define CIS_LED_GREEN_OFF						((244.0 * 2.5))
-#define CIS_LED_BLUE_OFF						((243.0 * 2.5))
-
 #define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2)
 #define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 #define CIS_END_CAPTURE							(CIS_LINE_SIZE)
 
+#define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_RED_OFF							(CIS_END_CAPTURE)//((202.0 * 2.5))
+#define CIS_LED_GREEN_OFF						(CIS_END_CAPTURE)//((244.0 * 2.5))
+#define CIS_LED_BLUE_OFF						(CIS_END_CAPTURE)//((243.0 * 2.5))
+
 #define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LINE_SIZE) * (CIS_ADC_OUT_LINES))
+
+#define CIS_ADC_MAX_VALUE						(4096)
+
+#define CIS_LEDS_MAX_PWM						(101)
+#define CIS_LEDS_MAX_POMER						(CIS_LEDS_MAX_PWM)
 
 #endif // __CONFIG_H__
 

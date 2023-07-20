@@ -19,6 +19,7 @@
 #include "tim.h"
 #include "cis.h"
 #include "cis_linearCal.h"
+#include "cis_polyCal.h"
 
 
 #include "sss_Scan.h"
@@ -74,7 +75,9 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			cis_StartLinearCalibration(500);
+			//cis_StartLinearCalibration(500);
+			//cis_StartPolynomialCalibration(500);
+			//cis_calibrateLeds();
 		}
 
 		cis_ImageProcessRGB_2(imageData);
