@@ -206,7 +206,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 
 		acc ++;
 	}
-	acc = 0;
+
 	arm_scale_f32(cisDataCpy_f32, 1.00 / (float64_t)(shared_var.cis_oversampling), cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 }
 

@@ -24,7 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_LEDS_CAL_MEASURE_CYCLES				(500)
+#define CIS_LEDS_CAL_MEASURE_CYCLES				(5)
 
 #define CAL_POWER_INC				10
 #define CAL_POWER_MIN				10
@@ -142,7 +142,7 @@ void cis_calibrateLeds(void)
 	// get the min value
 	float minVal = fmin(cisLeds_Calibration.redMeanAtLedPower, fmin(cisLeds_Calibration.greenMeanAtLedPower, cisLeds_Calibration.blueMeanAtLedPower));
 
-	// calibrate power led for eatch color
+	// calibrate power led for eatch color (white balance)
 	if (minVal < cisLeds_Calibration.redMeanAtLedPower)
 	{
 		while (cisLeds_Calibration.redMeanAtLedPower > minVal)
@@ -154,7 +154,7 @@ void cis_calibrateLeds(void)
 
 	if (minVal < cisLeds_Calibration.greenMeanAtLedPower)
 	{
-		while (cisLeds_Calibration.redMeanAtLedPower > minVal)
+		while (cisLeds_Calibration.greenMeanAtLedPower > minVal)
 		{
 			--cisLeds_Calibration.greenLed_maxPulse;
 			cis_getMeanAtLedPower(RAWImage, &cisLeds_Calibration, led_PWM);
@@ -163,7 +163,7 @@ void cis_calibrateLeds(void)
 
 	if (minVal < cisLeds_Calibration.blueMeanAtLedPower)
 	{
-		while (cisLeds_Calibration.redMeanAtLedPower > minVal)
+		while (cisLeds_Calibration.blueMeanAtLedPower > minVal)
 		{
 			--cisLeds_Calibration.blueLed_maxPulse;
 			cis_getMeanAtLedPower(RAWImage, &cisLeds_Calibration, led_PWM);
@@ -179,6 +179,9 @@ void cis_calibrateLeds(void)
 		meanGreenValue[led_PWM] = cisLeds_Calibration.greenMeanAtLedPower;
 		meanBlueValue[led_PWM] = cisLeds_Calibration.blueMeanAtLedPower;
 	}
+
+	led_PWM = 100;
+	cis_LedPowerAdj(led_PWM, led_PWM, led_PWM);
 
 	// Calculate the ranges of the mean color values
 	redRange = meanRedValue[CIS_LEDS_MAX_PWM - 1] - meanRedValue[0];

@@ -110,7 +110,7 @@
 //#define CIS_400DPI
 //#define CIS_MONOCHROME
 
-#define CIS_CLK_FREQ							(5000000)
+#define CIS_CLK_FREQ							(2500000)
 #define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
 
 #define CIS_ADC_OUT_LINES						(3)
