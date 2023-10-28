@@ -27,12 +27,6 @@ typedef enum
 	CIS_BLUE,
 }CIS_Color_TypeDef;
 
-struct RAWImage{
-     float32_t redLine[CIS_PIXELS_NB];
-     float32_t greenLine[CIS_PIXELS_NB];
-     float32_t blueLine[CIS_PIXELS_NB];
-};
-
 #define CIS_RED_LINE_OFFSET 		(CIS_START_OFFSET)
 #define CIS_GREEN_LINE_OFFSET 		((CIS_LINE_SIZE) + (CIS_START_OFFSET))
 #define CIS_BLUE_LINE_OFFSET  		((CIS_LINE_SIZE * 2)) + (CIS_START_OFFSET)
@@ -42,7 +36,7 @@ struct RAWImage{
 
 void cis_Init(void);
 void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling);
-void cis_ConvertRAWImageToIntArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
+void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_ImageProcessRGB_2(int32_t *cis_buff);
 void cis_ImageProcessRGB(int32_t *cis_buff);
 void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb);

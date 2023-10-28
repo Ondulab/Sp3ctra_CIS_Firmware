@@ -210,7 +210,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 	arm_scale_f32(cisDataCpy_f32, 1.00 / (float64_t)(shared_var.cis_oversampling), cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 }
 
-void cis_ConvertRAWImageToIntArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
+void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
 {
 	// Get the segments and copy them to the full red line buffer
 	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], RAWImage->redLine, CIS_PIXELS_PER_LINE);
@@ -231,10 +231,10 @@ void cis_ConvertRAWImageToIntArray(float32_t* cisDataCpy_f32, struct RAWImage* R
 void cis_ImageProcessRGB_2(int32_t *cis_buff)
 {
 	static struct RAWImage RAWImage = {0};
-	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
-	cis_ConvertRAWImageToIntArray(cisDataCpy_f32, &RAWImage);
+	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+	calibrate(&RAWImage);
 	cis_ConvertRAWImageToRGBImage(&RAWImage, cis_buff);
 }
 
@@ -243,7 +243,6 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
 	static int32_t tmp_cis_buff[CIS_PIXELS_NB];
 	static int32_t line, i;
-	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 

@@ -78,6 +78,7 @@ int sss_Scan(void)
 			//cis_StartLinearCalibration(500);
 			//cis_StartPolynomialCalibration(500);
 			cis_calibrateLeds();
+			cis_StartCalibration(10);
 			shared_var.cis_cal_state = CIS_CAL_END;
 		}
 

@@ -35,13 +35,6 @@ typedef enum
 }CIS_Calibration_StateTypeDef;
 
 __attribute__ ((packed))
-struct cisPolyCoefs {
-    float32_t a0[CIS_ADC_BUFF_SIZE * 3]; //Coefficients of degree 0 (i.e. the constant terms)
-    float32_t a1[CIS_ADC_BUFF_SIZE * 3]; // Coefficients of degree 1 (i.e. the linear terms)
-    float32_t a2[CIS_ADC_BUFF_SIZE * 3]; // Coefficients of degree 2 (i.e. the quadratic terms)
-};
-
-__attribute__ ((packed))
 struct cisColorsParams {
 	float32_t maxPix;
 	float32_t minPix;
@@ -65,6 +58,7 @@ struct cisCals {
 	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
 };
 
+/*
 __attribute__ ((packed))
 struct CalibrationCoefficients {
     float32_t a;
@@ -78,6 +72,7 @@ struct RGB_Calibration {
 	struct CalibrationCoefficients green[CIS_PIXELS_NB];
 	struct CalibrationCoefficients blue[CIS_PIXELS_NB];
 };
+*/
 
 __attribute__ ((packed))
 struct cisLeds_Calibration {
@@ -102,10 +97,18 @@ struct shared_var {
 	CIS_Calibration_StateTypeDef cis_cal_state;
 };
 
+__attribute__ ((packed))
+struct RAWImage{
+     float32_t redLine[CIS_PIXELS_NB];
+     float32_t greenLine[CIS_PIXELS_NB];
+     float32_t blueLine[CIS_PIXELS_NB];
+};
+
 extern struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
 extern struct RGB_Calibration rgbCalibration;
+extern struct RAWImage RAWImageCalibration[];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern int32_t imageData[CIS_PIXELS_NB];
 extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];

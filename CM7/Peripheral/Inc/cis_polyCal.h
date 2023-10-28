@@ -17,16 +17,20 @@ struct ColorLine{
      struct CalibrationCoefficients* coeff;
 };
 
+/*
 struct RGB_CalibrationCoefficients{
      struct CalibrationCoefficients redCoeff;
      struct CalibrationCoefficients greenCoeff;
      struct CalibrationCoefficients blueCoeff;
 };
+*/
 
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
 void cis_ConvertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage);
+void cis_StartCalibration(uint16_t iterationNb);
+void calibrate(struct RAWImage* rawImage);
 void cis_calibrateLeds(void);
 
 #endif /* __CIS_POLYCAL_H__ */
