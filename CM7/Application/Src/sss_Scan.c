@@ -75,14 +75,15 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			//cis_StartLinearCalibration(500);
-			//cis_StartPolynomialCalibration(500);
-			cis_calibrateLeds();
-			cis_StartCalibration(10);
-			shared_var.cis_cal_state = CIS_CAL_END;
+			cis_StartLinearCalibration(500);
+			//cis_StartPolynomialCalibration(500); //WIP
+			//cis_calibrateLeds(); //WIP
+			//cis_StartCalibration(10); //WIP
+			//shared_var.cis_cal_state = CIS_CAL_END; //WIP
 		}
 
-		cis_ImageProcessRGB_2(imageData);
+		//cis_ImageProcessRGB_2(imageData); //WIP
+		cis_ImageProcessRGB(imageData);
 		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
 
 #ifndef ETHERNET_OFF
