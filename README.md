@@ -6,49 +6,22 @@ The Spectral Sound Scanner (SSS) is an innovative tangible interface for creatin
 
 ## Features
 
-- **UDP Communication:** Real-time transmission at 200 DPI with a frequency of 1000 Hz for an immersive audiovisual capture.
-- **Network Configuration:** The SSS is designed for easy integration into any network setup, with adjustable settings to accommodate various environments.
-- **Power over Ethernet (PoE):** The device supports PoE for simplified wiring and handling, allowing both power and data to be carried over a single Ethernet cable.
-- **User Control:** Interface buttons allow for fine-tuning of sampling frequency and other parameters, providing intuitive user interaction.
-
-## UDP Communication and Network Configuration
-
-The Spectral Sound Scanner employs UDP communication to transmit data captured by the CIS. Here are the technical details of the transmission:
-
-# Features
-
-## Power over Ethernet (PoE)
+### Power over Ethernet (PoE)
 
 Our device now supports Power over Ethernet (PoE), which simplifies cabling and installation by allowing both electrical power and data transfer over a single Ethernet cable.
 
-### Hardware Prerequisites
-
-- PoE-compatible network switch conforming to IEEE 802.3af/at standards.
-- PoE injectors (if your switch does not support PoE) capable of delivering the necessary power.
-
-### Configuration
-
-- Ensure the PoE switch is configured to supply adequate power to the ports in use.
-- Connect the device to the PoE switch using a Category 5e or higher Ethernet cable.
-
-## Inertial Measurement Unit (IMU)
+### Inertial Measurement Unit (IMU)
 
 The integration of an inertial measurement unit enhances accuracy in motion capture and spatial orientation.
 
-### IMU Features
-
-- Sampling frequency: 1000 Hz
-- High precision for acceleration and rotation measurement
-- Real-time communication via UDP
-
-## User Interface
+### User Interface
 
 Interface buttons are provided for fine-tuning the sampling frequency and other parameters.
 
-### Usage
+## Usage
 
 - Press the buttons to increase or decrease the sampling frequency.
-- Adjusted settings can be saved and will persist after a reboot.
+- Adjusted settings can be saved and will not persist after a reboot.
 
 To correctly receive and assemble the UDP data:
 
