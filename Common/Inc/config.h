@@ -37,8 +37,8 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-//#define PRINT_CIS_CALIBRATION
-//#define SKIP_SPLASH
+#define PRINT_CIS_CALIBRATION
+#define SKIP_SPLASH
 //#define ETHERNET_OFF
 //#define CIS_DESACTIVATE_CALIBRATION
 

@@ -24,7 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_LEDS_CAL_MEASURE_CYCLES				(5)
+#define CIS_LEDS_CAL_MEASURE_CYCLES				(10)
 
 #define CAL_POWER_INC				10
 #define CAL_POWER_MIN				10
@@ -44,7 +44,7 @@
 /* Private function prototypes -----------------------------------------------*/
 static void leastSquares(float32_t* x, float32_t* y, uint32_t n, float32_t* a, float32_t* b, float32_t* c);
 static void cis_setLedsPower(int32_t power);
-static void cis_StartPolynomialCalibration(uint16_t iterationNb, struct RGB_Calibration* rgbCalibration);
+void cis_StartPolynomialCalibration(struct RGB_Calibration* rgbCalibration);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -54,7 +54,7 @@ int cis_polyCalInit(void)
 	uint16_t iterationNb = 5; // Changer cela selon votre besoin
 
 	// Appel de la fonction cis_StartPolynomialCalibration
-	cis_StartPolynomialCalibration(iterationNb, &rgbCalibration);
+	//cis_StartPolynomialCalibration(iterationNb, &rgbCalibration);
 
 	// Votre code continue ici
 
@@ -107,6 +107,8 @@ void cis_getMeanAtLedPower(struct RAWImage RAWImage, struct cisLeds_Calibration 
 {
 	cis_LedPowerAdj(led_PWM, led_PWM, led_PWM);
 
+	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+
 	// Capture a raw image
 	cis_getRAWImage(cisDataCpy_f32, CIS_LEDS_CAL_MEASURE_CYCLES);
 
@@ -121,6 +123,8 @@ void cis_getMeanAtLedPower(struct RAWImage RAWImage, struct cisLeds_Calibration 
 
 void cis_calibrateLeds(void)
 {
+	printf("----- CIS LED CALIBRATION -----\n");
+
 	// Declare necessary variables and arrays
 	int32_t led_PWM, power;
 	float32_t meanRedValue[CIS_LEDS_MAX_PWM], meanGreenValue[CIS_LEDS_MAX_PWM], meanBlueValue[CIS_LEDS_MAX_PWM];
@@ -197,11 +201,9 @@ void cis_calibrateLeds(void)
 
 #ifdef PRINT_CIS_CALIBRATION
 	// Print the calibration data if the macro is defined
-	printf("Print CIS LEDs Calibration\n");
-
 	for (power = CIS_LEDS_MAX_POMER; --power >= 0;)
 	{
-		printf("Power = %d %%, PWM RGB = %d, %d, %d\n", (int)power, (int)cisLeds_Calibration.redLed[power], (int)cisLeds_Calibration.greenLed_power2PWM[power], (int)cisLeds_Calibration.blueLed_power2PWM[power]);
+		printf("Power = %d %%, PWM RGB = %d, %d, %d\n", (int)power, (int)cisLeds_Calibration.redLed_power2PWM[power], (int)cisLeds_Calibration.greenLed_power2PWM[power], (int)cisLeds_Calibration.blueLed_power2PWM[power]);
 	}
 
 #endif
@@ -220,22 +222,31 @@ void cis_setLedsPower(int32_t power)
  */
 void cis_StartCalibration(uint16_t iterationNb)
 {
+	cis_calibrateLeds();
+
+	printf("------- CIS CALIBRATION -------\n");
+
+	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+
 	int32_t Leds_Power_Array[11] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
 
-	memset((float32_t *)&RAWImageCalibration[0], 0, sizeof(struct RAWImage));
-	memset((float32_t *)&RAWImageCalibration[11], 4095, sizeof(struct RAWImage));
-
+	memset(cisDataCpy_f32, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 	// Cycle through power increments
-	for (uint16_t power_idx = 1; power_idx < 9; power_idx ++)
+	for (int32_t power_idx = 10; power_idx >= 0; power_idx--)
 	{
 		//uint32_t current_ADC_value = (Leds_Power_Array[power_idx] * 4095) / 100;
 
 		cis_setLedsPower(Leds_Power_Array[power_idx]);
+		HAL_Delay(5);
 
 		cis_getRAWImage(cisDataCpy_f32, iterationNb);
 		cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImageCalibration[power_idx]);
 	}
+
+	cis_setLedsPower(100);
+
+	cis_StartPolynomialCalibration(rgbCalibration);
 }
 
 float calibratePixel(int pixelIndex, float rawValue, int interval, float32_t *colorLine) {
@@ -249,9 +260,11 @@ float calibratePixel(int pixelIndex, float rawValue, int interval, float32_t *co
     return y1 + (rawValue - x1) * (y2 - y1) / (x2 - x1);
 }
 
-void calibrate(struct RAWImage* rawImage) {
+void calibrate(struct RAWImage* rawImage)
+{
     // Parcourir chaque pixel
-    for (int i = 0; i < CIS_PIXELS_NB; ++i) {
+    for (int i = 0; i < CIS_PIXELS_NB; ++i)
+    {
         // Trouver l'intervalle où se trouve la valeur brute
         int interval = rawImage->redLine[i] / 409.5; // Supposer que les valeurs sont réparties uniformément entre 0 et 4095
         if (interval >= 10) { // Si on dépasse la limite, retourner la dernière valeur connue
@@ -283,108 +296,66 @@ void calibrate(struct RAWImage* rawImage) {
  * @param  rgbCalibration: pointer to structure containing calibration coefficients for all three RGB components
  * @retval None
  */
-/*
-void cis_StartPolynomialCalibration(uint16_t iterationNb, struct RGB_Calibration* rgbCalibration)
+void cis_StartPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
 {
-	struct RAWImage RAWImage = {0};
-	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+    // Assumer que les niveaux de luminosité sont stockés dans un tableau séparé:
+	float32_t luminosityLevels[11] = {
+	    0.0f, 409.5f, 819.0f, 1228.5f, 1638.0f,
+	    2047.5f, 2457.0f, 2866.5f, 3276.0f, 3685.5f,
+	    4095.0f
+	};
 
-	// For each calibration iteration
-	cis_calibrateLeds();  // Calibrate LEDs
+    // Pour chaque pixel, calculer les coefficients de calibration
+    for (uint16_t pixel = 0; pixel < CIS_PIXELS_NB; pixel++) {
+        // Créer les tableaux x et y pour la méthode des moindres carrés pour chaque couleur
+        float32_t yRed[11], yGreen[11], yBlue[11];
 
-	// Retrieve RGB images for this iteration
-	float32_t redLine[CAL_POWER_NB_INC][CIS_PIXELS_NB], greenLine[CAL_POWER_NB_INC][CIS_PIXELS_NB], blueLine[CAL_POWER_NB_INC][CIS_PIXELS_NB];
+        // Remplir les tableaux avec les données de calibration pour chaque couleur et chaque niveau de luminosité
+        for (uint16_t lvl = 0; lvl < 11; lvl++) {
+            yRed[lvl] = RAWImageCalibration[lvl].redLine[pixel];
+            yGreen[lvl] = RAWImageCalibration[lvl].greenLine[pixel];
+            yBlue[lvl] = RAWImageCalibration[lvl].blueLine[pixel];
+        }
 
-	// Cycle through power increments
-	for (uint16_t power_cycle = 0; power_cycle < CAL_POWER_NB_INC; power_cycle++)
-	{
-		// Set LED power and get RGB image
-		cis_setLedsPower(power_cycle * CAL_POWER_INC + CAL_POWER_MIN);
-
-		cis_getRAWImage(cisDataCpy_f32, iterationNb);
-		cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-		arm_copy_f32(RAWImage.redLine, &redLine[power_cycle][0], CIS_PIXELS_NB);
-		arm_copy_f32(RAWImage.greenLine, &greenLine[power_cycle][0], CIS_PIXELS_NB);
-		arm_copy_f32(RAWImage.blueLine, &blueLine[power_cycle][0], CIS_PIXELS_NB);
-	}
-
-	// For each pixel, calculate the calibration coefficients
-	for (uint16_t pixel = 0; pixel < CIS_PIXELS_NB; pixel++)
-	{
-		// Create x and y arrays for the least squares method
-		float32_t x[CAL_POWER_NB_INC], y[CAL_POWER_NB_INC];
-
-		// Fill in arrays and calculate least squares for red line
-		for (uint16_t power_cycle = 0; power_cycle < CAL_POWER_NB_INC; power_cycle++)
-		{
-			x[power_cycle] = (CIS_ADC_MAX_VALUE * (power_cycle * CAL_POWER_INC + CAL_POWER_MIN)) / 100.00;
-			y[power_cycle] = redLine[power_cycle][pixel];
-		}
-		cis_leastSquares(x, y, CAL_POWER_NB_INC, &rgbCalibration->red[pixel].a, &rgbCalibration->red[pixel].b, &rgbCalibration->red[pixel].c);
-
-		// Fill in arrays and calculate least squares for green line
-		for (uint16_t power_cycle = 0; power_cycle < CAL_POWER_NB_INC; power_cycle++)
-		{
-			x[power_cycle] = (CIS_ADC_MAX_VALUE * (power_cycle * CAL_POWER_INC + CAL_POWER_MIN)) / 100.00;
-			y[power_cycle] = greenLine[power_cycle][pixel];
-		}
-		cis_leastSquares(x, y, CAL_POWER_NB_INC, &rgbCalibration->green[pixel].a, &rgbCalibration->green[pixel].b, &rgbCalibration->green[pixel].c);
-
-		// Fill in arrays and calculate least squares for blue line
-		for (uint16_t power_cycle = 0; power_cycle < CAL_POWER_NB_INC; power_cycle++)
-		{
-			x[power_cycle] = (CIS_ADC_MAX_VALUE * (power_cycle * CAL_POWER_INC + CAL_POWER_MIN)) / 100.00;
-			y[power_cycle] = blueLine[power_cycle][pixel];
-		}
-		cis_leastSquares(x, y, CAL_POWER_NB_INC, &rgbCalibration->blue[pixel].a, &rgbCalibration->blue[pixel].b, &rgbCalibration->blue[pixel].c);
-	}
+        // Calculer les moindres carrés pour chaque couleur
+        cis_leastSquares(luminosityLevels, yRed, 11, &rgbCalibration->red[pixel].a, &rgbCalibration->red[pixel].b, &rgbCalibration->red[pixel].c);
+        cis_leastSquares(luminosityLevels, yGreen, 11, &rgbCalibration->green[pixel].a, &rgbCalibration->green[pixel].b, &rgbCalibration->green[pixel].c);
+        cis_leastSquares(luminosityLevels, yBlue, 11, &rgbCalibration->blue[pixel].a, &rgbCalibration->blue[pixel].b, &rgbCalibration->blue[pixel].c);
+    }
+    // La fonction cis_leastSquares() doit être adaptée ou écrite pour traiter une régression polynomiale si ce n'est déjà le cas.
 }
- */
-/*
-void cis_StartPolynomialCalibration_WIP(uint16_t iterationNb)
-{
-	Set header description
-	printf("------ START CALIBRATION ------\n");
-	-------- 1 --------
-	// Read black and white level
 
-	shared_var.cis_cal_progressbar = 0;
-	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
+
+void applyCalibrationToColorLine(float32_t* colorLine, struct CalibrationCoefficients* coeff, uint32_t numPixels)
+{
+    float32_t temp1[numPixels], temp2[numPixels];
+
+    // Calculate colorLine^2 and store in temp1
+    arm_mult_f32(colorLine, colorLine, temp1, numPixels);
+
+    // Calculate a * colorLine^2 and store in temp1
+    arm_scale_f32(temp1, coeff->a, temp1, numPixels);
+
+    // Calculate b * colorLine and store in temp2
+    arm_scale_f32(colorLine, coeff->b, temp2, numPixels);
+
+    // Add a * colorLine^2 and b * colorLine and store in temp1
+    arm_add_f32(temp1, temp2, temp1, numPixels);
+
+    // Add c to each element of temp1 and store back in colorLine
+    arm_offset_f32(temp1, coeff->c, colorLine, numPixels);
 }
- */
 
-
-/**
- * @brief  Applique la calibration à une ligne de couleur
- * @param   struct ColorLine*  ColorLine - ligne de couleur et coefficients de calibration
- * @retval None
- */
-/*
-void applyCalibrationToColorLine( struct ColorLine* colorLine)
+void cis_ApplyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration)
 {
-	float32_t temp1[CIS_PIXELS_NB], temp2[CIS_PIXELS_NB];
+    // Apply calibration to the red color line
+    applyCalibrationToColorLine(RAWImage->redLine, rgbCalibration->red, CIS_PIXELS_NB);
 
-	// Calculate X^2 and apply calibration
-	arm_mult_f32(colorLine->line, colorLine->line, temp1, CIS_PIXELS_NB);
-	arm_mult_f32(temp1, &(colorLine->coeff->a), temp1, CIS_PIXELS_NB);
-	arm_mult_f32(colorLine->line, &(colorLine->coeff->b), temp2, CIS_PIXELS_NB);
-	arm_add_f32(temp1, temp2, temp1, CIS_PIXELS_NB);
-	arm_offset_f32(temp1, colorLine->coeff->c, colorLine->line, CIS_PIXELS_NB);
-}
- */
+    // Apply calibration to the green color line
+    applyCalibrationToColorLine(RAWImage->greenLine, rgbCalibration->green, CIS_PIXELS_NB);
 
-/**
- * @brief  Applique la calibration à une image RGB
- * @param  RGBImage* image - image brute
- * @retval None
- */
-void cis_ApplyCalibration(struct RAWImage* RAWImage)
-{
-	/*
-    applyCalibrationToColorLine(&(RAWImage->redLine));
-    applyCalibrationToColorLine(&(RAWImage->greenLine));
-    applyCalibrationToColorLine(&(RAWImage->blueLine));
-	 */
+    // Apply calibration to the blue color line
+    applyCalibrationToColorLine(RAWImage->blueLine, rgbCalibration->blue, CIS_PIXELS_NB);
 }
 
 /**
@@ -399,6 +370,8 @@ void cis_ConvertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
 
 	for(i = 0; i < CIS_PIXELS_NB; i++)
 	{
+		//RGBimage[i] = 0;
+
 		int32_t r = (int32_t)(RAWImage->redLine[i]) >> 4;   // Convert float to uint32 and keep only lower 8 bits
 		int32_t g = (int32_t)(RAWImage->greenLine[i]) >> 4; // Convert float to uint32 and keep only lower 8 bits
 		int32_t b = (int32_t)(RAWImage->blueLine[i]) >> 4;  // Convert float to uint32 and keep only lower 8 bits

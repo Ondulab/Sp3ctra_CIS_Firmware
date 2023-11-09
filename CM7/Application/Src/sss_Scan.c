@@ -52,7 +52,6 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 int sss_Scan(void)
 {
 	printf("----- ETHERNET MODE START -----\n");
-	printf("-------------------------------\n");
 
 #ifndef ETHERNET_OFF
 	MX_LWIP_Init();
@@ -75,15 +74,28 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			cis_StartLinearCalibration(500);
+			//cis_StartLinearCalibration(500);
 			//cis_StartPolynomialCalibration(500); //WIP
-			//cis_calibrateLeds(); //WIP
-			//cis_StartCalibration(10); //WIP
-			//shared_var.cis_cal_state = CIS_CAL_END; //WIP
+			cis_StartCalibration(20); //WIP
+
+#ifdef PRINT_CIS_CALIBRATION
+			for (int32_t power_idx = 0; power_idx < 11; power_idx++)
+			{
+				for (int i = 0; i < 50; i++)
+				{
+					cis_ConvertRAWImageToRGBImage(&RAWImageCalibration[power_idx], imageData);
+
+					SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
+					udp_clientSendImage(imageData);
+				}
+			}
+			HAL_Delay(2000);
+#endif
+			//shared_var.cis_cal_state = CIS_CAL_END; //WIPx
 		}
 
-		//cis_ImageProcessRGB_2(imageData); //WIP
-		cis_ImageProcessRGB(imageData);
+		cis_ImageProcessRGB_2(imageData); //WIP
+		//cis_ImageProcessRGB(imageData);
 		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
 
 #ifndef ETHERNET_OFF

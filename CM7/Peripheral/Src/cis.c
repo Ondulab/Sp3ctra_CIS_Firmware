@@ -63,7 +63,6 @@ static void cis_ADC_Init(void);
 void cis_Init()
 {
 	printf("----------- CIS INIT ----------\n");
-	printf("-------------------------------\n");
 
 	printf("CIS END CAPTURE = %d\n", CIS_LINE_SIZE);
 
@@ -71,7 +70,7 @@ void cis_Init()
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
 	memset((int16_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
-	memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	//memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
 	cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
@@ -207,7 +206,10 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 		acc ++;
 	}
 
-	arm_scale_f32(cisDataCpy_f32, 1.00 / (float64_t)(shared_var.cis_oversampling), cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	if ( overSampling > 1)
+	{
+		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	}
 }
 
 void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
@@ -231,10 +233,11 @@ void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage*
 void cis_ImageProcessRGB_2(int32_t *cis_buff)
 {
 	static struct RAWImage RAWImage = {0};
+	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-	calibrate(&RAWImage);
+	cis_ApplyCalibration(&RAWImage, &rgbCalibration[CIS_PIXELS_NB]);
 	cis_ConvertRAWImageToRGBImage(&RAWImage, cis_buff);
 }
 

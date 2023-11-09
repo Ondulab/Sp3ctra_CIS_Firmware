@@ -157,9 +157,9 @@ int main(void)
   MX_QUADSPI_Init();
   /* USER CODE BEGIN 2 */
 
-	printf("----------------------------------------------------------\n");
-	printf("--------- Sectral Synth Scanner CIS module START ---------\n");
-	printf("----------------------------------------------------------\n");
+	printf("-------------------------------\n");
+	printf("|           CIS START         |\n");
+	printf("-------------------------------\n");
 
 	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
 	shared_var.cis_scanDir = 1;
@@ -355,7 +355,7 @@ void MPU_Config(void)
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER2;
   MPU_InitStruct.BaseAddress = 0x24000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_64B;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 

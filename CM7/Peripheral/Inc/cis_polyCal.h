@@ -14,7 +14,7 @@
 /* Structure pour une ligne de couleur */
 struct ColorLine{
     float32_t* line;
-     struct CalibrationCoefficients* coeff;
+    struct CalibrationCoefficients* coeff;
 };
 
 /*
@@ -31,6 +31,7 @@ struct RGB_CalibrationCoefficients{
 void cis_ConvertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage);
 void cis_StartCalibration(uint16_t iterationNb);
 void calibrate(struct RAWImage* rawImage);
+void cis_ApplyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration);
 void cis_calibrateLeds(void);
 
 #endif /* __CIS_POLYCAL_H__ */
