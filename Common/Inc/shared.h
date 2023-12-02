@@ -75,10 +75,11 @@ struct RGB_Calibration {
 
 
 __attribute__((aligned(4)))
+__attribute__ ((packed))
 struct cisLeds_Calibration {
-	int32_t redLed_power2PWM[CIS_LEDS_MAX_PWM];
-	int32_t greenLed_power2PWM[CIS_LEDS_MAX_PWM];
-	int32_t blueLed_power2PWM[CIS_LEDS_MAX_PWM];
+	int32_t redLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
+	int32_t greenLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
+	int32_t blueLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
 	int32_t redLed_maxPulse;
 	int32_t greenLed_maxPulse;
 	int32_t blueLed_maxPulse;
@@ -107,7 +108,7 @@ struct RAWImage{
 extern struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
-extern struct RGB_Calibration rgbCalibration[CIS_PIXELS_NB];
+extern struct RGB_Calibration rgbCalibration;
 extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern int32_t imageData[CIS_PIXELS_NB];

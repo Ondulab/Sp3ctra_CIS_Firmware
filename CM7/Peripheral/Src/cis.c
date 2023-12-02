@@ -90,7 +90,7 @@ void cis_Init()
 	cis_TIM_CLK_Init();
 	cis_TIM_MAIN_Init();
 
-	cis_linealCalibrationInit();
+	//cis_linealCalibrationInit();
 
 	cis_Start_capture();
 }
@@ -237,7 +237,7 @@ void cis_ImageProcessRGB_2(int32_t *cis_buff)
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-	cis_ApplyCalibration(&RAWImage, &rgbCalibration[CIS_PIXELS_NB]);
+	cis_ApplyCalibration(&RAWImage, &rgbCalibration);
 	cis_ConvertRAWImageToRGBImage(&RAWImage, cis_buff);
 }
 
