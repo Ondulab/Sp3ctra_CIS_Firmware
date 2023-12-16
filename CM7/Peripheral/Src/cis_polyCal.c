@@ -269,7 +269,7 @@ void applyScalingAndClipping(struct RGB_Calibration* rgbCalibration, float32_t s
 
     // Log pour les 10 premiers pixels après scaling et écrêtage
     for (uint32_t i = 0; i < 10; i++) {
-        printf("Pixel %d - Scaled and Clipped Coefficients: Red(a: %f)\n", i, rgbCalibration->red[i].a);
+        printf("Pixel %d - Scaled and Clipped Coefficients: Red(a: %f)\n", (int)i, rgbCalibration->red[i].a);
         // Répétez pour les coefficients b et c si nécessaire
     }
 }

@@ -15,249 +15,237 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
-#include <stdbool.h>
 
-/* Private includes ----------------------------------------------------------*/
+typedef enum {
+      dps2000 = 0x00,
+      dps1000 = 0x01,
+      dps500 = 0x02,
+      dps250 = 0x03,
+      dps125 = 0x04,
+      dps62_5 = 0x05,
+      dps31_25 = 0x06,
+      dps15_625 = 0x07
+} GyroFS;
 
-/* Exported types ------------------------------------------------------------*/
+typedef enum {
+      gpm16 = 0x00,
+      gpm8 = 0x01,
+      gpm4 = 0x02,
+      gpm2 = 0x03
+} AccelFS;
 
-/***** Enums *****/
+typedef enum {
+      odr32k = 0x01, // LN mode only
+      odr16k = 0x02, // LN mode only
+      odr8k = 0x03, // LN mode only
+      odr4k = 0x04, // LN mode only
+      odr2k = 0x05, // LN mode only
+      odr1k = 0x06, // LN mode only
+      odr200 = 0x07,
+      odr100 = 0x08,
+      odr50 = 0x09,
+      odr25 = 0x0A,
+      odr12_5 = 0x0B,
+      odr6a25 = 0x0C, // LP mode only (accel only)
+      odr3a125 = 0x0D, // LP mode only (accel only)
+      odr1a5625 = 0x0E, // LP mode only (accel only)
+      odr500 = 0x0F,
+} ODR;
 
-/** Enumerated value corresponds with A_DLPF_CFG in the ACCEL_CONFIG2 register
-  * unless BYPASS is specified in the name. If BYPASS is used, the DLPF is
-  * removed from the signal path and ACCEL_FCHOICE_B is set in the
-  * ACCEL_CONFIG2 register. */
-enum icm42688_accel_dlpf {
-  ICM42688_ACCEL_DLPF_218_1_HZ = 0, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_99_HZ = 2, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_44_8_HZ = 3, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_21_2_HZ = 4, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_10_2_HZ = 5, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_5_1_HZ = 6, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_420_HZ = 7, // data clocked at 1kHz
-  ICM42688_ACCEL_DLPF_BYPASS_1046_HZ, // no filter, data clocked at 4kHz
-};
+typedef struct {
+    uint8_t address;
+    uint8_t csPin;
+} ICM42688;
 
-/** Enumerated value corresponds with ACCEL_FS_SEL in the ACCEL_CONFIG
-  * register. Values listed are the full +/- G range. */
-enum icm42688_accel_g {
-  ICM42688_ACCEL_RANGE_2G = 0,
-  ICM42688_ACCEL_RANGE_4G = 1,
-  ICM42688_ACCEL_RANGE_8G = 2,
-  ICM42688_ACCEL_RANGE_16G = 3,
-};
+///\brief Constants
+#define WHO_AM_I			0xDB
+#define NUM_CALIB_SAMPLES 	1000
 
-/** Enumerated value corresponds with DLPF_CFG in the CONFIG register unless
-  * BYPASS is specified in the name. If BYPASS is used, the DLPF is removed
-  * from the signal path and FCHOICE_B is set in GYRO_CONFIG register. */
-enum icm42688_gyro_dlpf {
-  ICM42688_GYRO_DLPF_250_HZ = 0, // data clocked at 8kHz
-  ICM42688_GYRO_DLPF_176_HZ = 1, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_92_HZ = 2, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_41_HZ = 3, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_20_HZ = 4, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_10_HZ = 5, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_5_HZ = 6, // data clocked at 1kHz
-  ICM42688_GYRO_DLPF_3281_HZ = 7, // data clocked at 8kHz
-  ICM42688_GYRO_DLPF_BYPASS_3281_HZ, // no filter, data clocked at 32kHz
-  ICM42688_GYRO_DLPF_BYPASS_8173_HZ, // no filter, data clocked at 32kHz
-};
+///\brief Conversion formula to get temperature in Celsius (Sec 4.13)
+#define TEMP_DATA_REG_SCALE 132.48f
+#define TEMP_OFFSET			25.0f
 
-/** Enumerated value corresponds with FS_SEL in the GYRO_CONFIG register.
-  * Values listed are the full +/- DPS range. */
-enum icm42688_gyro_dps {
-  ICM42688_GYRO_RANGE_250_DPS = 0,
-  ICM42688_GYRO_RANGE_500_DPS = 1,
-  ICM42688_GYRO_RANGE_1000_DPS = 2,
-  ICM42688_GYRO_RANGE_2000_DPS = 3,
-};
+#define FIFO_EN				0x23
+#define FIFO_TEMP_EN		0x04
+#define FIFO_GYRO			0x02
+#define FIFO_ACCEL			0x01
+// #define FIFO_COUNT = 0x2E;
+// #define FIFO_DATA = 0x30;
 
-/***** Structs *****/
+// BANK 1
+// #define GYRO_CONFIG_STATIC2 = 0x0B;
+#define GYRO_NF_ENABLE		0x00
+#define GYRO_NF_DISABLE 	0x01
+#define GYRO_AAF_ENABLE 	0x00
+#define GYRO_AAF_DISABLE 	0x02
 
-struct icm42688_dev {
-  /// Set to "true" to configure the accelerometer.
-  bool use_accel;
-  /// Enable or disable fifo for accelerometer.
-  bool accel_fifo;
-  /// Select the digital low pass filter to use with the accelerometer.
-  enum icm42688_accel_dlpf accel_dlpf;
-  /// Select the accelerometer's g-force range.
-  enum icm42688_accel_g accel_g;
+// BANK 2
+// #define ACCEL_CONFIG_STATIC2 = 0x03;
+#define ACCEL_AAF_ENABLE 	0x00
+#define ACCEL_AAF_DISABLE 	0x01
 
-  /// Set to "true" to configure the gyroscope.
-  bool use_gyro;
-  /// Enable or disable fifo for gyroscope.
-  bool gyro_fifo;
-  /// Select the digital low pass filter to use with the gyroscope.
-  enum icm42688_gyro_dlpf gyro_dlpf;
-  /// Select the gyroscope's degrees per second range.
-  enum icm42688_gyro_dps gyro_dps;
+// private functions
+int icm42688_writeRegister(uint8_t subAddress, uint8_t data);
+int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
+int icm42688_setBank(uint8_t bank);
 
-  /// Divides the data clock for both the accelerometer and gyroscope.
-  uint8_t sample_rate_div;
+/**
+ * @brief      Software reset of the device
+ */
+void icm42688_reset();
 
-  /// Disable hardware I2C communications to chip, recommeded if using SPI.
-  bool i2c_disable;
-};
-/* Exported constants --------------------------------------------------------*/
+/**
+ * @brief      Read the WHO_AM_I register
+ *
+ * @return     Value of WHO_AM_I register
+ */
+uint8_t icm42688_whoAmI();
 
-/* Exported macro ------------------------------------------------------------*/
+typedef struct {
+    uint8_t enFifoAccel;
+    uint8_t enFifoGyro;
+    uint8_t enFifoTemp;
+    size_t fifoSize;
+    size_t fifoFrameSize;
+    float axFifo[85];
+    float ayFifo[85];
+    float azFifo[85];
+    size_t aSize;
+    float gxFifo[85];
+    float gyFifo[85];
+    float gzFifo[85];
+    size_t gSize;
+    float tFifo[256];
+    size_t tSize;
+} ICM42688_FIFO;
 
-/* Exported functions prototypes ---------------------------------------------*/
+    /**
+     * @brief      Constructor for I2C communication
+     *
+     * @param      bus      I2C bus
+     * @param[in]  address  Address of ICM 42688-p device
+     */
+    //ICM42688(TwoWire &bus, uint8_t address);
 
-/** \brief Initializes the ICM42688 sensor.
-  * \param config pointer to configuration struct
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_init(void);
+    /**
+     * @brief      Constructor for SPI communication
+     *
+     * @param      bus    SPI bus
+     * @param[in]  csPin  Chip Select pin
+     */
+    //ICM42688(SPIClass &bus, uint8_t csPin, uint32_t SPI_HS_CLK=8000000);
 
-/** \brief Reads current G-force values of accelerometer.
-  * \param p_x destination for x G value
-  * \param p_y destination for y G value
-  * \param p_z destination for z G value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_accel(float * p_x, float * p_y,
-  float * p_z);
+    /**
+     * @brief      Initialize the device.
+     *
+     * @return     ret < 0 if error
+     */
+	int icm42688_init();
 
-/** \brief Reads current degrees per second values of gyroscope.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_gyro(float * p_x, float * p_y,
-  float * p_z);
+    /**
+     * @brief      Sets the full scale range for the accelerometer
+     *
+     * @param[in]  fssel  Full scale selection
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_setAccelFS(AccelFS fssel);
 
-/** \brief Reads current values of accelerometer and gyroscope.
-  * \param p_ax destination for accelerometer x G value
-  * \param p_ay destination for accelerometer y G value
-  * \param p_az destination for accelerometer z G value
-  * \param p_gx destination for gyroscope x DPS value
-  * \param p_gy destination for gyroscope y DPS value
-  * \param p_gz destination for gyroscope z DPS value
-  * \param p_t destination for temperature degrees C value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_data(float * p_ax, float * p_ay,
-  float * p_az, float * p_gx, float * p_gy, float * p_gz, float * p_t);
+    /**
+     * @brief      Sets the full scale range for the gyro
+     *
+     * @param[in]  fssel  Full scale selection
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_setGyroFS(GyroFS fssel);
 
-/** \brief Reads current raw values of accelerometer.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_accel_raw(int16_t * p_x, int16_t * p_y,
-  int16_t * p_z);
+    /**
+     * @brief      Set the ODR for accelerometer
+     *
+     * @param[in]  odr   Output data rate
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_setAccelODR(ODR odr);
 
-/** \brief Reads current raw values of gyroscope.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_gyro_raw(int16_t * p_x, int16_t * p_y,
-  int16_t * p_z);
+    /**
+     * @brief      Set the ODR for gyro
+     *
+     * @param[in]  odr   Output data rate
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_setGyroODR(ODR odr);
 
-/** \brief Reads current raw values of accelerometer and gyroscope.
-  * \param p_ax destination for accelerometer x value
-  * \param p_ay destination for accelerometer y value
-  * \param p_az destination for accelerometer z value
-  * \param p_gx destination for gyroscope x value
-  * \param p_gy destination for gyroscope y value
-  * \param p_gz destination for gyroscope z value
-  * \param p_t destination for temperature value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_data_raw(int16_t * p_ax,
-  int16_t * p_ay, int16_t * p_az, int16_t * p_gx, int16_t * p_gy,
-  int16_t * p_gz, int16_t * p_t);
+    int icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilters);
 
-/** \brief Reads FIFO G-force values of accelerometer.
-  * \param p_x destination for x G value
-  * \param p_y destination for y G value
-  * \param p_z destination for z G value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_accel_fifo(float * x, float * y,
-  float * z);
+    /**
+     * @brief      Enables the data ready interrupt.
+     *
+     *             - routes UI data ready interrupt to INT1
+     *             - push-pull, pulsed, active HIGH interrupts
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_enableDataReadyInterrupt();
 
-/** \brief Reads FIFO degrees per second values of gyroscope.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_gyro_fifo(float * x, float * y,
-  float * z);
+    /**
+     * @brief      Masks the data ready interrupt
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_disableDataReadyInterrupt();
 
-/** \brief Reads FIFO values of accelerometer and gyroscope. Note, both
-  *        accelerometer and gyroscope fifos should be enabled if this
-  *        function is to be used.
-  * \param p_ax destination for accelerometer x G value
-  * \param p_ay destination for accelerometer y G value
-  * \param p_az destination for accelerometer z G value
-  * \param p_gx destination for gyroscope x DPS value
-  * \param p_gy destination for gyroscope y DPS value
-  * \param p_gz destination for gyroscope z DPS value
-  * \param p_t destination for temperature degrees C value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_fifo_data(float * p_ax, float * p_ay,
-  float * p_az, float * p_gx, float * p_gy, float * p_gz, float * p_t);
+    /**
+     * @brief      Transfers data from ICM 42688-p to microcontroller.
+     *             Must be called to access new measurements.
+     *
+     * @return     ret < 0 if error
+     */
+    int icm42688_getAGT();
 
-/** \brief Reads FIFO raw values of accelerometer.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_fifo_accel_raw(int16_t * p_x,
-  int16_t * p_y, int16_t * p_z);
+    /**
+     * @brief      Get accelerometer data, per axis
+     *
+     * @return     Acceleration in g's
+     */
+    float icm42688_accX();
+    float icm42688_accY();
+    float icm42688_accZ();
 
-/** \brief Reads FIFO raw values of gyroscope.
-  * \param p_x destination for x value
-  * \param p_y destination for y value
-  * \param p_z destination for z value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_fifo_gyro_raw(int16_t * p_x,
-  int16_t * p_y, int16_t * p_z);
+    /**
+     * @brief      Get gyro data, per axis
+     *
+     * @return     Angular velocity in dps
+     */
+    float icm42688_gyrX();
+    float icm42688_gyrY();
+    float icm42688_gyrZ();
 
-/** \brief Reads FIFO raw values of accelerometer and gyroscope. Note, both
-  *        accelerometer and gyroscope fifos should be enabled if this
-  *        function is to be used.
-  * \param p_ax destination for accelerometer x value
-  * \param p_ay destination for accelerometer y value
-  * \param p_az destination for accelerometer z value
-  * \param p_gx destination for gyroscope x value
-  * \param p_gy destination for gyroscope y value
-  * \param p_gz destination for gyroscope z value
-  * \param p_t destination for temperature value
-  * \return zero on success, anything else is an error
-  */
-extern int8_t
-icm42688_read_fifo_data_raw(int16_t * p_ax,
-  int16_t * p_ay, int16_t * p_az, int16_t * p_gx, int16_t * p_gy,
-  int16_t * p_gz, int16_t * p_t);
+    /**
+     * @brief      Get temperature of gyro die
+     *
+     * @return     Temperature in Celsius
+     */
+    float icm42688_temp();
 
-/* Private defines -----------------------------------------------------------*/
+    int icm42688_calibrateGyro();
+    float icm42688_getGyroBiasX();
+    float icm42688_getGyroBiasY();
+    float icm42688_getGyroBiasZ();
+    void icm42688_setGyroBiasX(float bias);
+    void icm42688_setGyroBiasY(float bias);
+    void icm42688_setGyroBiasZ(float bias);
+    int icm42688_calibrateAccel();
+    float icm42688_getAccelBiasX_mss();
+    float icm42688_getAccelScaleFactorX();
+    float icm42688_getAccelBiasY_mss();
+    float icm42688_getAccelScaleFactorY();
+    float icm42688_getAccelBiasZ_mss();
+    float icm42688_getAccelScaleFactorZ();
+    void icm42688_setAccelCalX(float bias,float scaleFactor);
+    void icm42688_setAccelCalY(float bias,float scaleFactor);
+    void icm42688_setAccelCalZ(float bias,float scaleFactor);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /*__ICM_42688_H__*/
+#endif // icm42688_H

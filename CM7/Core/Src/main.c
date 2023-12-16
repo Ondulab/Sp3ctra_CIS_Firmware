@@ -38,8 +38,9 @@
 #include "shared.h"
 
 #include "sss_Scan.h"
-#include "icm42688.h"
 #include "MX25L.h"
+
+#include "icm42688.h"
 
 /* USER CODE END Includes */
 
@@ -199,9 +200,17 @@ int main(void)
 		//		printf("temp. : %d \n", tmp);
 
 		static float accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
-		//Actually we 42688
-		icm42688_read_accel(&accel_x, &accel_y, &accel_z);
-		icm42688_read_gyro(&gyro_x, &gyro_y, &gyro_z);
+
+		// read the sensor
+		icm42688_getAGT();
+
+		accel_x = icm42688_accX();
+		accel_y = icm42688_accY();
+		accel_z = icm42688_accZ();
+
+		gyro_x = icm42688_gyrX();
+		gyro_y = icm42688_gyrY();
+		gyro_z = icm42688_gyrZ();
 
 		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
 		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
@@ -210,6 +219,7 @@ int main(void)
 		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
 		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(500);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

@@ -12,6 +12,7 @@
 #include "config.h"
 #include "main.h"
 #include "arm_math.h"
+#include "shared.h"
 
 typedef enum
 {

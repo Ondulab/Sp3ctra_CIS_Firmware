@@ -27,7 +27,7 @@
 							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.nanoprintffloat.808236505" name="Use float with printf from newlib-nano (-u _printf_float)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.nanoprintffloat" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.nanoscanffloat.283842125" name="Use float with scanf from newlib-nano (-u _scanf_float)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.nanoscanffloat" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 							<option id="com.st.stm32cube.ide.mcu.debug.option.cpuclock.2003783915" name="Cpu clock frequence" superClass="com.st.stm32cube.ide.mcu.debug.option.cpuclock" useByScannerDiscovery="false" value="200" valueType="string"/>
-							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c.273833614" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c.value.nano_c" valueType="enumerated"/>
+							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c.273833614" name="Runtime library" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.option.runtimelibrary_c.value.nano_c" valueType="enumerated"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.targetplatform.1819843700" isAbstract="false" osList="all" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.targetplatform"/>
 							<builder buildPath="${workspace_loc:/SSS_CIS_CM7}/Debug" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.builder.443514576" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.builder"/>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.1052540394" name="MCU GCC Assembler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler">
@@ -143,7 +143,11 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec.583252508" name="MCU Output Converter Motorola S-rec with symbols" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec"/>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.556312427.1945877971" name="icm20602.c" rcbsApplicability="disable" resourcePath="Peripheral/Src/icm20602.c" toolsToInvoke="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.1820905844.918150497">
+						<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.1820905844.918150497" name="MCU GCC Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.1820905844"/>
+					</fileInfo>
 					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.556312427.1437005760" name="cis_linearCal.h" rcbsApplicability="disable" resourcePath="Peripheral/Inc/cis_linearCal.h" toolsToInvoke=""/>
+					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.556312427.228418721" name="icm20602.h" rcbsApplicability="disable" resourcePath="Peripheral/Inc/icm20602.h" toolsToInvoke=""/>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Application"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Common"/>
@@ -151,7 +155,7 @@
 						<entry excluding="CMSIS/DSP/StatisticsFunctions/StatisticsFunctionsF16.c|CMSIS/DSP/StatisticsFunctions/StatisticsFunctions.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctionsF16.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctions.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctionsF16.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctions.c|CMSIS/DSP/FastMathFunctions/FastMathFunctionsF16.c|CMSIS/DSP/FastMathFunctions/FastMathFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctionsF16.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="LWIP"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>
-						<entry excluding="Inc/cis_linearCal.h|Src/cis_linearCal.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
+						<entry excluding="Inc/icm42688_old.h|Src/icm42688_old.c|Inc/cis_linearCal.h|Src/cis_linearCal.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -300,6 +304,8 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec.420240116" name="MCU Output Converter Motorola S-rec with symbols" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objcopy.symbolsrec"/>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.556312427.1458172489.1694695115" name="icm20602.h" rcbsApplicability="disable" resourcePath="Peripheral/Inc/icm20602.h" toolsToInvoke=""/>
+					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.556312427.1458172489.1121571314" name="cis_linearCal.h" rcbsApplicability="disable" resourcePath="Peripheral/Inc/cis_linearCal.h" toolsToInvoke=""/>
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Application"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Common"/>
@@ -307,7 +313,7 @@
 						<entry excluding="CMSIS/DSP/StatisticsFunctions/StatisticsFunctionsF16.c|CMSIS/DSP/StatisticsFunctions/StatisticsFunctions.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctionsF16.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctions.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctionsF16.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctions.c|CMSIS/DSP/FastMathFunctions/FastMathFunctionsF16.c|CMSIS/DSP/FastMathFunctions/FastMathFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctionsF16.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="LWIP"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>
-						<entry excluding="Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
+						<entry excluding="Inc/cis_linearCal.h|Inc/icm20602.h|Inc/icm42688_old.h|Src/icm42688_old.c|Src/icm20602.c|Src/cis_linearCal.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
