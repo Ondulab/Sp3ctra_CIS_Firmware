@@ -74,9 +74,11 @@ int sss_Scan(void)
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
-			//cis_StartLinearCalibration(500);
-			//cis_StartPolynomialCalibration(500); //WIP
+#ifdef POLYNOMIAL_CALIBRATION
 			cis_StartCalibration(20); //WIP
+#else
+			cis_StartLinearCalibration(500);
+#endif
 
 #ifdef PRINT_CIS_CALIBRATION
 			for (int32_t power_idx = 0; power_idx < 11; power_idx++)
@@ -94,8 +96,11 @@ int sss_Scan(void)
 			//shared_var.cis_cal_state = CIS_CAL_END; //WIPx
 		}
 
+#ifdef POLYNOMIAL_CALIBRATION
 		cis_ImageProcessRGB_2(imageData); //WIP
-		//cis_ImageProcessRGB(imageData);
+#else
+		cis_ImageProcessRGB(imageData);
+#endif
 		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
 
 #ifndef ETHERNET_OFF
@@ -104,17 +109,17 @@ int sss_Scan(void)
 
 		shared_var.cis_process_cnt++;
 
-//		if (shared_var.cis_process_cnt % 100 == 0)
-//		{
-//			static uint32_t sw = 0;
-//			sw++;
-//			if (sw % 2)
-////				cis_LedsOff();
-//				cis_Stop_capture();
-//			else
-////				cis_LedsOn();
-//				cis_Start_capture();
-//		}
+		//		if (shared_var.cis_process_cnt % 100 == 0)
+		//		{
+		//			static uint32_t sw = 0;
+		//			sw++;
+		//			if (sw % 2)
+		////				cis_LedsOff();
+		//				cis_Stop_capture();
+		//			else
+		////				cis_LedsOn();
+		//				cis_Start_capture();
+		//		}
 
 	}
 }

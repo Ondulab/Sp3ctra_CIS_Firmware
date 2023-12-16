@@ -70,7 +70,8 @@ void cis_Init()
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
 	memset((int16_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
-	//memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	memset((float32_t *)&cisDataCpy_f32[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
 	cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
@@ -90,7 +91,7 @@ void cis_Init()
 	cis_TIM_CLK_Init();
 	cis_TIM_MAIN_Init();
 
-	//cis_linealCalibrationInit();
+	cis_linealCalibrationInit();
 
 	cis_Start_capture();
 }

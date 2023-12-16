@@ -168,9 +168,12 @@ void cis_StartCalibration()
 {
 	uint8_t textData[256] = {0};
 	shared_var.cis_cal_state = CIS_CAL_START;
+
+#ifdef POLYNOMIAL_CALIBRATION
 	HAL_Delay(200);
 	shared_var.cis_cal_state = CIS_CAL_END;
 	return;
+#endif
 
 	while (shared_var.cis_cal_state != CIS_CAL_END)
 	{

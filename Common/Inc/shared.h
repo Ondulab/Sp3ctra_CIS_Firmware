@@ -58,7 +58,6 @@ struct cisCals {
 	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
 };
 
-
 __attribute__ ((packed))
 struct CalibrationCoefficients {
     float32_t a;
@@ -73,8 +72,6 @@ struct RGB_Calibration {
 	struct CalibrationCoefficients blue[CIS_PIXELS_NB];
 };
 
-
-__attribute__((aligned(4)))
 __attribute__ ((packed))
 struct cisLeds_Calibration {
 	int32_t redLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
@@ -88,7 +85,6 @@ struct cisLeds_Calibration {
 	float32_t blueMeanAtLedPower;
 };
 
-__attribute__((aligned(4)))
 struct shared_var {
 	int32_t cis_process_cnt;
 	int32_t cis_cal_request;
@@ -112,15 +108,9 @@ extern struct RGB_Calibration rgbCalibration;
 extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern int32_t imageData[CIS_PIXELS_NB];
-
-__attribute__((aligned(4)))
 extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];
-
 extern float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3];
-
-__attribute__((aligned(4)))
 extern q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3];
-
 extern int params_size;
 
 /* Exported constants --------------------------------------------------------*/
