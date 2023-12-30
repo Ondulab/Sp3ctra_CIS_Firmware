@@ -47,7 +47,7 @@ MEMORY
 FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
 RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 256K
 RAM_SHARED (rw) 		: ORIGIN = 0x24000000, LENGTH = 64
-RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 440K
+RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
 }
 
 /* Define output sections */
@@ -125,10 +125,15 @@ SECTIONS
   .shared_cached :
   {
     KEEP (*(.imageData));
-    KEEP (*(.cisCals));
-    KEEP (*(.rgbCals));
+    KEEP (*(.rgbBuffers));
     KEEP (*(.cisData));
-    KEEP (*(.cisDataCpy));    
+    KEEP (*(.cisDataCpy)); 
+    KEEP (*(.cisRAWImage));     
+    KEEP (*(.rgbCalibration)); 
+    KEEP (*(.cisLeds_Calibration));     
+    KEEP (*(.cisDataCpy_q31));     
+    KEEP (*(.cisCals));
+    KEEP (*(.rgbCals));  
   } >RAM_SHARED_CACHED
   
   /* used by the startup to initialize data */

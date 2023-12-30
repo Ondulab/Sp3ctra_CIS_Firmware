@@ -32,8 +32,8 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LINE_SIZE + CIS_INACTIVE_WIDTH))
-#define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LINE) - (CIS_GREEN_HALF_SIZE))
+#define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LANE_SIZE + CIS_INACTIVE_WIDTH))
+#define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LANE) - (CIS_GREEN_HALF_SIZE))
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -41,6 +41,7 @@
 
 static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
 static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
+
 
 /* Variable containing ADC conversions data */
 
@@ -64,7 +65,9 @@ void cis_Init()
 {
 	printf("----------- CIS INIT ----------\n");
 
-	printf("CIS END CAPTURE = %d\n", CIS_LINE_SIZE);
+	printf("CIS END CAPTURE = %d\n", CIS_LANE_SIZE);
+
+	stm32_flashCalibrationRW(CIS_READ_CAL);
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
@@ -90,8 +93,6 @@ void cis_Init()
 	cis_TIM_LED_B_Init();
 	cis_TIM_CLK_Init();
 	cis_TIM_MAIN_Init();
-
-	cis_linealCalibrationInit();
 
 	cis_Start_capture();
 }
@@ -119,13 +120,13 @@ void cis_Init()
  *      R2 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
  *     	R3 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  *
- *      G1 = CIS_LINE_SIZE + CIS_START_OFFSET
- *      G2 = CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
- *      G3 = CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
+ *      G1 = CIS_LANE_SIZE + CIS_START_OFFSET
+ *      G2 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+ *      G3 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  *
- *      B1 = CIS_LINE_SIZE * 2 + CIS_START_OFFSET
- *      B2 = CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
- *      B3 = CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
+ *      B1 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET
+ *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+ *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  *
  *	DMA data conversion :
  *
@@ -153,7 +154,7 @@ void cis_Init()
  *	OUTPUT :
  *	Data buffer in 8bits increment
  *
- *              |                LINE1                  ||                LINE2                  ||                LINE3                  |
+ *              |                LANE1                  ||                LANE2                  ||                LANE3                  |
  *	 	HALF => |RG--|RG--|RG--|RG--|R---|R---|R---|R---||RG--|RG--|RG--|RG--|R---|R---|R---|R---||RG--|RG--|RG--|RG--|R---|R---|R---|R---|
  * 		FULL => |--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-||--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-||--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-|
  * 		OUT  => |RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-||RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-||RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|
@@ -166,42 +167,42 @@ void cis_Init()
 void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 {
 	int32_t acc = 0;
-	static int32_t line, i;
+	static int32_t lane, i;
 
 	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 
 	while (acc < overSampling)
 	{
 		// Read and copy half DMAs buffers
-		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF);
+			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisDataCpy_f32[CIS_ADC_BUFF_SIZE * line + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * line + i]);
+				cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
 			}
 
-			cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+			cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
 		}
 
 		// Read and copy full DMAs buffers
-		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL);
+			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+				cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
 			}
 
-			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+			cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
 		}
 
 		acc ++;
@@ -215,20 +216,20 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 
 void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
 {
-	// Get the segments and copy them to the full red line buffer
-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], RAWImage->redLine, CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->redLine[CIS_PIXELS_PER_LINE], CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->redLine[CIS_PIXELS_PER_LINE * 2], CIS_PIXELS_PER_LINE);
+	// Get the segments and copy them to the full red lane buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], RAWImage->redLine, CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->redLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->redLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
 
-	// Get the segments and copy them to the full green line buffer
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET], RAWImage->greenLine, CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->greenLine[CIS_PIXELS_PER_LINE], CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->greenLine[CIS_PIXELS_PER_LINE * 2], CIS_PIXELS_PER_LINE);
+	// Get the segments and copy them to the full green lane buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET], RAWImage->greenLine, CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->greenLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->greenLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
 
-	// Get the segments and copy them to the full blue line buffer
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET], RAWImage->blueLine, CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->blueLine[CIS_PIXELS_PER_LINE], CIS_PIXELS_PER_LINE);
-	arm_copy_f32(&cisDataCpy_f32[CIS_LINE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->blueLine[CIS_PIXELS_PER_LINE * 2], CIS_PIXELS_PER_LINE);
+	// Get the segments and copy them to the full blue lane buffer
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET], RAWImage->blueLine, CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->blueLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->blueLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
 }
 
 void cis_ImageProcessRGB_2(int32_t *cis_buff)
@@ -246,63 +247,26 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 {
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
 	static int32_t tmp_cis_buff[CIS_PIXELS_NB];
-	static int32_t line, i;
+	static int32_t lane, i;
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
-#ifndef CIS_DESACTIVATE_CALIBRATION
-	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
-	{
-		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * line) + CIS_RED_LINE_OFFSET;									//Rx
-		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * line) + CIS_GREEN_LINE_OFFSET;									//Gx
-		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
-
-		//offset compensation
-		/*
-		static float32_t tmpImmactiveAvrg_R = 0.0;
-		static float32_t tmpImmactiveAvrg_G = 0.0;
-		static float32_t tmpImmactiveAvrg_B = 0.0;
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
-
-		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[line];
-		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[line];
-		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[line];
-
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
-		 */
-		//end offset compensation
-
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.blackCal.data[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.blackCal.data[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.blackCal.data[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
-
-		arm_mult_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.gainsData[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		arm_mult_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.gainsData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
-
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 4095, CIS_PIXELS_PER_LINE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 4095, CIS_PIXELS_PER_LINE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 4095, CIS_PIXELS_PER_LINE);
-	}
-#endif
+	cis_ApplyLinearCalibration();
 
 	for (i = (CIS_ADC_BUFF_SIZE * 3); --i >= 0;)
 	{
 		cisDataCpy_q31[i] = (int32_t)(cisDataCpy_f32[i]);
 	}
 
-	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
 
-	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+
+	for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	{
-		imageOffset = (CIS_PIXELS_PER_LINE * line);	//Mx
+		imageOffset = (CIS_PIXELS_PER_LANE * lane);	//Mx
 
-		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * line) + CIS_RED_LINE_OFFSET;									//Rx
-		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * line) + CIS_GREEN_LINE_OFFSET;									//Gx
+		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * lane) + CIS_RED_LANE_OFFSET;									//Rx
+		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * lane) + CIS_GREEN_LANE_OFFSET;									//Gx
 
 		arm_shift_q31(&cisDataCpy_q31[dataOffset_Rx], -4, &cisDataCpy_q31[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 2) - CIS_START_OFFSET); 	//R + Ghalf 8 bit conversion
 
@@ -310,27 +274,27 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 
 		arm_add_q31(&cisDataCpy_q31[dataOffset_Gx], &cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Rx], CIS_GREEN_HALF_SIZE); //Add Green
 
-		dataOffset_Cx = (CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2);								//Cx
-		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * line) + CIS_BLUE_LINE_OFFSET;									//Bx
+		dataOffset_Cx = (CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2);								//Cx
+		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * lane) + CIS_BLUE_LANE_OFFSET;									//Bx
 
 		arm_shift_q31(&cisDataCpy_q31[dataOffset_Cx], -4, &cisDataCpy_q31[dataOffset_Cx], CIS_ADC_BUFF_SIZE / 2); 	//Gfull + B 8 bit conversion
 
 		arm_shift_q31(&cisDataCpy_q31[dataOffset_Cx], 8, &cisDataCpy_q31[dataOffset_Cx], CIS_GREEN_FULL_SIZE); 		//Gfull 8 bit shift
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Bx], 16, &cisDataCpy_q31[dataOffset_Bx], CIS_PIXELS_PER_LINE); 	//B 16 bit shift
+		arm_shift_q31(&cisDataCpy_q31[dataOffset_Bx], 16, &cisDataCpy_q31[dataOffset_Bx], CIS_PIXELS_PER_LANE); 	//B 16 bit shift
 
 		arm_add_q31(&cisDataCpy_q31[dataOffset_Cx], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], CIS_GREEN_FULL_SIZE); //Add Green
 
-		arm_add_q31(&cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Bx], &tmp_cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //Half + Full Data
+		arm_add_q31(&cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Bx], &tmp_cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //Half + Full Data
 
 
-		//		arm_fill_q31(0xFF0000 >> (line * 8), &cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //RGB debug
+		//		arm_fill_q31(0xFF0000 >> (lane * 8), &cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //RGB debug
 	}
 
 	if (shared_var.cis_scanDir)
 	{
 		for (i = CIS_PIXELS_NB; --i >= 0;)
 		{
-			cis_buff[i] = tmp_cis_buff[CIS_PIXELS_NB - i];
+			cis_buff[i] = tmp_cis_buff[CIS_PIXELS_NB - 1 - i];
 		}
 	}
 	else
@@ -342,18 +306,75 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 	}
 
 	//	//debug
-	//	for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+	//	for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	//	{
-	//		imageOffset = (CIS_PIXELS_PER_LINE * line);	//Mx
+	//		imageOffset = (CIS_PIXELS_PER_LANE * lane);	//Mx
 	//
-	//		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * line);									//Rx
+	//		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * lane);									//Rx
 	//
 	//		arm_shift_q31(&cisDataCpy_q31[dataOffset_Rx], -4, &cisDataCpy_q31[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 3)); 	//R + Ghalf 8 bit conversion
-	//		arm_copy_q31(&cisDataCpy_q31[dataOffset_Rx], &cis_buff[imageOffset], CIS_PIXELS_PER_LINE); //Half + Full Data
+	//		arm_copy_q31(&cisDataCpy_q31[dataOffset_Rx], &cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //Half + Full Data
 	//	}
 
-	//fort transmit full data of one line
-	//	arm_copy_q31(&cisDataCpy_q31[0], &cis_buff[0], CIS_PIXELS_PER_LINE * 3);
+	//fort transmit full data of one lane
+	//	arm_copy_q31(&cisDataCpy_q31[0], &cis_buff[0], CIS_PIXELS_PER_LANE * 3);
+}
+
+/**
+ * @brief  Manages Image process.
+ * @param cis image buffer ptr
+ * @retval None
+ *
+ * ---------------------------------------------------
+ *	INPUT :
+ *	DMA buffer in 32bits increment
+ *	o = start offset
+ *	e = over scan
+ *	                                        X1                                   X2                                   X3
+ *		 ___________________________________V ___________________________________V ___________________________________V
+ *		|                DMA1               ||                DMA2               ||                DMA3               |
+ * 		|       HALF      |       FULL      ||       HALF      |       FULL      ||       HALF      |       FULL      |
+ * 		|     R     |     G     |     B     ||     R     |     G     |     B     ||     R     |     G     |     B     |
+ * 		|o |      |e|o |      |e|o |      |e||o |      |e|o |      |e|o |      |e||o |      |e|o |      |e|o |      |e|
+ * 		   ^           ^  ^        ^            ^           ^  ^        ^            ^           ^  ^        ^
+ * 		   R1          G1 C1       B1           R2          G2 C2       B2           R3          G3 C3       B3
+ *
+ *   	R1 = CIS_START_OFFSET
+ *      R2 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+ *     	R3 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
+ *
+ *      G1 = CIS_LANE_SIZE + CIS_START_OFFSET
+ *      G2 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+ *      G3 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
+ *
+ *      B1 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET
+ *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+ *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
+ */
+void cis_ImageProcess_R_G_B(struct cisRgbBuffers *imageBuffers)
+{
+    static int32_t lane, i;
+
+    cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
+
+    cis_ApplyLinearCalibration();
+
+    for (lane = CIS_ADC_OUT_LANES; --lane >= 0;) {
+        for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES); --i >= 0;) {
+            int index;
+            if (shared_var.cis_scanDir) {
+                index = ((CIS_ADC_OUT_LANES - 1 - lane) * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + i;
+            } else {
+                index = (lane * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + i;
+            }
+
+            imageBuffers->R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+            imageBuffers->G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+            imageBuffers->B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+        }
+    }
+
+	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
 }
 
 /**
@@ -363,7 +384,7 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
  */
 void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
 {
-	static int32_t line, iteration, pix, i;
+	static int32_t lane, iteration, pix, i;
 	shared_var.cis_cal_progressbar = 0;
 
 	memset(cisCalData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
@@ -371,40 +392,40 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 	for (iteration = 0; iteration < iterationNb; iteration++)
 	{
 		// Read and copy half DMAs buffers
-		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-			while (cisHalfBufferState[line] != CIS_BUFFER_OFFSET_HALF)
+			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
 			{
 				//				printf("wait \n");
 			}
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * line], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisCalData[CIS_ADC_BUFF_SIZE * line + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * line + i]);
+				cisCalData[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
 			}
-			cisHalfBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+			cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
 		}
 
 		// Read and copy full DMAs buffers
-		for (line = CIS_ADC_OUT_LINES; --line >= 0;)
+		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-			while (cisFullBufferState[line] != CIS_BUFFER_OFFSET_FULL)
+			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
 			{
 				//				printf("wait \n");
 			}
 
 
 			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisCalData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * line) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+				cisCalData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
 			}
-			cisFullBufferState[line] = CIS_BUFFER_OFFSET_NONE;
+			cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
 		}
 		shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
 	}
@@ -432,17 +453,17 @@ void cis_Start_capture()
 	__HAL_TIM_SET_COUNTER(&htim1, 0);
 
 	//Reset SP counter
-	__HAL_TIM_SET_COUNTER(&htim8, CIS_LINE_SIZE - CIS_SP_WIDTH);
+	__HAL_TIM_SET_COUNTER(&htim8, CIS_LANE_SIZE - CIS_SP_WIDTH);
 
 	//Set RGB phase shift
 #ifndef CIS_MONOCHROME
-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LINE_SIZE * 1) - CIS_LED_RED_ON);	//R
-	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LINE_SIZE * 3) - CIS_LED_GREEN_ON);	//G
-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LINE_SIZE * 2) - CIS_LED_BLUE_ON);	//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LANE_SIZE * 1) - CIS_LED_RED_ON);	//R
+	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LANE_SIZE * 3) - CIS_LED_GREEN_ON);	//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LANE_SIZE * 2) - CIS_LED_BLUE_ON);	//B
 #else
-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LINE_SIZE * 1) - CIS_LED_RED_ON);	//R
-	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LINE_SIZE * 1) - CIS_LED_GREEN_ON);	//G
-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LINE_SIZE * 1) - CIS_LED_BLUE_ON);	//B
+	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LANE_SIZE * 1) - CIS_LED_RED_ON);	//R
+	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LANE_SIZE * 1) - CIS_LED_GREEN_ON);	//G
+	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LANE_SIZE * 1) - CIS_LED_BLUE_ON);	//B
 #endif
 
 	/* Start LEDs ############################################*/

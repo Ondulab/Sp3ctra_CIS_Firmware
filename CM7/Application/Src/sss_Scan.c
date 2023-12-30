@@ -101,7 +101,7 @@ int sss_Scan(void)
 #else
 		cis_ImageProcessRGB(imageData);
 #endif
-		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t)));
+		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t) * 3));
 
 #ifndef ETHERNET_OFF
 		udp_clientSendImage(imageData);

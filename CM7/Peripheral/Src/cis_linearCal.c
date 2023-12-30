@@ -41,11 +41,58 @@ static void cis_ComputeCalsGains(CIS_Color_TypeDef color);
 
 /* Private user code ---------------------------------------------------------*/
 
-void cis_linealCalibrationInit()
+void cis_lanealCalibrationInit()
 {
 	stm32_flashCalibrationRW(CIS_READ_CAL);
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+void cis_ApplyLinearCalibration(void)
+{
+#ifndef CIS_DESACTIVATE_CALIBRATION
+	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Bx;
+
+	for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+	{
+		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * lane) + CIS_RED_LANE_OFFSET;									//Rx
+		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * lane) + CIS_GREEN_LANE_OFFSET;									//Gx
+		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * lane) + CIS_BLUE_LANE_OFFSET;									//Bx
+
+		//offset compensation
+		/*
+		static float32_t tmpImmactiveAvrg_R = 0.0;
+		static float32_t tmpImmactiveAvrg_G = 0.0;
+		static float32_t tmpImmactiveAvrg_B = 0.0;
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
+		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
+
+		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[lane];
+		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[lane];
+		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[lane];
+
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
+		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
+		 */
+		//end offset compensation
+
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.blackCal.data[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LANE);
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.blackCal.data[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.blackCal.data[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
+
+		arm_mult_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.gainsData[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LANE);
+		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
+		arm_mult_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.gainsData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
+
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 4095, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 4095, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 4095, CIS_PIXELS_PER_LANE);
+	}
+#endif
+}
+#pragma GCC pop_options
 
 /**
  * @brief  CIS get inactive pixels average
@@ -55,33 +102,33 @@ void cis_linealCalibrationInit()
  */
 void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
 {
-	int32_t lineOffset = 0, offset = 0;
+	int32_t laneOffset = 0, offset = 0;
 	struct cisColorsParams *currColor;
 
 	switch (color)
 	{
 	case CIS_RED :
 		currColor = &currCisCals->red;
-		offset = CIS_RED_LINE_OFFSET - CIS_INACTIVE_WIDTH;
+		offset = CIS_RED_LANE_OFFSET - CIS_INACTIVE_WIDTH;
 		break;
 	case CIS_GREEN :
 		currColor = &currCisCals->green;
-		offset = CIS_GREEN_LINE_OFFSET - CIS_INACTIVE_WIDTH;
+		offset = CIS_GREEN_LANE_OFFSET - CIS_INACTIVE_WIDTH;
 		break;
 	case CIS_BLUE :
 		currColor = &currCisCals->blue;
-		offset = CIS_BLUE_LINE_OFFSET - CIS_INACTIVE_WIDTH;
+		offset = CIS_BLUE_LANE_OFFSET - CIS_INACTIVE_WIDTH;
 		break;
 	default :
 		Error_Handler();
 		return;
 	}
 
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
+	for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
+		laneOffset = (CIS_ADC_BUFF_SIZE * lane) + offset;
 		// Extrat average value for innactives pixels
-		arm_mean_f32(&currCisCals->data[lineOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[line]);
+		arm_mean_f32(&currCisCals->data[laneOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[lane]);
 	}
 
 #ifdef PRINT_CIS_CALIBRATION
@@ -99,22 +146,22 @@ void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCisCals, CIS_Color_Ty
 void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
 {
 	float32_t tmpMaxpix = 0, tmpMinpix = 0;
-	int32_t lineOffset = 0, offset = 0;
+	int32_t laneOffset = 0, offset = 0;
 	struct cisColorsParams *currColor;
 
 	switch (color)
 	{
 	case CIS_RED :
 		currColor = &currCisCals->red;
-		offset = CIS_RED_LINE_OFFSET;
+		offset = CIS_RED_LANE_OFFSET;
 		break;
 	case CIS_GREEN :
 		currColor = &currCisCals->green;
-		offset = CIS_GREEN_LINE_OFFSET;
+		offset = CIS_GREEN_LANE_OFFSET;
 		break;
 	case CIS_BLUE :
 		currColor = &currCisCals->blue;
-		offset = CIS_BLUE_LINE_OFFSET;
+		offset = CIS_BLUE_LANE_OFFSET;
 		break;
 	default :
 		Error_Handler();
@@ -124,12 +171,12 @@ void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDe
 	currColor->maxPix = 0;
 	currColor->minPix = 0xFFFF;
 
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
+	for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
+		laneOffset = (CIS_ADC_BUFF_SIZE * lane) + offset;
 		// Extrat Min Max and delta
-		arm_max_f32(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMaxpix, NULL);
-		arm_min_f32(&currCisCals->data[lineOffset], CIS_PIXELS_PER_LINE, &tmpMinpix, NULL);
+		arm_max_f32(&currCisCals->data[laneOffset], CIS_PIXELS_PER_LANE, &tmpMaxpix, NULL);
+		arm_min_f32(&currCisCals->data[laneOffset], CIS_PIXELS_PER_LANE, &tmpMinpix, NULL);
 
 		if (tmpMaxpix >= currColor->maxPix)
 			currColor->maxPix = tmpMaxpix;
@@ -155,36 +202,36 @@ void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDe
  */
 void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
 {
-	uint32_t lineOffset = 0, offset = 0;
+	uint32_t laneOffset = 0, offset = 0;
 	struct cisColorsParams *currColor;
 
 	switch (color)
 	{
 	case CIS_RED :
 		currColor = &cisCals.blackCal.red;
-		offset = CIS_RED_LINE_OFFSET;
+		offset = CIS_RED_LANE_OFFSET;
 		break;
 	case CIS_GREEN :
 		currColor = &cisCals.blackCal.green;
-		offset = CIS_GREEN_LINE_OFFSET;
+		offset = CIS_GREEN_LANE_OFFSET;
 		break;
 	case CIS_BLUE :
 		currColor = &cisCals.blackCal.blue;
-		offset = CIS_BLUE_LINE_OFFSET;
+		offset = CIS_BLUE_LANE_OFFSET;
 		break;
 	default :
 		Error_Handler();
 		return;
 	}
 
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
+	for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
+		laneOffset = (CIS_ADC_BUFF_SIZE * lane) + offset;
 
 		// Extract differential offsets
-		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
+		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-			cisCals.offsetData[lineOffset + i] = currColor->maxPix - cisCals.blackCal.data[lineOffset + i];
+			cisCals.offsetData[laneOffset + i] = currColor->maxPix - cisCals.blackCal.data[laneOffset + i];
 		}
 	}
 }
@@ -196,32 +243,32 @@ void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
  */
 void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 {
-	uint32_t lineOffset = 0, offset;
+	uint32_t laneOffset = 0, offset;
 
 	switch (color)
 	{
 	case CIS_RED :
-		offset = CIS_RED_LINE_OFFSET;
+		offset = CIS_RED_LANE_OFFSET;
 		break;
 	case CIS_GREEN :
-		offset = CIS_GREEN_LINE_OFFSET;
+		offset = CIS_GREEN_LANE_OFFSET;
 		break;
 	case CIS_BLUE :
-		offset = CIS_BLUE_LINE_OFFSET;
+		offset = CIS_BLUE_LANE_OFFSET;
 		break;
 	default :
 		Error_Handler();
 		return;
 	}
 
-	for (int32_t line = CIS_ADC_OUT_LINES; --line >= 0;)
+	for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 	{
-		lineOffset = (CIS_ADC_BUFF_SIZE * line) + offset;
+		laneOffset = (CIS_ADC_BUFF_SIZE * lane) + offset;
 
 		// Extract differential offsets
-		for (int32_t i = CIS_PIXELS_NB; --i >= 0;)
+		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-			cisCals.gainsData[lineOffset + i] = (float32_t)(4096) / (float32_t)(cisCals.whiteCal.data[lineOffset + i] - cisCals.blackCal.data[lineOffset + i]);
+			cisCals.gainsData[laneOffset + i] = (float32_t)(CIS_ADC_MAX_VALUE) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
 		}
 	}
 }
@@ -315,9 +362,8 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 	}
 #endif
 
-	stm32_flashCalibrationRW(CIS_WRITE_CAL);
-
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
+	stm32_flashCalibrationRW(CIS_WRITE_CAL);
 	shared_var.cis_cal_state = CIS_CAL_END;
 	printf("-------------------------------\n");
 }

@@ -23,16 +23,6 @@
 /* Private variables ---------------------------------------------------------*/
 buttonStateTypeDef  buttonState[5] = {0};
 
-static GPIO_TypeDef* BUTTON_PORT[KEY_NUMBER] = {SW_1_GPIO_Port,
-												    SW_2_GPIO_Port,
-												    SW_3_GPIO_Port,
-                                                   };
-
-static const uint16_t BUTTON_PIN[KEY_NUMBER] = {SW_1_Pin,
-												    SW_2_Pin,
-												    SW_3_Pin,
-                                                   };
-
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private user code ---------------------------------------------------------*/

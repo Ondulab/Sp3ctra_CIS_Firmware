@@ -32,20 +32,46 @@
 /* Variable containing black and white frame from CIS*/
 
 /* Private function prototypes -----------------------------------------------*/
-static void cisynth_eth_SetHint(void);
+static void cisynth_SetHint(void);
 static void cisynth_interractiveMenu(void);
 void cis_StartCalibration(void);
 
 //#define DISPLAY_SCOLL_IMAGE
 
 /* Private user code ---------------------------------------------------------*/
+void cis_DisplayOversampling()
+{
+	uint8_t textData[256] = {0};
+
+	ssd1362_drawRect(208, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
+	sprintf((char *)textData, "OVS %d", (int)shared_var.cis_oversampling);
+
+	if (shared_var.cis_oversampling < 10)
+	{
+		ssd1362_drawString(216, 1, (int8_t *)textData, 0xF, 8);
+	}
+	else
+	{
+		ssd1362_drawString(208, 1, (int8_t *)textData, 0xF, 8);
+	}
+}
+
+void cis_DisplayFrequency(uint32_t cis_line_freq)
+{
+	uint8_t FreqStr[256] = {0};
+
+	sprintf((char *)FreqStr, "%dHz", (int)(cis_line_freq));
+
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 60, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
+	ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
+}
+
 /**
  * @brief  The application entry point.
  * @retval int
  */
 int sss_Display(void)
 {
-	uint8_t FreqStr[256] = {0};
 	uint8_t *cis_rgb = NULL;
 	int32_t cis_color = 0;
 	int32_t start_tick = 0;
@@ -58,7 +84,10 @@ int sss_Display(void)
 	printf("----- ETHERNET MODE START -----\n");
 	printf("-------------------------------\n");
 
-	cisynth_eth_SetHint();
+	cisynth_SetHint();
+
+	memset(imageData, 0, sizeof(imageData));
+
 	old_cis_process_cnt = shared_var.cis_process_cnt;
 
 	start_tick = HAL_GetTick();
@@ -75,8 +104,6 @@ int sss_Display(void)
 			old_cis_process_cnt = shared_var.cis_process_cnt;
 		}
 
-		sprintf((char *)FreqStr, "%dHz", (int)(cis_line_freq));
-
 #ifdef DISPLAY_SCOLL_IMAGE
 		line_Ypos++;
 		if (line_Ypos > (DISPLAY_AERAS1_HEIGHT - 2))
@@ -88,7 +115,7 @@ int sss_Display(void)
 			cis_color = cis_rgb[0] * cis_rgb[1] * cis_rgb[2];
 			cis_color >>= 20;
 
-			//			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1, (DISPLAY_AERAS1_HEIGHT - 2) / 2, cis_color, false);
+			//			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1, (DISPLAY_AERAS1_HEIGHT - 2) / BANNER_BACKGROUND_COLOR, cis_color, false);
 			ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1 + line_Ypos, cis_color, false);
 
 		}
@@ -102,7 +129,7 @@ int sss_Display(void)
 			// the index is calculated as the product of the current horizontal pixel position 'i'
 			// and the ratio of total CIS_PIXELS_NB and DISPLAY_WIDTH. UDP_HEADER_SIZE is then added to this
 			// to skip the header bytes in imageData.
-			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
+			cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH))]);
 
 			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
 			// are weights given to the R, G, and B components respectively,
@@ -132,25 +159,23 @@ int sss_Display(void)
 			// Draw each pixel of the line
 			for (y = 0; y < line_length; y++)
 			{
-			    // Decrease intensity for each additional pixel
-			    pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
+				// Decrease intensity for each additional pixel
+				pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
 
 
-			    // Ensure that the pixel intensity is within the expected range
-			    pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+				// Ensure that the pixel intensity is within the expected range
+				pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
 
-			    // Draw a pixel above the center of the line for symmetry
-			    ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos + y, pixel_intensity, false);
+				// Draw a pixel above the center of the line for symmetry
+				ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos + y, pixel_intensity, false);
 
-			    // Draw a pixel below the center of the line for symmetry
-			    ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos - y, pixel_intensity, false);
+				// Draw a pixel below the center of the line for symmetry
+				ssd1362_drawPixel(DISPLAY_WIDTH - i, line_Ypos - y, pixel_intensity, false);
 			}
-
 		}
 #endif
 
-		ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 60, DISPLAY_HEAD_Y2POS, 4, false);
-		ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
+		cis_DisplayFrequency(cis_line_freq);
 
 		ssd1362_writeUpdates();
 		//		HAL_Delay(1);
@@ -182,7 +207,7 @@ void cis_StartCalibration()
 		case CIS_CAL_PLACE_ON_WHITE :
 			/*-------- 1 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - HL ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
@@ -199,7 +224,7 @@ void cis_StartCalibration()
 		case CIS_CAL_PLACE_ON_BLACK :
 			/*-------- 2 --------*/
 			ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - LL ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
@@ -216,7 +241,7 @@ void cis_StartCalibration()
 			ssd1362_drawString(0, 28, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 5, 8);
 			for (uint32_t i = 1; i < 9; i++)
 			{
-				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT, 4, false);
+				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT, BANNER_BACKGROUND_COLOR, false);
 			}
 			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 			{
@@ -231,11 +256,11 @@ void cis_StartCalibration()
 			break;
 		case CIS_CAL_EXTRACT_EXTREMUMS :
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" EXTRACT EXTREMUMS AND DELTAS ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
-//			uint8_t textData[256] = {0};
+			//			uint8_t textData[256] = {0};
 			sprintf((char *)textData, "WH MIN R%d G%d B%d", (int)cisCals.whiteCal.red.minPix, (int)cisCals.whiteCal.green.minPix, (int)cisCals.whiteCal.blue.minPix);
 			ssd1362_drawString(0, 10, (int8_t*)textData, 15, 8);
 			sprintf((char *)textData, "WH MAX R%d G%d B%d", (int)cisCals.whiteCal.red.maxPix, (int)cisCals.whiteCal.green.maxPix, (int)cisCals.whiteCal.blue.maxPix);
@@ -256,12 +281,12 @@ void cis_StartCalibration()
 		case CIS_CAL_EXTRACT_OFFSETS :
 			/*-------- 3 --------*/
 			ssd1362_drawRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
+			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT DIFFERENTIAL OFFSETS", 0xF, 8);
 			ssd1362_drawString(0, 18, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 10, 8);
 			for (uint32_t i = 1; i < 9; i++)
 			{
-				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 28, DISPLAY_HEIGHT, 4, false);
+				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 28, DISPLAY_HEIGHT, BANNER_BACKGROUND_COLOR, false);
 			}
 			ssd1362_writeFullBuffer();
 
@@ -277,7 +302,7 @@ void cis_StartCalibration()
 			break;
 		case CIS_CAL_COMPUTE_GAINS :
 			/*-------- 4 --------*/
-			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, false);
+			ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
 			ssd1362_drawString(10, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" COMPUTE COMPENSATIION GAINS", 0xF, 8);
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_COMPUTE_GAINS);
@@ -295,18 +320,12 @@ void cis_StartCalibration()
  */
 void cis_ChangeOversampling()
 {
-    static int32_t n = 0;
-	uint8_t textData[256] = {0};
+	static int32_t n = 0;
 
-    n = (n + 1) % 6;
+	n = (n + 1) % 6;
 	shared_var.cis_oversampling = pow(2, n);
 
-	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-
-	sprintf((char *)textData, "OVSP %d", (int)shared_var.cis_oversampling);
-	ssd1362_drawString(95, DISPLAY_HEAD_Y1POS + 1, (int8_t *)textData, 0xF, 8);
-	ssd1362_writeFullBuffer();
+	cis_DisplayOversampling();
 }
 
 /**
@@ -316,23 +335,11 @@ void cis_ChangeOversampling()
  */
 void cis_ChangeScanDir()
 {
-	uint8_t textData[256] = {0};
-
 	shared_var.cis_scanDir = !shared_var.cis_scanDir;
 	shared_var.cis_scanDir = shared_var.cis_scanDir < 0 ? 0 : shared_var.cis_scanDir > 1 ? 1 : shared_var.cis_scanDir;
 
-
 	ssd1362_screenRotation(shared_var.cis_scanDir);
-
-	ssd1362_drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, true);
-
-	sprintf((char *)textData, "DIR %d", (int)shared_var.cis_scanDir);
-	ssd1362_drawString(100, DISPLAY_HEAD_Y1POS + 1, (int8_t *)textData, 0xF, 8);
-	ssd1362_writeFullBuffer();
 }
-
-#define BUTTON_DELAY			500
 
 /**
  * @brief  Get pressed button, call the function and display message
@@ -370,13 +377,13 @@ void cisynth_interractiveMenu()
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 		cis_ChangeScanDir();
+		cisynth_SetHint();
 	}
 
 	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)
 	{
 		clear_button = 1;
 
-		cisynth_eth_SetHint();
 		/*
 		ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
 		ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
@@ -384,7 +391,7 @@ void cisynth_interractiveMenu()
 		ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
 		ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
-		*/
+		 */
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
@@ -396,21 +403,17 @@ void cisynth_interractiveMenu()
  * @param  None
  * @retval None
  */
-static void cisynth_eth_SetHint(void)
+static void cisynth_SetHint(void)
 {
 	/* Set Audio header description */
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
-	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, 4, false);
+	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
 	ssd1362_drawString(100, 1, (int8_t *)"CISYNTH 3", 0xF, 8);
-	ssd1362_drawString(232, 1, (int8_t *)"ETH", 0xF, 8);
+
+	cis_DisplayOversampling();
 
 	ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
-	//ssd1362_drawRect(0 + 10, 60, 10 + 10, 54, 0x05, false);
-	//ssd1362_drawRect(56 + 10, 60, 56 + 10 + 10, 54, 0x05, false);
-	//ssd1362_drawRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x05, false);
-	//ssd1362_drawRect(56 * 3 + 10, 60, 56 * 3 + 10 + 10, 54, 0x05, false);
-	//ssd1362_drawRect(56 * 4 + 10, 60, 56 * 4 + 10 + 10, 54, 0x05, false);
 
 	//ssd1362_writeFullBuffer();
 }

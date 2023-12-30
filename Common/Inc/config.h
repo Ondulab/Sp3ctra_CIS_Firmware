@@ -43,8 +43,10 @@
 //#define CIS_DESACTIVATE_CALIBRATION
 
 /**************************************************************************************/
-/********************             Display definitions              ********************/
+/********************             	HID definitions                ********************/
 /**************************************************************************************/
+#define BANNER_BACKGROUND_COLOR		(2)
+
 #define DISPLAY_WIDTH				SSD1362_WIDTH
 #define DISPLAY_HEIGHT				SSD1362_HEIGHT
 
@@ -65,6 +67,8 @@
 
 //#define DISPLAY_AERA3_Y1POS			(DISPLAY_AERA2_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
 //#define DISPLAY_AERA3_Y2POS			(DISPLAY_AERA3_Y1POS + DISPLAY_AERAS3_HEIGHT)
+
+#define BUTTON_DELAY			500
 
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
@@ -113,25 +117,25 @@
 #define CIS_CLK_FREQ							(2500000)
 #define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
 
-#define CIS_ADC_OUT_LINES						(3)
+#define CIS_ADC_OUT_LANES						(3)
 
 #define CIS_SP_WIDTH							(2)
 
 #define CIS_INACTIVE_WIDTH						(38 + CIS_SP_WIDTH)
 
 #ifdef CIS_400DPI
-#define CIS_PIXELS_PER_LINE						(1152)
+#define CIS_PIXELS_PER_LANE						(1152)
 #else
-#define CIS_PIXELS_PER_LINE						(576)
+#define CIS_PIXELS_PER_LANE						(576)
 #endif
-#define CIS_PIXELS_NB 		 					((CIS_PIXELS_PER_LINE) * (CIS_ADC_OUT_LINES))
+#define CIS_PIXELS_NB 		 					((CIS_PIXELS_PER_LANE) * (CIS_ADC_OUT_LANES))
 
-#define CIS_PIXEL_AERA_STOP						((CIS_INACTIVE_WIDTH) + (CIS_PIXELS_PER_LINE))
+#define CIS_PIXEL_AERA_STOP						((CIS_INACTIVE_WIDTH) + (CIS_PIXELS_PER_LANE))
 #define CIS_OVER_SCAN							(12)
 
 #define CIS_START_OFFSET	 	 				(CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2)
-#define CIS_LINE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
-#define CIS_END_CAPTURE							(CIS_LINE_SIZE)
+#define CIS_LANE_SIZE 							(CIS_PIXEL_AERA_STOP + CIS_OVER_SCAN)
+#define CIS_END_CAPTURE							(CIS_LANE_SIZE)
 
 #define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
 #define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
@@ -140,7 +144,7 @@
 #define CIS_LED_GREEN_OFF						(CIS_END_CAPTURE)//((244.0 * 2.5))
 #define CIS_LED_BLUE_OFF						(CIS_END_CAPTURE)//((243.0 * 2.5))
 
-#define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LINE_SIZE) * (CIS_ADC_OUT_LINES))
+#define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LANE_SIZE) * (CIS_ADC_OUT_LANES))
 
 #define CIS_ADC_MAX_VALUE						(4096)
 
