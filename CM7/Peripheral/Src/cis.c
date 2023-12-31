@@ -354,19 +354,29 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
 void cis_ImageProcess_R_G_B(struct cisRgbBuffers *imageBuffers)
 {
     static int32_t lane, i;
+    static int32_t index = 0;
 
     cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
     cis_ApplyLinearCalibration();
 
-    for (lane = CIS_ADC_OUT_LANES; --lane >= 0;) {
-        for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES); --i >= 0;) {
-            int index;
-            if (shared_var.cis_scanDir) {
-                index = ((CIS_ADC_OUT_LANES - 1 - lane) * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + i;
-            } else {
+    for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+    {
+        for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES); --i >= 0;)
+        {
+            if (shared_var.cis_scanDir)
+            {
+                index = ((CIS_ADC_OUT_LANES - 1 - lane) * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + (CIS_PIXELS_NB / CIS_ADC_OUT_LANES - 1 - i);
+
+            }
+            else
+            {
                 index = (lane * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + i;
             }
+
+            //imageBuffers->R[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
+            //imageBuffers->G[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
+            //imageBuffers->B[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
 
             imageBuffers->R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
             imageBuffers->G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];

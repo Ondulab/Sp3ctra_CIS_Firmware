@@ -96,15 +96,22 @@ int sss_Scan(void)
 			//shared_var.cis_cal_state = CIS_CAL_END; //WIPx
 		}
 
+#ifdef RGBA_BUFFER
 #ifdef POLYNOMIAL_CALIBRATION
 		cis_ImageProcessRGB_2(imageData); //WIP
 #else
 		cis_ImageProcessRGB(imageData);
 #endif
-		SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t) * 3));
-
+SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t) * 3));
 #ifndef ETHERNET_OFF
 		udp_clientSendImage(imageData);
+#endif
+#else
+		cis_ImageProcess_R_G_B(&rgbBuffers);
+SCB_CleanDCache_by_Addr((uint32_t *)&rgbBuffers, sizeof(rgbBuffers));
+#ifndef ETHERNET_OFF
+		udp_clientSendPackets(&rgbBuffers);
+#endif
 #endif
 
 		shared_var.cis_process_cnt++;

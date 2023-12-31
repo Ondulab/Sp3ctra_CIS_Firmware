@@ -9,6 +9,7 @@
 #include "stm32h7xx_hal.h"
 #include "main.h"
 #include "config.h"
+#include "shared.h"
 
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
@@ -31,16 +32,18 @@ struct udp_pcb *upcb;
 __IO uint32_t message_count = 0;
 int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
+static struct packet_StartupInfo packet_StartupInfo = {0};
+static struct packet_Image packet_Image = {0};
+static struct packet_HID packet_HID = {0};
+static struct packet_IMU packet_IMU = {0};
+
+static uint32_t packetsCounter = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
 
 /* Private user code ---------------------------------------------------------*/
 
-/**
- * @brief  Connect to UDP echo server
- * @param  None
- * @retval None
- */
 void udp_clientInit(void)
 {
 	ip_addr_t DestIPaddr;
@@ -65,17 +68,94 @@ void udp_clientInit(void)
 			udp_recv(upcb, udp_clientReceiveCallback, NULL);
 		}
 	}
+
+	packet_StartupInfo.type = STARTUP_INFO_HEADER;
+	packet_Image.type = IMAGE_DATA_HEADER;
+	packet_HID.type = HID_DATA_HEADER;
+	packet_IMU.type = IMU_DATA_HEADER;
+
+	packet_StartupInfo.packet_id = packetsCounter;
+	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v3.0 RESO-NANCE");
+
+	udp_clientSendStartupInfoPacket();
 }
 
-/**
- * @brief This function is called when an UDP datagrm has been received on the port UDP_PORT.
- * @param arg user supplied argument (udp_pcb.recv_arg)
- * @param pcb the udp_pcb which received data
- * @param p the packet buffer that was received
- * @param addr the remote IP address from which the packet was received
- * @param port the remote port from which the packet was received
- * @retval None
- */
+void udp_sendData(void *data, uint16_t length)
+{
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
+    if (p != NULL)
+    {
+        pbuf_take(p, data, length);
+        udp_send(upcb, p);
+        pbuf_free(p);
+    }
+}
+
+
+void udp_clientSendStartupInfoPacket(void)
+{
+	udp_sendData(&packet_StartupInfo, sizeof(packet_StartupInfo));
+}
+
+void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
+{
+	static uint32_t fragment_id = 0;
+
+	packet_Image.fragment_id = fragment_id++;
+	packet_Image.fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
+	packet_Image.total_fragments = UDP_NB_PACKET_PER_LINE;
+
+	packet_Image.imageColor = IMAGE_COLOR_R;
+
+	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
+	{
+		packet_Image.packet_id = packetsCounter++;
+		memcpy(packet_Image.imageData, rgbBuffers->R + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
+
+		udp_sendData(&packet_Image, sizeof(packet_Image));
+	}
+
+	packet_Image.imageColor = IMAGE_COLOR_G;
+
+	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
+	{
+		packet_Image.packet_id = packetsCounter++;
+		memcpy(packet_Image.imageData, rgbBuffers->G + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
+
+		udp_sendData(&packet_Image, sizeof(packet_Image));
+	}
+
+	packet_Image.imageColor = IMAGE_COLOR_B;
+
+	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
+	{
+		packet_Image.packet_id = packetsCounter++;
+		memcpy(packet_Image.imageData, rgbBuffers->B + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
+
+		udp_sendData(&packet_Image, sizeof(packet_Image));
+	}
+
+	packet_IMU.packet_id = packetsCounter++;
+
+	packet_IMU.gyro[0] = 0;
+	packet_IMU.gyro[1] = 0;
+	packet_IMU.gyro[2] = 0;
+
+	packet_IMU.acc[0] = 0;
+	packet_IMU.acc[1] = 0;
+	packet_IMU.acc[2] = 0;
+
+	udp_sendData(&packet_IMU, sizeof(packet_IMU));
+
+	packet_HID.packet_id = packetsCounter++;
+
+	packet_HID.button_A = 0;
+	packet_HID.button_B = 0;
+	packet_HID.button_C = 0;
+
+	udp_sendData(&packet_HID, sizeof(packet_HID));
+}
+
 void udp_clientSendImage(int32_t *image_buff)
 {
 	static struct pbuf *p;
@@ -103,15 +183,6 @@ void udp_clientSendImage(int32_t *image_buff)
 	}
 }
 
-/**
- * @brief This function is called when an UDP datagrm has been received on the port UDP_PORT.
- * @param arg user supplied argument (udp_pcb.recv_arg)
- * @param pcb the udp_pcb which received data
- * @param p the packet buffer that was received
- * @param addr the remote IP address from which the packet was received
- * @param port the remote port from which the packet was received
- * @retval None
- */
 void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
 	/*increment message count */

@@ -86,9 +86,15 @@ void cis_ApplyLinearCalibration(void)
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.gainsData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
 
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 4095, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 4095, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 4095, CIS_PIXELS_PER_LANE);
+#ifdef RGBA_BUFFER
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
+#else
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 255, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 255, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 255, CIS_PIXELS_PER_LANE);
+#endif
 	}
 #endif
 }
@@ -268,7 +274,11 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
+#ifdef RGBA_BUFFER
 			cisCals.gainsData[laneOffset + i] = (float32_t)(CIS_ADC_MAX_VALUE) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
+#else
+			cisCals.gainsData[laneOffset + i] = (float32_t)(255) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
+#endif
 		}
 	}
 }

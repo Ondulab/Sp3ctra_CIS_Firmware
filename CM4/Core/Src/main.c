@@ -119,9 +119,11 @@ int main(void)
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
-		HAL_Delay(50);
+		HAL_Delay(100);
 	}
 #endif
+
+	HAL_Delay(1000);
 
 	sss_Display();
 

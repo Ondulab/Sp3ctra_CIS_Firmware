@@ -113,6 +113,7 @@
 /**************************************************************************************/
 //#define CIS_400DPI
 //#define CIS_MONOCHROME
+//#define RGBA_BUFFER
 
 #define CIS_CLK_FREQ							(2500000)
 #define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
@@ -146,7 +147,7 @@
 
 #define CIS_ADC_BUFF_SIZE 	 	 		 		((CIS_LANE_SIZE) * (CIS_ADC_OUT_LANES))
 
-#define CIS_ADC_MAX_VALUE						(4096)
+#define CIS_ADC_MAX_VALUE						(4095)
 
 #define CIS_LEDS_MAX_PWM						(101)
 #define CIS_LEDS_MAX_POMER						(CIS_LEDS_MAX_PWM)
