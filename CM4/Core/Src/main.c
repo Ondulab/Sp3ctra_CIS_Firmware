@@ -119,11 +119,25 @@ int main(void)
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
+
+		if (i == 0)
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		if (i == 2)
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+		if (i == 4)
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+		if (i == 6)
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
+		if (i == 8)
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+		if (i == 10)
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+
 		HAL_Delay(100);
 	}
 #endif
 
-	HAL_Delay(1000);
+	HAL_Delay(500);
 
 	sss_Display();
 
