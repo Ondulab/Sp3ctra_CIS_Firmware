@@ -113,7 +113,7 @@ int sss_Display(void)
 
 		if (cis_line_freq == 0)
 		{
-			ssd1362_drawString(76, 30, (int8_t *)"PLEASE WAIT...", 0xF, 16);
+			ssd1362_drawString(76, 20, (int8_t *)"PLEASE WAIT...", 0xF, 16);
 			ssd1362_writeUpdates();
 		}
 		else

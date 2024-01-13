@@ -47,7 +47,8 @@ struct packet_StartupInfo{
 struct packet_Image{
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    uint8_t fragment_id;      			// Identifier for the fragment of the image
+    uint32_t line_id;      				// Identifier for the fragment of the image
+    uint8_t fragment_id;      				// Identifier for the fragment of the image
     uint8_t total_fragments;  			// Total number of fragments for the complete image
     uint16_t fragment_size;   			// Size of this particular fragment
     uint8_t imageColor;   				// Pointer to the fragmented image data

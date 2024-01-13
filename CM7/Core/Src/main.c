@@ -166,14 +166,19 @@ int main(void)
 	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
+	HAL_Delay(200);
 
 	//MX25L_Test();
-
-	sss_Scan();
 
 	icm42688_init();
 
 	HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
+
+	sss_Scan();
+
+	//icm42688_init();
+
+	//HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
 
   /* USER CODE END 2 */
 

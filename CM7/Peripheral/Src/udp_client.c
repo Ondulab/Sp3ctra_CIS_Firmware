@@ -18,6 +18,8 @@
 
 #include "arm_math.h"
 
+#include "icm42688.h"
+
 /* Private includes ----------------------------------------------------------*/
 #include "udp_client.h"
 
@@ -99,9 +101,9 @@ void udp_clientSendStartupInfoPacket(void)
 
 void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 {
-	static uint32_t fragment_id = 0;
+	static uint32_t line_id = 0;
 
-	packet_Image.fragment_id = fragment_id++;
+	packet_Image.line_id = line_id++;
 	packet_Image.fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
 	packet_Image.total_fragments = UDP_NB_PACKET_PER_LINE;
 
@@ -110,6 +112,7 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
 	{
 		packet_Image.packet_id = packetsCounter++;
+		packet_Image.fragment_id = curr_packet;
 		memcpy(packet_Image.imageData, rgbBuffers->R + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
 
 		udp_sendData(&packet_Image, sizeof(packet_Image));
@@ -120,6 +123,7 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
 	{
 		packet_Image.packet_id = packetsCounter++;
+		packet_Image.fragment_id = curr_packet;
 		memcpy(packet_Image.imageData, rgbBuffers->G + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
 
 		udp_sendData(&packet_Image, sizeof(packet_Image));
@@ -130,6 +134,7 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
 	{
 		packet_Image.packet_id = packetsCounter++;
+		packet_Image.fragment_id = curr_packet;
 		memcpy(packet_Image.imageData, rgbBuffers->B + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
 
 		udp_sendData(&packet_Image, sizeof(packet_Image));
@@ -137,13 +142,15 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	packet_IMU.gyro[0] = 0;
-	packet_IMU.gyro[1] = 0;
-	packet_IMU.gyro[2] = 0;
+	icm42688_getAGT();
 
-	packet_IMU.acc[0] = 0;
-	packet_IMU.acc[1] = 0;
-	packet_IMU.acc[2] = 0;
+	packet_IMU.gyro[0] = (uint16_t)(icm42688_gyrX() * 100.0);
+	packet_IMU.gyro[1] = (uint16_t)(icm42688_gyrY() * 100.0);
+	packet_IMU.gyro[2] = (uint16_t)(icm42688_gyrZ() * 100.0);
+
+	packet_IMU.acc[0] = (uint16_t)(icm42688_accX() * 100.0);
+	packet_IMU.acc[1] = (uint16_t)(icm42688_accY() * 100.0);
+	packet_IMU.acc[2] = (uint16_t)(icm42688_accZ() * 100.0);
 
 	udp_sendData(&packet_IMU, sizeof(packet_IMU));
 

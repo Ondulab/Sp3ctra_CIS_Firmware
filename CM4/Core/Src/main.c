@@ -137,8 +137,6 @@ int main(void)
 	}
 #endif
 
-	HAL_Delay(500);
-
 	sss_Display();
 
 	/* USER CODE END 2 */
