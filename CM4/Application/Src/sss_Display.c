@@ -345,7 +345,7 @@ void cis_ChangeOversampling()
 	static int32_t n = 0;
 
 	n = (n + 1) % 6;
-	shared_var.cis_oversampling = pow(2, n);
+	shared_var.cis_oversampling = 1 << n;
 
 	cis_DisplayOversampling();
 }
