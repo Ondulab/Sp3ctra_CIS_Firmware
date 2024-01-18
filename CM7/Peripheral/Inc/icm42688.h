@@ -69,6 +69,8 @@ typedef struct {
 #define FIFO_TEMP_EN		0x04
 #define FIFO_GYRO			0x02
 #define FIFO_ACCEL			0x01
+
+#define FIFO_SIZE			85
 // #define FIFO_COUNT = 0x2E;
 // #define FIFO_DATA = 0x30;
 
@@ -107,13 +109,13 @@ typedef struct {
     uint8_t enFifoTemp;
     size_t fifoSize;
     size_t fifoFrameSize;
-    float axFifo[85];
-    float ayFifo[85];
-    float azFifo[85];
+    float axFifo[FIFO_SIZE];
+    float ayFifo[FIFO_SIZE];
+    float azFifo[FIFO_SIZE];
     size_t aSize;
-    float gxFifo[85];
-    float gyFifo[85];
-    float gzFifo[85];
+    float gxFifo[FIFO_SIZE];
+    float gyFifo[FIFO_SIZE];
+    float gzFifo[FIFO_SIZE];
     size_t gSize;
     float tFifo[256];
     size_t tSize;

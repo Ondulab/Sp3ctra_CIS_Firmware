@@ -96,6 +96,7 @@ int main(void)
 
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
+/* Enable the CPU Cache */
 
   /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
@@ -152,10 +153,12 @@ int main(void)
   MX_DMA_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
+  MX_TIM3_Init();
   MX_RNG_Init();
   MX_CRC_Init();
   MX_TIM6_Init();
   MX_QUADSPI_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("-------------------------------\n");
@@ -166,7 +169,7 @@ int main(void)
 	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(MEMS_FSYNC_GPIO_Port, MEMS_FSYNC_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(MEMS_CLKIN_FSYNC_GPIO_Port, MEMS_CLKIN_FSYNC_Pin, GPIO_PIN_RESET);
 
 	HAL_Delay(200);
 
@@ -204,9 +207,6 @@ int main(void)
 		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
 		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
 
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
-		HAL_GPIO_TogglePin(LED3_GPIO_Port, LED3_Pin);
 		HAL_Delay(500);
 
     /* USER CODE END WHILE */
@@ -231,29 +231,22 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  /** Macro to configure the PLL clock source
-  */
-  __HAL_RCC_PLL_PLLSOURCE_CONFIG(RCC_PLLSOURCE_HSE);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSI
-                              |RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI48|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSIState = RCC_HSI_DIV1;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 5;
   RCC_OscInitStruct.PLL.PLLN = 160;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 6;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   RCC_OscInitStruct.PLL.PLLR = 4;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
@@ -276,7 +269,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -292,17 +285,15 @@ void PeriphCommonClock_Config(void)
 
   /** Initializes the peripherals clock
   */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_USART1
-                              |RCC_PERIPHCLK_CKPER;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_USART1;
   PeriphClkInitStruct.PLL2.PLL2M = 5;
   PeriphClkInitStruct.PLL2.PLL2N = 160;
-  PeriphClkInitStruct.PLL2.PLL2P = 12;
-  PeriphClkInitStruct.PLL2.PLL2Q = 12;
-  PeriphClkInitStruct.PLL2.PLL2R = 12;
+  PeriphClkInitStruct.PLL2.PLL2P = 10;
+  PeriphClkInitStruct.PLL2.PLL2Q = 10;
+  PeriphClkInitStruct.PLL2.PLL2R = 10;
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-  PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
   PeriphClkInitStruct.Usart16ClockSelection = RCC_USART16CLKSOURCE_PLL2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
@@ -359,7 +350,6 @@ void MPU_Config(void)
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
@@ -376,7 +366,7 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
-		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		HAL_GPIO_TogglePin(GPIOH, GPIO_PIN_6); //LED1 PIN
 		for(uint32_t i = 0; i < 0xFFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */

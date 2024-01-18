@@ -148,11 +148,11 @@
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Application"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Common"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry excluding="CMSIS/DSP/StatisticsFunctions/StatisticsFunctionsF16.c|CMSIS/DSP/StatisticsFunctions/StatisticsFunctions.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctionsF16.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctions.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctionsF16.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctions.c|CMSIS/DSP/FastMathFunctions/FastMathFunctionsF16.c|CMSIS/DSP/FastMathFunctions/FastMathFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctionsF16.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Inc/icm42688_old.h|Src/icm42688_old.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="LWIP"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>
-						<entry excluding="Inc/icm42688_old.h|Src/icm42688_old.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -306,11 +306,11 @@
 					<sourceEntries>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Application"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Common"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry excluding="CMSIS/DSP/StatisticsFunctions/StatisticsFunctionsF16.c|CMSIS/DSP/StatisticsFunctions/StatisticsFunctions.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctionsF16.c|CMSIS/DSP/BasicMathFunctions/BasicMathFunctions.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctionsF16.c|CMSIS/DSP/ComplexMathFunctions/ComplexMathFunctions.c|CMSIS/DSP/FastMathFunctions/FastMathFunctionsF16.c|CMSIS/DSP/FastMathFunctions/FastMathFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctions.c|CMSIS/DSP/SupportFunctions/SupportFunctionsF16.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Inc/icm42688_old.h|Src/icm42688_old.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="LWIP"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Middlewares"/>
-						<entry excluding="Inc/icm42688_old.h|Src/icm42688_old.c|Src/MX25L.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Peripheral"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

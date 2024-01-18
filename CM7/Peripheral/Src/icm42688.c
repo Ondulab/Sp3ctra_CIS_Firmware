@@ -101,19 +101,19 @@ int icm42688_init()
 	icm42688_FIFO.enFifoTemp = false;
 	icm42688_FIFO.fifoSize = 0;
 	icm42688_FIFO.fifoFrameSize = 0;
-	memset(icm42688_FIFO.axFifo, 0, 85 * sizeof(float));
-	memset(icm42688_FIFO.ayFifo, 0, 85 * sizeof(float));
-	memset(icm42688_FIFO.azFifo, 0, 85 * sizeof(float));
+	memset(icm42688_FIFO.axFifo, 0, FIFO_SIZE * sizeof(float));
+	memset(icm42688_FIFO.ayFifo, 0, FIFO_SIZE * sizeof(float));
+	memset(icm42688_FIFO.azFifo, 0, FIFO_SIZE * sizeof(float));
 
 	icm42688_FIFO.aSize = 0;
 
-	memset(icm42688_FIFO.gxFifo, 0, 85 * sizeof(float));
-	memset(icm42688_FIFO.gyFifo, 0, 85 * sizeof(float));
-	memset(icm42688_FIFO.gzFifo, 0, 85 * sizeof(float));
+	memset(icm42688_FIFO.gxFifo, 0, FIFO_SIZE * sizeof(float));
+	memset(icm42688_FIFO.gyFifo, 0, FIFO_SIZE * sizeof(float));
+	memset(icm42688_FIFO.gzFifo, 0, FIFO_SIZE * sizeof(float));
 
 	icm42688_FIFO.gSize = 0;
 
-	memset(icm42688_FIFO.tFifo, 0, 85 * sizeof(float));
+	memset(icm42688_FIFO.tFifo, 0, FIFO_SIZE * sizeof(float));
 
 	memset(_buffer, 0, 15 * sizeof(uint8_t));
 
