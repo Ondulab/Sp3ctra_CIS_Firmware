@@ -76,7 +76,10 @@ void Error_Handler(void);
 #define LED2_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
-
+#define MEMS_FSYNC_Pin GPIO_PIN_15
+#define MEMS_FSYNC_GPIO_Port GPIOA
+#define MEMS_CS_Pin GPIO_PIN_9
+#define MEMS_CS_GPIO_Port GPIOB
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

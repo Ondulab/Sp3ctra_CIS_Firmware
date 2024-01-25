@@ -88,7 +88,8 @@ void Error_Handler(void);
 #define CIS_ADC_1_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
-
+#define LED1_Pin GPIO_PIN_6
+#define LED1_GPIO_Port GPIOH
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

@@ -364,7 +364,7 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
-		HAL_GPIO_TogglePin(GPIOH, GPIO_PIN_6); //LED1 PIN
+		HAL_GPIO_TogglePin(LED1_Pin, LED1_GPIO_Port); //LED1 PIN
 		for(uint32_t i = 0; i < 0xFFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */
