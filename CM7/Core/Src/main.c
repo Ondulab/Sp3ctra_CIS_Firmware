@@ -158,7 +158,6 @@ int main(void)
   MX_CRC_Init();
   MX_TIM6_Init();
   MX_QUADSPI_Init();
-  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("-------------------------------\n");
@@ -169,7 +168,6 @@ int main(void)
 	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(MEMS_CLKIN_FSYNC_GPIO_Port, MEMS_CLKIN_FSYNC_Pin, GPIO_PIN_RESET);
 
 	HAL_Delay(200);
 
