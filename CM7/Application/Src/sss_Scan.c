@@ -10,7 +10,6 @@
 #include "stdbool.h"
 #include "stdio.h"
 
-#include "udp_client.h"
 #include "lwip.h"
 
 #include "shared.h"
@@ -21,6 +20,8 @@
 #include "cis_linearCal.h"
 #include "cis_polyCal.h"
 
+#include "udp_client.h"
+#include "lwip.h"
 
 #include "sss_Scan.h"
 
@@ -93,41 +94,13 @@ int sss_Scan(void)
 			}
 			HAL_Delay(2000);
 #endif
-			//shared_var.cis_cal_state = CIS_CAL_END; //WIPx
 		}
 
-#ifdef RGBA_BUFFER
-#ifdef POLYNOMIAL_CALIBRATION
-		cis_ImageProcessRGB_2(imageData); //WIP
-#else
-		cis_ImageProcessRGB(imageData);
-#endif
-SCB_CleanDCache_by_Addr((uint32_t *)imageData, (CIS_PIXELS_NB * sizeof(uint32_t) * 3));
-#ifndef ETHERNET_OFF
-		udp_clientSendImage(imageData);
-#endif
-#else
-		cis_ImageProcess_R_G_B(&rgbBuffers);
-SCB_CleanDCache_by_Addr((uint32_t *)&rgbBuffers, sizeof(rgbBuffers));
-#ifndef ETHERNET_OFF
-		udp_clientSendPackets(&rgbBuffers);
-#endif
-#endif
+		cis_ImageProcess(rgbBuffers);
+		SCB_CleanDCache_by_Addr((uint32_t *)&rgbBuffers, sizeof(rgbBuffers));
+		udp_clientSendPackets(rgbBuffers);
 
 		shared_var.cis_process_cnt++;
-
-		//		if (shared_var.cis_process_cnt % 100 == 0)
-		//		{
-		//			static uint32_t sw = 0;
-		//			sw++;
-		//			if (sw % 2)
-		////				cis_LedsOff();
-		//				cis_Stop_capture();
-		//			else
-		////				cis_LedsOn();
-		//				cis_Start_capture();
-		//		}
-
 	}
 }
 /* Private functions ---------------------------------------------------------*/

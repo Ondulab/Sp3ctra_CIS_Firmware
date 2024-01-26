@@ -48,7 +48,7 @@ MEMORY
   CIS_FLASH (rxw) 			: ORIGIN = 0x080C0000, LENGTH = 256K
   FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 1024K - LENGTH(CIS_FLASH) 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
   DTCM (xrw)   				: ORIGIN = 0x20000000, LENGTH = 128K
-  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64   
+  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
   RAM_AXI (xrw)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
@@ -160,8 +160,7 @@ SECTIONS
     KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage));     
     KEEP (*(.rgbCalibration)); 
-    KEEP (*(.cisLeds_Calibration));     
-    KEEP (*(.cisDataCpy_q31));     
+    KEEP (*(.cisLeds_Calibration));        
     KEEP (*(.cisCals));
     KEEP (*(.rgbCals));  
   } >RAM_SHARED_CACHED
@@ -210,16 +209,28 @@ SECTIONS
     . = ALIGN(8);
   } >RAM_AXI
   
+  
+  /*.lwip_sec (NOLOAD) : {*/
+  /*  . = ABSOLUTE(0x30040000);*/
+  /*  *(.RxDecripSection)*/
+    
+  /*  . = ABSOLUTE(0x30040060);*/
+  /* *(.TxDecripSection)*/
+    
+  /*  . = ABSOLUTE(0x30040200);*/
+  /*  *(.RxArraySection)*/ 
+  /*} >RAM_D3*/
+  
   .lwip_sec (NOLOAD) : {
     . = ABSOLUTE(0x30040000);
     *(.RxDecripSection) 
     
-    . = ABSOLUTE(0x30040060);
+    . = ABSOLUTE(0x30040200);
     *(.TxDecripSection)
     
-    . = ABSOLUTE(0x30040200);
-    *(.RxArraySection) 
-  } >RAM_D3
+    . = ABSOLUTE(0x30040400);
+    *(.Rx_PoolSection) 
+  } >RAM_D3 AT> ROM
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

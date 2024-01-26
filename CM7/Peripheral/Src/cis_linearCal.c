@@ -48,6 +48,33 @@ void cis_lanealCalibrationInit()
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
+float calculate_mean(float *array, int length) {
+    float sum = 0.0;
+    for (int i = 0; i < length; i++) {
+        sum += array[i];
+    }
+    return sum / length;
+}
+
+void elementwise_subtract(float *result, float *array1, float *array2, int length) {
+    for (int i = 0; i < length; i++) {
+        result[i] = array1[i] - array2[i];
+    }
+}
+
+void elementwise_multiply(float *result, float *array1, float *array2, int length) {
+    for (int i = 0; i < length; i++) {
+        result[i] = array1[i] * array2[i];
+    }
+}
+
+void clip_values(float *array, float min, float max, int length) {
+    for (int i = 0; i < length; i++) {
+        if (array[i] < min) array[i] = min;
+        else if (array[i] > max) array[i] = max;
+    }
+}
+
 void cis_ApplyLinearCalibration(void)
 {
 #ifndef CIS_DESACTIVATE_CALIBRATION
@@ -86,15 +113,9 @@ void cis_ApplyLinearCalibration(void)
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.gainsData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
 
-#ifdef RGBA_BUFFER
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, CIS_ADC_MAX_VALUE, CIS_PIXELS_PER_LANE);
-#else
 		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 255, CIS_PIXELS_PER_LANE);
 		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 255, CIS_PIXELS_PER_LANE);
 		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 255, CIS_PIXELS_PER_LANE);
-#endif
 	}
 #endif
 }

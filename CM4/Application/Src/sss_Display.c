@@ -56,12 +56,11 @@ void cis_DisplayOversampling()
 	}
 }
 
-void cis_DisplayFrequency(uint32_t cis_line_freq)
+void cis_DisplayFrequency(uint32_t frequency)
 {
 	uint8_t FreqStr[256] = {0};
 
-	sprintf((char *)FreqStr, "%dHz", (int)(cis_line_freq));
-
+	sprintf((char *)FreqStr, "%dHz", (int)(frequency));
 	ssd1362_drawRect(0, DISPLAY_HEAD_Y1POS, 60, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
 	ssd1362_drawString(0, 1, (int8_t*)FreqStr, 15, 8);
 }
@@ -72,135 +71,107 @@ void cis_DisplayFrequency(uint32_t cis_line_freq)
  */
 int sss_Display(void)
 {
-#ifdef RGBA_BUFFER
-	uint8_t *cis_rgb = NULL;
-#else
 	uint8_t cis_rgb[3] = {0};
-#endif
 	int32_t cis_color = 0;
 	int32_t start_tick = 0;
-	int32_t old_cis_process_cnt = 0;
-	uint32_t cis_line_freq = 0;
+	int32_t old_process_cnt = 0;
+	uint32_t freq = 0;
 	int32_t i = 0;
 	int32_t y = 0;
+	float32_t packet, i_packet;
 	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
+	int32_t line_length, line_intensity, pixel_intensity;
 
-	printf("----- ETHERNET MODE START -----\n");
-	printf("-------------------------------\n");
+	//printf("----- ETHERNET MODE START -----\n");
+	//printf("-------------------------------\n");
 
-	cisynth_SetHint();
+	//memset(imageData, 0, sizeof(imageData));
 
-	memset(imageData, 0, sizeof(imageData));
-	memset(rgbBuffers.R, 0, sizeof(rgbBuffers.R));
-	memset(rgbBuffers.G, 0, sizeof(rgbBuffers.G));
-	memset(rgbBuffers.B, 0, sizeof(rgbBuffers.B));
-
-	old_cis_process_cnt = shared_var.cis_process_cnt;
+	shared_var.cis_process_cnt = 0;
+	shared_var.udp_process_cnt = 0;
 
 	start_tick = HAL_GetTick();
+
+	cisynth_SetHint();
 
 	/* Infinite loop */
 	while (1)
 	{
 		cisynth_interractiveMenu();
 
-		if ((shared_var.cis_process_cnt - old_cis_process_cnt) > 100)
+		if ((shared_var.cis_process_cnt - old_process_cnt) > 100)
 		{
-			cis_line_freq = 1000000 / (((HAL_GetTick() - start_tick) * 1000) / (shared_var.cis_process_cnt - old_cis_process_cnt));
-			start_tick = HAL_GetTick();
-			old_cis_process_cnt = shared_var.cis_process_cnt;
-		}
+			int32_t tick = HAL_GetTick();
 
-		if (cis_line_freq == 0)
-		{
-			ssd1362_drawString(76, 20, (int8_t *)"PLEASE WAIT...", 0xF, 16);
-			ssd1362_writeUpdates();
-		}
-		else
-		{
+			freq = 1000000 / (((tick - start_tick) * 1000) / (shared_var.cis_process_cnt - old_process_cnt));
+			start_tick = tick;
+			old_process_cnt = shared_var.cis_process_cnt;
 
-#ifdef DISPLAY_SCOLL_IMAGE
-			line_Ypos++;
-			if (line_Ypos > (DISPLAY_AERAS1_HEIGHT - 2))
-				line_Ypos = 0;
+			cis_DisplayFrequency(freq);
 
-			for (i = 0; i < (DISPLAY_WIDTH); i++)
+			if (freq == 0)
 			{
-				cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH)) + UDP_HEADER_SIZE]);
-				cis_color = cis_rgb[0] * cis_rgb[1] * cis_rgb[2];
-				cis_color >>= 20;
-
-				//			ssd1362_drawVLine(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1, (DISPLAY_AERAS1_HEIGHT - 2) / BANNER_BACKGROUND_COLOR, cis_color, false);
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_AERA1_Y1POS + 1 + line_Ypos, cis_color, false);
-
+				ssd1362_drawString(76, 20, (int8_t *)"PLEASE WAIT...", 0xF, 16);
+				ssd1362_writeUpdates();
 			}
-#else
-			static int32_t line_length, line_intensity, pixel_intensity;
-			ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
-
-			for (i = 0; i < (DISPLAY_WIDTH); i++)
-			{
-#ifdef RGBA_BUFFER
-				// cast imageData pointer to a uint8_t pointer, and offset by calculated index value
-				// the index is calculated as the product of the current horizontal pixel position 'i'
-				// and the ratio of total CIS_PIXELS_NB and DISPLAY_WIDTH. UDP_HEADER_SIZE is then added to this
-				// to skip the header bytes in imageData.
-				cis_rgb = (uint8_t*)&(imageData[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH))]);
-#else
-				cis_rgb[0] = rgbBuffers.R[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH))];
-				cis_rgb[1] = rgbBuffers.G[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH))];
-				cis_rgb[2] = rgbBuffers.B[(uint32_t)(i * ((float)CIS_PIXELS_NB / (float)DISPLAY_WIDTH))];
-#endif
-
-				// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
-				// are weights given to the R, G, and B components respectively,
-				// according to the ITU-R BT.601 standard for converting color to grayscale.
-				// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
-				// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
-				cis_color = (299*(uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114*(uint32_t)cis_rgb[2]);
-				cis_color = 255000 - cis_color;
-
-				// Ensure that cis_color is within the expected range
-				cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;
-
-				// Calculate the length of the line in pixels (0 to 20)
-				// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
-				line_length = (int)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
-
-				// Make sure line_length does not exceed 20
-				line_length = line_length > (DISPLAY_AERAS1_HEIGHT / 2) ? (DISPLAY_AERAS1_HEIGHT / 2) : line_length;
-
-				// Calculate the intensity of the line (0 to 15)
-				// Again, dividing by 1000 because cis_color is scaled up
-				line_intensity = (cis_color / 255.0 * 15) / 1000;
-
-				// Ensure that the line intensity is within the expected range
-				line_intensity = line_intensity < 0 ? 0 : line_intensity > 15 ? 15 : line_intensity;
-
-				// Draw each pixel of the line
-				for (y = 0; y < line_length; y++)
-				{
-					// Decrease intensity for each additional pixel
-					pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
-
-
-					// Ensure that the pixel intensity is within the expected range
-					pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
-
-					// Draw a pixel above the center of the line for symmetry
-					ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos + y, pixel_intensity, false);
-
-					// Draw a pixel below the center of the line for symmetry
-					ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos - y, pixel_intensity, false);
-				}
-			}
-#endif
 		}
 
-		cis_DisplayFrequency(cis_line_freq);
+		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
+
+		for (i = 0; i < (DISPLAY_WIDTH); i++)
+		{
+			packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1)/(DISPLAY_WIDTH - 1);
+
+			i_packet = (packet - (uint32_t)packet * CIS_PIXELS_NB) / UDP_NB_PACKET_PER_LINE;
+
+			cis_rgb[0] = rgbBuffers[(uint32_t)packet].imageData_R[(uint32_t)i_packet];
+			cis_rgb[1] = rgbBuffers[(uint32_t)packet].imageData_G[(uint32_t)i_packet];
+			cis_rgb[2] = rgbBuffers[(uint32_t)packet].imageData_B[(uint32_t)i_packet];
+
+			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
+			// are weights given to the R, G, and B components respectively,
+			// according to the ITU-R BT.601 standard for converting color to grayscale.
+			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
+			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
+			cis_color = (299*(uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114*(uint32_t)cis_rgb[2]);
+			cis_color = 255000 - cis_color;
+
+			// Ensure that cis_color is within the expected range
+			cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;
+
+			// Calculate the length of the line in pixels (0 to 20)
+			// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
+			line_length = (int)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
+
+			// Make sure line_length does not exceed 20
+			line_length = line_length > (DISPLAY_AERAS1_HEIGHT / 2) ? (DISPLAY_AERAS1_HEIGHT / 2) : line_length;
+
+			// Calculate the intensity of the line (0 to 15)
+			// Again, dividing by 1000 because cis_color is scaled up
+			line_intensity = (cis_color / 255.0 * 15) / 1000;
+
+			// Ensure that the line intensity is within the expected range
+			line_intensity = line_intensity < 0 ? 0 : line_intensity > 15 ? 15 : line_intensity;
+
+			// Draw each pixel of the line
+			for (y = 0; y < line_length; y++)
+			{
+				// Decrease intensity for each additional pixel
+				pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
+
+
+				// Ensure that the pixel intensity is within the expected range
+				pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+				// Draw a pixel above the center of the line for symmetry
+				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos + y, pixel_intensity, false);
+
+				// Draw a pixel below the center of the line for symmetry
+				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos - y, pixel_intensity, false);
+			}
+		}
 
 		ssd1362_writeUpdates();
-		//		HAL_Delay(1);
 	}
 
 

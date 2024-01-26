@@ -23,7 +23,6 @@
 #include "dma.h"
 #include "quadspi.h"
 #include "rng.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -39,8 +38,6 @@
 
 #include "sss_Scan.h"
 #include "MX25L.h"
-
-#include "icm42688.h"
 
 /* USER CODE END Includes */
 
@@ -151,7 +148,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_TIM3_Init();
   MX_RNG_Init();
@@ -168,10 +164,7 @@ int main(void)
 	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-
 	HAL_Delay(200);
-
-	icm42688_init();
 
 	sss_Scan();
 
@@ -183,29 +176,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		//		static int16_t accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, tmp;
-		//		icm42688_read_data_raw(&accel_x, &accel_y, &accel_z, &gyro_x, &gyro_y, &gyro_z, &tmp);
-		//		printf("Accel : %d  %d  %d \n", accel_x, accel_y, accel_z);
-		//		printf("Gyro  : %d  %d  %d \n", gyro_x, gyro_y, gyro_z);
-		//		printf("temp. : %d \n", tmp);
-
-		static float accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z;
-
-		// read the sensor
-		icm42688_getAGT();
-
-		accel_x = icm42688_accX();
-		accel_y = icm42688_accY();
-		accel_z = icm42688_accZ();
-
-		gyro_x = icm42688_gyrX();
-		gyro_y = icm42688_gyrY();
-		gyro_z = icm42688_gyrZ();
-
-		printf("Accel : %.2f  %.2f  %.2f \n", accel_x, accel_y, accel_z);
-		printf("Gyro  : %.2f  %.2f  %.2f \n", gyro_x, gyro_y, gyro_z);
-
-		HAL_Delay(500);
 
     /* USER CODE END WHILE */
 
@@ -317,7 +287,7 @@ void MPU_Config(void)
   */
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x30040000;
+  MPU_InitStruct.BaseAddress = 0x30044000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
   MPU_InitStruct.SubRegionDisable = 0x0;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
@@ -332,7 +302,8 @@ void MPU_Config(void)
   /** Initializes and configures the Region and the memory to be protected
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
+  MPU_InitStruct.BaseAddress = 0x30040000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_1KB;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
@@ -364,8 +335,8 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
-		HAL_GPIO_TogglePin(LED1_Pin, LED1_GPIO_Port); //LED1 PIN
-		for(uint32_t i = 0; i < 0xFFFFFFF; i++);
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		for(volatile uint32_t i = 0; i < 0xFFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */
 }

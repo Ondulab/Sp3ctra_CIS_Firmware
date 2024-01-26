@@ -73,7 +73,6 @@ void cis_Init()
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
 	memset((int16_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
-	memset((float32_t *)&cisDataCpy_q31[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 	memset((float32_t *)&cisDataCpy_f32[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
@@ -169,7 +168,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 	int32_t acc = 0;
 	static int32_t lane, i;
 
-	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	arm_fill_f32(0, cisDataCpy_f32, sizeof(cisDataCpy_f32)); //Clear buffer
 
 	while (acc < overSampling)
 	{
@@ -210,7 +209,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 
 	if ( overSampling > 1)
 	{
-		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, sizeof(cisDataCpy_f32));
 	}
 }
 
@@ -232,7 +231,7 @@ void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage*
 	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->blueLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
 }
 
-void cis_ImageProcessRGB_2(int32_t *cis_buff)
+void cis_ImageProcess_2(int32_t *cis_buff)
 {
 	static struct RAWImage RAWImage = {0};
 	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
@@ -241,83 +240,6 @@ void cis_ImageProcessRGB_2(int32_t *cis_buff)
 	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
 	cis_ApplyCalibration(&RAWImage, &rgbCalibration);
 	cis_ConvertRAWImageToRGBImage(&RAWImage, cis_buff);
-}
-
-void cis_ImageProcessRGB(int32_t *cis_buff)
-{
-	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Cx, dataOffset_Bx, imageOffset;
-	static int32_t tmp_cis_buff[CIS_PIXELS_NB];
-	static int32_t lane, i;
-
-	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
-
-	cis_ApplyLinearCalibration();
-
-	for (i = (CIS_ADC_BUFF_SIZE * 3); --i >= 0;)
-	{
-		cisDataCpy_q31[i] = (int32_t)(cisDataCpy_f32[i]);
-	}
-
-	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
-
-
-	for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-	{
-		imageOffset = (CIS_PIXELS_PER_LANE * lane);	//Mx
-
-		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * lane) + CIS_RED_LANE_OFFSET;									//Rx
-		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * lane) + CIS_GREEN_LANE_OFFSET;									//Gx
-
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Rx], -4, &cisDataCpy_q31[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 2) - CIS_START_OFFSET); 	//R + Ghalf 8 bit conversion
-
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Gx], 8, &cisDataCpy_q31[dataOffset_Gx], CIS_GREEN_HALF_SIZE); 	//Ghalf 8 bit shift
-
-		arm_add_q31(&cisDataCpy_q31[dataOffset_Gx], &cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Rx], CIS_GREEN_HALF_SIZE); //Add Green
-
-		dataOffset_Cx = (CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2);								//Cx
-		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * lane) + CIS_BLUE_LANE_OFFSET;									//Bx
-
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Cx], -4, &cisDataCpy_q31[dataOffset_Cx], CIS_ADC_BUFF_SIZE / 2); 	//Gfull + B 8 bit conversion
-
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Cx], 8, &cisDataCpy_q31[dataOffset_Cx], CIS_GREEN_FULL_SIZE); 		//Gfull 8 bit shift
-		arm_shift_q31(&cisDataCpy_q31[dataOffset_Bx], 16, &cisDataCpy_q31[dataOffset_Bx], CIS_PIXELS_PER_LANE); 	//B 16 bit shift
-
-		arm_add_q31(&cisDataCpy_q31[dataOffset_Cx], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], &cisDataCpy_q31[dataOffset_Bx + CIS_GREEN_HALF_SIZE], CIS_GREEN_FULL_SIZE); //Add Green
-
-		arm_add_q31(&cisDataCpy_q31[dataOffset_Rx], &cisDataCpy_q31[dataOffset_Bx], &tmp_cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //Half + Full Data
-
-
-		//		arm_fill_q31(0xFF0000 >> (lane * 8), &cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //RGB debug
-	}
-
-	if (shared_var.cis_scanDir)
-	{
-		for (i = CIS_PIXELS_NB; --i >= 0;)
-		{
-			cis_buff[i] = tmp_cis_buff[CIS_PIXELS_NB - 1 - i];
-		}
-	}
-	else
-	{
-		for (i = CIS_PIXELS_NB; --i >= 0;)
-		{
-			cis_buff[i] = tmp_cis_buff[i];
-		}
-	}
-
-	//	//debug
-	//	for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-	//	{
-	//		imageOffset = (CIS_PIXELS_PER_LANE * lane);	//Mx
-	//
-	//		dataOffset_Rx = (CIS_ADC_BUFF_SIZE * lane);									//Rx
-	//
-	//		arm_shift_q31(&cisDataCpy_q31[dataOffset_Rx], -4, &cisDataCpy_q31[dataOffset_Rx], (CIS_ADC_BUFF_SIZE / 3)); 	//R + Ghalf 8 bit conversion
-	//		arm_copy_q31(&cisDataCpy_q31[dataOffset_Rx], &cis_buff[imageOffset], CIS_PIXELS_PER_LANE); //Half + Full Data
-	//	}
-
-	//fort transmit full data of one lane
-	//	arm_copy_q31(&cisDataCpy_q31[0], &cis_buff[0], CIS_PIXELS_PER_LANE * 3);
 }
 
 /**
@@ -351,40 +273,51 @@ void cis_ImageProcessRGB(int32_t *cis_buff)
  *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
  *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  */
-void cis_ImageProcess_R_G_B(struct cisRgbBuffers *imageBuffers)
+void cis_ImageProcess(struct packet_Image *imageBuffers)
 {
-    static int32_t lane, i;
-    static int32_t index = 0;
+	static int32_t lane, i, packet;
+	static int32_t index = 0;
 
-    cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
+	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
-    cis_ApplyLinearCalibration();
+	cis_ApplyLinearCalibration();
 
-    for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-    {
-        for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES); --i >= 0;)
-        {
-            if (shared_var.cis_scanDir)
+	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
+	{
+		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+		{
+            if (!shared_var.cis_scanDir)
             {
-                index = ((CIS_ADC_OUT_LANES - 1 - lane) * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + (CIS_PIXELS_NB / CIS_ADC_OUT_LANES - 1 - i);
+                index = ((CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * (lane + 1)) - 1;
 
             }
             else
             {
-                index = (lane * (CIS_PIXELS_NB / CIS_ADC_OUT_LANES)) + i;
+                index = ((CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * lane);
             }
+			for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * (packet + 1); --i >= (CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * packet;)
+			{
+				imageBuffers[packet].imageData_R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				imageBuffers[packet].imageData_G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				imageBuffers[packet].imageData_B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
 
-            //imageBuffers->R[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
-            //imageBuffers->G[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
-            //imageBuffers->B[index] = (uint8_t)(cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))] / 16.00);
+	            if (!shared_var.cis_scanDir)
+	            {
+	                index--;
 
-            imageBuffers->R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-            imageBuffers->G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-            imageBuffers->B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-        }
-    }
-
-	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+	            }
+	            else
+	            {
+	                index++;
+	            }
+				//imageBuffers->R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				//imageBuffers->G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				//imageBuffers->B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+			}
+		}
+		imageBuffers[packet].fragment_id = packet;
+		imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+	}
 }
 
 /**

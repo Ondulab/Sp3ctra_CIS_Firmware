@@ -35,7 +35,7 @@ __attribute__ ((section(".imageData")))
 int32_t imageData[CIS_PIXELS_NB] = {0};
 
 __attribute__ ((section(".rgbBuffers")))
-struct cisRgbBuffers rgbBuffers = {0};
+struct packet_Image rgbBuffers[UDP_NB_PACKET_PER_LINE] = {0};
 
 #pragma GCC pop_options
 
@@ -60,9 +60,6 @@ struct RGB_Calibration rgbCalibration = {0};
 
 __attribute__ ((section(".cisLeds_Calibration")))
 struct cisLeds_Calibration cisLeds_Calibration = {0};
-
-__attribute__ ((section(".cisDataCpy_q31")))
-q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3] = {0};
 
 #pragma GCC pop_options
 

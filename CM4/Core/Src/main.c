@@ -20,15 +20,17 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "spi.h"
 #include "gpio.h"
 #include "fmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "shared.h"
 #include "sss_Display.h"
 #include "ssd1362.h"
 #include "pictures.h"
-#include "shared.h"
+#include "icm42688.h"
 
 /* USER CODE END Includes */
 
@@ -108,6 +110,7 @@ int main(void)
   MX_DMA_Init();
   MX_GPIO_Init();
   MX_FMC_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
 	// Initialize oled display and print logo
@@ -136,6 +139,8 @@ int main(void)
 		HAL_Delay(100);
 	}
 #endif
+
+	icm42688_init();
 
 	sss_Display();
 
@@ -167,6 +172,8 @@ void Error_Handler(void)
 	__disable_irq();
 	while (1)
 	{
+		HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+		for(volatile uint32_t i = 0; i < 0xFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */
 }

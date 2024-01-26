@@ -76,7 +76,7 @@
 #define LWIP_CLK_FREQ							(1000)			//in Hz
 
 #define UDP_HEADER_SIZE							(1)//uint32
-#define UDP_NB_PACKET_PER_LINE					(6)
+#define UDP_NB_PACKET_PER_LINE					(12)
 #define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE)) + (UDP_HEADER_SIZE))
 
 /* UDP local connection port */
@@ -113,10 +113,9 @@
 /**************************************************************************************/
 //#define CIS_400DPI
 //#define CIS_MONOCHROME
-//#define RGBA_BUFFER
 
 #define CIS_CLK_FREQ							(2500000)
-#define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ)) //120 = 4MHz 96 = 5Mhz
+#define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ))
 
 #define CIS_ADC_OUT_LANES						(3)
 

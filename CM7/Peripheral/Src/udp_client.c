@@ -18,8 +18,6 @@
 
 #include "arm_math.h"
 
-#include "icm42688.h"
-
 /* Private includes ----------------------------------------------------------*/
 #include "udp_client.h"
 
@@ -35,7 +33,6 @@ __IO uint32_t message_count = 0;
 int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
-static struct packet_Image packet_Image = {0};
 static struct packet_HID packet_HID = {0};
 static struct packet_IMU packet_IMU = {0};
 
@@ -71,8 +68,14 @@ void udp_clientInit(void)
 		}
 	}
 
+	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
+	{
+		rgbBuffers[packet].fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
+		rgbBuffers[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
+		rgbBuffers[packet].type = IMAGE_DATA_HEADER;
+	}
+
 	packet_StartupInfo.type = STARTUP_INFO_HEADER;
-	packet_Image.type = IMAGE_DATA_HEADER;
 	packet_HID.type = HID_DATA_HEADER;
 	packet_IMU.type = IMU_DATA_HEADER;
 
@@ -84,13 +87,13 @@ void udp_clientInit(void)
 
 void udp_sendData(void *data, uint16_t length)
 {
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
-    if (p != NULL)
-    {
-        pbuf_take(p, data, length);
-        udp_send(upcb, p);
-        pbuf_free(p);
-    }
+	struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
+	if (p != NULL)
+	{
+		pbuf_take(p, data, length);
+		udp_send(upcb, p);
+		pbuf_free(p);
+	}
 }
 
 
@@ -99,51 +102,22 @@ void udp_clientSendStartupInfoPacket(void)
 	udp_sendData(&packet_StartupInfo, sizeof(packet_StartupInfo));
 }
 
-void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 {
-	static uint32_t line_id = 0;
+	static int32_t packet = 0;
 
-	packet_Image.line_id = line_id++;
-	packet_Image.fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
-	packet_Image.total_fragments = UDP_NB_PACKET_PER_LINE;
-
-	packet_Image.imageColor = IMAGE_COLOR_R;
-
-	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
+	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
-		packet_Image.packet_id = packetsCounter++;
-		packet_Image.fragment_id = curr_packet;
-		memcpy(packet_Image.imageData, rgbBuffers->R + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
-
-		udp_sendData(&packet_Image, sizeof(packet_Image));
-	}
-
-	packet_Image.imageColor = IMAGE_COLOR_G;
-
-	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
-	{
-		packet_Image.packet_id = packetsCounter++;
-		packet_Image.fragment_id = curr_packet;
-		memcpy(packet_Image.imageData, rgbBuffers->G + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
-
-		udp_sendData(&packet_Image, sizeof(packet_Image));
-	}
-
-	packet_Image.imageColor = IMAGE_COLOR_B;
-
-	for (int32_t curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
-	{
-		packet_Image.packet_id = packetsCounter++;
-		packet_Image.fragment_id = curr_packet;
-		memcpy(packet_Image.imageData, rgbBuffers->B + curr_packet * packet_Image.fragment_size, packet_Image.fragment_size);
-
-		udp_sendData(&packet_Image, sizeof(packet_Image));
+		rgbBuffers[packet].packet_id = packetsCounter++;
+		udp_sendData(&rgbBuffers[packet], sizeof(struct packet_Image));
 	}
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	icm42688_getAGT();
-
+	//icm42688_getAGT();
+    /*
 	packet_IMU.gyro[0] = (uint16_t)(icm42688_gyrX() * 100.0);
 	packet_IMU.gyro[1] = (uint16_t)(icm42688_gyrY() * 100.0);
 	packet_IMU.gyro[2] = (uint16_t)(icm42688_gyrZ() * 100.0);
@@ -151,6 +125,7 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 	packet_IMU.acc[0] = (uint16_t)(icm42688_accX() * 100.0);
 	packet_IMU.acc[1] = (uint16_t)(icm42688_accY() * 100.0);
 	packet_IMU.acc[2] = (uint16_t)(icm42688_accZ() * 100.0);
+     */
 
 	udp_sendData(&packet_IMU, sizeof(packet_IMU));
 
@@ -162,33 +137,7 @@ void udp_clientSendPackets(struct cisRgbBuffers *rgbBuffers)
 
 	udp_sendData(&packet_HID, sizeof(packet_HID));
 }
-
-void udp_clientSendImage(int32_t *image_buff)
-{
-	static struct pbuf *p;
-	static uint32_t curr_packet = 0;
-
-	for (curr_packet = 0; curr_packet < UDP_NB_PACKET_PER_LINE; curr_packet++)
-	{
-		/* allocate pbuf from pool*/
-		p = pbuf_alloc(PBUF_TRANSPORT, UDP_PACKET_SIZE * sizeof(uint32_t), PBUF_RAM);
-
-		if (p != NULL)
-		{
-			udp_imageData[0] = (UDP_PACKET_SIZE - UDP_HEADER_SIZE) * curr_packet;
-			arm_copy_q31(&image_buff[(UDP_PACKET_SIZE - UDP_HEADER_SIZE) * curr_packet], &udp_imageData[UDP_HEADER_SIZE], UDP_PACKET_SIZE - UDP_HEADER_SIZE);
-
-			/* copy data to pbuf */
-			pbuf_take(p, (int8_t*)udp_imageData, UDP_PACKET_SIZE * sizeof(uint32_t));
-
-			/* send udp data */
-			udp_send(upcb, p);
-
-			/* free pbuf */
-			pbuf_free(p);
-		}
-	}
-}
+#pragma GCC pop_options
 
 void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {

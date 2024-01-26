@@ -44,10 +44,10 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
-RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 256K
-RAM_SHARED (rw) 		: ORIGIN = 0x24000000, LENGTH = 64
-RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
+  FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
+  RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 256K
+  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
 }
 
 /* Define output sections */
@@ -130,8 +130,7 @@ SECTIONS
     KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage));     
     KEEP (*(.rgbCalibration)); 
-    KEEP (*(.cisLeds_Calibration));     
-    KEEP (*(.cisDataCpy_q31));     
+    KEEP (*(.cisLeds_Calibration));         
     KEEP (*(.cisCals));
     KEEP (*(.rgbCals));  
   } >RAM_SHARED_CACHED

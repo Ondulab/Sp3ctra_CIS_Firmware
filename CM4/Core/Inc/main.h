@@ -60,8 +60,14 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define OLED_RESET_Pin GPIO_PIN_8
 #define OLED_RESET_GPIO_Port GPIOB
+#define MEMS_FSYNC_Pin GPIO_PIN_15
+#define MEMS_FSYNC_GPIO_Port GPIOA
+#define MEMS_CS_Pin GPIO_PIN_9
+#define MEMS_CS_GPIO_Port GPIOB
 #define EN_12V_Pin GPIO_PIN_5
 #define EN_12V_GPIO_Port GPIOG
+#define MEMS_INT_Pin GPIO_PIN_8
+#define MEMS_INT_GPIO_Port GPIOD
 #define SW_3_Pin GPIO_PIN_14
 #define SW_3_GPIO_Port GPIOE
 #define LED3_Pin GPIO_PIN_12

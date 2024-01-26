@@ -22,6 +22,60 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 
+typedef enum
+{
+	STARTUP_INFO_HEADER = 0,
+	IMAGE_DATA_HEADER,
+	IMU_DATA_HEADER,
+	HID_DATA_HEADER,
+}CIS_Packet_HeaderTypeDef;
+
+typedef enum
+{
+	IMAGE_COLOR_R = 0,
+	IMAGE_COLOR_G,
+	IMAGE_COLOR_B,
+}CIS_Packet_ImageColorTypeDef;
+
+// Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
+struct packet_StartupInfo{
+    uint8_t type; 						// Identifies the data type
+    uint32_t packet_id;               	// Sequence number, useful for ordering packets
+    uint8_t version_info[64]; 			// Information about the version, and other startup details
+};
+
+// Structure for image data packets, including metadata for image fragmentation
+struct packet_Image{
+    uint8_t type; 						// Identifies the data type
+    uint32_t packet_id;               	// Sequence number, useful for ordering packets
+    uint32_t line_id;      				// Line identifier
+    uint8_t fragment_id;      			// Fragment position
+    uint8_t total_fragments;  			// Total number of fragments for the complete image
+    uint16_t fragment_size;   			// Size of this particular fragment
+    uint8_t imageData_R[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented red image data
+    uint8_t imageData_G[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented green image data
+    uint8_t imageData_B[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented blue image data
+};
+
+// Structure for packets containing button state information
+struct packet_HID {
+    uint8_t type; 						// Identifies the data type
+    uint32_t packet_id;               	// Sequence number, useful for ordering packets
+    uint8_t button_A;     				// State of the buttons (pressed/released, etc.)
+    uint8_t button_B;     				// State of the buttons (pressed/released, etc.)
+    uint8_t button_C;     				// State of the buttons (pressed/released, etc.)
+};
+
+// Structure for packets containing sensor data (accelerometer and gyroscope)
+struct packet_IMU {
+    uint8_t type; 						// Identifies the data type
+    uint32_t packet_id;               	// Sequence number, useful for ordering packets
+    int16_t acc[3];           			// Accelerometer data: x, y, and z axis
+    int16_t gyro[3];          			// Gyroscope data: x, y, and z axis
+    int16_t integrated_acc[3];          // Accelerometer data: x, y, and z axis
+    int16_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
+};
+
 struct cisRgbBuffers {
 	uint8_t R[CIS_PIXELS_NB];
 	uint8_t G[CIS_PIXELS_NB];
@@ -66,6 +120,7 @@ struct cisCals {
 
 struct shared_var {
 	int32_t cis_process_cnt;
+	int32_t udp_process_cnt;
 	int32_t cis_cal_request;
 	uint32_t cis_cal_progressbar;
 	uint32_t cis_oversampling;
@@ -81,7 +136,7 @@ extern volatile struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
 extern int32_t imageData[CIS_PIXELS_NB];
-extern struct cisRgbBuffers rgbBuffers;
+extern struct packet_Image rgbBuffers[UDP_NB_PACKET_PER_LINE];
 extern int params_size;
 
 
