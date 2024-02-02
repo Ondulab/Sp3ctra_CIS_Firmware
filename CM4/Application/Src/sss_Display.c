@@ -78,21 +78,39 @@ int sss_Display(void)
 	uint32_t freq = 0;
 	int32_t i = 0;
 	int32_t y = 0;
-	float32_t packet, i_packet;
+	float32_t packet, index;
 	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
 	int32_t line_length, line_intensity, pixel_intensity;
 
 	//printf("----- ETHERNET MODE START -----\n");
 	//printf("-------------------------------\n");
 
-	//memset(imageData, 0, sizeof(imageData));
-
 	shared_var.cis_process_cnt = 0;
 	shared_var.udp_process_cnt = 0;
 
-	start_tick = HAL_GetTick();
-
 	cisynth_SetHint();
+
+	if (shared_var.cis_process_cnt == 0)
+	{
+		while (shared_var.cis_process_cnt == 0)
+		{
+			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT.", 8, 10);
+			ssd1362_writeUpdates();
+			HAL_Delay(200);
+			if (shared_var.cis_process_cnt != 0)
+				break;
+			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT..", 8, 10);
+			ssd1362_writeUpdates();
+			HAL_Delay(200);
+			if (shared_var.cis_process_cnt != 0)
+				break;
+			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT...", 8, 10);
+			ssd1362_writeUpdates();
+			HAL_Delay(200);
+		}
+	}
+
+	start_tick = HAL_GetTick();
 
 	/* Infinite loop */
 	while (1)
@@ -108,32 +126,26 @@ int sss_Display(void)
 			old_process_cnt = shared_var.cis_process_cnt;
 
 			cis_DisplayFrequency(freq);
-
-			if (freq == 0)
-			{
-				ssd1362_drawString(76, 20, (int8_t *)"PLEASE WAIT...", 0xF, 16);
-				ssd1362_writeUpdates();
-			}
 		}
 
 		ssd1362_drawRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
 
 		for (i = 0; i < (DISPLAY_WIDTH); i++)
 		{
-			packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1)/(DISPLAY_WIDTH - 1);
+			packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1.0)/(DISPLAY_WIDTH - 1.0);
 
-			i_packet = (packet - (uint32_t)packet * CIS_PIXELS_NB) / UDP_NB_PACKET_PER_LINE;
+			index = (packet - (uint32_t)packet) * (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
 
-			cis_rgb[0] = rgbBuffers[(uint32_t)packet].imageData_R[(uint32_t)i_packet];
-			cis_rgb[1] = rgbBuffers[(uint32_t)packet].imageData_G[(uint32_t)i_packet];
-			cis_rgb[2] = rgbBuffers[(uint32_t)packet].imageData_B[(uint32_t)i_packet];
+			cis_rgb[0] = rgbBuffers[(uint32_t)packet].imageData_R[(uint32_t)index];
+			cis_rgb[1] = rgbBuffers[(uint32_t)packet].imageData_G[(uint32_t)index];
+			cis_rgb[2] = rgbBuffers[(uint32_t)packet].imageData_B[(uint32_t)index];
 
 			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
 			// are weights given to the R, G, and B components respectively,
 			// according to the ITU-R BT.601 standard for converting color to grayscale.
 			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
 			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
-			cis_color = (299*(uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114*(uint32_t)cis_rgb[2]);
+			cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
 			cis_color = 255000 - cis_color;
 
 			// Ensure that cis_color is within the expected range
@@ -141,7 +153,7 @@ int sss_Display(void)
 
 			// Calculate the length of the line in pixels (0 to 20)
 			// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
-			line_length = (int)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
+			line_length = (int32_t)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
 
 			// Make sure line_length does not exceed 20
 			line_length = line_length > (DISPLAY_AERAS1_HEIGHT / 2) ? (DISPLAY_AERAS1_HEIGHT / 2) : line_length;
@@ -164,17 +176,15 @@ int sss_Display(void)
 				pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
 
 				// Draw a pixel above the center of the line for symmetry
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos + y, pixel_intensity, false);
+				ssd1362_drawPixel(i, line_Ypos + y, pixel_intensity, false);
 
 				// Draw a pixel below the center of the line for symmetry
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, line_Ypos - y, pixel_intensity, false);
+				ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
 			}
 		}
 
 		ssd1362_writeUpdates();
 	}
-
-
 }
 
 /**

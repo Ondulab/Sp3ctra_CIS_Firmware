@@ -168,7 +168,10 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 	int32_t acc = 0;
 	static int32_t lane, i;
 
-	arm_fill_f32(0, cisDataCpy_f32, sizeof(cisDataCpy_f32)); //Clear buffer
+	if ( overSampling > 1)
+	{
+		arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+	}
 
 	while (acc < overSampling)
 	{
@@ -182,7 +185,14 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
+				if ( overSampling > 1)
+				{
+					cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
+				}
+				else
+				{
+					cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] = (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
+				}
 			}
 
 			cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
@@ -198,7 +208,14 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
 			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
 			{
-				cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+				if ( overSampling > 1)
+				{
+					cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+				}
+				else
+				{
+					cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] = (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+				}
 			}
 
 			cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
@@ -209,7 +226,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 
 	if ( overSampling > 1)
 	{
-		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, sizeof(cisDataCpy_f32));
+		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 	}
 }
 
@@ -273,10 +290,9 @@ void cis_ImageProcess_2(int32_t *cis_buff)
  *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
  *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  */
-void cis_ImageProcess(struct packet_Image *imageBuffers)
+void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
 {
-	static int32_t lane, i, packet;
-	static int32_t index = 0;
+	static int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
@@ -284,41 +300,44 @@ void cis_ImageProcess(struct packet_Image *imageBuffers)
 
 	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
-		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+		lane = packet / (UDP_NB_PACKET_PER_LINE / CIS_ADC_OUT_LANES);
+
+		if (shared_var.cis_scanDir)
 		{
-            if (!shared_var.cis_scanDir)
-            {
-                index = ((CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * (lane + 1)) - 1;
+			startIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane) - 1;
+			endIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
 
-            }
-            else
-            {
-                index = ((CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * lane);
-            }
-			for (i = (CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * (packet + 1); --i >= (CIS_PIXELS_NB / CIS_ADC_OUT_LANES / UDP_NB_PACKET_PER_LINE) * packet;)
+			for (i = startIdx; i >= endIdx; --i)
 			{
-				imageBuffers[packet].imageData_R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-				imageBuffers[packet].imageData_G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-				imageBuffers[packet].imageData_B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				offsetIndex = i - endIdx;
 
-	            if (!shared_var.cis_scanDir)
-	            {
-	                index--;
-
-	            }
-	            else
-	            {
-	                index++;
-	            }
-				//imageBuffers->R[index] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-				//imageBuffers->G[index] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
-				//imageBuffers->B[index] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+				imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
 			}
 		}
+		else
+		{
+			startIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
+			endIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane);
+
+			for (i = startIdx; i < endIdx; i++)
+			{
+				offsetIndex = i - startIdx;
+
+				ii = startIdx - 1 - i + (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) + startIdx;
+
+				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+			}
+		}
+
 		imageBuffers[packet].fragment_id = packet;
 		imageBuffers[packet].line_id = shared_var.cis_process_cnt;
 	}
 }
+#pragma GCC pop_options
 
 /**
  * @brief  cis_ImageProcessRGB_Calibration
@@ -330,7 +349,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 	static int32_t lane, iteration, pix, i;
 	shared_var.cis_cal_progressbar = 0;
 
-	memset(cisCalData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	arm_fill_f32(0, cisCalData, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
 
 	for (iteration = 0; iteration < iterationNb; iteration++)
 	{
@@ -338,10 +357,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
-			{
-				//				printf("wait \n");
-			}
+			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
 
 			/* Invalidate Data Cache */
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
@@ -356,11 +372,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
 		{
 			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
-			{
-				//				printf("wait \n");
-			}
-
+			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
 
 			/* Invalidate Data Cache */
 			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
@@ -382,7 +394,6 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 #endif
 	}
 }
-#pragma GCC pop_options
 
 /**
  * @brief  CIS start captures

@@ -96,7 +96,7 @@ int sss_Scan(void)
 #endif
 		}
 
-		cis_ImageProcess(rgbBuffers);
+		cis_ImageProcess(cisDataCpy_f32, rgbBuffers);
 		SCB_CleanDCache_by_Addr((uint32_t *)&rgbBuffers, sizeof(rgbBuffers));
 		udp_clientSendPackets(rgbBuffers);
 

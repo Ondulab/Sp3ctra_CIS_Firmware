@@ -140,7 +140,7 @@ int main(void)
 	}
 #endif
 
-	icm42688_init();
+	//icm42688_init();
 
 	sss_Display();
 

@@ -75,9 +75,8 @@
 /**************************************************************************************/
 #define LWIP_CLK_FREQ							(1000)			//in Hz
 
-#define UDP_HEADER_SIZE							(1)//uint32
 #define UDP_NB_PACKET_PER_LINE					(12)
-#define UDP_PACKET_SIZE							(((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE)) + (UDP_HEADER_SIZE))
+#define UDP_PACKET_SIZE							((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE))
 
 /* UDP local connection port */
 #define UDP_SERVER_PORT    						((uint16_t)55151U)
