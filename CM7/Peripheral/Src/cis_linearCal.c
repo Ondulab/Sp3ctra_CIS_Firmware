@@ -48,33 +48,6 @@ void cis_lanealCalibrationInit()
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-float calculate_mean(float *array, int length) {
-    float sum = 0.0;
-    for (int i = 0; i < length; i++) {
-        sum += array[i];
-    }
-    return sum / length;
-}
-
-void elementwise_subtract(float *result, float *array1, float *array2, int length) {
-    for (int i = 0; i < length; i++) {
-        result[i] = array1[i] - array2[i];
-    }
-}
-
-void elementwise_multiply(float *result, float *array1, float *array2, int length) {
-    for (int i = 0; i < length; i++) {
-        result[i] = array1[i] * array2[i];
-    }
-}
-
-void clip_values(float *array, float min, float max, int length) {
-    for (int i = 0; i < length; i++) {
-        if (array[i] < min) array[i] = min;
-        else if (array[i] > max) array[i] = max;
-    }
-}
-
 void cis_ApplyLinearCalibration(void)
 {
 #ifndef CIS_DESACTIVATE_CALIBRATION
@@ -295,11 +268,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-#ifdef RGBA_BUFFER
-			cisCals.gainsData[laneOffset + i] = (float32_t)(CIS_ADC_MAX_VALUE) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
-#else
 			cisCals.gainsData[laneOffset + i] = (float32_t)(255) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
-#endif
 		}
 	}
 }
@@ -332,7 +301,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_LedPowerAdj(100, 100, 100);
-	HAL_Delay(2000);
+	HAL_Delay(500);
 
 	printf("------- LOAD CALIBRATION ------\n");
 	/*-------- 1 --------*/
@@ -348,7 +317,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
-	HAL_Delay(500);
+	HAL_Delay(200);
 
 	/*-------- 2 --------*/
 	// Extrat Min Max and delta
@@ -363,7 +332,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
-	HAL_Delay(500);
+	HAL_Delay(200);
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
@@ -373,7 +342,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
-	HAL_Delay(500);
+	HAL_Delay(200);
 
 	/*-------- 4 --------*/
 	// Compute gains
@@ -383,7 +352,6 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
-	HAL_Delay(500);
 
 	printf("-------- COMPUTE GAINS --------\n");
 #ifdef PRINT_CIS_CALIBRATION

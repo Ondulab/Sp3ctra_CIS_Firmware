@@ -35,7 +35,10 @@ __attribute__ ((section(".imageData")))
 int32_t imageData[CIS_PIXELS_NB] = {0};
 
 __attribute__ ((section(".rgbBuffers")))
-struct packet_Image rgbBuffers[UDP_NB_PACKET_PER_LINE] = {0};
+struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE] = {0};
+
+__attribute__ ((section(".imuData")))
+struct packet_IMU packet_IMU = {0};
 
 #pragma GCC pop_options
 

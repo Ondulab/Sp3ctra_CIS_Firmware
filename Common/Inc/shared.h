@@ -70,10 +70,10 @@ struct packet_HID {
 struct packet_IMU {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    int16_t acc[3];           			// Accelerometer data: x, y, and z axis
-    int16_t gyro[3];          			// Gyroscope data: x, y, and z axis
-    int16_t integrated_acc[3];          // Accelerometer data: x, y, and z axis
-    int16_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
+    float32_t acc[3];           			// Accelerometer data: x, y, and z axis
+    float32_t gyro[3];          			// Gyroscope data: x, y, and z axis
+    float32_t integrated_acc[3];          // Accelerometer data: x, y, and z axis
+    float32_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
 };
 
 struct cisRgbBuffers {
@@ -136,7 +136,8 @@ extern volatile struct shared_var shared_var;
 extern struct params params;
 extern struct cisCals cisCals;
 extern int32_t imageData[CIS_PIXELS_NB];
-extern struct packet_Image rgbBuffers[UDP_NB_PACKET_PER_LINE];
+extern struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE];
+extern struct packet_IMU packet_IMU;
 extern int params_size;
 
 

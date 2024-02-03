@@ -23,6 +23,7 @@
 #include "dma.h"
 #include "quadspi.h"
 #include "rng.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -36,6 +37,7 @@
 #include "config.h"
 #include "shared.h"
 
+#include "icm42688.h"
 #include "sss_Scan.h"
 #include "MX25L.h"
 
@@ -154,6 +156,7 @@ int main(void)
   MX_CRC_Init();
   MX_TIM6_Init();
   MX_QUADSPI_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("-------------------------------\n");
@@ -165,6 +168,9 @@ int main(void)
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 	HAL_Delay(200);
+
+	if (icm42688_init() != 0)
+		Error_Handler();
 
 	sss_Scan();
 
@@ -253,7 +259,8 @@ void PeriphCommonClock_Config(void)
 
   /** Initializes the peripherals clock
   */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_SPI2|RCC_PERIPHCLK_USART1;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_SPI2
+                              |RCC_PERIPHCLK_USART1;
   PeriphClkInitStruct.PLL2.PLL2M = 5;
   PeriphClkInitStruct.PLL2.PLL2N = 160;
   PeriphClkInitStruct.PLL2.PLL2P = 10;
@@ -262,8 +269,17 @@ void PeriphCommonClock_Config(void)
   PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2;
   PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
   PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+  PeriphClkInitStruct.PLL3.PLL3M = 5;
+  PeriphClkInitStruct.PLL3.PLL3N = 160;
+  PeriphClkInitStruct.PLL3.PLL3P = 10;
+  PeriphClkInitStruct.PLL3.PLL3Q = 1;
+  PeriphClkInitStruct.PLL3.PLL3R = 8;
+  PeriphClkInitStruct.PLL3.PLL3RGE = RCC_PLL3VCIRANGE_2;
+  PeriphClkInitStruct.PLL3.PLL3VCOSEL = RCC_PLL3VCOWIDE;
+  PeriphClkInitStruct.PLL3.PLL3FRACN = 0;
   PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
   PeriphClkInitStruct.Usart16ClockSelection = RCC_USART16CLKSOURCE_PLL2;
+  PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLL3;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -336,7 +352,7 @@ void Error_Handler(void)
 	while (1)
 	{
 		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-		for(volatile uint32_t i = 0; i < 0xFFFFFFF; i++);
+		for(volatile uint32_t i = 0; i < 0xFFFFFF; i++);
 	}
   /* USER CODE END Error_Handler_Debug */
 }

@@ -58,6 +58,10 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define MEMS_FSYNC_Pin GPIO_PIN_15
+#define MEMS_FSYNC_GPIO_Port GPIOA
+#define MEMS_CS_Pin GPIO_PIN_9
+#define MEMS_CS_GPIO_Port GPIOB
 #define CIS_RS_Pin GPIO_PIN_12
 #define CIS_RS_GPIO_Port GPIOA
 #define ETH_RST_Pin GPIO_PIN_14
@@ -72,6 +76,8 @@ void Error_Handler(void);
 #define EN_5V_GPIO_Port GPIOG
 #define CIS_LED_R_Pin GPIO_PIN_13
 #define CIS_LED_R_GPIO_Port GPIOD
+#define MEMS_INT_Pin GPIO_PIN_8
+#define MEMS_INT_GPIO_Port GPIOD
 #define CIS_ADC_3_Pin GPIO_PIN_3
 #define CIS_ADC_3_GPIO_Port GPIOC
 #define CIS_LED_G_Pin GPIO_PIN_12

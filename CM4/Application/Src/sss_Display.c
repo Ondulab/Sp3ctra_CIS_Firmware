@@ -80,7 +80,8 @@ int sss_Display(void)
 	int32_t y = 0;
 	float32_t packet, index;
 	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
-	int32_t line_length, line_intensity, pixel_intensity;
+	int32_t pixel_intensity = 0;
+	float64_t angle = 0;
 
 	//printf("----- ETHERNET MODE START -----\n");
 	//printf("-------------------------------\n");
@@ -136,44 +137,30 @@ int sss_Display(void)
 
 			index = (packet - (uint32_t)packet) * (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
 
-			cis_rgb[0] = rgbBuffers[(uint32_t)packet].imageData_R[(uint32_t)index];
-			cis_rgb[1] = rgbBuffers[(uint32_t)packet].imageData_G[(uint32_t)index];
-			cis_rgb[2] = rgbBuffers[(uint32_t)packet].imageData_B[(uint32_t)index];
+			cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];
+			cis_rgb[1] = packet_Image[(uint32_t)packet].imageData_G[(uint32_t)index];
+			cis_rgb[2] = packet_Image[(uint32_t)packet].imageData_B[(uint32_t)index];
 
 			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
 			// are weights given to the R, G, and B components respectively,
 			// according to the ITU-R BT.601 standard for converting color to grayscale.
 			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
 			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
-			cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
-			cis_color = 255000 - cis_color;
+			// cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
+			cis_color = cis_rgb[0] + cis_rgb[1] + cis_rgb[2];
 
-			// Ensure that cis_color is within the expected range
-			cis_color = cis_color < 0 ? 0 : cis_color > 255000 ? 255000 : cis_color;
+			cis_color = cis_color < 0 ? 0 : cis_color > 765 ? 765 : cis_color;
 
-			// Calculate the length of the line in pixels (0 to 20)
-			// Dividing by 1000 is necessary because cis_color is scaled up by a factor of 1000
-			line_length = (int32_t)(cis_color / 255.0 * (DISPLAY_AERAS1_HEIGHT / 2)) / 1000;
+			angle = cis_color * (PI / 2) / 765.00;
 
-			// Make sure line_length does not exceed 20
-			line_length = line_length > (DISPLAY_AERAS1_HEIGHT / 2) ? (DISPLAY_AERAS1_HEIGHT / 2) : line_length;
-
-			// Calculate the intensity of the line (0 to 15)
-			// Again, dividing by 1000 because cis_color is scaled up
-			line_intensity = (cis_color / 255.0 * 15) / 1000;
-
-			// Ensure that the line intensity is within the expected range
-			line_intensity = line_intensity < 0 ? 0 : line_intensity > 15 ? 15 : line_intensity;
-
-			// Draw each pixel of the line
-			for (y = 0; y < line_length; y++)
+			for (y = 0; y < (DISPLAY_AERAS1_HEIGHT / 2); y++)
 			{
-				// Decrease intensity for each additional pixel
-				pixel_intensity = (line_intensity + (DISPLAY_AERAS1_HEIGHT / 2) - 15) - y;
+				if (angle < (PI / 2))
+					pixel_intensity = tan(angle) * (y + 1);
 
-
-				// Ensure that the pixel intensity is within the expected range
 				pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+				pixel_intensity = 15 - pixel_intensity;
 
 				// Draw a pixel above the center of the line for symmetry
 				ssd1362_drawPixel(i, line_Ypos + y, pixel_intensity, false);
@@ -182,6 +169,25 @@ int sss_Display(void)
 				ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
 			}
 		}
+
+
+
+
+		ssd1362_drawRect(0, DISPLAY_FOOT_Y1POS, DISPLAY_WIDTH, DISPLAY_FOOT_Y2POS, BANNER_BACKGROUND_COLOR, false);
+
+		uint8_t textData[1024] = {0};
+
+		sprintf((char *)textData, "Ax%03dAy%03dAz%03d  Gx%03dGy%03dGz%03d", (int)packet_IMU.acc[0],
+				(int)packet_IMU.acc[1],
+				(int)packet_IMU.acc[2],
+				(int)packet_IMU.gyro[0],
+				(int)packet_IMU.gyro[1],
+				(int)packet_IMU.gyro[2]);
+
+		ssd1362_drawString(0, DISPLAY_FOOT_Y1POS + 1, (int8_t *)textData, 0xF, 8);
+
+
+
 
 		ssd1362_writeUpdates();
 	}
@@ -418,7 +424,5 @@ static void cisynth_SetHint(void)
 	cis_DisplayOversampling();
 
 	ssd1362_drawRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 0, false);
-
-	//ssd1362_writeFullBuffer();
 }
 /* Private functions ---------------------------------------------------------*/

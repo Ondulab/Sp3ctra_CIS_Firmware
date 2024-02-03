@@ -16,6 +16,8 @@
 #include "lwip/tcp.h"
 #include "lwip.h"
 
+#include "icm42688.h"
+
 #include "arm_math.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -34,7 +36,6 @@ int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
 static struct packet_HID packet_HID = {0};
-static struct packet_IMU packet_IMU = {0};
 
 static uint32_t packetsCounter = 0;
 
@@ -70,9 +71,9 @@ void udp_clientInit(void)
 
 	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
-		rgbBuffers[packet].fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
-		rgbBuffers[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
-		rgbBuffers[packet].type = IMAGE_DATA_HEADER;
+		packet_Image[packet].fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
+		packet_Image[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
+		packet_Image[packet].type = IMAGE_DATA_HEADER;
 	}
 
 	packet_StartupInfo.type = STARTUP_INFO_HEADER;
@@ -116,18 +117,21 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	//icm42688_getAGT();
-    /*
-	packet_IMU.gyro[0] = (uint16_t)(icm42688_gyrX() * 100.0);
-	packet_IMU.gyro[1] = (uint16_t)(icm42688_gyrY() * 100.0);
-	packet_IMU.gyro[2] = (uint16_t)(icm42688_gyrZ() * 100.0);
+	/*
+	icm42688_getAGT();
 
-	packet_IMU.acc[0] = (uint16_t)(icm42688_accX() * 100.0);
-	packet_IMU.acc[1] = (uint16_t)(icm42688_accY() * 100.0);
-	packet_IMU.acc[2] = (uint16_t)(icm42688_accZ() * 100.0);
-     */
+	packet_IMU.gyro[0] = icm42688_gyrX() * 100;
+	packet_IMU.gyro[1] = icm42688_gyrY();
+	packet_IMU.gyro[2] = icm42688_gyrZ();
+
+	packet_IMU.acc[0] = icm42688_accX() * 100;
+	packet_IMU.acc[1] = icm42688_accY();
+	packet_IMU.acc[2] = icm42688_accZ();
 
 	udp_sendData(&packet_IMU, sizeof(packet_IMU));
+
+	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
+	*/
 
 	packet_HID.packet_id = packetsCounter++;
 

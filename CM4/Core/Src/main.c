@@ -20,7 +20,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
-#include "spi.h"
 #include "gpio.h"
 #include "fmc.h"
 
@@ -110,7 +109,6 @@ int main(void)
   MX_DMA_Init();
   MX_GPIO_Init();
   MX_FMC_Init();
-  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
 	// Initialize oled display and print logo

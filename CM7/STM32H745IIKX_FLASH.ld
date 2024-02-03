@@ -156,6 +156,7 @@ SECTIONS
   {
     KEEP (*(.imageData));
     KEEP (*(.rgbBuffers));
+    KEEP (*(.imuData));
     KEEP (*(.cisData));
     KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage));     

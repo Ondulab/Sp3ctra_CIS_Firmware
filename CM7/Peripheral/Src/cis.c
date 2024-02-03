@@ -346,53 +346,16 @@ void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
  */
 void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
 {
-	static int32_t lane, iteration, pix, i;
+	static int32_t iteration;
 	shared_var.cis_cal_progressbar = 0;
-
-	arm_fill_f32(0, cisCalData, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
 
 	for (iteration = 0; iteration < iterationNb; iteration++)
 	{
-		// Read and copy half DMAs buffers
-		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-		{
-			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
-			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
-
-			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
-			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
-			{
-				cisCalData[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
-			}
-			cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-		}
-
-		// Read and copy full DMAs buffers
-		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-		{
-			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
-			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
-
-			/* Invalidate Data Cache */
-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
-			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
-			{
-				cisCalData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
-			}
-			cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-		}
+		cis_getRAWImage(cisCalData, 1);
 		shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
 	}
 
-	for (pix = (CIS_ADC_BUFF_SIZE * 3); --pix >= 0;)
-	{
-		cisCalData[pix] /= iterationNb;
-
-#ifdef PRINT_CIS_CALIBRATION
-		printf("Pix = %d, Val = %d\n", (int)pix, (int)cisCalData[pix]);
-#endif
-	}
+	arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)iterationNb, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
 }
 
 /**
