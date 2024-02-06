@@ -433,11 +433,12 @@ int icm42688_calibrateGyro()
 	_gyroBD[0] = 0;
 	_gyroBD[1] = 0;
 	_gyroBD[2] = 0;
-	for (size_t i=0; i < NUM_CALIB_SAMPLES; i++) {
+	for (size_t i = 0; i < NUM_CALIB_SAMPLES; i++)
+	{
 		icm42688_getAGT();
-		_gyroBD[0] += (icm42688_gyrX() + _gyrB[0]) / NUM_CALIB_SAMPLES;
-		_gyroBD[1] += (icm42688_gyrY() + _gyrB[1]) / NUM_CALIB_SAMPLES;
-		_gyroBD[2] += (icm42688_gyrZ() + _gyrB[2]) / NUM_CALIB_SAMPLES;
+		_gyroBD[0] += icm42688_gyrX() / (float)NUM_CALIB_SAMPLES;
+		_gyroBD[1] += icm42688_gyrY() / (float)NUM_CALIB_SAMPLES;
+		_gyroBD[2] += icm42688_gyrZ() / (float)NUM_CALIB_SAMPLES;
 		HAL_Delay(1);
 	}
 	_gyrB[0] = _gyroBD[0];
@@ -604,15 +605,14 @@ void icm42688_setAccelCalZ(float bias,float scaleFactor)
 int icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 {
 	int rv = 0;
-	/* write data to device */
-	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
-	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	rv += HAL_SPI_Transmit(&hspi2, &subAddress, 1, 1000);
-	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	rv += HAL_SPI_Transmit(&hspi2, &data, 1, 1000);
-	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_SET);
+	static uint8_t tx[2];
 
-	HAL_Delay(10);
+	tx[0] = subAddress;
+	tx[1] = data;
+
+	/* write data to device */
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+	rv += HAL_SPI_Transmit(&hspi2, tx, 2, 1000);
 
 	/* read back the register */
 	icm42688_readRegisters(subAddress, 1, _buffer);
@@ -630,16 +630,22 @@ int icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest)
 {
 	int rv = 0;
-	subAddress |= 0x80;
-	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_RESET);
-	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	HAL_SPI_Transmit(&hspi2, &subAddress, 1, 1000);
-	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	rv += HAL_SPI_Receive(&hspi2, dest, count, 1000);
-	HAL_GPIO_WritePin(MEMS_CS_GPIO_Port, MEMS_CS_Pin, GPIO_PIN_SET);
-	return rv;
+    static uint8_t tx[20] = {0};
+	static uint8_t rx[20] = {0};
 
-	//HAL_SPI_TransmitReceive_DMA(hspi, pTxData, pRxData, Size)
+	subAddress |= 0x80;
+
+	tx[0] = subAddress;
+
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+	rv += HAL_SPI_TransmitReceive(&hspi2, tx, rx, count + 1, 1000);
+
+	for (int i = 0; i < count; i++)
+	{
+		dest[i] = rx[i + 1];
+	}
+
+	return rv;
 }
 
 int icm42688_setBank(uint8_t bank)

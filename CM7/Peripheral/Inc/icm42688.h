@@ -59,7 +59,7 @@ typedef struct {
 
 ///\brief Constants
 #define WHO_AM_I			0xDB
-#define NUM_CALIB_SAMPLES 	1000
+#define NUM_CALIB_SAMPLES 	100 //1000
 
 ///\brief Conversion formula to get temperature in Celsius (Sec 4.13)
 #define TEMP_DATA_REG_SCALE 132.48f

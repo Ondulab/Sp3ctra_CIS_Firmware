@@ -177,9 +177,9 @@ int sss_Display(void)
 
 		uint8_t textData[1024] = {0};
 
-		sprintf((char *)textData, "Ax%03dAy%03dAz%03d  Gx%03dGy%03dGz%03d", (int)packet_IMU.acc[0],
-				(int)packet_IMU.acc[1],
-				(int)packet_IMU.acc[2],
+		sprintf((char *)textData, "Ax%03dAy%03dAz%03d  Gx%03dGy%03dGz%03d", (int)(packet_IMU.acc[0] * 100),
+				(int)(packet_IMU.acc[1] * 100),
+				(int)(packet_IMU.acc[2] * 100),
 				(int)packet_IMU.gyro[0],
 				(int)packet_IMU.gyro[1],
 				(int)packet_IMU.gyro[2]);

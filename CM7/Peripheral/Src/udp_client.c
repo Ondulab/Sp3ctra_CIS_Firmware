@@ -117,21 +117,19 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	/*
 	icm42688_getAGT();
 
-	packet_IMU.gyro[0] = icm42688_gyrX() * 100;
-	packet_IMU.gyro[1] = icm42688_gyrY();
-	packet_IMU.gyro[2] = icm42688_gyrZ();
-
-	packet_IMU.acc[0] = icm42688_accX() * 100;
+	packet_IMU.acc[0] = icm42688_accX();
 	packet_IMU.acc[1] = icm42688_accY();
 	packet_IMU.acc[2] = icm42688_accZ();
+
+	packet_IMU.gyro[0] = icm42688_gyrX();
+	packet_IMU.gyro[1] = icm42688_gyrY();
+	packet_IMU.gyro[2] = icm42688_gyrZ();
 
 	udp_sendData(&packet_IMU, sizeof(packet_IMU));
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
-	*/
 
 	packet_HID.packet_id = packetsCounter++;
 

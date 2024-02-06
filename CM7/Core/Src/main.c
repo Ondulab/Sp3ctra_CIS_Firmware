@@ -166,11 +166,11 @@ int main(void)
 	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
 	shared_var.cis_scanDir = 1;
 
-	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-	HAL_Delay(200);
-
-	if (icm42688_init() != 0)
+	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
+	if (icm42688_init() != 1)
 		Error_Handler();
+	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
+	HAL_Delay(20);
 
 	sss_Scan();
 
