@@ -17,35 +17,36 @@
 #include "spi.h"
 
 // buffer for reading from sensor
-uint8_t _buffer[15] = {};
+static uint8_t _buffer[15] = {};
 
-uint8_t _bank = 0; ///< current user bank
+static volatile uint8_t _bufferDMA[16] = {};
+static volatile IMU_StateTypeDef  IMU_State = IMU_INIT_NOK;
+
+static uint8_t _bank = 0; ///< current user bank
 
 // data buffer
-float _t = 0.0f;
-float _acc[3] = {};
-float _gyr[3] = {};
+static float _t = 0.0f;
+static float _acc[3] = {};
+static float _gyr[3] = {};
 
 ///\brief Full scale resolution factors
-float _accelScale = 0.0f;
-float _gyroScale = 0.0f;
+static float _accelScale = 0.0f;
+static float _gyroScale = 0.0f;
 
 ///\brief Full scale selections
-AccelFS _accelFS;
-GyroFS _gyroFS;
+static AccelFS _accelFS;
+static GyroFS _gyroFS;
 
 ///\brief Accel calibration
-float _accBD[3] = {};
-float _accB[3] = {};
-float _accS[3] = {1.0f, 1.0f, 1.0f};
-float _accMax[3] = {};
-float _accMin[3] = {};
+static volatile float _accBD[3] = {};
+static float _accB[3] = {};
+static float _accS[3] = {1.0f, 1.0f, 1.0f};
 
 ///\brief Gyro calibration
-float _gyroBD[3] = {};
-float _gyrB[3] = {};
+static volatile float _gyroBD[3] = {};
+static float _gyrB[3] = {};
 
-ICM42688_FIFO icm42688_FIFO;
+static ICM42688_FIFO icm42688_FIFO;
 
 /**
  * @brief      Get accelerometer data, per axis
@@ -139,18 +140,27 @@ int icm42688_init()
 	if (ret < 0) return ret;
 
 	// 2000DPS is default -- do this to set up gyro resolution scaling
-	ret = icm42688_setGyroFS(dps2000);
+	ret = icm42688_setGyroFS(dps500);
 	if (ret < 0) return ret;
 
-	// // disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-	// if (setFilters(false, false) < 0) {
-	//   return -7;
-	// }
+	// disable inner filters (Notch filter, Anti-alias filter, UI filter block)
+	if (icm42688_setFilters(false, false) < 0) {
+		return -7;
+	}
+
+	HAL_Delay(100);
 
 	// estimate gyro bias
 	if (icm42688_calibrateGyro() < 0) {
 		return -8;
 	}
+
+	// estimate acc bias
+	if (icm42688_calibrateAccel() < 0) {
+		return -9;
+	}
+
+	IMU_State = IMU_INIT_OK;
 	// successful init, return 1
 	return 1;
 }
@@ -296,8 +306,9 @@ int icm42688_getAGT()
 
 	// combine bytes into 16 bit values
 	int16_t rawMeas[7]; // temp, accel xyz, gyro xyz
-	for (size_t i=0; i<7; i++) {
-		rawMeas[i] = ((int16_t)_buffer[i*2] << 8) | _buffer[i*2+1];
+	for (int32_t i=0; i < 7; i++)
+	{
+		rawMeas[i] = ((int16_t)_buffer[ i * 2] << 8) | _buffer[ i * 2 + 1];
 	}
 
 	_t = ((float)rawMeas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
@@ -333,7 +344,7 @@ int icm42688_FIFO_readFifo()
 	icm42688_readRegisters(UB0_REG_FIFO_COUNTH, 2, _buffer);
 	icm42688_FIFO.fifoSize = (((uint16_t) (_buffer[0]&0x0F)) <<8) + (((uint16_t) _buffer[1]));
 	// read and parse the buffer
-	for (size_t i=0; i < icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize; i++) {
+	for (int32_t i=0; i < icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize; i++) {
 		// grab the data from the ICM42688
 		if (icm42688_readRegisters(UB0_REG_FIFO_DATA, icm42688_FIFO.fifoFrameSize, _buffer) < 0) {
 			return -1;
@@ -374,49 +385,49 @@ int icm42688_FIFO_readFifo()
 }
 
 /* returns the accelerometer FIFO size and data in the x direction, m/s/s */
-void icm42688_FIFO_getFifoAccelX_mss(size_t *size, float* data)
+void icm42688_FIFO_getFifoAccelX_mss(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.aSize;
 	memcpy(data, icm42688_FIFO.axFifo, icm42688_FIFO.aSize*sizeof(float));
 }
 
 /* returns the accelerometer FIFO size and data in the y direction, m/s/s */
-void icm42688_FIFO_getFifoAccelY_mss(size_t *size, float* data)
+void icm42688_FIFO_getFifoAccelY_mss(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.aSize;
 	memcpy(data, icm42688_FIFO.ayFifo, icm42688_FIFO.aSize*sizeof(float));
 }
 
 /* returns the accelerometer FIFO size and data in the z direction, m/s/s */
-void icm42688_FIFO_getFifoAccelZ_mss(size_t *size, float* data)
+void icm42688_FIFO_getFifoAccelZ_mss(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.aSize;
 	memcpy(data, icm42688_FIFO.azFifo, icm42688_FIFO.aSize*sizeof(float));
 }
 
 /* returns the gyroscope FIFO size and data in the x direction, dps */
-void icm42688_FIFO_getFifoGyroX(size_t *size, float* data)
+void icm42688_FIFO_getFifoGyroX(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.gSize;
 	memcpy(data, icm42688_FIFO.gxFifo, icm42688_FIFO.gSize*sizeof(float));
 }
 
 /* returns the gyroscope FIFO size and data in the y direction, dps */
-void icm42688_FIFO_getFifoGyroY(size_t *size, float* data)
+void icm42688_FIFO_getFifoGyroY(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.gSize;
 	memcpy(data, icm42688_FIFO.gyFifo, icm42688_FIFO.gSize*sizeof(float));
 }
 
 /* returns the gyroscope FIFO size and data in the z direction, dps */
-void icm42688_FIFO_getFifoGyroZ(size_t *size, float* data)
+void icm42688_FIFO_getFifoGyroZ(int32_t *size, float* data)
 {
 	*size = icm42688_FIFO.gSize;
 	memcpy(data, icm42688_FIFO.gzFifo, icm42688_FIFO.gSize*sizeof(float));
 }
 
 /* returns the die temperature FIFO size and data, C */
-void icm42688_FIFO_getFifoTemperature_C(size_t *size,float* data)
+void icm42688_FIFO_getFifoTemperature_C(int32_t *size,float* data)
 {
 	*size = icm42688_FIFO.tSize;
 	memcpy(data, icm42688_FIFO.tFifo, icm42688_FIFO.tSize*sizeof(float));
@@ -433,17 +444,19 @@ int icm42688_calibrateGyro()
 	_gyroBD[0] = 0;
 	_gyroBD[1] = 0;
 	_gyroBD[2] = 0;
-	for (size_t i = 0; i < NUM_CALIB_SAMPLES; i++)
+
+	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
-		_gyroBD[0] += icm42688_gyrX() / (float)NUM_CALIB_SAMPLES;
-		_gyroBD[1] += icm42688_gyrY() / (float)NUM_CALIB_SAMPLES;
-		_gyroBD[2] += icm42688_gyrZ() / (float)NUM_CALIB_SAMPLES;
+		_gyroBD[0] += icm42688_gyrX();
+		_gyroBD[1] += icm42688_gyrY();
+		_gyroBD[2] += icm42688_gyrZ();
 		HAL_Delay(1);
 	}
-	_gyrB[0] = _gyroBD[0];
-	_gyrB[1] = _gyroBD[1];
-	_gyrB[2] = _gyroBD[2];
+
+	_gyrB[0] = _gyroBD[0] / NUM_CALIB_SAMPLES;
+	_gyrB[1] = _gyroBD[1] / NUM_CALIB_SAMPLES;
+	_gyrB[2] = _gyroBD[2] / NUM_CALIB_SAMPLES;
 
 	// recover the full scale setting
 	if (icm42688_setGyroFS(current_fssel) < 0) return -4;
@@ -499,44 +512,43 @@ int icm42688_calibrateAccel()
 	_accBD[0] = 0;
 	_accBD[1] = 0;
 	_accBD[2] = 0;
-	for (size_t i=0; i < NUM_CALIB_SAMPLES; i++) {
-		icm42688_getAGT();
-		_accBD[0] += (icm42688_accX()/_accS[0] + _accB[0]) / NUM_CALIB_SAMPLES;
-		_accBD[1] += (icm42688_accY()/_accS[1] + _accB[1]) / NUM_CALIB_SAMPLES;
-		_accBD[2] += (icm42688_accZ()/_accS[2] + _accB[2]) / NUM_CALIB_SAMPLES;
-		HAL_Delay(1);
-	}
-	if (_accBD[0] > 0.9f) {
-		_accMax[0] = _accBD[0];
-	}
-	if (_accBD[1] > 0.9f) {
-		_accMax[1] = _accBD[1];
-	}
-	if (_accBD[2] > 0.9f) {
-		_accMax[2] = _accBD[2];
-	}
-	if (_accBD[0] < -0.9f) {
-		_accMin[0] = _accBD[0];
-	}
-	if (_accBD[1] < -0.9f) {
-		_accMin[1] = _accBD[1];
-	}
-	if (_accBD[2] < -0.9f) {
-		_accMin[2] = _accBD[2];
-	}
 
-	// find bias and scale factor
-	if ((abs(_accMin[0]) > 0.9f) && (abs(_accMax[0]) > 0.9f)) {
-		_accB[0] = (_accMin[0] + _accMax[0]) / 2.0f;
-		_accS[0] = 1/((abs(_accMin[0]) + abs(_accMax[0])) / 2.0f);
+	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
+	{
+		icm42688_getAGT();
+		_accBD[0] += icm42688_accX();
+		_accBD[1] += icm42688_accY();
+		_accBD[2] += icm42688_accZ();
+		HAL_Delay(10);
 	}
-	if ((abs(_accMin[1]) > 0.9f) && (abs(_accMax[1]) > 0.9f)) {
-		_accB[1] = (_accMin[1] + _accMax[1]) / 2.0f;
-		_accS[1] = 1/((abs(_accMin[1]) + abs(_accMax[1])) / 2.0f);
+	_accBD[0] /= NUM_CALIB_SAMPLES;
+	_accBD[1] /= NUM_CALIB_SAMPLES;
+	_accBD[2] /= NUM_CALIB_SAMPLES;
+
+
+	if (_accBD[0] > 0.9f)
+	{
+		_accB[0] = _accBD[0];
 	}
-	if ((abs(_accMin[2]) > 0.9f) && (abs(_accMax[2]) > 0.9f)) {
-		_accB[2] = (_accMin[2] + _accMax[2]) / 2.0f;
-		_accS[2] = 1/((abs(_accMin[2]) + abs(_accMax[2])) / 2.0f);
+	if (_accBD[1] > 0.9f)
+	{
+		_accB[1] = _accBD[1];
+	}
+	if (_accBD[2] > 0.9f)
+	{
+		_accB[2] = _accBD[2];
+	}
+	if (_accBD[0] < -0.9f)
+	{
+		_accB[0] = _accBD[0];
+	}
+	if (_accBD[1] < -0.9f)
+	{
+		_accB[1] = _accBD[1];
+	}
+	if (_accBD[2] < -0.9f)
+	{
+		_accB[2] = _accBD[2];
 	}
 
 	// recover the full scale setting
@@ -630,7 +642,7 @@ int icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest)
 {
 	int rv = 0;
-    static uint8_t tx[20] = {0};
+	static uint8_t tx[20] = {0};
 	static uint8_t rx[20] = {0};
 
 	subAddress |= 0x80;
@@ -680,4 +692,51 @@ uint8_t icm42688_whoAmI()
 	}
 	// return the register value
 	return _buffer[0];
+}
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	if(hspi->Instance == SPI2)
+	{
+		if ( IMU_State == IMU_INIT_OK)
+		{
+			SCB_InvalidateDCache_by_Addr ((uint32_t *)_bufferDMA, 4);
+
+			/*
+		uint32_t tmp = 0;
+		for (int i = 0; i < 15; i++)
+			tmp += _bufferDMA[i];
+
+		if (tmp == 0)
+			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+			 */
+
+			// combine bytes into 16 bit values
+			int16_t rawMeas[7]; // temp, accel xyz, gyro xyz
+			for (int32_t i = 7; --i >= 0;)
+			{
+				rawMeas[i] = ((int16_t)_bufferDMA[i * 2 + 1] << 8) | _bufferDMA[ i * 2 + 2];
+			}
+
+			_t = ((float)rawMeas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
+
+			_acc[0] = ((rawMeas[1] * _accelScale) - _accB[0]);
+			_acc[1] = ((rawMeas[2] * _accelScale) - _accB[1]);
+			_acc[2] = ((rawMeas[3] * _accelScale) - _accB[2]);
+
+			_gyr[0] = (rawMeas[4] * _gyroScale) - _gyrB[0];
+			_gyr[1] = (rawMeas[5] * _gyroScale) - _gyrB[1];
+			_gyr[2] = (rawMeas[6] * _gyroScale) - _gyrB[2];
+		}
+	}
+}
+
+void icm42688_TIM_Callback()
+{
+	static const uint8_t tx[16] = {UB0_REG_TEMP_DATA1 | 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	if ( IMU_State == IMU_INIT_OK)
+	{
+		HAL_SPI_TransmitReceive_DMA(&hspi2, tx, (uint8_t *)_bufferDMA, 15);
+	}
 }

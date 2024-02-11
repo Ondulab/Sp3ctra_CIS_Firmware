@@ -48,7 +48,7 @@ void cis_lanealCalibrationInit()
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_ApplyLinearCalibration(void)
+void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32)
 {
 #ifndef CIS_DESACTIVATE_CALIBRATION
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Bx;
@@ -282,6 +282,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 {
 	/* Set header description */
 	printf("------ START CALIBRATION ------\n");
+
+	memset(&cisCals, 0, sizeof(cisCals));
+
 	/*-------- 1 --------*/
 	// Read black and white level
 	cis_LedPowerAdj(95, 95, 95);
@@ -362,7 +365,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 #endif
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
+	cis_Stop_capture();
 	stm32_flashCalibrationRW(CIS_WRITE_CAL);
+	cis_Start_capture();
 	shared_var.cis_cal_state = CIS_CAL_END;
 	printf("-------------------------------\n");
 }

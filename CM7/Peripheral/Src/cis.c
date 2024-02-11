@@ -72,8 +72,8 @@ void cis_Init()
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-	memset((int16_t *)&cisData[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
-	memset((float32_t *)&cisDataCpy_f32[0], 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
+	memset(cisData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
+	memset(cisDataCpy_f32, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
 
 	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
 	cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
@@ -93,6 +93,9 @@ void cis_Init()
 	cis_TIM_CLK_Init();
 	cis_TIM_MAIN_Init();
 
+	cis_Stop_capture();
+	cis_Start_capture();
+	cis_Stop_capture();
 	cis_Start_capture();
 }
 
@@ -296,7 +299,7 @@ void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
-	cis_ApplyLinearCalibration();
+	cis_ApplyLinearCalibration(cisDataCpy_f32);
 
 	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
@@ -349,13 +352,17 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 	static int32_t iteration;
 	shared_var.cis_cal_progressbar = 0;
 
+	arm_fill_f32(0, cisCalData, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+
 	for (iteration = 0; iteration < iterationNb; iteration++)
 	{
-		cis_getRAWImage(cisCalData, 1);
+		cis_getRAWImage(cisDataCpy_f32, 1);
+		arm_add_f32(cisCalData, cisDataCpy_f32, cisCalData, CIS_ADC_BUFF_SIZE * 3);
 		shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
 	}
 
-	arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)iterationNb, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+	arm_scale_f32(cisCalData, 1.0 / (float32_t)iterationNb, cisCalData, CIS_ADC_BUFF_SIZE * 3);
 }
 
 /**

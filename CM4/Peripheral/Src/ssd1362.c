@@ -81,7 +81,7 @@ void ssd1362_setWriteZone(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 //Converts a pixel location to a linear memory address
 uint16_t ssd1362_coordsToAddress(uint16_t x, uint16_t y)
 {
-	return (x/2)+(y*128);
+	return (x / 2)+(y * 128);
 }
 
 void ssd1362_setPixelChanged(uint16_t x, uint16_t y, bool changed)
@@ -111,20 +111,132 @@ void ssd1362_drawPixel(uint16_t x, uint16_t y, uint8_t color, bool display)
 	}
 }
 
-//Draws a rectangle from x1,y1 to x2,y2.
 void ssd1362_drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color, bool display)
 {
-	uint16_t xMin = MIN(x1, x2); // TODO: double performance by writing whole bytes at a time
-	uint16_t xMax = MAX(x1, x2);
-	uint16_t yMin = MIN(y1, y2);
-	uint16_t yMax = MAX(y1, y2);
-	for (uint16_t x = xMin; x < xMax; x++)
-	{
-		for (uint16_t y = yMin; y < yMax; y++)
-		{
-			ssd1362_drawPixel(x, y, color, display);
-		}
-	}
+    // Ensure x1 is always less than or equal to x2
+    if (x1 > x2)
+    {
+        uint16_t temp = x1;
+        x1 = x2;
+        x2 = temp;
+    }
+    // Ensure y1 is always less than or equal to y2
+    if (y1 > y2)
+    {
+        uint16_t temp = y1;
+        y1 = y2;
+        y2 = temp;
+    }
+
+    // Draw the top and bottom horizontal lines
+    for (uint16_t x = x1; x <= x2; x++)
+    {
+        ssd1362_drawPixel(x, y1, color, display);
+        ssd1362_drawPixel(x, y2, color, display);
+    }
+    // Avoid unnecessary drawing if y1 equals y2
+    if (y2 > y1)
+    {
+        // Draw the left and right vertical lines
+        for (uint16_t y = y1 + 1; y < y2; y++)
+        {
+            ssd1362_drawPixel(x1, y, color, display);
+            ssd1362_drawPixel(x2, y, color, display);
+        }
+    }
+}
+
+void ssd1362_fillRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color, bool display)
+{
+    // Ensure x1 is always less than or equal to x2
+    if (x1 > x2)
+    {
+        uint16_t temp = x1;
+        x1 = x2;
+        x2 = temp;
+    }
+    // Ensure y1 is always less than or equal to y2
+    if (y1 > y2)
+    {
+        uint16_t temp = y1;
+        y1 = y2;
+        y2 = temp;
+    }
+
+    // Fill the rectangle area with the specified color
+    for (uint16_t y = y1; y <= y2; y++)
+    {
+        for (uint16_t x = x1; x <= x2; x++)
+        {
+            ssd1362_drawPixel(x, y, color, display);
+        }
+    }
+}
+
+void ssd1362_drawCircle(uint16_t x0, uint16_t y0, uint16_t r, uint8_t color, bool display)
+{
+    int32_t x = r;
+    int32_t y = 0;
+    int32_t dx = 1 - (2 * r);
+    int32_t dy = 1;
+    int32_t err = 0;
+
+    while (x >= y)
+    {
+        ssd1362_drawPixel(x0 + x, y0 + y, color, display);
+        ssd1362_drawPixel(x0 - x, y0 + y, color, display);
+        ssd1362_drawPixel(x0 + x, y0 - y, color, display);
+        ssd1362_drawPixel(x0 - x, y0 - y, color, display);
+        ssd1362_drawPixel(x0 + y, y0 + x, color, display);
+        ssd1362_drawPixel(x0 - y, y0 + x, color, display);
+        ssd1362_drawPixel(x0 + y, y0 - x, color, display);
+        ssd1362_drawPixel(x0 - y, y0 - x, color, display);
+
+        y++;
+        err += dy;
+        dy += 2;
+        if (2 * err + dx > 0)
+        {
+            x--;
+            err += dx;
+            dx += 2;
+        }
+    }
+}
+
+void ssd1362_fillCircle(uint16_t x0, uint16_t y0, uint16_t r, uint8_t color, bool display)
+{
+    // Correct initialization for filled circles drawing
+    int32_t x = r;
+    int32_t y = 0;
+    int32_t xChange = 1 - (2 * r);
+    int32_t yChange = 1;
+    int32_t radiusError = 0;
+
+    // Draw the vertical middle line from the start
+    while (x >= y)
+    {
+        for (int32_t i = x0 - x; i <= x0 + x; i++)
+        {
+            ssd1362_drawPixel(i, y0 + y, color, display);
+            ssd1362_drawPixel(i, y0 - y, color, display);
+        }
+        for (int32_t i = x0 - y; i <= x0 + y; i++)
+        {
+            ssd1362_drawPixel(i, y0 + x, color, display);
+            ssd1362_drawPixel(i, y0 - x, color, display);
+        }
+
+        y++;
+        radiusError += yChange;
+        yChange += 2;
+        if (2 * radiusError + xChange > 0)
+        {
+            x--;
+            radiusError += xChange;
+            xChange += 2;
+        }
+    }
 }
 
 void ssd1362_drawHLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, bool display)
@@ -135,13 +247,24 @@ void ssd1362_drawHLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, b
 	}
 }
 
-void ssd1362_drawVLine(uint16_t x, uint16_t y, uint16_t length, uint8_t color, bool display)
+void ssd1362_drawVLine(uint16_t x, uint16_t y, int16_t length, uint8_t color, bool display)
 {
-	for (uint32_t i = y; i < y+length; i++)
-	{
-		ssd1362_drawPixel(x, i, color, display);
-	}
+    if (length >= 0)
+    {
+        for (uint16_t i = 0; i < length; i++)
+        {
+            ssd1362_drawPixel(x, y + i, color, display);
+        }
+    } else
+    {
+        for (uint16_t i = 0; i < -length; i++)
+        {
+            ssd1362_drawPixel(x, y - i, color, display);
+        }
+    }
 }
+
+
 
 void ssd1362_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t color, bool display)
 { //Bresenham's line algorithm
@@ -279,9 +402,9 @@ void ssd1362_progressBar(uint16_t x, uint16_t y, uint8_t state, uint8_t color)
 	//sanity check
 	if (state > 100)
 		state = 100;
-	ssd1362_drawRect(x, y, 202 + x, 12 + y, 4, false);
+	ssd1362_fillRect(x, y, 202 + x, 12 + y, 4, false);
 	if ((state > 0) && (state < 100))
-		ssd1362_drawRect(x + 2, y + 2, state * 2 + x + 2, 8 + y + 2, color, false);
+		ssd1362_fillRect(x + 2, y + 2, state * 2 + x + 2, 8 + y + 2, color, false);
 	ssd1362_writeUpdates();
 }
 

@@ -16,6 +16,12 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 
+typedef enum
+{
+	IMU_INIT_NOK = 0,
+	IMU_INIT_OK,
+}IMU_StateTypeDef;
+
 typedef enum {
       dps2000 = 0x00,
       dps1000 = 0x01,
@@ -107,18 +113,18 @@ typedef struct {
     uint8_t enFifoAccel;
     uint8_t enFifoGyro;
     uint8_t enFifoTemp;
-    size_t fifoSize;
-    size_t fifoFrameSize;
+    int32_t fifoSize;
+    int32_t fifoFrameSize;
     float axFifo[FIFO_SIZE];
     float ayFifo[FIFO_SIZE];
     float azFifo[FIFO_SIZE];
-    size_t aSize;
+    int32_t aSize;
     float gxFifo[FIFO_SIZE];
     float gyFifo[FIFO_SIZE];
     float gzFifo[FIFO_SIZE];
-    size_t gSize;
+    int32_t gSize;
     float tFifo[256];
-    size_t tSize;
+    int32_t tSize;
 } ICM42688_FIFO;
 
     /**
@@ -249,5 +255,6 @@ typedef struct {
     void icm42688_setAccelCalX(float bias,float scaleFactor);
     void icm42688_setAccelCalY(float bias,float scaleFactor);
     void icm42688_setAccelCalZ(float bias,float scaleFactor);
+    void icm42688_TIM_Callback();
 
 #endif // icm42688_H

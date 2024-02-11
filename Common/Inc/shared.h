@@ -120,7 +120,7 @@ struct cisCals {
 
 struct shared_var {
 	int32_t cis_process_cnt;
-	int32_t udp_process_cnt;
+	int32_t cis_freq;
 	int32_t cis_cal_request;
 	uint32_t cis_cal_progressbar;
 	uint32_t cis_oversampling;

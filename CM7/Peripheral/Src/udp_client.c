@@ -117,8 +117,6 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	icm42688_getAGT();
-
 	packet_IMU.acc[0] = icm42688_accX();
 	packet_IMU.acc[1] = icm42688_accY();
 	packet_IMU.acc[2] = icm42688_accZ();

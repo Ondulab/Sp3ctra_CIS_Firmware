@@ -20,8 +20,11 @@
 #include "cis_linearCal.h"
 #include "cis_polyCal.h"
 
+#include "stm32_flash.h"
+
 #include "udp_client.h"
 #include "lwip.h"
+#include "icm42688.h"
 
 #include "sss_Scan.h"
 
@@ -101,6 +104,16 @@ int sss_Scan(void)
 		udp_clientSendPackets(packet_Image);
 
 		shared_var.cis_process_cnt++;
+
+		/*
+		if ((shared_var.cis_process_cnt % 1000) == 0)
+		{
+			cis_Stop_capture();
+			//stm32_flashCalibrationRW(CIS_READ_CAL);
+			cis_Start_capture();
+			//HAL_NVIC_SystemReset();
+		}
+		*/
 	}
 }
 /* Private functions ---------------------------------------------------------*/
@@ -110,5 +123,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if (htim->Instance == TIM6)
 	{
 		main_loop_flg = MAIN_SCAN_LOOP_FLG_SET;
+		icm42688_TIM_Callback();
 	}
 }

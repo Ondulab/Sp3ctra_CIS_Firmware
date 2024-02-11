@@ -13,7 +13,7 @@
 /* Private define ------------------------------------------------------------*/
 
 void cis_linealCalibrationInit(void);
-void cis_ApplyLinearCalibration(void);
+void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32);
 void cis_StartLinearCalibration(uint16_t iterationNb);
 
 #endif /* __CIS_LINEARCAL_H__ */
