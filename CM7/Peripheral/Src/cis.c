@@ -46,7 +46,6 @@ static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_TIM_MAIN_Init(void);
 static void cis_TIM_CLK_Init(void);
 static void cis_TIM_SP_Init(void);
 static void cis_TIM_LED_R_Init(void);
@@ -91,7 +90,6 @@ void cis_Init()
 	cis_TIM_LED_G_Init();
 	cis_TIM_LED_B_Init();
 	cis_TIM_CLK_Init();
-	cis_TIM_MAIN_Init();
 
 	cis_Stop_capture();
 	cis_Start_capture();
@@ -365,6 +363,9 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
 	arm_scale_f32(cisCalData, 1.0 / (float32_t)iterationNb, cisCalData, CIS_ADC_BUFF_SIZE * 3);
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+
 /**
  * @brief  CIS start captures
  * @param  None
@@ -437,9 +438,6 @@ void cis_Start_capture()
  */
 void cis_Stop_capture()
 {
-	/* Stop Main Timer #######################################*/
-	HAL_TIM_PWM_Stop(&htim15, TIM_CHANNEL_1);
-
 	/* Stop ADC Timer #####"##################################*/
 	if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
 	{
@@ -499,15 +497,7 @@ void cis_Stop_capture()
 	cisFullBufferState[2] = CIS_BUFFER_OFFSET_NONE;
 }
 
-/**
- * @brief  Init Main CIS clock Frequency
- * @param  None
- * @retval None
- */
-void cis_TIM_MAIN_Init()
-{
-	MX_TIM15_Init();
-}
+#pragma GCC pop_options
 
 /**
  * @brief  Init CIS clock Frequency

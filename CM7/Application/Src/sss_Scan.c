@@ -110,7 +110,6 @@ int sss_Scan(void)
 			cis_Stop_capture();
 			HAL_Delay(100);
 			cis_Start_capture();
-			//HAL_NVIC_SystemReset();
 		}
 	}
 }
