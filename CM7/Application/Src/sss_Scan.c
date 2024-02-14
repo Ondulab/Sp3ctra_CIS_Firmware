@@ -105,15 +105,13 @@ int sss_Scan(void)
 
 		shared_var.cis_process_cnt++;
 
-		/*
-		if ((shared_var.cis_process_cnt % 1000) == 0)
+		if ((shared_var.cis_process_cnt % 100) == 0)
 		{
 			cis_Stop_capture();
-			//stm32_flashCalibrationRW(CIS_READ_CAL);
+			HAL_Delay(100);
 			cis_Start_capture();
 			//HAL_NVIC_SystemReset();
 		}
-		*/
 	}
 }
 /* Private functions ---------------------------------------------------------*/

@@ -163,7 +163,7 @@ int main(void)
 	printf("|           CIS START         |\n");
 	printf("-------------------------------\n");
 
-	shared_var.cis_oversampling = 1; //todo use flash to storage default parameters
+	shared_var.cis_oversampling = 32; //todo use flash to storage default parameters
 	shared_var.cis_scanDir = 1;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);

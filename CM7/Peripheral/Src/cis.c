@@ -401,21 +401,24 @@ void cis_Start_capture()
 	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
 	/* Start CLK generation ##################################*/
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	//HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
 	/* Start SP generation ##################################*/
 	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
 
-	/* Start ADC Timer #######################################*/
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	/* Start CLK generation ##################################*/
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
 	/* Start DMA #############################################*/
 	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], CIS_ADC_BUFF_SIZE);
 	HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[CIS_ADC_BUFF_SIZE], CIS_ADC_BUFF_SIZE);
 	HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * 2], CIS_ADC_BUFF_SIZE);
 
-	/* Start Main Timer ######################################*/
-	HAL_TIM_PWM_Start(&htim15, TIM_CHANNEL_1);
+	__HAL_TIM_SET_COUNTER(&htim1, 0);
+	__HAL_TIM_SET_COUNTER(&htim8, CIS_LANE_SIZE - CIS_SP_WIDTH);
+
+	/* Start ADC Main Timer #######################################*/
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
 	printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
 	printf("adc2 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc2));

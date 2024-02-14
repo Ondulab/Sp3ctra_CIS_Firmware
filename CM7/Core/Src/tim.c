@@ -51,9 +51,9 @@ void MX_TIM1_Init(void)
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
 	prescalerValue = 0;
-	counterPeriod = (CLK_DIVIDER / 2) - 1;
-	pulseValueCH2 = (CLK_DIVIDER / 4) - 1; //CLK OUT Ton 0.1ms
-	pulseValueCH1 = ((CLK_DIVIDER / 4) * 1.7) - 1; //ADC CC1
+	counterPeriod = (CLK_DIVIDER) - 1;
+	pulseValueCH2 = (CLK_DIVIDER / 2) - 1; //CLK OUT Ton 0.1ms
+	pulseValueCH1 = ((CLK_DIVIDER / 2) * 1.7) - 1; //ADC CC1
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -62,7 +62,7 @@ void MX_TIM1_Init(void)
   htim1.Init.Period = counterPeriod;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
@@ -71,13 +71,13 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_DISABLE;
   sSlaveConfig.InputTrigger = TIM_TS_ITR0;
   if (HAL_TIM_SlaveConfigSynchro(&htim1, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1REF;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
@@ -88,7 +88,7 @@ void MX_TIM1_Init(void)
   sConfigOC.Pulse = pulseValueCH1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
@@ -153,8 +153,8 @@ void MX_TIM3_Init(void)
   htim3.Init.Prescaler = prescalerValue;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = counterPeriod;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -163,7 +163,7 @@ void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
   sSlaveConfig.InputTrigger = TIM_TS_ITR0;
   if (HAL_TIM_SlaveConfigSynchro(&htim3, &sSlaveConfig) != HAL_OK)
   {
@@ -220,8 +220,8 @@ void MX_TIM4_Init(void)
   htim4.Init.Prescaler = prescalerValue;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = counterPeriod;
-  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
-  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
   {
     Error_Handler();
@@ -230,7 +230,7 @@ void MX_TIM4_Init(void)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
   sSlaveConfig.InputTrigger = TIM_TS_ITR0;
   if (HAL_TIM_SlaveConfigSynchro(&htim4, &sSlaveConfig) != HAL_OK)
   {
@@ -287,8 +287,8 @@ void MX_TIM5_Init(void)
   htim5.Init.Prescaler = prescalerValue;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim5.Init.Period = counterPeriod;
-  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
-  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
   {
     Error_Handler();
@@ -297,7 +297,7 @@ void MX_TIM5_Init(void)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
   sSlaveConfig.InputTrigger = TIM_TS_ITR0;
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
@@ -386,9 +386,9 @@ void MX_TIM8_Init(void)
   htim8.Init.Prescaler = prescalerValue;
   htim8.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim8.Init.Period = counterPeriod;
-  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
+  htim8.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim8.Init.RepetitionCounter = 0;
-  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim8.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim8) != HAL_OK)
   {
     Error_Handler();
@@ -397,7 +397,7 @@ void MX_TIM8_Init(void)
   {
     Error_Handler();
   }
-  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_GATED;
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
   sSlaveConfig.InputTrigger = TIM_TS_ITR0;
   if (HAL_TIM_SlaveConfigSynchro(&htim8, &sSlaveConfig) != HAL_OK)
   {
@@ -414,7 +414,7 @@ void MX_TIM8_Init(void)
   sConfigOC.Pulse = pulseValue;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim8, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
@@ -457,7 +457,7 @@ void MX_TIM15_Init(void)
   /* USER CODE BEGIN TIM15_Init 1 */
 	uint32_t prescalerValue, counterPeriod, pulseValue;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / CLK_DIVIDER) / (CIS_CLK_FREQ)) - 1);
+	prescalerValue = 0;
 	counterPeriod = 1;
 	pulseValue = 0;
 
@@ -466,14 +466,14 @@ void MX_TIM15_Init(void)
   htim15.Init.Prescaler = prescalerValue;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim15.Init.Period = counterPeriod;
-  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV4;
-  htim15.Init.RepetitionCounter = 0;
-  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 1;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_PWM_Init(&htim15) != HAL_OK)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_ENABLE;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
   {
@@ -483,7 +483,7 @@ void MX_TIM15_Init(void)
   sConfigOC.Pulse = pulseValue;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
   if (HAL_TIM_PWM_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)

@@ -118,7 +118,8 @@
 //#define CIS_CLK_FREQ							(4000000)
 //#define CIS_CLK_FREQ							(5000000)
 
-#define CLK_DIVIDER 							((400000000) / (CIS_CLK_FREQ))
+#define CLK_DIVIDER 							((200000000) / (CIS_CLK_FREQ))
+//#define CLK_DIVIDER 							((50000000) / (CIS_CLK_FREQ))
 
 #define CIS_ADC_OUT_LANES						(3)
 
