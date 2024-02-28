@@ -105,12 +105,14 @@ int sss_Scan(void)
 
 		shared_var.cis_process_cnt++;
 
+		/*
 		if ((shared_var.cis_process_cnt % 100) == 0)
 		{
 			cis_Stop_capture();
 			HAL_Delay(100);
 			cis_Start_capture();
 		}
+		*/
 	}
 }
 /* Private functions ---------------------------------------------------------*/

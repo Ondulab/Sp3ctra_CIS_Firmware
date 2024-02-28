@@ -29,7 +29,6 @@
 #include "sss_Display.h"
 #include "ssd1362.h"
 #include "pictures.h"
-#include "icm42688.h"
 
 /* USER CODE END Includes */
 

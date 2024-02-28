@@ -1,58 +1,54 @@
-# Prerequisites
-*.d
-
-# Object files
+# Generated files by STM32CubeIDE
+Debug/
+Release/
 *.o
-*.ko
-*.obj
+*.d
 *.elf
-*.bin
-
-# Linker output
-*.ilk
 *.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-# *.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
 *.hex
+*.bin
+*.lst
+*.srec
+*.bak
+*.dep
+*.lst
+*.cprj
+*.launch
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+# STM32CubeIDE configuration files (Unignored as requested)
+# (Retaining these files as they are crucial for project configuration)
+#*.ioc
+#*.mxproject
+#.settings/
+#.metadata/
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-*/Release/*
-*/Debug/*
-
-#Miscaleous
+# macOS specific files
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon 
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build and dependencies directories
+build/
+dependencies/
+
+# Editor backup files
+*~
+*.swp
+*.tmp
+
+# Other files and directories to potentially ignore
+# (Keeping as per request, adjust if your project requires these files)
+*.log
+#*.csv
+*.dat
+*.out
+*.pid
+*.seed
+#*.svg
+nbproject/

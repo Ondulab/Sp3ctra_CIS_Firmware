@@ -38,14 +38,14 @@ typedef enum
 }CIS_Packet_ImageColorTypeDef;
 
 // Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
-struct packet_StartupInfo{
+struct packet_StartupInfo {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
     uint8_t version_info[64]; 			// Information about the version, and other startup details
 };
 
 // Structure for image data packets, including metadata for image fragmentation
-struct packet_Image{
+struct packet_Image {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
     uint32_t line_id;      				// Line identifier

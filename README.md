@@ -51,3 +51,7 @@ This project is distributed under the terms of the GNU General Public License. T
 ## Contact Us
 
 For an opportunity to test our products, please reach out to us.
+
+Copyright (c) [Votre nom ou le nom de votre organisation] [Année]
+Ce projet est licencié sous la CERN Open Hardware Licence Version 2 - Strongly Reciprocal (CERN OHL-S v2). Pour consulter les termes de cette licence, veuillez visiter https://ohwr.org/cern_ohl_s_v2.txt ou envoyer une lettre à CERN, Esplanade des Particules 1, 1211 Genève 23, Suisse.
+
