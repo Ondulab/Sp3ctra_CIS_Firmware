@@ -1,8 +1,13 @@
-# Spectral Sound Scanner CIS Firmware
+# CISYNTH CONTACT IMAGE SYNTHESIZER Firmware
 
 ![Spectral Sound Scanner](https://reso-nance.org/wp-content/uploads/2023/06/20230709_135345-1140x624.jpg)
 
+## Description
+
 The Spectral Sound Scanner (SSS) is an innovative tangible interface for creating music and visuals. Utilizing our CIS instrument, the SSS produces a UDP stream of thousands of values captured by contact image sensor, transmitted at a frequency up to 1000 Hz. This stream can be used to generate music or display image stream in Max/MSP, Pure Data, and our [Viewer](https://github.com/Ondulab/SSS_Viewer).
+
+## Project Status
+This project is currently in the initial development phase and has not been released for public use yet. Please note that it may contain incomplete features and is not recommended for production environments at this stage.
 
 ## Features
 
@@ -46,12 +51,20 @@ Contributions to this project are welcome. Please submit your pull requests or i
 
 ## License
 
-This project is distributed under the terms of the GNU General Public License. The license is available in the repository.
+Copyright (C) 2018-present Reso-nance Numerique
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+
+## Credits and Acknowledgements
+
+We would like to extend our sincere thanks to DEVISUBOX for their support and contributions to this project. Their assistance has been invaluable in our development process.
 
 ## Contact Us
 
 For an opportunity to test our products, please reach out to us.
 
-Copyright (c) [Votre nom ou le nom de votre organisation] [Année]
-Ce projet est licencié sous la CERN Open Hardware Licence Version 2 - Strongly Reciprocal (CERN OHL-S v2). Pour consulter les termes de cette licence, veuillez visiter https://ohwr.org/cern_ohl_s_v2.txt ou envoyer une lettre à CERN, Esplanade des Particules 1, 1211 Genève 23, Suisse.
 
