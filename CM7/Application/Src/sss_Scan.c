@@ -11,6 +11,7 @@
 #include "stdio.h"
 
 #include "lwip.h"
+#include "lwip/apps/httpd.h"
 
 #include "shared.h"
 #include "config.h"
@@ -23,6 +24,7 @@
 #include "stm32_flash.h"
 
 #include "udp_client.h"
+
 #include "lwip.h"
 #include "icm42688.h"
 
@@ -60,6 +62,7 @@ int sss_Scan(void)
 #ifndef ETHERNET_OFF
 	MX_LWIP_Init();
 	udp_clientInit();
+	httpd_init();
 #endif
 
 	HAL_TIM_Base_Start_IT(&htim6);
