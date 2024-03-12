@@ -45,8 +45,8 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  CIS_FLASH (rxw) 			: ORIGIN = 0x080C0000, LENGTH = 256K
-  FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 1024K - LENGTH(CIS_FLASH) 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
+  FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 768K 
+  CIS_FLASH (rxw) 			: ORIGIN = 0x08000000 + LENGTH(FLASH), LENGTH = 256K 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
   DTCM (xrw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
