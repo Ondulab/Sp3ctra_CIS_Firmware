@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spectral Sound Scanner (SSS) - Settings</title>
+    <meta http-equiv="refresh" content ="10">
+    <title>CISYNTH - Settings</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,7 +31,10 @@
         }
         .container {
             margin-bottom: 20px;
-        }
+        }       
+        table, th, td {
+  			border:1px solid black;
+		}
     </style>
 </head>
 <body>
@@ -95,13 +99,40 @@
 	
 	<h2>CGI Forms</h2>
 
-<form action="/form.cgi">
-  <label for="fname">First name:</label><br>
-  <input type="text" id="fname" name="fname" value="John"><br>
-  <label for="lname">Last name:</label><br>
-  <input type="text" id="lname" name="lname" value="Doe"><br><br>
-  <input type="submit" value="Submit">
-</form> 
+	<form action="/form.cgi">
+  		<label for="fname">First name:</label><br>
+  		<input type="text" id="fname" name="fname" value="John"><br>
+  		<label for="lname">Last name:</label><br>
+  		<input type="text" id="lname" name="lname" value="Doe"><br><br>
+  		<input type="submit" value="Submit">
+	</form> 
+
+	<h2>LED CONTROL</h2>
+
+	<form action="/led.cgi">
+  		<input type="checkbox" id="l1" name="led" value="1">
+  		<label for="l1"> LED1</label><br>
+  		<input type="checkbox" id="l2" name="led" value="2">
+  		<label for="l2"> LED2</label><br>
+  		<input type="submit" value="Submit">
+	</form>
+	
+	<h2>TEST PAGE FOR SSI</h2>
+
+	<table style="width:100%">
+  		<tr>
+    		<td>V1</td>
+    		<td>V2</td>
+    		<td>V3</td>
+  		</tr>
+  		<tr>
+    		<td><!--#x--></td>
+    		<td><!--#y--></td>
+    		<td><!--#z--></td>
+  		</tr>
+	</table>
+
+<p>This page refreshes every 1 second.</p>
 
 </body>
 </html>

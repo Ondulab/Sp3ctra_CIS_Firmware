@@ -77,7 +77,7 @@ const char *CGIForm_Handler(int iIndex, int iNumParams, char *pcParam[], char *p
 		}
 	}
 
-	return "/cgiform.html";
+	return "/settings.html";
 }
 
 
@@ -87,13 +87,13 @@ const char *CGILED_Handler(int iIndex, int iNumParams, char *pcParam[], char *pc
 	{
 		for (int i=0; i<iNumParams; i++)
 		{
-			if (strcmp(pcParam[i], "fname") == 0)  // if the fname string is found
+			if (strcmp(pcParam[i], "name") == 0)  // if the name string is found
 			{
 				memset(name, '\0', 30);
 				strcpy(name, pcValue[i]);
 			}
 
-			else if (strcmp(pcParam[i], "lname") == 0)  // if the fname string is found
+			else if (strcmp(pcParam[i], "name") == 0)  // if the name string is found
 			{
 				strcat(name, " ");
 				strcat(name, pcValue[i]);
@@ -101,7 +101,7 @@ const char *CGILED_Handler(int iIndex, int iNumParams, char *pcParam[], char *pc
 		}
 	}
 
-	return "/cgiled.html";
+	return "/settings.html";
 }
 
 void http_server_init (void)
