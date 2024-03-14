@@ -24,6 +24,7 @@
 
 #include "udp_client.h"
 #include "http_cgi_ssi.h"
+#include "httpserver.h"
 
 #include "lwip.h"
 #include "icm42688.h"
@@ -74,7 +75,7 @@ int sss_Scan(void)
 	/* Infinite loop */
 	while (1)
 	{
-		MX_LWIP_Process();
+		//MX_LWIP_Process();
 
 		while (main_loop_flg != MAIN_SCAN_LOOP_FLG_SET);
 		main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
@@ -120,7 +121,7 @@ int sss_Scan(void)
 }
 /* Private functions ---------------------------------------------------------*/
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void HAL_TIM_PeriodElapsedCallback_old_placedmain(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM6)
 	{

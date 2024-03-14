@@ -85,26 +85,25 @@ static void http_server(struct netconn *conn)
 	netbuf_delete(inbuf);
 }
 
-
 static void http_thread(void *arg)
-{ 
+{
   struct netconn *conn, *newconn;
   err_t err, accept_err;
-  
+
   /* Create a new TCP connection handle */
   conn = netconn_new(NETCONN_TCP);
-  
+
   if (conn!= NULL)
   {
     /* Bind to port 80 (HTTP) with default IP address */
     err = netconn_bind(conn, IP_ADDR_ANY, 80);
-    
+
     if (err == ERR_OK)
     {
       /* Put the connection into LISTEN state */
       netconn_listen(conn);
-  
-      while(1) 
+
+      while(1)
       {
         /* accept any incoming connection */
         accept_err = netconn_accept(conn, &newconn);
@@ -121,10 +120,7 @@ static void http_thread(void *arg)
   }
 }
 
-
 void http_server_init()
 {
   sys_thread_new("http_thread", http_thread, NULL, DEFAULT_THREAD_STACKSIZE, osPriorityNormal);
 }
-
-

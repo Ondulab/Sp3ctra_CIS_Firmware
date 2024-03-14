@@ -15,6 +15,8 @@ typedef enum
 	MAIN_SCAN_LOOP_FLG_SET,
 }Scan_StateTypeDef;
 
+extern volatile Scan_StateTypeDef main_loop_flg;
+
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/

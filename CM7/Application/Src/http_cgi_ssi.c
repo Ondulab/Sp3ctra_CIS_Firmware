@@ -15,7 +15,7 @@
 
 #include "stm32h7xx_hal.h"
 
-int indx = 0;
+int indx2 = 0;
 /* we will use character "x", "y","z" as tag for SSI */
 char const* TAGCHAR[]={"x", "y", "z"};
 char const** TAGS=TAGCHAR;
@@ -24,18 +24,18 @@ uint16_t ssi_handler (int iIndex, char *pcInsert, int iInsertLen)
 {
 	switch (iIndex) {
 		case 0:
-			indx+=1;
-			sprintf(pcInsert, "%d", indx);
+			indx2+=1;
+			sprintf(pcInsert, "%d", indx2);
 			return strlen(pcInsert);
 			break;
 		case 1:
-			indx+=1;
-			sprintf(pcInsert, "%d", indx);
+			indx2+=1;
+			sprintf(pcInsert, "%d", indx2);
 			return strlen(pcInsert);
 			break;
 		case 2:
-			indx+=1;
-			sprintf(pcInsert, "%d", indx);
+			indx2+=1;
+			sprintf(pcInsert, "%d", indx2);
 			return strlen(pcInsert);
 			break;
 		default :
@@ -104,7 +104,7 @@ const char *CGILED_Handler(int iIndex, int iNumParams, char *pcParam[], char *pc
 	return "/settings.html";
 }
 
-void http_server_init (void)
+void http_server_init_CGI (void)
 {
 	httpd_init();
 
