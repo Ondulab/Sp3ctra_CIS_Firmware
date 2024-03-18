@@ -1,28 +1,40 @@
 /**
  ******************************************************************************
  * @file           : cis_polyCal.c
- * @brief          :
+ ******************************************************************************
+ * @attention
  *
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
  *
-Calcul du Polynôme de Réponse pour Chaque Pixel :
-Pour chaque pixel, calculez les coefficients du polynôme (a, b, c) à l'aide de la méthode des moindres carrés.
+ ******************************************************************************
+ */
 
-Calcul de la Courbe de Régression Moyenne :
-Calculez la courbe moyenne pour tous les pixels. Cela signifie trouver les valeurs moyennes des coefficients a, b, c pour l'ensemble de l'image.
-
-Correction des Courbes Individuelles :
-Ajustez chaque courbe de pixel individuelle pour qu'elle corresponde à la courbe moyenne.
-
-Calcul de la Fonction de Scaling :
-Déterminez le minimum et le maximum de la courbe de référence moyenne.
-Calculez la fonction de scaling pour ajuster ces valeurs à la plage complète de 0 à 4095.
-
-Application du Scaling et Écrêtage :
-Appliquez la fonction de scaling à chaque courbe individuelle corrigée.
-Si les valeurs calibrées dépassent 4095 ou sont inférieures à 0, écrêtez-les à ces limites.
-
-Validation :
-Assurez-vous que toutes les courbes corrigées et scalées respectent la plage de 0 à 4095 et sont bien alignées avec la courbe de référence moyenne.
+/**
+ ******************************************************************************
+ *
+ * Calcul du Polynôme de Réponse pour Chaque Pixel :
+ * Pour chaque pixel, calculez les coefficients du polynôme (a, b, c) à l'aide de la méthode des moindres carrés.
+ *
+ * Calcul de la Courbe de Régression Moyenne :
+ * Calculez la courbe moyenne pour tous les pixels. Cela signifie trouver les valeurs moyennes des coefficients a, b, c pour l'ensemble de l'image.
+ *
+ * Correction des Courbes Individuelles :
+ * Ajustez chaque courbe de pixel individuelle pour qu'elle corresponde à la courbe moyenne.
+ *
+ * Calcul de la Fonction de Scaling :
+ * Déterminez le minimum et le maximum de la courbe de référence moyenne.
+ * Calculez la fonction de scaling pour ajuster ces valeurs à la plage complète de 0 à 4095.
+ *
+ * Application du Scaling et Écrêtage :
+ * Appliquez la fonction de scaling à chaque courbe individuelle corrigée.
+ * Si les valeurs calibrées dépassent 4095 ou sont inférieures à 0, écrêtez-les à ces limites.
+ *
+ * Validation :
+ * Assurez-vous que toutes les courbes corrigées et scalées respectent la plage de 0 à 4095 et sont bien alignées avec la courbe de référence moyenne.
  *
  *
  ******************************************************************************

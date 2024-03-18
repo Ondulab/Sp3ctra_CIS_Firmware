@@ -1,4 +1,4 @@
-/*
+/**
  * Security Level: Macronix Proprietary
  * COPYRIGHT (c) 2010-2017 MACRONIX INTERNATIONAL CO., LTD
  * SPI Flash Low Level Driver (LLD) Sample Code
@@ -1255,7 +1255,7 @@ ReturnMsg CMD_RDSPB( uint32 flash_address, uint8 *SPBReg, FlashStatus *fsptr )
     uint8  io_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check current state: SPI or QPI
     if( IsFlashQPI( fsptr ) )
@@ -1291,7 +1291,7 @@ ReturnMsg CMD_WRSPB( uint32 flash_address, FlashStatus *fsptr )
 {
     uint8 io_mode;
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check current state: SPI or QPI
     if( IsFlashQPI( fsptr ) )
@@ -1378,7 +1378,7 @@ ReturnMsg CMD_RDDPB( uint32 flash_address, uint8 *DPBReg, FlashStatus *fsptr )
 
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
 
     // Chip select go low to start a flash command
@@ -1416,7 +1416,7 @@ ReturnMsg CMD_WRDPB( uint32 flash_address, uint8 UpdateValue, FlashStatus *fsptr
         io_mode = SIO;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Setting Write Enable Latch bit
     CMD_WREN( fsptr );
@@ -1461,7 +1461,7 @@ ReturnMsg CMD_READ( uint32 flash_address, uint8 *target_address, uint32 byte_len
     if( IsFlashQPI( fsptr ) != FALSE ) return FlashCmdSpiOnly;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check 3-byte or 4-byte mode
     addr_4byte_mode = IsFlash4Byte( fsptr );
@@ -1506,7 +1506,7 @@ ReturnMsg CMD_2READ( uint32 flash_address, uint8 *target_address, uint32 byte_le
     if( IsFlashQPI( fsptr ) != FALSE )    return    FlashCmdSpiOnly;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check 3-byte or 4-byte mode
     addr_4byte_mode = IsFlash4Byte( fsptr );
@@ -1550,7 +1550,7 @@ ReturnMsg CMD_4READ( uint32 flash_address, uint8 *target_address, uint32 byte_le
     uint8  dc;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check current state: SPI or QPI
     if( IsFlashQPI( fsptr ) == TRUE )
@@ -1608,7 +1608,7 @@ ReturnMsg CMD_DREAD( uint32 flash_address, uint8 *target_address, uint32 byte_le
     if( IsFlashQPI( fsptr ) != FALSE )    return    FlashCmdSpiOnly;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check 3-byte or 4-byte mode
     addr_4byte_mode = IsFlash4Byte( fsptr );
@@ -1655,7 +1655,7 @@ ReturnMsg CMD_QREAD( uint32 flash_address, uint8 *target_address, uint32 byte_le
     if( IsFlashQPI( fsptr ) != FALSE )    return    FlashCmdSpiOnly;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check QE bit
     if( IsFlashQIO( fsptr ) != TRUE )  return FlashQuadNotEnable;
@@ -1718,7 +1718,7 @@ ReturnMsg CMD_FASTREAD( uint32 flash_address, uint8 *target_address, uint32 byte
     #endif
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check 3-byte or 4-byte mode
     addr_4byte_mode = IsFlash4Byte( fsptr );
@@ -1762,7 +1762,7 @@ ReturnMsg CMD_RDSFDP( uint32 flash_address, uint8 *target_address, uint32 byte_l
     uint8  addr_4byte_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check 3-byte or 4-byte mode
     if( IsFlash4Byte( fsptr ) )
@@ -1880,7 +1880,7 @@ ReturnMsg CMD_PP( uint32 flash_address, uint8 *source_address, uint32 byte_lengt
     uint8  addr_4byte_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check flash is busy or not
     if( IsFlashBusy( fsptr ) )    return FlashIsBusy;
@@ -1946,7 +1946,7 @@ ReturnMsg CMD_4PP( uint32 flash_address, uint8 *source_address, uint32 byte_leng
     if( !IsFlashQIO( fsptr ) ) return FlashQuadNotEnable;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check flash is busy or not
     if( IsFlashBusy( fsptr ) )    return FlashIsBusy;
@@ -1999,7 +1999,7 @@ ReturnMsg CMD_SE( uint32 flash_address, FlashStatus *fsptr )
     uint8  addr_4byte_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check flash is busy or not
     if( IsFlashBusy( fsptr ) )    return FlashIsBusy;
@@ -2048,7 +2048,7 @@ ReturnMsg CMD_BE32K( uint32 flash_address, FlashStatus *fsptr )
     uint8  addr_4byte_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check flash is busy or not
     if( IsFlashBusy( fsptr ) )    return FlashIsBusy;
@@ -2097,7 +2097,7 @@ ReturnMsg CMD_BE( uint32 flash_address, FlashStatus *fsptr )
     uint8  addr_4byte_mode;
 
     // Check flash address
-    if( flash_address > FlashSize ) return FlashAddressInvalid;
+    if( flash_address > Flash_Size ) return FlashAddressInvalid;
 
     // Check flash is busy or not
     if( IsFlashBusy( fsptr ) )    return FlashIsBusy;
@@ -2687,7 +2687,7 @@ ReturnMsg CMD_NOP( FlashStatus *fsptr )
 #define  Error_inc(x)  x = x + 1;
 
 /* function prototype */
-uint8  FlashID_Test( uint8 QPI_Enable );
+uint8  Flash_ID_Test( uint8 QPI_Enable );
 uint8  FlashReadWrite_Test( uint8 QPI_Enable );
 
 /*
@@ -2699,14 +2699,14 @@ void MX25L_Test()
     uint8 QPI_Enable = TRUE;
 
     Initial_Spi();
-    FlashID_Test( QPI_Enable );    // Simple test : flash ID
+    Flash_ID_Test( QPI_Enable );    // Simple test : flash ID
     FlashReadWrite_Test( QPI_Enable );   // Simple test : flash read / write
 }
 
 /*
  * Simple flash id test
  */
-uint8 FlashID_Test( uint8 QPI_Enable )
+uint8 Flash_ID_Test( uint8 QPI_Enable )
 {
     uint32  flash_id = 0;
     uint16  error_cnt = 0;
@@ -2730,7 +2730,7 @@ uint8 FlashID_Test( uint8 QPI_Enable )
     if( QPI_Enable )
         CMD_RSTQIO( &flash_state );  // Exit QPI mode
 
-    if( flash_id != FlashID )  // Compare to expected value
+    if( flash_id != Flash_ID )  // Compare to expected value
         Error_inc( error_cnt );
 
     if( error_cnt != 0 )

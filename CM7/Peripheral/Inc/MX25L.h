@@ -1,4 +1,4 @@
-/*
+/**
  * Security Level: Macronix Proprietary
  * COPYRIGHT (c) 2010-2017 MACRONIX INTERNATIONAL CO., LTD
  * SPI Flash Low Level Driver (LLD) Sample Code

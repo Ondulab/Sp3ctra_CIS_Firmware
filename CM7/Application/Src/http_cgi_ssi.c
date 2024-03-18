@@ -1,10 +1,17 @@
-/*
- * http_cgi_ssi.c
+/**
+ ******************************************************************************
+ * @file           : http_cgi_ssi.c
+ ******************************************************************************
+ * @attention
  *
- *  Created on: 11-Oct-2021
- *      Author: controllerstech
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+ *
+ ******************************************************************************
  */
-
 
 #include "http_cgi_ssi.h"
 #include "string.h"

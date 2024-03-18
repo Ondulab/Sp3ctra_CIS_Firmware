@@ -1,11 +1,17 @@
 /**
  ******************************************************************************
  * @file           : buttons.h
- * @brief          : 5 key keybord driver
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+ *
  ******************************************************************************
  */
-
-/* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __BUTTONS_H__

@@ -52,9 +52,8 @@ MEMORY
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 441K
   RAM_AXI (xrw)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
-  RAM_D2 (r)      			: ORIGIN = 0x30020000, LENGTH = 128K
-  RAM_D3 (xrw)    			: ORIGIN = 0x30040000, LENGTH = 32K
-  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D2 (xrw)   			: ORIGIN = 0x30020000, LENGTH = 160K
+  RAM_D3 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
   ITCMRAM (xrw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
@@ -210,16 +209,17 @@ SECTIONS
     . = ALIGN(8);
   } >RAM_AXI
   
-  .lwip_sec (NOLOAD) : {
+    .lwip_sec (NOLOAD) :
+  {
     . = ABSOLUTE(0x30040000);
     *(.RxDecripSection) 
     
-    . = ABSOLUTE(0x30040200);
+    . = ABSOLUTE(0x30040100);
     *(.TxDecripSection)
     
-    . = ABSOLUTE(0x30040400);
-    *(.Rx_PoolSection) 
-  } >RAM_D3
+    . = ABSOLUTE(0x30040200);
+    *(.Rx_PoolSection)  
+  } >RAM_D2
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

@@ -1,6 +1,6 @@
-Configuration	SSS_CIS
+Configuration	CISYNTH_CIS_Firmware
 STM32CubeMX 	6.10.0
-Date	02/12/2024
+Date	03/16/2024
 MCU	STM32H745IIKx
 
 
@@ -44,25 +44,22 @@ SPI2	Full-Duplex Master	SPI2_MISO	PB14
 SPI2	Full-Duplex Master	SPI2_MOSI	PB15
 SPI2	Full-Duplex Master	SPI2_SCK	PD3
 SPI2	Hardware NSS Output Signal	SPI2_NSS	PB9
-SYS	SysTick	SYS_VS_Systick	VP_SYS_VS_Systick
+SYS	TIM2	SYS_VS_tim2	VP_SYS_VS_tim2
 SYS_M4	SysTick	SYS_M4_VS_Systick	VP_SYS_M4_VS_Systick
-TIM1	Gated Mode	TIM1_VS_ControllerModeGated	VP_TIM1_VS_ControllerModeGated
-TIM1	ITR0	TIM1_VS_ClockSourceITR	VP_TIM1_VS_ClockSourceITR
 TIM1	PWM Generation No Output	TIM1_VS_no_output1	VP_TIM1_VS_no_output1
 TIM1	PWM Generation CH2	TIM1_CH2	PA9
-TIM3	Gated Mode	TIM3_VS_ControllerModeGated	VP_TIM3_VS_ControllerModeGated
+TIM3	External Clock Mode 1	TIM3_VS_ControllerModeClock	VP_TIM3_VS_ControllerModeClock
 TIM3	ITR0	TIM3_VS_ClockSourceITR	VP_TIM3_VS_ClockSourceITR
 TIM3	PWM Generation CH1	TIM3_CH1	PC6
-TIM4	Gated Mode	TIM4_VS_ControllerModeGated	VP_TIM4_VS_ControllerModeGated
+TIM4	External Clock Mode 1	TIM4_VS_ControllerModeClock	VP_TIM4_VS_ControllerModeClock
 TIM4	ITR0	TIM4_VS_ClockSourceITR	VP_TIM4_VS_ClockSourceITR
 TIM4	PWM Generation CH2	TIM4_CH2	PD13
-TIM5	Gated Mode	TIM5_VS_ControllerModeGated	VP_TIM5_VS_ControllerModeGated
+TIM5	External Clock Mode 1	TIM5_VS_ControllerModeClock	VP_TIM5_VS_ControllerModeClock
 TIM5	ITR0	TIM5_VS_ClockSourceITR	VP_TIM5_VS_ClockSourceITR
 TIM5	PWM Generation CH3	TIM5_CH3	PH12
-TIM8	Gated Mode	TIM8_VS_ControllerModeGated	VP_TIM8_VS_ControllerModeGated
+TIM8	External Clock Mode 1	TIM8_VS_ControllerModeClock	VP_TIM8_VS_ControllerModeClock
 TIM8	ITR0	TIM8_VS_ClockSourceITR	VP_TIM8_VS_ClockSourceITR
 TIM8	PWM Generation CH3	TIM8_CH3	PC8
-TIM15	PWM Generation No Output	TIM15_VS_no_output1	VP_TIM15_VS_no_output1
 USART1	Asynchronous	USART1_RX	PB7
 USART1	Asynchronous	USART1_TX	PB6
 
@@ -166,25 +163,22 @@ SPI2	Full-Duplex Master	SPI2_MISO	PB14
 SPI2	Full-Duplex Master	SPI2_MOSI	PB15
 SPI2	Full-Duplex Master	SPI2_SCK	PD3
 SPI2	Hardware NSS Output Signal	SPI2_NSS	PB9
-SYS	SysTick	SYS_VS_Systick	VP_SYS_VS_Systick
+SYS	TIM2	SYS_VS_tim2	VP_SYS_VS_tim2
 SYS_M4	SysTick	SYS_M4_VS_Systick	VP_SYS_M4_VS_Systick
-TIM1	Gated Mode	TIM1_VS_ControllerModeGated	VP_TIM1_VS_ControllerModeGated
-TIM1	ITR0	TIM1_VS_ClockSourceITR	VP_TIM1_VS_ClockSourceITR
 TIM1	PWM Generation No Output	TIM1_VS_no_output1	VP_TIM1_VS_no_output1
 TIM1	PWM Generation CH2	TIM1_CH2	PA9
-TIM3	Gated Mode	TIM3_VS_ControllerModeGated	VP_TIM3_VS_ControllerModeGated
+TIM3	External Clock Mode 1	TIM3_VS_ControllerModeClock	VP_TIM3_VS_ControllerModeClock
 TIM3	ITR0	TIM3_VS_ClockSourceITR	VP_TIM3_VS_ClockSourceITR
 TIM3	PWM Generation CH1	TIM3_CH1	PC6
-TIM4	Gated Mode	TIM4_VS_ControllerModeGated	VP_TIM4_VS_ControllerModeGated
+TIM4	External Clock Mode 1	TIM4_VS_ControllerModeClock	VP_TIM4_VS_ControllerModeClock
 TIM4	ITR0	TIM4_VS_ClockSourceITR	VP_TIM4_VS_ClockSourceITR
 TIM4	PWM Generation CH2	TIM4_CH2	PD13
-TIM5	Gated Mode	TIM5_VS_ControllerModeGated	VP_TIM5_VS_ControllerModeGated
+TIM5	External Clock Mode 1	TIM5_VS_ControllerModeClock	VP_TIM5_VS_ControllerModeClock
 TIM5	ITR0	TIM5_VS_ClockSourceITR	VP_TIM5_VS_ClockSourceITR
 TIM5	PWM Generation CH3	TIM5_CH3	PH12
-TIM8	Gated Mode	TIM8_VS_ControllerModeGated	VP_TIM8_VS_ControllerModeGated
+TIM8	External Clock Mode 1	TIM8_VS_ControllerModeClock	VP_TIM8_VS_ControllerModeClock
 TIM8	ITR0	TIM8_VS_ClockSourceITR	VP_TIM8_VS_ClockSourceITR
 TIM8	PWM Generation CH3	TIM8_CH3	PC8
-TIM15	PWM Generation No Output	TIM15_VS_no_output1	VP_TIM15_VS_no_output1
 USART1	Asynchronous	USART1_RX	PB7
 USART1	Asynchronous	USART1_TX	PB6
 
@@ -255,8 +249,8 @@ R12	PE11	GPIO_Output	LED2
 SOFTWARE PROJECT
 
 Project Settings : 
-Project Name : SSS_CIS
-Project Folder : /Users/zhonx/Documents/Workspaces/Workspace_SSS/SSS_CIS
+Project Name : CISYNTH_CIS_Firmware
+Project Folder : /Users/zhonx/Documents/Workspaces/Workspace_SSS/CISYNTH_CIS_Firmware
 Toolchain / IDE : STM32CubeIDE
 Firmware Package Name and Version : STM32Cube FW_H7 V1.11.1
 

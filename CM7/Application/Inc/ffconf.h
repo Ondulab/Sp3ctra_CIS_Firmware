@@ -1,4 +1,8 @@
 /**
+  ******************************************************************************
+  * @file           : ffconf.h
+  ******************************************************************************
+  * @attention
   *
   *  Portions COPYRIGHT 2019 STMicroelectronics
   *  Copyright (C) 2017, ChaN, all right reserved.

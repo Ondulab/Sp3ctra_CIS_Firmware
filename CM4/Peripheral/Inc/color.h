@@ -1,5 +1,5 @@
 /**
-  ******************************************************************************
+ ******************************************************************************
   * @file    Display/LTDC_Paint/Inc/color.h 
   * @author  MCD Application Team
   * @brief   This file contains image used for LTDC application.   

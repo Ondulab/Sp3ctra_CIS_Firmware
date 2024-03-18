@@ -1,4 +1,4 @@
-/*
+/**
  * Security Level: Macronix Proprietary
  * COPYRIGHT (c) 2010-2017 MACRONIX INTERNATIONAL CO., LTD
  * SPI Flash Low Level Driver (LLD) Sample Code
@@ -152,11 +152,11 @@ typedef    unsigned char     BOOL;
 */
 
 #ifdef MX25L12833F
-//#define    FlashID          0xc22018
+#define    Flash_ID         0xc22018
 #define    ElectronicID     0x17
 #define    RESID0           0xc217
 #define    RESID1           0x17c2
-//#define    FlashSize        0x1000000      // 16 MB
+#define    Flash_Size       0x1000000      // 16 MB
 #define    CE_period        31250000       // tCE /  ( CLK_PERIOD * Min_Cycle_Per_Inst *One_Loop_Inst)
 #define    tW               40000000       // 40ms
 #define    tDP              10000          // 10us

@@ -1,8 +1,16 @@
-/*
- * sss_Scan.c
+/**
+ ******************************************************************************
+ * @file           : sss_Scan.c
+ ******************************************************************************
+ * @attention
  *
- *  Created on: May 31, 2020
- *      Author: zhonx
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+ *
+ ******************************************************************************
  */
 
 /* Includes ------------------------------------------------------------------*/
@@ -61,9 +69,8 @@ int sss_Scan(void)
 	printf("----- ETHERNET MODE START -----\n");
 
 #ifndef ETHERNET_OFF
-	MX_LWIP_Init();
+	//MX_LWIP_Init();
 	udp_clientInit();
-	http_server_init();
 #endif
 
 	HAL_TIM_Base_Start_IT(&htim6);

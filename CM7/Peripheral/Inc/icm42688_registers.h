@@ -1,3 +1,18 @@
+/**
+ ******************************************************************************
+ * @file           : icm42688_registers.h
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+ *
+ ******************************************************************************
+ */
+
 #ifndef ICM42688_REGISTERS_H_
 #define ICM42688_REGISTERS_H_
 
