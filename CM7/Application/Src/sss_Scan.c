@@ -31,7 +31,6 @@
 #include "stm32_flash.h"
 
 #include "udp_client.h"
-#include "http_cgi_ssi.h"
 #include "httpserver.h"
 
 #include "lwip.h"

@@ -272,7 +272,7 @@ void SendByte(uint8 byte_value, uint8 transfer_type)
 #ifdef QIO
     case QIO: // Quad I/O
         //--- insert your code here for quad IO transfer. ---//
-    	//HAL_QSPI_Command(hqspi, &byte_value, 1000);
+    	//HAL_QSPI_Command(&hqspi, byte_value, 1000);
         break;
 #endif
 #ifdef PIO
