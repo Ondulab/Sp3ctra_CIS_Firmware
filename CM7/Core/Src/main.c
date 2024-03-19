@@ -18,6 +18,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <cis_scan.h>
 #include "main.h"
 #include "cmsis_os.h"
 #include "crc.h"
@@ -39,7 +40,6 @@
 #include "shared.h"
 
 #include "icm42688.h"
-#include "sss_Scan.h"
 #include "MX25L.h"
 
 /* USER CODE END Includes */

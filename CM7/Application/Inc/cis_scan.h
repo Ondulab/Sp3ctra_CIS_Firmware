@@ -29,6 +29,6 @@ extern volatile Scan_StateTypeDef main_loop_flg;
 
 /* Private defines -----------------------------------------------------------*/
 
-int sss_Scan(void);
+int cis_scan(void);
 
 #endif /* SSS_SCAN_H */

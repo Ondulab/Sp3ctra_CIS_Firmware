@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : sss_Scan.c
+ * @file           : cis_scan.c
  ******************************************************************************
  * @attention
  *
@@ -14,7 +14,6 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include <sss_Scan.h>
 #include "stdbool.h"
 #include "stdio.h"
 
@@ -36,7 +35,7 @@
 #include "lwip.h"
 #include "icm42688.h"
 
-#include "sss_Scan.h"
+#include "cis_scan.h"
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -63,7 +62,7 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
  * @brief  The application entry point.
  * @retval int
  */
-int sss_Scan(void)
+int cis_scan(void)
 {
 	printf("----- ETHERNET MODE START -----\n");
 
