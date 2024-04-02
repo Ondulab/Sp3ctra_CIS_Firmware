@@ -6,9 +6,9 @@
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
@@ -45,18 +45,18 @@
 /* Private function prototypes -----------------------------------------------*/
 static void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
 static void cis_ComputeCalsOffsets(CIS_Color_TypeDef color);
-static void cis_ComputeCalsGains(CIS_Color_TypeDef color);
+static void cis_ComputeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue);
 
 /* Private user code ---------------------------------------------------------*/
 
-void cis_lanealCalibrationInit()
+void cis_LinearCalibrationInit()
 {
 	stm32_flashCalibrationRW(CIS_READ_CAL);
 }
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32)
+void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue)
 {
 #ifndef CIS_DESACTIVATE_CALIBRATION
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Bx;
@@ -94,9 +94,9 @@ void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32)
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.gainsData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
 
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, 255, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, 255, CIS_PIXELS_PER_LANE);
-		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, 255, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], 0, maxClipValue, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], 0, maxClipValue, CIS_PIXELS_PER_LANE);
+		arm_clip_f32(&cisDataCpy_f32[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], 0, maxClipValue, CIS_PIXELS_PER_LANE);
 	}
 #endif
 }
@@ -249,7 +249,7 @@ void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
  * @param  current color calibration
  * @retval None
  */
-void cis_ComputeCalsGains(CIS_Color_TypeDef color)
+void cis_ComputeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
 {
 	uint32_t laneOffset = 0, offset;
 
@@ -276,7 +276,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-			cisCals.gainsData[laneOffset + i] = (float32_t)(255) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
+			cisCals.gainsData[laneOffset + i] = (float32_t)(maxADCValue) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
 		}
 	}
 }
@@ -286,7 +286,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color)
  * @param  calibration iteration
  * @retval None
  */
-void cis_StartLinearCalibration(uint16_t iterationNb)
+void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 {
 	/* Set header description */
 	printf("------ START CALIBRATION ------\n");
@@ -295,7 +295,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	/*-------- 1 --------*/
 	// Read black and white level
-	cis_LedPowerAdj(95, 95, 95);
+	cis_LedPowerAdj(100, 100, 100);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
 	HAL_Delay(200);
@@ -306,7 +306,7 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 	HAL_Delay(200);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
-	cis_LedPowerAdj(5, 5, 5);
+	cis_LedPowerAdj(1, 1, 1);
 	HAL_Delay(20);
 
 	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
@@ -357,9 +357,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 
 	/*-------- 4 --------*/
 	// Compute gains
-	cis_ComputeCalsGains(CIS_RED);
-	cis_ComputeCalsGains(CIS_GREEN);
-	cis_ComputeCalsGains(CIS_BLUE);
+	cis_ComputeCalsGains(CIS_RED, bitDepth);
+	cis_ComputeCalsGains(CIS_GREEN, bitDepth);
+	cis_ComputeCalsGains(CIS_BLUE, bitDepth);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
@@ -378,4 +378,83 @@ void cis_StartLinearCalibration(uint16_t iterationNb)
 	cis_Start_capture();
 	shared_var.cis_cal_state = CIS_CAL_END;
 	printf("-------------------------------\n");
+}
+
+/**
+ * @brief  CIS start characterisation
+ * @retval None
+ */
+void cis_PrintForcharacterization(float32_t* cisDataCpy_f32)
+{
+	/* Set header description */
+	printf("--- START CHARACTERISATION ----\n");
+
+	cis_StartLinearCalibration(100, 4095);
+
+	static struct RAWImage RAWImage = {0};
+
+	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
+	{
+		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+
+		printf("\n Red led intensity = %d\n", ledIntensity);
+		for (int i = 0; i < 5; i++)
+		{
+			printf("\n Red line %d\n", i);
+			cis_getRAWImage(cisDataCpy_f32, 1);
+			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+
+			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
+
+			for (int print = 0; print < CIS_PIXELS_NB; print++)
+			{
+				printf(",%d", (int)RAWImage.redLine[print]);
+			}
+		}
+	}
+
+	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
+	{
+		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+
+		printf("\n Green led intensity = %d\n", ledIntensity);
+		for (int i = 0; i < 5; i++)
+		{
+			printf("\n Green line %d\n", i);
+			cis_getRAWImage(cisDataCpy_f32, 1);
+			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+
+			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
+
+			for (int print = 0; print < CIS_PIXELS_NB; print++)
+			{
+				printf(",%d", (int)RAWImage.greenLine[print]);
+			}
+		}
+	}
+
+	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
+	{
+		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+
+		printf("\n Blue led intensity = %d\n", ledIntensity);
+		for (int i = 0; i < 5; i++)
+		{
+			printf("\n Blue line %d\n", i);
+			cis_getRAWImage(cisDataCpy_f32, 1);
+			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+
+			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
+
+			for (int print = 0; print < CIS_PIXELS_NB; print++)
+			{
+				printf(",%d", (int)RAWImage.blueLine[print]);
+			}
+		}
+	}
+
+	printf("\n-------------------------------\n");
 }

@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include <cis_scan.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
@@ -28,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "httpserver.h"
 #include "lwip.h"
+#include "cis_scan.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

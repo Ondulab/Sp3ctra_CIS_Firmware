@@ -305,7 +305,7 @@ void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
-	cis_ApplyLinearCalibration(cisDataCpy_f32);
+	cis_ApplyLinearCalibration(cisDataCpy_f32, 255);
 
 	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{

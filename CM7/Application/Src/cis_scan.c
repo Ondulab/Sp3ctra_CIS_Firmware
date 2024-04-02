@@ -77,6 +77,10 @@ int cis_scan(void)
 
 	shared_var.cis_cal_state = CIS_CAL_END;
 
+	HAL_Delay(1000);
+	cis_PrintForcharacterization(cisDataCpy_f32);
+	while(1);
+
 	/* Infinite loop */
 	while (1)
 	{
@@ -90,7 +94,7 @@ int cis_scan(void)
 #ifdef POLYNOMIAL_CALIBRATION
 			cis_StartCalibration(20); //WIP
 #else
-			cis_StartLinearCalibration(500);
+			cis_StartLinearCalibration(500, 255);
 #endif
 
 #ifdef PRINT_CIS_CALIBRATION

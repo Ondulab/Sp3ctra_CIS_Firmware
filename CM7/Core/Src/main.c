@@ -18,7 +18,6 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <cis_scan.h>
 #include "main.h"
 #include "cmsis_os.h"
 #include "crc.h"
@@ -40,7 +39,8 @@
 #include "shared.h"
 
 #include "icm42688.h"
-#include "MX25L.h"
+
+#include "cis_scan.h"
 
 /* USER CODE END Includes */
 
@@ -175,8 +175,6 @@ int main(void)
 	HAL_Delay(20);
 
 	//sss_Scan();
-
-	//MX25L_Test();
 
   /* USER CODE END 2 */
 
