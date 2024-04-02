@@ -22,7 +22,6 @@
 #include "cmsis_os.h"
 #include "crc.h"
 #include "dma.h"
-#include "quadspi.h"
 #include "rng.h"
 #include "spi.h"
 #include "tim.h"
@@ -157,7 +156,6 @@ int main(void)
   MX_RNG_Init();
   MX_CRC_Init();
   MX_TIM6_Init();
-  MX_QUADSPI_Init();
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
@@ -227,7 +225,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLM = 5;
   RCC_OscInitStruct.PLL.PLLN = 160;
   RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLQ = 8;
   RCC_OscInitStruct.PLL.PLLR = 4;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
