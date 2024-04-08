@@ -1,6 +1,6 @@
 /*************************************************************************************************
  *          Macronix xSPI-NOR Flash BSP driver header file for STM32 QUADSPI IP
- * @file    stm32xxx_QUADSPI_MXIC.h
+ * @file    MXIC.h
  * @brief   Basic Read/Write/Erase functions for Macronix xSPI-NOR Flash.
  * @Author  Peter Chang / Macronix; peterchang01@mxic.com.tw
  *************************************************************************************************
@@ -32,6 +32,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "MXIC_xSPINOR.h"
+#include "stm32h7xx_hal.h"
 
 /* Exported constants --------------------------------------------------------*/
 #define QSPI_NOR_INSTANCE_NUMBER    1U

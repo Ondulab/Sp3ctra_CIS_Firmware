@@ -77,9 +77,11 @@ int cis_scan(void)
 
 	shared_var.cis_cal_state = CIS_CAL_END;
 
+#if 0
 	HAL_Delay(1000);
 	cis_PrintForcharacterization(cisDataCpy_f32);
 	while(1);
+#endif
 
 	/* Infinite loop */
 	while (1)

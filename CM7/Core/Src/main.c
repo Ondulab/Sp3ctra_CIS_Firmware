@@ -22,6 +22,7 @@
 #include "cmsis_os.h"
 #include "crc.h"
 #include "dma.h"
+#include "fatfs.h"
 #include "rng.h"
 #include "spi.h"
 #include "tim.h"
@@ -92,6 +93,7 @@ int main(void)
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
 	int32_t timeout;
+
 /* USER CODE END Boot_Mode_Sequence_0 */
 
   /* MPU Configuration--------------------------------------------------------*/
@@ -157,6 +159,7 @@ int main(void)
   MX_CRC_Init();
   MX_TIM6_Init();
   MX_SPI2_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
 	printf("-------------------------------\n");

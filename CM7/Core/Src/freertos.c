@@ -28,6 +28,12 @@
 #include "httpserver.h"
 #include "lwip.h"
 #include "cis_scan.h"
+
+#include "ff.h" // FATFS include
+#include "diskio.h" // DiskIO include
+
+#include "ftpd.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,6 +53,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+FATFS FatFs; // Variable pour le volume de travail FATFS
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -125,6 +132,57 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 	  MX_LWIP_Init();
+
+
+		FRESULT fres; // Variable pour stocker le résultat des opérations FATFS
+
+		// Essayer de monter le système de fichiers
+		fres = f_mount(&FatFs, "", 1); // 1 pour monter immédiatement
+		if (fres != FR_OK) {
+		    printf("FS mount ERROR\n");
+
+		    // Si le montage échoue, essayer de formater la flash
+		    printf("Attempting to format the QSPI flash...\n");
+		    fres = f_mkfs("", FM_ANY, 0, 0, 0); // Remplacer "" par le chemin du périphérique si nécessaire
+		    if (fres != FR_OK) {
+		        printf("Failed to format the QSPI flash.\n");
+		    }
+
+		    // Essayer de monter à nouveau le système de fichiers après le formatage
+		    fres = f_mount(&FatFs, "", 1);
+		    if (fres != FR_OK) {
+		        printf("Failed to mount the filesystem even after formatting.\n");
+		    } else {
+		        printf("FS mount SUCCESS after formatting.\n");
+		    }
+		} else {
+		    printf("FS mount SUCCESS\n");
+		}
+
+
+		FIL fil; // Variable de fichier
+		UINT bw; // Variable pour compter les octets écrits
+
+		// Créer un fichier et l'ouvrir
+		fres = f_open(&fil, "test.txt", FA_CREATE_ALWAYS | FA_WRITE);
+		if (fres == FR_OK) {
+		  // Écrire quelque chose dans le fichier
+		  fres = f_write(&fil, "Hello, World!\n", 14, &bw);
+		  if (fres == FR_OK) {
+		    // Données écrites avec succès
+		  } else {
+		    // Échec de l'écriture
+		  }
+		  // Fermer le fichier
+		  f_close(&fil);
+		} else {
+		  // Échec de l'ouverture du fichier
+		}
+
+		f_mount(NULL, "", 0); // Démonter le volume
+
+		ftpd_init();
+
 	  http_server_init();
 	  cis_scan();
 	  /* Infinite loop */
