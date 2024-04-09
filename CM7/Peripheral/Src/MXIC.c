@@ -97,7 +97,7 @@ int32_t BSP_QSPI_Init(uint32_t Instance, BSP_QSPI_Init_t Init)
     /* STM32 QSPI interface initialization */
     (void)MXIC_SNOR_GetDriverInfo(&Info);
 
-    if(MX_QSPI_Init(&QSPIHandle[Instance], Info.DeviceSize, 1) != HAL_OK)   // ClockPrescaler, Adjust SCLK frequency
+    if(MX_QSPI_Init(&QSPIHandle[Instance], Info.DeviceSize, 4) != HAL_OK)   // ClockPrescaler, Adjust SCLK frequency
     {
       return BSP_ERROR_PERIPH_FAILURE;
     }/* Reset QSPI memory; After reset Mode = MXIC_SNOR_FREAD_111 + STR always */

@@ -1070,4 +1070,4 @@ VP_TIM8_VS_ControllerModeClock.Mode=Clock Mode
 VP_TIM8_VS_ControllerModeClock.Signal=TIM8_VS_ControllerModeClock
 board=custom
 rtos.0.ip=FREERTOS_M7
-isbadioc=true
+isbadioc=false

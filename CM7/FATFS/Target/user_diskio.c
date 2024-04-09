@@ -86,7 +86,7 @@ DSTATUS USER_initialize (
     Stat = STA_NOINIT;
 
     BSP_QSPI_Init_t qspiInit;
-    qspiInit.IO = MXIC_SNOR_NREAD_111;
+    qspiInit.IO = MXIC_SNOR_FREAD_112;
     qspiInit.Rate = MXIC_SNOR_STR;
     if (BSP_QSPI_Init(0, qspiInit) != BSP_ERROR_NONE)
     {
@@ -111,8 +111,9 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    Stat = STA_NOINIT;
-    return Stat;
+    //Stat = STA_NOINIT;
+    //return Stat;
+	return RES_OK;
   /* USER CODE END STATUS */
 }
 
@@ -133,7 +134,7 @@ DRESULT USER_read (
 {
   /* USER CODE BEGIN READ */
 	int32_t result;
-	// Assumer que la taille d'un secteur est de 512 octets
+
 	uint32_t memoryAddress = sector * 4096; // Convertir le numéro de secteur en adresse mémoire
 	result = BSP_QSPI_Read(pdrv, buff, memoryAddress, count * 4096); // Lire les données
 	if (result == BSP_ERROR_NONE) {
@@ -165,7 +166,7 @@ DRESULT USER_write (
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
 	int32_t result;
-	// Assumer que la taille d'un secteur est de 512 octets
+
 	uint32_t memoryAddress = sector * 4096; // Convertir le numéro de secteur en adresse mémoire
 	result = BSP_QSPI_Write(pdrv, (BYTE*)buff, memoryAddress, count * 4096); // Écrire les données
 	if (result == BSP_ERROR_NONE) {
@@ -202,21 +203,19 @@ DRESULT USER_ioctl (
         break;
 
       case GET_SECTOR_SIZE: /* Get R/W sector size (WORD) */
-        *(WORD*)buff = 4096;  // Taille du secteur pour la flash MX25L12833F
+        *(WORD*)buff = 4096;
         res = RES_OK;
         break;
 
       case GET_BLOCK_SIZE: /* Get erase block size in unit of sector (DWORD) */
-        *(DWORD*)buff = 8;  // Supposer que "1" signifie qu'il n'y a pas de gestion particulière des blocs
+        *(DWORD*)buff = 8;
         res = RES_OK;
         break;
 
       case GET_SECTOR_COUNT: /* Get media size (DWORD) */
-        *(DWORD*)buff = 16 * 1024 * 1024 / 4096;  // Capacité totale divisée par la taille du secteur
+        *(DWORD*)buff = 16 * 1024 * 1024 / 4096;
         res = RES_OK;
         break;
-
-      // Ajoutez d'autres cas ici selon vos besoins spécifiques
 
       default:
         res = RES_PARERR;
