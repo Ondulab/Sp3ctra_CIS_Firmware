@@ -225,7 +225,7 @@ typedef int sfifo_atomic_t;
 #ifdef __TURBOC__
 #	define	SFIFO_MAX_BUFFER_SIZE	0x7fff
 #else /* Kludge: Assume 32 bit platform */
-#	define	SFIFO_MAX_BUFFER_SIZE	0x7fffffff
+#	define	SFIFO_MAX_BUFFER_SIZE	0x7fff //0x7fffffff
 #endif
 
 typedef struct sfifo_t

@@ -37,7 +37,7 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM_AXI) + LENGTH(RAM_AXI); /* end of "RAM" Ram type memory */
+_estack = ORIGIN(DTCM) + LENGTH(DTCM); /* end of "RAM" Ram type memory */
 
 _Min_Heap_Size = 0x400; /* required amount of heap  */
 _Min_Stack_Size = 0x800; /* required amount of stack */
@@ -137,12 +137,10 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
   
-  /* autres sections... */
-  
   .tcmram :
   {
     . = ALIGN(4);
-    *(.tcmram*) /* toutes les données avec l'attribut .tcmram */
+    KEEP (*(.tcmram*));
     . = ALIGN(4);
   } >DTCM
   
@@ -160,10 +158,14 @@ SECTIONS
     KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage));     
     KEEP (*(.rgbCalibration)); 
-    KEEP (*(.cisLeds_Calibration));        
+    KEEP (*(.cisLeds_Calibration));  
     KEEP (*(.cisCals));
-    KEEP (*(.rgbCals));  
+    KEEP (*(.rgbCals));         
   } >RAM_SHARED_CACHED
+  
+  .dtcm_ram :
+  {
+  } >DTCM
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -207,7 +209,7 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >RAM_AXI
+  } >DTCM
   
     .lwip_sec (NOLOAD) :
   {
