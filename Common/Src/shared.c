@@ -63,8 +63,8 @@ float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 __attribute__ ((section(".cisData")))
 int16_t cisData[CIS_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32))) = {0};
 
-__attribute__ ((section(".cisRAWImage")))
-struct RAWImage RAWImageCalibration[11] = {0};
+//__attribute__ ((section(".cisRAWImage")))
+//struct RAWImage RAWImageCalibration[1] = {0};
 
 __attribute__ ((section(".rgbCalibration")))
 struct RGB_Calibration rgbCalibration = {0};

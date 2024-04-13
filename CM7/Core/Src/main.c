@@ -42,6 +42,8 @@
 
 #include "cis_scan.h"
 
+#include "MXIC.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,6 +68,7 @@
 
 /* USER CODE BEGIN PV */
 extern struct netif gnetif;
+int MX25test(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -176,6 +179,7 @@ int main(void)
 	HAL_Delay(20);
 
 	//sss_Scan();
+	//MX25test();
 
   /* USER CODE END 2 */
 
@@ -285,7 +289,84 @@ void PeriphCommonClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/* Définitions pour les tests */
+#define TEST_ADDRESS      0x00000000  // Adresse de départ pour les tests
+#define TEST_SIZE         1024        // Taille des données de test (1KB)
+#define TEST_ERASE_SIZE   MXIC_SNOR_ERASE_64K // Taille du bloc à effacer
 
+/* Données pour les tests d'écriture */
+uint8_t testWriteData[TEST_SIZE];
+uint8_t testReadData[TEST_SIZE];
+
+/* Prototypes de fonctions de test */
+static int32_t QSPI_Test_WriteRead(uint32_t instance);
+static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size);
+
+int MX25test(void)
+{
+    /* Initialisation du périphérique QSPI */
+    BSP_QSPI_Init_t qspiInit = {MXIC_SNOR_FREAD_144, MXIC_SNOR_STR}; // Mode d'interface et taux spécifiques
+    if (BSP_QSPI_Init(0, qspiInit) != BSP_ERROR_NONE) {
+        printf("Erreur d'initialisation QSPI\n");
+        return -1;
+    }
+
+    /* Test de lecture et écriture */
+    if (QSPI_Test_WriteRead(0) != BSP_ERROR_NONE) {
+        printf("Erreur de test d'écriture et de lecture\n");
+        return -1;
+    }
+
+    /* Désinitialisation */
+    if (BSP_QSPI_DeInit(0) != BSP_ERROR_NONE) {
+        printf("Erreur de désinitialisation QSPI\n");
+        return -1;
+    }
+
+    printf("Test QSPI terminé avec succès.\n");
+    return 0;
+}
+
+static int32_t QSPI_Test_WriteRead(uint32_t instance)
+{
+    /* Effacement du bloc */
+    if (BSP_QSPI_EraseBlock(instance, TEST_ADDRESS, TEST_ERASE_SIZE) != BSP_ERROR_NONE) {
+        printf("Erreur d'effacement de bloc\n");
+        return BSP_ERROR_COMPONENT_FAILURE;
+    }
+
+    /* Remplissage des données de test */
+    Fill_Test_Pattern(testWriteData, TEST_SIZE);
+
+    /* Écriture des données de test */
+    if (BSP_QSPI_Write(instance, testWriteData, TEST_ADDRESS, TEST_SIZE) != BSP_ERROR_NONE) {
+        printf("Erreur d'écriture QSPI\n");
+        return BSP_ERROR_COMPONENT_FAILURE;
+    }
+
+    /* Lecture des données */
+    if (BSP_QSPI_Read(instance, testReadData, TEST_ADDRESS, TEST_SIZE) != BSP_ERROR_NONE) {
+        printf("Erreur de lecture QSPI\n");
+        return BSP_ERROR_COMPONENT_FAILURE;
+    }
+
+    /* Vérification des données lues */
+    for (uint32_t i = 0; i < TEST_SIZE; i++) {
+        if (testReadData[i] != testWriteData[i]) {
+            printf("Erreur de vérification des données à l'index %lu\n", i);
+            return BSP_ERROR_COMPONENT_FAILURE;
+        }
+    }
+
+    return BSP_ERROR_NONE;
+}
+
+static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
+{
+    for (uint32_t i = 0; i < size; i++) {
+        buffer[i] = i % 256;  // Pattern simple : 0, 1, 2, ..., 255, 0, 1, ...
+    }
+}
 /* USER CODE END 4 */
 
 /* MPU Configuration */

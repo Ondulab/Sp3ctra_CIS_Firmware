@@ -46,15 +46,15 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 MEMORY
 {
   FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 768K 
-  CIS_FLASH (rxw) 			: ORIGIN = 0x08000000 + LENGTH(FLASH), LENGTH = 256K 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
-  DTCM (xrw)   				: ORIGIN = 0x20000000, LENGTH = 128K
+  CIS_FLASH (rw) 			: ORIGIN = 0x08000000 + LENGTH(FLASH), LENGTH = 256K 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
+  DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 431K
-  RAM_AXI (xrw)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 150K
+  RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
-  RAM_D2 (xrw)   			: ORIGIN = 0x30020000, LENGTH = 160K
-  RAM_D3 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
-  ITCMRAM (xrw)   			: ORIGIN = 0x00000000, LENGTH = 64K
+  RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
+  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
 /* Sections */
@@ -137,35 +137,35 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
   
-  .tcmram :
+  .dtcm :
   {
     . = ALIGN(4);
-    KEEP (*(.tcmram*));
+    KEEP (*(.dtcm));
+    KEEP (*(.rgbCalibration)); 
     . = ALIGN(4);
   } >DTCM
   
   .shared :
   {
-    KEEP (*(.shared_var));   
+    . = ALIGN(4);
+    KEEP (*(.shared_var));  
+    . = ALIGN(4); 
   } >RAM_SHARED
   
   .shared_cached :
   {
+    . = ALIGN(4);
     KEEP (*(.imageData));
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));
     KEEP (*(.cisData));
     KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage));     
-    KEEP (*(.rgbCalibration)); 
     KEEP (*(.cisLeds_Calibration));  
     KEEP (*(.cisCals));
-    KEEP (*(.rgbCals));         
+    KEEP (*(.rgbCals));     
+    . = ALIGN(4);    
   } >RAM_SHARED_CACHED
-  
-  .dtcm_ram :
-  {
-  } >DTCM
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);

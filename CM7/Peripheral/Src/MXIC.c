@@ -97,7 +97,7 @@ int32_t BSP_QSPI_Init(uint32_t Instance, BSP_QSPI_Init_t Init)
     /* STM32 QSPI interface initialization */
     (void)MXIC_SNOR_GetDriverInfo(&Info);
 
-    if(MX_QSPI_Init(&QSPIHandle[Instance], Info.DeviceSize, 4) != HAL_OK)   // ClockPrescaler, Adjust SCLK frequency
+    if(MX_QSPI_Init(&QSPIHandle[Instance], Info.DeviceSize, 1) != HAL_OK)   // ClockPrescaler, Adjust SCLK frequency
     {
       return BSP_ERROR_PERIPH_FAILURE;
     }/* Reset QSPI memory; After reset Mode = MXIC_SNOR_FREAD_111 + STR always */
@@ -1280,7 +1280,7 @@ HAL_StatusTypeDef MX_QSPI_Init(QSPI_HandleTypeDef *hqspi, uint32_t FlashSize, ui
 {
   hqspi->Init.ClockPrescaler     = ClockPrescaler;   /* QSPI SCLK freq = AHB MHz/(ClockPrescaler+1) */
   hqspi->Init.FifoThreshold      = 16;
-  hqspi->Init.SampleShifting     = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
+  hqspi->Init.SampleShifting     = QSPI_SAMPLE_SHIFTING_NONE;
   hqspi->Init.FlashSize          = POSITION_VAL(FlashSize) - 1;
   hqspi->Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_4_CYCLE;
   hqspi->Init.ClockMode          = QSPI_CLOCK_MODE_0;

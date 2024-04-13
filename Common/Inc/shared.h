@@ -189,7 +189,7 @@ struct RAWImage{
 extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];
 extern float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3];
 extern struct RGB_Calibration rgbCalibration;
-extern struct RAWImage RAWImageCalibration[11];
+//extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));
 

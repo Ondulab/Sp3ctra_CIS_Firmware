@@ -224,7 +224,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 		HAL_Delay(5);
 
 		cis_getRAWImage(cisDataCpy_f32, iterationNb);
-		cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImageCalibration[power_idx]);
+		//cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImageCalibration[power_idx]);
 	}
 
 	cis_setLedsPower(100);
@@ -414,9 +414,9 @@ void cis_StartPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
        double yRed[11], yGreen[11], yBlue[11];
         for (uint16_t lvl = 0; lvl < 11; lvl++)
         {
-            yRed[lvl] = (double)RAWImageCalibration[lvl].redLine[pixel];
-            yGreen[lvl] = (double)RAWImageCalibration[lvl].greenLine[pixel];
-            yBlue[lvl] = (double)RAWImageCalibration[lvl].blueLine[pixel];
+            //yRed[lvl] = (double)RAWImageCalibration[lvl].redLine[pixel];
+            //yGreen[lvl] = (double)RAWImageCalibration[lvl].greenLine[pixel];
+            //yBlue[lvl] = (double)RAWImageCalibration[lvl].blueLine[pixel];
         }
 
     	double yTest[11] = {

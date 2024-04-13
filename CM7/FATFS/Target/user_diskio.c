@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
  ******************************************************************************
-  * @file    user_diskio.c
-  * @brief   This file includes a diskio driver skeleton to be completed by the user.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
- /* USER CODE END Header */
+ * @file    user_diskio.c
+ * @brief   This file includes a diskio driver skeleton to be completed by the user.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
+/* USER CODE END Header */
 
 #ifdef USE_OBSOLETE_USER_CODE_SECTION_0
 /*
@@ -52,177 +52,183 @@ DSTATUS USER_initialize (BYTE pdrv);
 DSTATUS USER_status (BYTE pdrv);
 DRESULT USER_read (BYTE pdrv, BYTE *buff, DWORD sector, UINT count);
 #if _USE_WRITE == 1
-  DRESULT USER_write (BYTE pdrv, const BYTE *buff, DWORD sector, UINT count);
+DRESULT USER_write (BYTE pdrv, const BYTE *buff, DWORD sector, UINT count);
 #endif /* _USE_WRITE == 1 */
 #if _USE_IOCTL == 1
-  DRESULT USER_ioctl (BYTE pdrv, BYTE cmd, void *buff);
+DRESULT USER_ioctl (BYTE pdrv, BYTE cmd, void *buff);
 #endif /* _USE_IOCTL == 1 */
 
 Diskio_drvTypeDef  USER_Driver =
 {
-  USER_initialize,
-  USER_status,
-  USER_read,
+		USER_initialize,
+		USER_status,
+		USER_read,
 #if  _USE_WRITE
-  USER_write,
+		USER_write,
 #endif  /* _USE_WRITE == 1 */
 #if  _USE_IOCTL == 1
-  USER_ioctl,
+		USER_ioctl,
 #endif /* _USE_IOCTL == 1 */
 };
 
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  Initializes a Drive
-  * @param  pdrv: Physical drive number (0..)
-  * @retval DSTATUS: Operation status
-  */
+ * @brief  Initializes a Drive
+ * @param  pdrv: Physical drive number (0..)
+ * @retval DSTATUS: Operation status
+ */
 DSTATUS USER_initialize (
-	BYTE pdrv           /* Physical drive nmuber to identify the drive */
+		BYTE pdrv           /* Physical drive nmuber to identify the drive */
 )
 {
-  /* USER CODE BEGIN INIT */
-    Stat = STA_NOINIT;
+	/* USER CODE BEGIN INIT */
+	Stat = STA_NOINIT;
 
-    BSP_QSPI_Init_t qspiInit;
-    qspiInit.IO = MXIC_SNOR_FREAD_112;
-    qspiInit.Rate = MXIC_SNOR_STR;
-    if (BSP_QSPI_Init(0, qspiInit) != BSP_ERROR_NONE)
-    {
-        Stat = STA_NOINIT; // Fail to initialize
-    }
-    else
-    {
-        Stat = 0; // Disque prêt
-    }
+	BSP_QSPI_Init_t qspiInit = {MXIC_SNOR_FREAD_144, MXIC_SNOR_STR};
+	if (BSP_QSPI_Init(pdrv, qspiInit) != BSP_ERROR_NONE)
+	{
+		Stat = STA_NOINIT; // Fail to initialize
+	}
+	else
+	{
+		Stat = 0; // Disque prêt
+	}
 
-    return Stat;
-  /* USER CODE END INIT */
+	return Stat;
+	/* USER CODE END INIT */
 }
 
 /**
-  * @brief  Gets Disk Status
-  * @param  pdrv: Physical drive number (0..)
-  * @retval DSTATUS: Operation status
-  */
+ * @brief  Gets Disk Status
+ * @param  pdrv: Physical drive number (0..)
+ * @retval DSTATUS: Operation status
+ */
 DSTATUS USER_status (
-	BYTE pdrv       /* Physical drive number to identify the drive */
+		BYTE pdrv       /* Physical drive number to identify the drive */
 )
 {
-  /* USER CODE BEGIN STATUS */
-    //Stat = STA_NOINIT;
-    //return Stat;
+	/* USER CODE BEGIN STATUS */
+	//Stat = STA_NOINIT;
+	//return Stat;
 	return RES_OK;
-  /* USER CODE END STATUS */
+	/* USER CODE END STATUS */
 }
 
 /**
-  * @brief  Reads Sector(s)
-  * @param  pdrv: Physical drive number (0..)
-  * @param  *buff: Data buffer to store read data
-  * @param  sector: Sector address (LBA)
-  * @param  count: Number of sectors to read (1..128)
-  * @retval DRESULT: Operation result
-  */
+ * @brief  Reads Sector(s)
+ * @param  pdrv: Physical drive number (0..)
+ * @param  *buff: Data buffer to store read data
+ * @param  sector: Sector address (LBA)
+ * @param  count: Number of sectors to read (1..128)
+ * @retval DRESULT: Operation result
+ */
 DRESULT USER_read (
-	BYTE pdrv,      /* Physical drive nmuber to identify the drive */
-	BYTE *buff,     /* Data buffer to store read data */
-	DWORD sector,   /* Sector address in LBA */
-	UINT count      /* Number of sectors to read */
+		BYTE pdrv,      /* Physical drive nmuber to identify the drive */
+		BYTE *buff,     /* Data buffer to store read data */
+		DWORD sector,   /* Sector address in LBA */
+		UINT count      /* Number of sectors to read */
 )
 {
-  /* USER CODE BEGIN READ */
+	/* USER CODE BEGIN READ */
 	int32_t result;
 
 	uint32_t memoryAddress = sector * 4096; // Convertir le numéro de secteur en adresse mémoire
 	result = BSP_QSPI_Read(pdrv, buff, memoryAddress, count * 4096); // Lire les données
 	if (result == BSP_ERROR_NONE) {
-	    return RES_OK;
+		return RES_OK;
 	} else {
-	    return RES_ERROR;
+		return RES_ERROR;
 	}
 
-    return RES_OK;
-  /* USER CODE END READ */
+	return RES_OK;
+	/* USER CODE END READ */
 }
 
 /**
-  * @brief  Writes Sector(s)
-  * @param  pdrv: Physical drive number (0..)
-  * @param  *buff: Data to be written
-  * @param  sector: Sector address (LBA)
-  * @param  count: Number of sectors to write (1..128)
-  * @retval DRESULT: Operation result
-  */
+ * @brief  Writes Sector(s)
+ * @param  pdrv: Physical drive number (0..)
+ * @param  *buff: Data to be written
+ * @param  sector: Sector address (LBA)
+ * @param  count: Number of sectors to write (1..128)
+ * @retval DRESULT: Operation result
+ */
 #if _USE_WRITE == 1
 DRESULT USER_write (
-	BYTE pdrv,          /* Physical drive nmuber to identify the drive */
-	const BYTE *buff,   /* Data to be written */
-	DWORD sector,       /* Sector address in LBA */
-	UINT count          /* Number of sectors to write */
+		BYTE pdrv,          /* Physical drive nmuber to identify the drive */
+		const BYTE *buff,   /* Data to be written */
+		DWORD sector,       /* Sector address in LBA */
+		UINT count          /* Number of sectors to write */
 )
 {
-  /* USER CODE BEGIN WRITE */
-  /* USER CODE HERE */
+	/* USER CODE BEGIN WRITE */
+	/* USER CODE HERE */
 	int32_t result;
+	uint32_t memoryAddress = sector * 4096; // Convert sector number to memory address
 
-	uint32_t memoryAddress = sector * 4096; // Convertir le numéro de secteur en adresse mémoire
-	result = BSP_QSPI_Write(pdrv, (BYTE*)buff, memoryAddress, count * 4096); // Écrire les données
-	if (result == BSP_ERROR_NONE) {
-	    return RES_OK;
-	} else {
-	    return RES_ERROR;
+	// Assume sector size is 4096 bytes
+	for (UINT i = 0; i < count; i++) {
+		// First erase the sector
+		result = BSP_QSPI_EraseBlock(pdrv, memoryAddress + (i * 4096), MXIC_SNOR_ERASE_4K); // Erase 1 sector at a time
+		if (result != BSP_ERROR_NONE) {
+			return RES_ERROR; // Error if erase fails
+		}
+
+		// Then write to the sector
+		result = BSP_QSPI_Write(pdrv, (BYTE*)buff + (i * 4096), memoryAddress + (i * 4096), MXIC_SNOR_ERASE_4K); // Write one sector
+		if (result != BSP_ERROR_NONE) {
+			return RES_ERROR; // Error if write fails
+		}
 	}
 
-    return RES_OK;
-  /* USER CODE END WRITE */
+	return RES_OK;
+	/* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
 
 /**
-  * @brief  I/O control operation
-  * @param  pdrv: Physical drive number (0..)
-  * @param  cmd: Control code
-  * @param  *buff: Buffer to send/receive control data
-  * @retval DRESULT: Operation result
-  */
+ * @brief  I/O control operation
+ * @param  pdrv: Physical drive number (0..)
+ * @param  cmd: Control code
+ * @param  *buff: Buffer to send/receive control data
+ * @retval DRESULT: Operation result
+ */
 #if _USE_IOCTL == 1
 DRESULT USER_ioctl (
-	BYTE pdrv,      /* Physical drive nmuber (0..) */
-	BYTE cmd,       /* Control code */
-	void *buff      /* Buffer to send/receive control data */
+		BYTE pdrv,      /* Physical drive nmuber (0..) */
+		BYTE cmd,       /* Control code */
+		void *buff      /* Buffer to send/receive control data */
 )
 {
-  /* USER CODE BEGIN IOCTL */
-    DRESULT res = RES_ERROR;
+	/* USER CODE BEGIN IOCTL */
+	DRESULT res = RES_ERROR;
 
-    switch (cmd) {
-      case CTRL_SYNC: /* Make sure that no pending write process */
-        res = RES_OK;
-        break;
+	switch (cmd) {
+	case CTRL_SYNC: /* Make sure that no pending write process */
+		res = RES_OK;
+		break;
 
-      case GET_SECTOR_SIZE: /* Get R/W sector size (WORD) */
-        *(WORD*)buff = 4096;
-        res = RES_OK;
-        break;
+	case GET_SECTOR_SIZE: /* Get R/W sector size (WORD) */
+		*(WORD*)buff = 4096;
+		res = RES_OK;
+		break;
 
-      case GET_BLOCK_SIZE: /* Get erase block size in unit of sector (DWORD) */
-        *(DWORD*)buff = 8;
-        res = RES_OK;
-        break;
+	case GET_BLOCK_SIZE: /* Get erase block size in unit of sector (DWORD) */
+		*(DWORD*)buff = 8;
+		res = RES_OK;
+		break;
 
-      case GET_SECTOR_COUNT: /* Get media size (DWORD) */
-        *(DWORD*)buff = 16 * 1024 * 1024 / 4096;
-        res = RES_OK;
-        break;
+	case GET_SECTOR_COUNT: /* Get media size (DWORD) */
+		*(DWORD*)buff = 16 * 1024 * 1024 / 4096;
+		res = RES_OK;
+		break;
 
-      default:
-        res = RES_PARERR;
-    }
+	default:
+		res = RES_PARERR;
+	}
 
-    return res;
-  /* USER CODE END IOCTL */
+	return res;
+	/* USER CODE END IOCTL */
 }
 #endif /* _USE_IOCTL == 1 */
 
