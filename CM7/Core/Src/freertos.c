@@ -122,8 +122,11 @@ void MX_FREERTOS_Init(void) {
 	defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
 	/* definition and creation of cisTask */
-	osThreadDef(cisTask, StartCisTask, osPriorityRealtime, 0, 1024);
+	osThreadDef(cisTask, StartCisTask, osPriorityNormal, 0, 8192);
 	cisTaskHandle = osThreadCreate(osThread(cisTask), NULL);
+	if (cisTaskHandle == NULL) {
+	    // Échec de la création de la tâche, gestion de l'erreur
+	}
 
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -163,6 +166,8 @@ void StartDefaultTask(void const * argument)
 /* USER CODE END Header_StartCisTask */
 void StartCisTask(void const * argument)
 {
+	osDelay(1000);
+
 	/* USER CODE BEGIN StartCisTask */
 #if 1
 	FRESULT fres; // Variable pour stocker le résultat des opérations FATFS
@@ -198,7 +203,7 @@ void StartCisTask(void const * argument)
 	UINT bw; // Variable pour compter les octets écrits
 
 	// Créer un fichier et l'ouvrir
-	fres = f_open(&fil, "test3.txt", FA_CREATE_ALWAYS | FA_WRITE);
+	fres = f_open(&fil, "test4.txt", FA_CREATE_ALWAYS | FA_WRITE);
 	if (fres == FR_OK) {
 		// Écrire quelque chose dans le fichier
 		fres = f_write(&fil, "Hello, World!\n", 14, &bw);
