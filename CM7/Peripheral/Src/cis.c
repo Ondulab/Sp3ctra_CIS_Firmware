@@ -54,12 +54,12 @@ static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_TIM_CLK_Init(void);
-static void cis_TIM_SP_Init(void);
-static void cis_TIM_LED_R_Init(void);
-static void cis_TIM_LED_G_Init(void);
-static void cis_TIM_LED_B_Init(void);
-static void cis_ADC_Init(void);
+static void cis_initTimClok(void);
+static void cis_initTimSartPulse(void);
+static void cis_initTimLedRed(void);
+static void cis_initTimLedGreen(void);
+static void cis_initTimLedBlue(void);
+static void cis_initAdc(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -68,7 +68,7 @@ static void cis_ADC_Init(void);
  * @param  Void
  * @retval None
  */
-void cis_Init()
+void cis_init()
 {
 	printf("----------- CIS INIT ----------\n");
 
@@ -92,17 +92,17 @@ void cis_Init()
 	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); //SET : 200DPI   RESET : 400DPI
 #endif
 
-	cis_ADC_Init();
-	cis_TIM_SP_Init();
-	cis_TIM_LED_R_Init();
-	cis_TIM_LED_G_Init();
-	cis_TIM_LED_B_Init();
-	cis_TIM_CLK_Init();
+	cis_initAdc();
+	cis_initTimSartPulse();
+	cis_initTimLedRed();
+	cis_initTimLedGreen();
+	cis_initTimLedBlue();
+	cis_initTimClok();
 
-	cis_Stop_capture();
-	cis_Start_capture();
-	cis_Stop_capture();
-	cis_Start_capture();
+	cis_stopCapture();
+	cis_startCapture();
+	cis_stopCapture();
+	cis_startCapture();
 }
 
 /**
@@ -239,7 +239,7 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
 	}
 }
 
-void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
+void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
 {
 	// Get the segments and copy them to the full red lane buffer
 	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], RAWImage->redLine, CIS_PIXELS_PER_LANE);
@@ -257,15 +257,15 @@ void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage*
 	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->blueLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
 }
 
-void cis_ImageProcess_2(int32_t *cis_buff)
+void cis_imageProcess_2(int32_t *cis_buff)
 {
 	static struct RAWImage RAWImage = {0};
 	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
-	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-	cis_ApplyCalibration(&RAWImage, &rgbCalibration);
-	cis_ConvertRAWImageToRGBImage(&RAWImage, cis_buff);
+	cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+	cis_applyCalibration(&RAWImage, &rgbCalibration);
+	cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
 }
 
 /**
@@ -299,13 +299,13 @@ void cis_ImageProcess_2(int32_t *cis_buff)
  *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
  *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
  */
-void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
+void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
 {
 	static int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
 
 	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
 
-	cis_ApplyLinearCalibration(cisDataCpy_f32, 255);
+	cis_applyLinearCalibration(cisDataCpy_f32, 255);
 
 	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
@@ -353,7 +353,7 @@ void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
  * @param  cis calibration buffer ptr
  * @retval None
  */
-void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
+void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
 {
 	static int32_t iteration;
 	shared_var.cis_cal_progressbar = 0;
@@ -379,7 +379,7 @@ void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
  * @param  None
  * @retval None
  */
-void cis_Start_capture()
+void cis_startCapture()
 {
 	/* Reset CLKs ############################################*/
 	//Reset CLK counter
@@ -444,7 +444,7 @@ void cis_Start_capture()
  * @param  None
  * @retval None
  */
-void cis_Stop_capture()
+void cis_stopCapture()
 {
 	/* Stop ADC Timer #####"##################################*/
 	if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
@@ -512,7 +512,7 @@ void cis_Stop_capture()
  * @param  None
  * @retval None
  */
-void cis_TIM_CLK_Init()
+void cis_initTimClok()
 {
 	MX_TIM1_Init();
 }
@@ -522,7 +522,7 @@ void cis_TIM_CLK_Init()
  * @param  None
  * @retval None
  */
-void cis_TIM_SP_Init()
+void cis_initTimSartPulse()
 {
 	MX_TIM8_Init();
 }
@@ -532,7 +532,7 @@ void cis_TIM_SP_Init()
  * @param  None
  * @retval None
  */
-void cis_TIM_LED_B_Init()
+void cis_initTimLedBlue()
 {
 	MX_TIM3_Init();
 }
@@ -542,7 +542,7 @@ void cis_TIM_LED_B_Init()
  * @param  None
  * @retval None
  */
-void cis_TIM_LED_R_Init()
+void cis_initTimLedRed()
 {
 	MX_TIM4_Init();
 }
@@ -552,7 +552,7 @@ void cis_TIM_LED_R_Init()
  * @param  None
  * @retval None
  */
-void cis_TIM_LED_G_Init()
+void cis_initTimLedGreen()
 {
 	MX_TIM5_Init();
 }
@@ -562,7 +562,7 @@ void cis_TIM_LED_G_Init()
  * @param  None
  * @retval None
  */
-void cis_LedsOn()
+void cis_ledsOn()
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -587,7 +587,7 @@ void cis_LedsOn()
  * @param  None
  * @retval None
  */
-void cis_LedsOff()
+void cis_ledsOff()
 {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -613,7 +613,7 @@ void cis_LedsOff()
  * @param  None
  * @retval None
  */
-void cis_LedPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm)
+void cis_ledPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm)
 {
 	int32_t pulseValue = 0;
 
@@ -649,7 +649,7 @@ void cis_LedPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm)
  * @param  None
  * @retval None
  */
-void cis_ADC_Init(void)
+void cis_initAdc(void)
 {
 	MX_ADC1_Init();
 	MX_ADC2_Init();

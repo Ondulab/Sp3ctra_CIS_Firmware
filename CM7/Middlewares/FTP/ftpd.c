@@ -1265,8 +1265,11 @@ static err_t ftpd_msgrecv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t 
 			LWIP_DEBUGF(FTPD_DEBUG, ("query: %s\n", text));
 
 			strncpy(cmd, text, 4);
-			for (pt = cmd; isalpha(*pt) && pt < &cmd[4]; pt++)
-				*pt = toupper(*pt);
+			for (pt = cmd; *pt != '\0' && pt < &cmd[4]; pt++) {
+			    if (isalpha((uint8_t)*pt)) {
+			        *pt = toupper((uint8_t)*pt);
+			    }
+			}
 			*pt = '\0';
 
 			for (ftpd_cmd = ftpd_commands; ftpd_cmd->cmd != NULL; ftpd_cmd++) {
@@ -1382,7 +1385,8 @@ void ftpd_init(void)
 
 	pcb = tcp_new();
 	LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: pcb: %lx\n", (unsigned long) pcb));
-	int r = tcp_bind(pcb, IP_ADDR_ANY, 21);
+	int r __attribute__((unused));
+	r = tcp_bind(pcb, IP_ADDR_ANY, 21);
 	LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: tcp_bind: %d\n", r));
 	pcb = tcp_listen(pcb);
 	LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: listen-pcb: %lx\n", (unsigned long) pcb));

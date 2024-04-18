@@ -14,8 +14,8 @@
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef SSS_SCAN_H
-#define SSS_SCAN_H
+#ifndef CIS_SCAN_H
+#define CIS_SCAN_H
 
 typedef enum
 {
@@ -29,6 +29,6 @@ extern volatile Scan_StateTypeDef main_loop_flg;
 
 /* Private defines -----------------------------------------------------------*/
 
-int cis_scan(void);
+void cis_scanInit(void);
 
-#endif /* SSS_SCAN_H */
+#endif /* CIS_SCAN_H */

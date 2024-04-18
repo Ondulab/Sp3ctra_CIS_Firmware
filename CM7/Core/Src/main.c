@@ -178,7 +178,7 @@ int main(void)
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 	HAL_Delay(20);
 
-	//sss_Scan();
+
 	//MX25test();
 
   /* USER CODE END 2 */

@@ -36,10 +36,10 @@ struct RGB_CalibrationCoefficients{
 /* Includes ------------------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 
-void cis_ConvertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage);
-void cis_StartCalibration(uint16_t iterationNb);
-void calibrate(struct RAWImage* rawImage);
-void cis_ApplyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration);
+void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage);
+void cis_startPolyCalibration(uint16_t iterationNb);
+void cis_calibrate(struct RAWImage* rawImage);
+void cis_applyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration);
 void cis_calibrateLeds(void);
 
 #endif /* __CIS_POLYCAL_H__ */

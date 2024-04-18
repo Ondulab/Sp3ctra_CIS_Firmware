@@ -40,16 +40,16 @@ typedef enum
 #define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
 #define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
 
-void cis_Init(void);
+void cis_init(void);
 void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling);
-void cis_ConvertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
-void cis_ImageProcess_2(int32_t *cis_buff);
-void cis_ImageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers);
-void cis_ImageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb);
-void cis_Start_capture(void);
-void cis_Stop_capture(void);
-void cis_LedsOn(void);
-void cis_LedsOff(void);
-void cis_LedPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm);
+void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
+void cis_imageProcess_2(int32_t *cis_buff);
+void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers);
+void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb);
+void cis_startCapture(void);
+void cis_stopCapture(void);
+void cis_ledsOn(void);
+void cis_ledsOff(void);
+void cis_ledPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm);
 
 #endif /* __CIS_H__ */

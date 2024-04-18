@@ -79,7 +79,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void cis_leastSquares(double* x, double* y, uint32_t n, double* a, double* b, double* c);
 static void cis_setLedsPower(int32_t power);
-void cis_StartPolynomialCalibration(struct RGB_Calibration* rgbCalibration);
+void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -90,7 +90,7 @@ int cis_polyCalInit(void)
 
 void cis_getMeanAtLedPower(struct RAWImage* RAWImage, struct cisLeds_Calibration *cisLeds_Calibration, int32_t led_PWM)
 {
-	cis_LedPowerAdj(led_PWM, led_PWM, led_PWM);
+	cis_ledPowerAdj(led_PWM, led_PWM, led_PWM);
 
 	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
@@ -98,7 +98,7 @@ void cis_getMeanAtLedPower(struct RAWImage* RAWImage, struct cisLeds_Calibration
 	cis_getRAWImage(cisDataCpy_f32, CIS_LEDS_CAL_MEASURE_CYCLES);
 
 	// Convert the raw image to an integer array
-	cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, RAWImage);
+	cis_convertRAWImageToFloatArray(cisDataCpy_f32, RAWImage);
 
 	// Calculate the mean red, green, and blue values
 	arm_mean_f32(RAWImage->redLine, CIS_PIXELS_NB, &cisLeds_Calibration->redMeanAtLedPower);
@@ -168,7 +168,7 @@ void cis_calibrateLeds(void)
 	}
 
 	led_PWM = 100;
-	cis_LedPowerAdj(led_PWM, led_PWM, led_PWM);
+	cis_ledPowerAdj(led_PWM, led_PWM, led_PWM);
 
 	// Calculate the ranges of the mean color values
 	redRange = meanRedValue[CIS_LEDS_MAX_PWM - 1] - meanRedValue[0];
@@ -196,7 +196,7 @@ void cis_calibrateLeds(void)
 
 void cis_setLedsPower(int32_t power)
 {
-	cis_LedPowerAdj(cisLeds_Calibration.redLed_power2PWM[power], cisLeds_Calibration.greenLed_power2PWM[power], cisLeds_Calibration.blueLed_power2PWM[power]);
+	cis_ledPowerAdj(cisLeds_Calibration.redLed_power2PWM[power], cisLeds_Calibration.greenLed_power2PWM[power], cisLeds_Calibration.blueLed_power2PWM[power]);
 }
 
 /**
@@ -205,7 +205,7 @@ void cis_setLedsPower(int32_t power)
  * @param  rgbCalibration: pointer to structure containing calibration coefficients for all three RGB components
  * @retval None
  */
-void cis_StartCalibration(uint16_t iterationNb)
+void cis_startPolyCalibration(uint16_t iterationNb)
 {
 	cis_calibrateLeds();
 
@@ -229,7 +229,7 @@ void cis_StartCalibration(uint16_t iterationNb)
 
 	cis_setLedsPower(100);
 
-	cis_StartPolynomialCalibration(&rgbCalibration);
+	cis_startPolynomialCalibration(&rgbCalibration);
 }
 
 void calculateAverageCoefficients(struct RGB_Calibration* rgbCalibration, float32_t* avg_a, float32_t* avg_b, float32_t* avg_c, uint32_t numPixels) {
@@ -398,7 +398,7 @@ void cis_leastSquares(double* x, double* y, uint32_t n, double* a, double* b, do
 
 
 
-void cis_StartPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
+void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
 {
 	double luminosityLevels[11] = {
         0.00, 409.50, 819.00, 1228.50, 1638.00,
@@ -471,7 +471,7 @@ void applyCalibrationToColorLine(float32_t* colorLine, struct CalibrationCoeffic
 }
 
 
-void cis_ApplyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration)
+void cis_applyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration)
 {
     // Apply calibration to the red color line
     applyCalibrationToColorLine(RAWImage->redLine, rgbCalibration->red, CIS_PIXELS_NB);
@@ -489,7 +489,7 @@ void cis_ApplyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgb
  * @param  uint32_t* output - output array, must be pre-allocated with size CIS_PIXELS_NB
  * @retval None
  */
-void cis_ConvertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
+void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
 {
 	uint32_t i;
 

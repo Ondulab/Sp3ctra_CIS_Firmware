@@ -6,9 +6,9 @@
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
@@ -35,6 +35,8 @@
 #include "lwip.h"
 #include "icm42688.h"
 
+#include "cmsis_os.h"
+
 #include "cis_scan.h"
 
 
@@ -55,6 +57,7 @@ volatile Scan_StateTypeDef main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
 
 /* Private function prototypes -----------------------------------------------*/
 
+static void cis_scanThread(void *arg);
 extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 
 /* Private user code ---------------------------------------------------------*/
@@ -62,20 +65,28 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
  * @brief  The application entry point.
  * @retval int
  */
-int cis_scan(void)
+void cis_scanInit(void)
 {
 	printf("----- ETHERNET MODE START -----\n");
 
-#ifndef ETHERNET_OFF
-	//MX_LWIP_Init();
 	udp_clientInit();
-#endif
 
 	HAL_TIM_Base_Start_IT(&htim6);
 
-	cis_Init();
+	cis_init();
 
 	shared_var.cis_cal_state = CIS_CAL_END;
+
+	sys_thread_new("cis_thread", cis_scanThread, NULL, 32768, osPriorityNormal);
+}
+
+/* Private user code ---------------------------------------------------------*/
+/**
+ * @brief  The application entry point.
+ * @retval int
+ */
+static void cis_scanThread(void *arg)
+{
 
 #if 0
 	HAL_Delay(1000);
@@ -86,8 +97,6 @@ int cis_scan(void)
 	/* Infinite loop */
 	while (1)
 	{
-		//MX_LWIP_Process();
-
 		while (main_loop_flg != MAIN_SCAN_LOOP_FLG_SET);
 		main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
 
@@ -96,7 +105,7 @@ int cis_scan(void)
 #ifdef POLYNOMIAL_CALIBRATION
 			cis_StartCalibration(20); //WIP
 #else
-			cis_StartLinearCalibration(500, 255);
+			cis_startLinearCalibration(500, 255);
 #endif
 
 #ifdef PRINT_CIS_CALIBRATION
@@ -114,7 +123,7 @@ int cis_scan(void)
 #endif
 		}
 
-		cis_ImageProcess(cisDataCpy_f32, packet_Image);
+		cis_imageProcess(cisDataCpy_f32, packet_Image);
 		SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
 		udp_clientSendPackets(packet_Image);
 
@@ -127,7 +136,7 @@ int cis_scan(void)
 			HAL_Delay(100);
 			cis_Start_capture();
 		}
-		*/
+		 */
 	}
 }
 /* Private functions ---------------------------------------------------------*/

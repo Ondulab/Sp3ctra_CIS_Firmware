@@ -136,5 +136,5 @@ static void http_thread(void *arg)
 
 void http_server_init()
 {
-  sys_thread_new("http_thread", http_thread, NULL, DEFAULT_THREAD_STACKSIZE, osPriorityNormal);
+  sys_thread_new("http_thread", http_thread, NULL, 4096, osPriorityNormal);
 }

@@ -43,9 +43,9 @@
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
-static void cis_ComputeCalsOffsets(CIS_Color_TypeDef color);
-static void cis_ComputeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue);
+static void cis_computeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
+static void cis_computeCalsOffsets(CIS_Color_TypeDef color);
+static void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -56,7 +56,7 @@ void cis_LinearCalibrationInit()
 
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_ApplyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue)
+void cis_applyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue)
 {
 #ifndef CIS_DESACTIVATE_CALIBRATION
 	static uint32_t dataOffset_Rx, dataOffset_Gx, dataOffset_Bx;
@@ -151,7 +151,7 @@ void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCisCals, CIS_Color_Ty
  * @param  current color calibration
  * @retval None
  */
-void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
+void cis_computeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color)
 {
 	float32_t tmpMaxpix = 0, tmpMinpix = 0;
 	int32_t laneOffset = 0, offset = 0;
@@ -208,7 +208,7 @@ void cis_ComputeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDe
  * @param  current color calibration
  * @retval None
  */
-void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
+void cis_computeCalsOffsets(CIS_Color_TypeDef color)
 {
 	uint32_t laneOffset = 0, offset = 0;
 	struct cisColorsParams *currColor;
@@ -249,7 +249,7 @@ void cis_ComputeCalsOffsets(CIS_Color_TypeDef color)
  * @param  current color calibration
  * @retval None
  */
-void cis_ComputeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
+void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
 {
 	uint32_t laneOffset = 0, offset;
 
@@ -286,7 +286,7 @@ void cis_ComputeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
  * @param  calibration iteration
  * @retval None
  */
-void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
+void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 {
 	/* Set header description */
 	printf("------ START CALIBRATION ------\n");
@@ -295,23 +295,23 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 1 --------*/
 	// Read black and white level
-	cis_LedPowerAdj(100, 100, 100);
+	cis_ledPowerAdj(100, 100, 100);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
 	HAL_Delay(200);
 
-	cis_ImageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
+	cis_imageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 
 	HAL_Delay(200);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
-	cis_LedPowerAdj(1, 1, 1);
+	cis_ledPowerAdj(1, 1, 1);
 	HAL_Delay(20);
 
-	cis_ImageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
+	cis_imageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	cis_LedPowerAdj(100, 100, 100);
+	cis_ledPowerAdj(100, 100, 100);
 	HAL_Delay(500);
 
 	printf("------- LOAD CALIBRATION ------\n");
@@ -332,14 +332,14 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 2 --------*/
 	// Extrat Min Max and delta
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_RED);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_RED);
+	cis_computeCalsExtremums(&cisCals.blackCal, CIS_RED);
+	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_RED);
 
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_GREEN);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_GREEN);
+	cis_computeCalsExtremums(&cisCals.blackCal, CIS_GREEN);
+	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_GREEN);
 
-	cis_ComputeCalsExtremums(&cisCals.blackCal, CIS_BLUE);
-	cis_ComputeCalsExtremums(&cisCals.whiteCal, CIS_BLUE);
+	cis_computeCalsExtremums(&cisCals.blackCal, CIS_BLUE);
+	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
@@ -347,9 +347,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
-	cis_ComputeCalsOffsets(CIS_RED);
-	cis_ComputeCalsOffsets(CIS_GREEN);
-	cis_ComputeCalsOffsets(CIS_BLUE);
+	cis_computeCalsOffsets(CIS_RED);
+	cis_computeCalsOffsets(CIS_GREEN);
+	cis_computeCalsOffsets(CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
@@ -357,9 +357,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 4 --------*/
 	// Compute gains
-	cis_ComputeCalsGains(CIS_RED, bitDepth);
-	cis_ComputeCalsGains(CIS_GREEN, bitDepth);
-	cis_ComputeCalsGains(CIS_BLUE, bitDepth);
+	cis_computeCalsGains(CIS_RED, bitDepth);
+	cis_computeCalsGains(CIS_GREEN, bitDepth);
+	cis_computeCalsGains(CIS_BLUE, bitDepth);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
@@ -373,9 +373,9 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 #endif
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
-	cis_Stop_capture();
+	cis_stopCapture();
 	stm32_flashCalibrationRW(CIS_WRITE_CAL);
-	cis_Start_capture();
+	cis_startCapture();
 	shared_var.cis_cal_state = CIS_CAL_END;
 	printf("-------------------------------\n");
 }
@@ -384,26 +384,26 @@ void cis_StartLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
  * @brief  CIS start characterisation
  * @retval None
  */
-void cis_PrintForcharacterization(float32_t* cisDataCpy_f32)
+void cis_printForCharacterization(float32_t* cisDataCpy_f32)
 {
 	/* Set header description */
 	printf("--- START CHARACTERISATION ----\n");
 
-	cis_StartLinearCalibration(100, 4095);
+	cis_startLinearCalibration(100, 4095);
 
 	static struct RAWImage RAWImage = {0};
 
 	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
 	{
-		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+		cis_ledPowerAdj(ledIntensity, ledIntensity, ledIntensity);
 
 		printf("\n Red led intensity = %d\n", ledIntensity);
 		for (int i = 0; i < 5; i++)
 		{
 			printf("\n Red line %d\n", i);
 			cis_getRAWImage(cisDataCpy_f32, 1);
-			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
-			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+			cis_applyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
 
 			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
 
@@ -416,15 +416,15 @@ void cis_PrintForcharacterization(float32_t* cisDataCpy_f32)
 
 	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
 	{
-		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+		cis_ledPowerAdj(ledIntensity, ledIntensity, ledIntensity);
 
 		printf("\n Green led intensity = %d\n", ledIntensity);
 		for (int i = 0; i < 5; i++)
 		{
 			printf("\n Green line %d\n", i);
 			cis_getRAWImage(cisDataCpy_f32, 1);
-			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
-			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+			cis_applyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
 
 			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
 
@@ -437,15 +437,15 @@ void cis_PrintForcharacterization(float32_t* cisDataCpy_f32)
 
 	for (int ledIntensity = 1; ledIntensity < 100; ledIntensity+=10 )
 	{
-		cis_LedPowerAdj(ledIntensity, ledIntensity, ledIntensity);
+		cis_ledPowerAdj(ledIntensity, ledIntensity, ledIntensity);
 
 		printf("\n Blue led intensity = %d\n", ledIntensity);
 		for (int i = 0; i < 5; i++)
 		{
 			printf("\n Blue line %d\n", i);
 			cis_getRAWImage(cisDataCpy_f32, 1);
-			cis_ApplyLinearCalibration(cisDataCpy_f32, 4095);
-			cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+			cis_applyLinearCalibration(cisDataCpy_f32, 4095);
+			cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
 
 			SCB_CleanDCache_by_Addr((uint32_t *)&RAWImage, sizeof(RAWImage) * (sizeof(uint32_t)));
 

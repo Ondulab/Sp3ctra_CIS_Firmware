@@ -48,7 +48,8 @@ static struct packet_HID packet_HID = {0};
 static uint32_t packetsCounter = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
+static void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
+static void udp_clientSendData(void *data, uint16_t length);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -94,7 +95,7 @@ void udp_clientInit(void)
 	udp_clientSendStartupInfoPacket();
 }
 
-void udp_sendData(void *data, uint16_t length)
+void udp_clientSendData(void *data, uint16_t length)
 {
 	struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
 	if (p != NULL)
@@ -108,7 +109,7 @@ void udp_sendData(void *data, uint16_t length)
 
 void udp_clientSendStartupInfoPacket(void)
 {
-	udp_sendData(&packet_StartupInfo, sizeof(packet_StartupInfo));
+	udp_clientSendData(&packet_StartupInfo, sizeof(packet_StartupInfo));
 }
 
 #pragma GCC push_options
@@ -120,7 +121,7 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
 		rgbBuffers[packet].packet_id = packetsCounter++;
-		udp_sendData(&rgbBuffers[packet], sizeof(struct packet_Image));
+		udp_clientSendData(&rgbBuffers[packet], sizeof(struct packet_Image));
 	}
 
 	packet_IMU.packet_id = packetsCounter++;
@@ -133,7 +134,7 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 	packet_IMU.gyro[1] = icm42688_gyrY();
 	packet_IMU.gyro[2] = icm42688_gyrZ();
 
-	udp_sendData(&packet_IMU, sizeof(packet_IMU));
+	udp_clientSendData(&packet_IMU, sizeof(packet_IMU));
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
 
@@ -143,7 +144,7 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 	packet_HID.button_B = 0;
 	packet_HID.button_C = 0;
 
-	udp_sendData(&packet_HID, sizeof(packet_HID));
+	udp_clientSendData(&packet_HID, sizeof(packet_HID));
 }
 #pragma GCC pop_options
 
