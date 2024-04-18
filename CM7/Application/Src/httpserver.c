@@ -44,51 +44,38 @@ static void http_server(struct netconn *conn)
 			/* Get the data pointer and length of the data inside a netbuf */
 			netbuf_data(inbuf, (void**)&buf, &buflen);
 
-			/* Check if request to get the index.html */
-			if (strncmp((char const *)buf,"GET /index.html",15)==0)
-			{
-				fs_open(&file, "/index.html");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
-			}
-			if (strncmp((char const *)buf,"GET /img/ST.gif",15)==0)
-			{
+			/* Check for various paths and handle GET requests */
+			if (strncmp((char const *)buf, "GET /index.html", 15) == 0) {
+			    fs_open(&file, "/index.html");
+			    netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+			    fs_close(&file);
+			} else if (strncmp((char const *)buf, "GET /img/ST.gif", 15) == 0) {
 				fs_open(&file, "/img/ST.gif");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			}
-			if (strncmp((char const *)buf,"GET /img/stm32.jpg",18)==0)
-			{
+			} else if (strncmp((char const *)buf, "GET /img/stm32.jpg", 18) == 0) {
 				fs_open(&file, "/img/stm32.jpg");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			}
-			if (strncmp((char const *)buf,"GET /img/logo.jpg",17)==0)
-			{
+			} else if (strncmp((char const *)buf, "GET /img/logo.jpg", 17) == 0) {
 				fs_open(&file, "/img/logo.jpg");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			}
-			if (strncmp((char const *)buf,"GET /buttoncolor=",17)==0)
-			{
+			} else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0) {
 				colour = buf[17];
-			}
-
-			if (strncmp((char const *)buf,"GET /getvalue",13)==0)
-			{
+			} else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0) {
 				char *pagedata;
 				pagedata = pvPortMalloc(10);
 				int len = sprintf (pagedata, "%d", indx++);
 				netconn_write(conn, (const unsigned char*)pagedata, (size_t)len, NETCONN_NOCOPY);
 				vPortFree(pagedata);
+			} else {
+			    // if none match, send 404
+			    fs_open(&file, "/404.html");
+			    netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+			    fs_close(&file);
 			}
-			else
-			{
-				/* Load Error page */
-				fs_open(&file, "/404.html");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
-			}
+
 		}
 	}
 	/* Close the connection (server closes in HTTP) */
@@ -128,13 +115,14 @@ static void http_thread(void *arg)
 
           /* delete connection */
           netconn_delete(newconn);
+
         }
       }
     }
   }
 }
 
-void http_server_init()
+void http_serverInit()
 {
-  sys_thread_new("http_thread", http_thread, NULL, 4096, osPriorityNormal);
+  sys_thread_new("http_thread", http_thread, NULL, 2048, osPriorityNormal);
 }

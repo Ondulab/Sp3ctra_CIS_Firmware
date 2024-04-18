@@ -49,7 +49,7 @@ MEMORY
   CIS_FLASH (rw) 			: ORIGIN = 0x08000000 + LENGTH(FLASH), LENGTH = 256K 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 150K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
@@ -142,6 +142,10 @@ SECTIONS
     . = ALIGN(4);
     KEEP (*(.dtcm));
     KEEP (*(.rgbCalibration)); 
+    KEEP (*(.rgbCals));  
+    KEEP (*(.cisDataCpy)); 
+    KEEP (*(.cisRAWImage)); 
+    KEEP (*(.cisLeds_Calibration));  
     . = ALIGN(4);
   } >DTCM
   
@@ -158,12 +162,8 @@ SECTIONS
     KEEP (*(.imageData));
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));
-    KEEP (*(.cisData));
-    KEEP (*(.cisDataCpy)); 
-    KEEP (*(.cisRAWImage));     
-    KEEP (*(.cisLeds_Calibration));  
-    KEEP (*(.cisCals));
-    KEEP (*(.rgbCals));     
+    KEEP (*(.cisData));    
+    KEEP (*(.cisCals));   
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
 

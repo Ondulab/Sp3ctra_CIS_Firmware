@@ -136,36 +136,41 @@ void StartDefaultTask(void const * argument)
   /* USER CODE BEGIN StartDefaultTask */
 	MX_LWIP_Init();
 
-#if 1
-	FRESULT fres; // Variable pour stocker le résultat des opérations FATFS
+	FRESULT fres; // Variable to store the result of FATFS operations
 
-	// Essayer de monter le système de fichiers
+	// Attempt to mount the file system
+	fres = f_mount(&FatFs, "0:", 1); // 1 to mount immediately
+	if (fres != FR_OK)
+	{
+	    printf("FS mount ERROR\n");
 
-	fres = f_mount(&FatFs, "0:", 1); // 1 pour monter immédiatement
-	if (fres != FR_OK) {
-		printf("FS mount ERROR\n");
+	    // If mounting fails, try to format the QSPI flash
+	    printf("Attempting to format the QSPI flash...\n");
 
-		// Si le montage échoue, essayer de formater la flash
-		printf("Attempting to format the QSPI flash...\n");
+	    BYTE work[WORKING_BUFFER_SIZE]; // Static allocation to simplify
 
-		BYTE work[WORKING_BUFFER_SIZE];   // Allocation statique pour simplifier
+	    fres = f_mkfs("0:", FM_ANY, 0, work, WORKING_BUFFER_SIZE);
+	    if (fres != FR_OK)
+	    {
+	        printf("Failed to format the QSPI flash.\n");
+	    }
 
-		fres = f_mkfs("0:", FM_ANY, 0, work, WORKING_BUFFER_SIZE);
-		if (fres != FR_OK) {
-			printf("Failed to format the QSPI flash.\n");
-		}
-
-		// Essayer de monter à nouveau le système de fichiers après le formatage
-		fres = f_mount(&FatFs, "0:", 1);
-		if (fres != FR_OK) {
-			printf("Failed to mount the filesystem even after formatting.\n");
-		} else {
-			printf("FS mount SUCCESS after formatting.\n");
-		}
-	} else {
-		printf("FS mount SUCCESS\n");
+	    // Try to mount the file system again after formatting
+	    fres = f_mount(&FatFs, "0:", 1);
+	    if (fres != FR_OK)
+	    {
+	        printf("Failed to mount the filesystem even after formatting.\n");
+	    } else
+	    {
+	        printf("FS mount SUCCESS after formatting.\n");
+	    }
+	}
+	else
+	{
+	    printf("FS mount SUCCESS\n");
 	}
 
+#if 0
 	FIL fil; // Variable de fichier
 	UINT bw; // Variable pour compter les octets écrits
 
@@ -184,15 +189,13 @@ void StartDefaultTask(void const * argument)
 	} else {
 		// Échec de l'ouverture du fichier
 	}
-
-	//f_mount(NULL, "0:", 0); // Démonter le volume
 #endif
 
 	cis_scanInit();
 
 	ftpd_init();
 
-	http_server_init();
+	http_serverInit();
 
 	/* Infinite loop */
 	for(;;)

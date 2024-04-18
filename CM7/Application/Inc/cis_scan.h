@@ -17,13 +17,7 @@
 #ifndef CIS_SCAN_H
 #define CIS_SCAN_H
 
-typedef enum
-{
-	MAIN_SCAN_LOOP_FLG_RESET = 0,
-	MAIN_SCAN_LOOP_FLG_SET,
-}Scan_StateTypeDef;
-
-extern volatile Scan_StateTypeDef main_loop_flg;
+extern TaskHandle_t cis_scanThreadHandle;
 
 /* Includes ------------------------------------------------------------------*/
 

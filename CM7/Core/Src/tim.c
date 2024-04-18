@@ -324,7 +324,7 @@ void MX_TIM6_Init(void)
   /* USER CODE BEGIN TIM6_Init 1 */
 	uint32_t prescalerValue, counterPeriod;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / 100) / (LWIP_CLK_FREQ)) - 1);
+	prescalerValue = (uint32_t)(((SystemCoreClock / 100) / (CIS_FREQ)) - 1);
 	counterPeriod = 50 - 1;
 
   /* USER CODE END TIM6_Init 1 */

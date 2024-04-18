@@ -53,7 +53,8 @@
 /* ETH_RX_BUFFER_SIZE parameter is defined in lwipopts.h */
 
 /* USER CODE BEGIN 1 */
-
+#undef LWIP_PROVIDE_ERRNO
+#define LWIP_ERRNO_STDINCLUDE
 /* USER CODE END 1 */
 
 /* Private variables ---------------------------------------------------------*/
@@ -119,7 +120,17 @@ ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecr
 #endif
 
 /* USER CODE BEGIN 2 */
+#if defined ( __ICCARM__ ) /*!< IAR Compiler */
+#pragma location = 0x30040200
+extern u8_t memp_memory_RX_POOL_base[];
 
+#elif defined ( __CC_ARM )  /* MDK ARM Compiler */
+__attribute__((at(0x30040200)) extern u8_t memp_memory_RX_POOL_base[];
+
+#elif defined ( __GNUC__ ) /* GNU Compiler */
+__attribute__((section(".Rx_PoolSection"))) extern u8_t memp_memory_RX_POOL_base[];
+
+#endif
 /* USER CODE END 2 */
 
 osSemaphoreId RxPktSemaphore = NULL;   /* Semaphore to signal incoming packets */

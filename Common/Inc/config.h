@@ -85,8 +85,6 @@
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
-#define LWIP_CLK_FREQ							(1000)			//in Hz
-
 #define UDP_NB_PACKET_PER_LINE					(12)
 #define UDP_PACKET_SIZE							((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE))
 
@@ -124,6 +122,8 @@
 /**************************************************************************************/
 //#define CIS_400DPI
 //#define CIS_MONOCHROME
+
+#define CIS_FREQ								(800)	//in Hz
 
 //#define CIS_CLK_FREQ							(2500000)
 #define CIS_CLK_FREQ							(3125000)

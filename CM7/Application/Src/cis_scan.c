@@ -51,7 +51,7 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-volatile Scan_StateTypeDef main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
+TaskHandle_t cis_scanThreadHandle = NULL;
 
 /* Variable containing black and white frame from CIS*/
 
@@ -71,13 +71,13 @@ void cis_scanInit(void)
 
 	udp_clientInit();
 
-	HAL_TIM_Base_Start_IT(&htim6);
-
 	cis_init();
 
 	shared_var.cis_cal_state = CIS_CAL_END;
 
-	sys_thread_new("cis_thread", cis_scanThread, NULL, 32768, osPriorityNormal);
+    xTaskCreate(cis_scanThread, "cis_thread", 32768, NULL, osPriorityHigh, &cis_scanThreadHandle);
+
+	HAL_TIM_Base_Start_IT(&htim6);
 }
 
 /* Private user code ---------------------------------------------------------*/
@@ -97,8 +97,7 @@ static void cis_scanThread(void *arg)
 	/* Infinite loop */
 	while (1)
 	{
-		while (main_loop_flg != MAIN_SCAN_LOOP_FLG_SET);
-		main_loop_flg = MAIN_SCAN_LOOP_FLG_RESET;
+	    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
@@ -137,15 +136,5 @@ static void cis_scanThread(void *arg)
 			cis_Start_capture();
 		}
 		 */
-	}
-}
-/* Private functions ---------------------------------------------------------*/
-
-void HAL_TIM_PeriodElapsedCallback_old_placedmain(TIM_HandleTypeDef *htim)
-{
-	if (htim->Instance == TIM6)
-	{
-		main_loop_flg = MAIN_SCAN_LOOP_FLG_SET;
-		icm42688_TIM_Callback();
 	}
 }

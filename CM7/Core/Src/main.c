@@ -450,8 +450,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
   if (htim->Instance == TIM6)
   {
-    main_loop_flg = MAIN_SCAN_LOOP_FLG_SET;
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(cis_scanThreadHandle, &xHigherPriorityTaskWoken);
 	icm42688_TIM_Callback();
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
   }
 
   /* USER CODE END Callback 1 */
