@@ -18,6 +18,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <cisynth_Display.h>
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
@@ -26,7 +27,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "shared.h"
-#include "sss_Display.h"
 #include "ssd1362.h"
 #include "pictures.h"
 
@@ -118,7 +118,7 @@ int main(void)
 #ifndef SKIP_SPLASH
 	for (uint8_t i = 0; i < 16; i++)
 	{
-		ssd1362_drawBmp(sss_Img, 52, 0, 151, 64, i, 1);
+		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, i, 1);
 
 		if (i == 0)
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
@@ -139,7 +139,7 @@ int main(void)
 
 	//icm42688_init();
 
-	sss_Display();
+	cisynth_Display();
 
   /* USER CODE END 2 */
 

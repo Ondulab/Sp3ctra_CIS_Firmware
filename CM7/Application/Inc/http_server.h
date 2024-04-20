@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : sss_Display.h
+ * @file           : httpserver.h
  ******************************************************************************
  * @attention
  *
@@ -13,14 +13,10 @@
  ******************************************************************************
  */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __SSS_DISPLAY_H
-#define __SSS_DISPLAY_H
+#ifndef __HTTP_SERVER_NETCONN_H__
+#define __HTTP_SERVER_NETCONN_H__
 
-/* Includes ------------------------------------------------------------------*/
+#include "lwip/api.h"
+void http_serverInit(void);
 
-/* Private defines -----------------------------------------------------------*/
-
-int sss_Display(void);
-
-#endif /* __SSS_DISPLAY_H */
+#endif /* __HTTP_SERVER_NETCONN_H__ */

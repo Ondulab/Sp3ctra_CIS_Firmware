@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CISYNTH</title>
+    <style>
+        .button {
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+            cursor: pointer;
+        }
+
+        .button1 {
+            background-color: white;
+            color: black;
+            border: 2px solid #4CAF50;
+        }
+
+        .button1:hover {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .button2 {
+            background-color: white;
+            color: black;
+            border: 2px solid #008CBA;
+        }
+
+        .button2:hover {
+            background-color: #008CBA;
+            color: white;
+        }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #333; /* Dark background */
+            color: #ddd; /* Light grey text for readability */
+            margin: 0;
+            padding: 20px;
+            height: 60vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .value-container {
+            display: flex;
+            align-items: center; /* Align vertically */
+            justify-content: center; /* Center horizontally */
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        label {
+            color: #ddd;
+            margin-right: 10px; /* Space between label and textarea */
+           	font-size: 18px;  /* Augmente la taille du texte */
+        }
+
+        textarea {
+            font-family: 'Orbitron', sans-serif;
+            color: #ddd; /* Light grey text for visibility */
+            background-color: transparent; /* Transparent background */
+            border: 2px solid #999; /* Grey border */
+            outline: none;
+            width: 150px;
+            height: 28px;
+            line-height: 28px;  /* Hauteur de ligne pour aligner le texte verticalement */
+    		text-align: center;  /* Centrage horizontal du texte */
+   		 	border: 1px solid #ccc;  /* Bordure pour visualiser le textarea */
+    		resize: none;  /* Désactiver le redimensionnement */
+    		overflow: hidden;  /* Masquer le débordement de texte */
+    		padding: 0;  /* Pas de padding interne */
+            box-sizing: border-box; /* Include padding and border in width/height */
+            font-size: 18px;  /* Augmente la taille du texte */
+        }
+
+        table, a {
+            color: #ddd; /* Light grey text for links and table */
+        }
+
+        a:hover {
+            color: #fff; /* White text on hover for better visibility */
+        }
+
+        img {
+            filter: invert(100%); /* Inverts the colors of the image */
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+        var xhr;
+
+        function onloadFunction() {
+            xhr = new XMLHttpRequest();
+            timer(); // Initialize the timer to start the data fetching loop
+        }
+
+        function timer() {
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("textarea").value = this.responseText; // Update the textarea with new value
+                }
+            };
+            xhr.open("GET", "getvalue?_=" + new Date().getTime(), true);
+            xhr.send();
+            setTimeout(timer, 1000); // Continue the loop every second
+        }
+
+        function green() {
+            xhr.open("GET", "buttoncolor=G", true);
+            xhr.send();
+        }
+
+        function blue() {
+            xhr.open("GET", "buttoncolor=B", true);
+            xhr.send();
+        }
+    </script>
+</head>
+<body onload="onloadFunction()">
+    <div style="text-align: center;">
+        <img src="img/CISYNTH.png" alt="Logo Image" style="width: 300px; height: 300px;">
+        <h1>Configuration page</h1>
+        <h3>Based on the lwIP TCP/IP stack</h3>
+        <hr style="border-color: #444;">
+        <button class="button button1" onclick="green()">Green</button>
+        <button class="button button2" onclick="blue()">Blue</button>
+        <button class="button" onclick="timer()">Start</button>
+        <br><br>
+        <div class="value-container">
+            <label for="textarea">CIS FREQ :</label>
+            <textarea id="textarea" cols="20" rows="1" readonly>0</textarea>
+        </div>
+        <h2>The Cisynth</h2>
+        <p>The Cisynth is an innovative tangible interface for creating music and visuals. Utilizing our CIS instrument, the CISYNTH produces a UDP stream of thousands of values captured by contact image sensor, transmitted at a frequency up to 1000 Hz. This stream can be used to generate music or display image stream in Max/MSP, Pure Data, and our Viewer.</p>
+        <p>All rights reserved ©2016 Your Company Name</p>
+    </div>
+</body>
+</html>

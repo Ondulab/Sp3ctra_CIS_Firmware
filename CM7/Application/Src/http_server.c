@@ -6,22 +6,24 @@
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <http_server.h>
 #include "lwip/opt.h"
 #include "lwip/arch.h"
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
 #include "string.h"
 #include <stdio.h>
-#include "httpserver.h"
 #include "cmsis_os.h"
+
+#include "shared.h"
 
 char colour;
 int indx = 0;
@@ -45,35 +47,34 @@ static void http_server(struct netconn *conn)
 			netbuf_data(inbuf, (void**)&buf, &buflen);
 
 			/* Check for various paths and handle GET requests */
-			if (strncmp((char const *)buf, "GET /index.html", 15) == 0) {
-			    fs_open(&file, "/index.html");
-			    netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-			    fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/ST.gif", 15) == 0) {
-				fs_open(&file, "/img/ST.gif");
+			if (strncmp((char const *)buf, "GET /config.html", 15) == 0) {
+				fs_open(&file, "/config.html");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/stm32.jpg", 18) == 0) {
-				fs_open(&file, "/img/stm32.jpg");
+			} else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 15) == 0) {
+				fs_open(&file, "/img/CISYNTH.png");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/logo.jpg", 17) == 0) {
-				fs_open(&file, "/img/logo.jpg");
+			} else if (strncmp((char const *)buf, "GET /img/Note404.png", 18) == 0) {
+				fs_open(&file, "/img/Note404.png");
+				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+				fs_close(&file);
+			} else if (strncmp((char const *)buf, "GET /img/Note404.png", 17) == 0) {
+				fs_open(&file, "/img/Note404.png");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
 			} else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0) {
 				colour = buf[17];
 			} else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0) {
-				char *pagedata;
-				pagedata = pvPortMalloc(10);
-				int len = sprintf (pagedata, "%d", indx++);
+				char *pagedata = pvPortMalloc(32); // Assurez-vous d'avoir assez d'espace
+				int len = sprintf(pagedata, "%d", (int)shared_var.cis_freq);
 				netconn_write(conn, (const unsigned char*)pagedata, (size_t)len, NETCONN_NOCOPY);
 				vPortFree(pagedata);
 			} else {
-			    // if none match, send 404
-			    fs_open(&file, "/404.html");
-			    netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-			    fs_close(&file);
+				// if none match, send 404
+				fs_open(&file, "/404.html");
+				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+				fs_close(&file);
 			}
 
 		}
@@ -88,41 +89,41 @@ static void http_server(struct netconn *conn)
 
 static void http_thread(void *arg)
 {
-  struct netconn *conn, *newconn;
-  err_t err, accept_err;
+	struct netconn *conn, *newconn;
+	err_t err, accept_err;
 
-  /* Create a new TCP connection handle */
-  conn = netconn_new(NETCONN_TCP);
+	/* Create a new TCP connection handle */
+	conn = netconn_new(NETCONN_TCP);
 
-  if (conn!= NULL)
-  {
-    /* Bind to port 80 (HTTP) with default IP address */
-    err = netconn_bind(conn, IP_ADDR_ANY, 80);
+	if (conn!= NULL)
+	{
+		/* Bind to port 80 (HTTP) with default IP address */
+		err = netconn_bind(conn, IP_ADDR_ANY, 80);
 
-    if (err == ERR_OK)
-    {
-      /* Put the connection into LISTEN state */
-      netconn_listen(conn);
+		if (err == ERR_OK)
+		{
+			/* Put the connection into LISTEN state */
+			netconn_listen(conn);
 
-      while(1)
-      {
-        /* accept any incoming connection */
-        accept_err = netconn_accept(conn, &newconn);
-        if(accept_err == ERR_OK)
-        {
-          /* serve connection */
-          http_server(newconn);
+			while(1)
+			{
+				/* accept any incoming connection */
+				accept_err = netconn_accept(conn, &newconn);
+				if(accept_err == ERR_OK)
+				{
+					/* serve connection */
+					http_server(newconn);
 
-          /* delete connection */
-          netconn_delete(newconn);
+					/* delete connection */
+					netconn_delete(newconn);
 
-        }
-      }
-    }
-  }
+				}
+			}
+		}
+	}
 }
 
 void http_serverInit()
 {
-  sys_thread_new("http_thread", http_thread, NULL, 2048, osPriorityNormal);
+	sys_thread_new("http_thread", http_thread, NULL, 2048, osPriorityNormal);
 }

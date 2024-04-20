@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include <http_server.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
@@ -25,7 +26,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "httpserver.h"
 #include "lwip.h"
 #include "cis_scan.h"
 

@@ -14,6 +14,7 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <http_server.h>
 #include "stdbool.h"
 #include "stdio.h"
 
@@ -30,8 +31,6 @@
 #include "stm32_flash.h"
 
 #include "udp_client.h"
-#include "httpserver.h"
-
 #include "lwip.h"
 #include "icm42688.h"
 

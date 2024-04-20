@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : httpserver.h
+ * @file           : cisynth_Display.h
  ******************************************************************************
  * @attention
  *
@@ -13,10 +13,14 @@
  ******************************************************************************
  */
 
-#ifndef __HTTPSERVER_NETCONN_H__
-#define __HTTPSERVER_NETCONN_H__
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __CISYNTH_DISPLAY_H
+#define __CISYNTH_DISPLAY_H
 
-#include "lwip/api.h"
-void http_serverInit(void);
+/* Includes ------------------------------------------------------------------*/
 
-#endif /* __HTTPSERVER_NETCONN_H__ */
+/* Private defines -----------------------------------------------------------*/
+
+int cisynth_Display(void);
+
+#endif /* __CISYNTH_DISPLAY_H */

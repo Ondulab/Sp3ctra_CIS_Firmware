@@ -1,19 +1,20 @@
 /**
  ******************************************************************************
- * @file           : sss_Display.c
+ * @file           : cisynth_Display.c
  ******************************************************************************
  * @attention
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <cisynth_Display.h>
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -24,7 +25,6 @@
 #include "ssd1362.h"
 #include "buttons.h"
 
-#include "sss_Display.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -96,27 +96,13 @@ void update_IMU_average(void)
 void cis_DisplayOversampling()
 {
 	uint8_t textData[256] = {0};
-	int32_t tick = 0;
-	int32_t start_tick = 0;
-	int32_t curr_tick = 0;
 
-	int32_t old_process_cnt = shared_var.cis_process_cnt;
-	start_tick = HAL_GetTick();
-	curr_tick = start_tick;
+	int32_t start_tick = 0;
 
 	while ((HAL_GPIO_ReadPin(SW_3_GPIO_Port, SW_2_Pin) != GPIO_PIN_SET) || (HAL_GetTick() < (start_tick + 200)))
 	{
 		ssd1362_fillRect(10, 10, 51, 30, 15, false);
 		ssd1362_drawRect(9, 9, 52, 31, 0, false);
-
-		if ((shared_var.cis_process_cnt - old_process_cnt) > 50)
-		{
-			tick = HAL_GetTick();
-
-			shared_var.cis_freq = 1000000 / (((tick - curr_tick) * 1000) / (shared_var.cis_process_cnt - old_process_cnt));
-			curr_tick = tick;
-			old_process_cnt = shared_var.cis_process_cnt;
-		}
 
 		if (shared_var.cis_oversampling < 10)
 		{
@@ -144,7 +130,7 @@ void cis_DisplayOversampling()
 	}
 }
 
-int sss_Display(void)
+int cisynth_Display(void)
 {
 	uint8_t cis_rgb[3] = {0};
 	int32_t cis_color = 0;
@@ -155,10 +141,15 @@ int sss_Display(void)
 	int32_t pixel_intensity = 0;
 	float64_t angle = 0;
 
+	shared_var.cis_process_cnt = 0;
+	int32_t curr_tick = 0;
+	int32_t tick = 0;
+	int32_t old_process_cnt = shared_var.cis_process_cnt;
+
+	curr_tick = HAL_GetTick();
+
 	//printf("----- ETHERNET MODE START -----\n");
 	//printf("-------------------------------\n");
-
-	shared_var.cis_process_cnt = 0;
 
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
@@ -186,6 +177,16 @@ int sss_Display(void)
 	/* Infinite loop */
 	while (1)
 	{
+
+		if ((shared_var.cis_process_cnt - old_process_cnt) > 50)
+		{
+			tick = HAL_GetTick();
+
+			shared_var.cis_freq = 1000000 / (((tick - curr_tick) * 1000) / (shared_var.cis_process_cnt - old_process_cnt));
+			curr_tick = tick;
+			old_process_cnt = shared_var.cis_process_cnt;
+		}
+
 		cisynth_interractiveMenu();
 
 		ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
