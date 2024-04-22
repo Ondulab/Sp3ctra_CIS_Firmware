@@ -1,47 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CISYNTH</title>
+    <title>CISYNTH Configuration</title>
     <style>
-        .button {
-            border: none;
-            color: white;
-            padding: 16px 32px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            transition-duration: 0.4s;
-            cursor: pointer;
-        }
-
-        .button1 {
-            background-color: white;
-            color: black;
-            border: 2px solid #4CAF50;
-        }
-
-        .button1:hover {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .button2 {
-            background-color: white;
-            color: black;
-            border: 2px solid #008CBA;
-        }
-
-        .button2:hover {
-            background-color: #008CBA;
-            color: white;
-        }
-
         body {
             font-family: 'Orbitron', sans-serif;
-            background-color: #333; /* Dark background */
-            color: #ddd; /* Light grey text for readability */
+            background-color: #222; /* Darker background */
+            color: #FFD700; /* Gold text for readability */
             margin: 0;
             padding: 20px;
             height: 60vh;
@@ -51,48 +16,76 @@
             justify-content: center;
         }
 
-        .value-container {
+        .select-container, .value-container, .radio-container, .button-container {
             display: flex;
-            align-items: center; /* Align vertically */
-            justify-content: center; /* Center horizontally */
+            align-items: center;
+            justify-content: center;
             width: 100%;
             margin-top: 20px;
         }
 
         label {
-            color: #ddd;
-            margin-right: 10px; /* Space between label and textarea */
-           	font-size: 18px;  /* Augmente la taille du texte */
+            color: #FFD700; /* Gold color for labels */
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        select, textarea, button, input[type="radio"] {
+            font-family: 'Orbitron', sans-serif;
+            color: #FFD700; /* Gold color text */
+            background-color: transparent;
+            border: 1px solid #FFD700; /* Gold border */
+            outline: none;
+            width: 150px;
+            height: 40px; /* Increased height */
+            line-height: 40px; /* Adjust line height to align text in center */
+            text-align: center;
+            resize: none;
+            overflow: hidden;
+            padding: 0;
+            box-sizing: border-box;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        select {
+            color: #FFF; /* White color text for select */
+            background-color: #444; /* Darker background for select */
         }
 
         textarea {
-            font-family: 'Orbitron', sans-serif;
-            color: #ddd; /* Light grey text for visibility */
-            background-color: transparent; /* Transparent background */
-            border: 2px solid #999; /* Grey border */
-            outline: none;
-            width: 150px;
-            height: 28px;
-            line-height: 28px;  /* Hauteur de ligne pour aligner le texte verticalement */
-    		text-align: center;  /* Centrage horizontal du texte */
-   		 	border: 1px solid #ccc;  /* Bordure pour visualiser le textarea */
-    		resize: none;  /* Désactiver le redimensionnement */
-    		overflow: hidden;  /* Masquer le débordement de texte */
-    		padding: 0;  /* Pas de padding interne */
-            box-sizing: border-box; /* Include padding and border in width/height */
-            font-size: 18px;  /* Augmente la taille du texte */
+            cursor: text;
+            height: 40px; /* Match height with buttons */
+            width: 200px; /* Increased width */
+            color: #FFF; /* White color text for textarea */
         }
 
-        table, a {
-            color: #ddd; /* Light grey text for links and table */
-        }
+		button {
+    		color: #222; /* Dark text */
+    		background-color: #FFD700; /* Gold background */
+    		transition-duration: 0.4s;
+    		padding: 0; /* Removed padding to ensure text aligns properly */
+    		margin: 4px;
+    		height: 40px; /* Maintain height */
+    		line-height: 40px; /* Align text vertically */
+    		text-align: center; /* Center text horizontally */
+    		width: 120px; /* Define a specific width */
+		}
 
-        a:hover {
-            color: #fff; /* White text on hover for better visibility */
+		button:hover {
+    		background-color: #FFF; /* White background for hover */
+    		color: #222; /* Dark text for hover */
+		}
+
+        .radio-container input[type="radio"] {
+            margin: 0 5px;
+            width: auto;
+            height: auto;
+            filter: grayscale(100%); /* Black and white filter for radio buttons */
         }
 
         img {
-            filter: invert(100%); /* Inverts the colors of the image */
+            filter: invert(100%);
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -107,21 +100,31 @@
         function timer() {
             xhr.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
-                    document.getElementById("textarea").value = this.responseText; // Update the textarea with new value
+                    document.getElementById("freqValue").value = this.responseText;
                 }
             };
             xhr.open("GET", "getvalue?_=" + new Date().getTime(), true);
             xhr.send();
-            setTimeout(timer, 1000); // Continue the loop every second
+            setTimeout(timer, 1000);
         }
 
-        function green() {
-            xhr.open("GET", "buttoncolor=G", true);
+        function setOversampling(value) {
+            xhr.open("GET", "setoversampling=" + value, true);
             xhr.send();
         }
 
-        function blue() {
-            xhr.open("GET", "buttoncolor=B", true);
+        function setDPI(value) {
+            xhr.open("GET", "setdpi=" + value, true);
+            xhr.send();
+        }
+
+        function setHandedness(value) {
+            xhr.open("GET", "sethandedness=" + value, true);
+            xhr.send();
+        }
+
+        function startCalibration() {
+            xhr.open("GET", "startcalibration", true);
             xhr.send();
         }
     </script>
@@ -130,19 +133,37 @@
     <div style="text-align: center;">
         <img src="img/CISYNTH.png" alt="Logo Image" style="width: 300px; height: 300px;">
         <h1>Configuration page</h1>
-        <h3>Based on the lwIP TCP/IP stack</h3>
         <hr style="border-color: #444;">
-        <button class="button button1" onclick="green()">Green</button>
-        <button class="button button2" onclick="blue()">Blue</button>
-        <button class="button" onclick="timer()">Start</button>
-        <br><br>
-        <div class="value-container">
-            <label for="textarea">CIS FREQ :</label>
-            <textarea id="textarea" cols="20" rows="1" readonly>0</textarea>
+        <div class="radio-container">
+            <label for="dpi">DPI:</label>
+            <input type="radio" id="dpi200" name="dpi" value="200" onchange="setDPI('200')"><label for="dpi200">200</label>
+            <input type="radio" id="dpi400" name="dpi" value="400" onchange="setDPI('400')"><label for="dpi400">400</label>
         </div>
-        <h2>The Cisynth</h2>
-        <p>The Cisynth is an innovative tangible interface for creating music and visuals. Utilizing our CIS instrument, the CISYNTH produces a UDP stream of thousands of values captured by contact image sensor, transmitted at a frequency up to 1000 Hz. This stream can be used to generate music or display image stream in Max/MSP, Pure Data, and our Viewer.</p>
-        <p>All rights reserved ©2016 Your Company Name</p>
+        <div class="select-container">
+            <label for="oversampling">Oversampling:</label>
+            <select id="oversampling" onchange="setOversampling(this.value)">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+                <option value="16">16</option>
+                <option value="32">32</option>
+                <option value="64">64</option>
+            </select>
+        </div>
+        <div class="value-container">
+            <label for="freqValue">CIS FREQ:</label>
+            <textarea id="freqValue" readonly></textarea>
+        </div>
+        <div class="radio-container">
+            <label for="handedness">Hand:</label>
+            <input type="radio" id="leftHand" name="handedness" value="left" onchange="setHandedness('left')"><label for="leftHand">Left-Handed</label>
+            <input type="radio" id="rightHand" name="handedness" value="right" onchange="setHandedness('right')"><label for="rightHand">Right-Handed</label>
+        </div>
+        <div class="button-container">
+            <label for="calibrateButton">CALIBRATION :</label>
+            <button id="calibrateButton" onclick="startCalibration()">START</button>
+        </div>
     </div>
 </body>
 </html>

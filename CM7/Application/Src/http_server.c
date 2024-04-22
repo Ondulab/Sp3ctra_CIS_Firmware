@@ -55,21 +55,15 @@ static void http_server(struct netconn *conn)
 				fs_open(&file, "/img/CISYNTH.png");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/Note404.png", 18) == 0) {
-				fs_open(&file, "/img/Note404.png");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/Note404.png", 17) == 0) {
-				fs_open(&file, "/img/Note404.png");
-				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-				fs_close(&file);
 			} else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0) {
 				colour = buf[17];
 			} else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0) {
-				char *pagedata = pvPortMalloc(32); // Assurez-vous d'avoir assez d'espace
+				char *pagedata = pvPortMalloc(32);
 				int len = sprintf(pagedata, "%d", (int)shared_var.cis_freq);
 				netconn_write(conn, (const unsigned char*)pagedata, (size_t)len, NETCONN_NOCOPY);
 				vPortFree(pagedata);
+			} else if (strncmp((char const *)buf, "GET /setoversampling=", 21) == 0) {
+				shared_var.cis_oversampling = atoi(&buf[21]);
 			} else {
 				// if none match, send 404
 				fs_open(&file, "/404.html");
