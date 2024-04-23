@@ -47,24 +47,76 @@ static void http_server(struct netconn *conn)
 			netbuf_data(inbuf, (void**)&buf, &buflen);
 
 			/* Check for various paths and handle GET requests */
-			if (strncmp((char const *)buf, "GET /config.html", 15) == 0) {
+			if (strncmp((char const *)buf, "GET /config.html", 15) == 0)
+			{
 				fs_open(&file, "/config.html");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 15) == 0) {
+			}
+
+			else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 15) == 0)
+			{
 				fs_open(&file, "/img/CISYNTH.png");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
-			} else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0) {
+			}
+
+			else if (strncmp((char const *)buf, "GET /img/favicon.ico", 15) == 0)
+			{
+				fs_open(&file, "/img/favicon.ico");
+				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+				fs_close(&file);
+			}
+
+			else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0)
+			{
 				colour = buf[17];
-			} else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0) {
+			}
+
+			else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0)
+			{
 				char *pagedata = pvPortMalloc(32);
 				int len = sprintf(pagedata, "%d", (int)shared_var.cis_freq);
 				netconn_write(conn, (const unsigned char*)pagedata, (size_t)len, NETCONN_NOCOPY);
 				vPortFree(pagedata);
-			} else if (strncmp((char const *)buf, "GET /setoversampling=", 21) == 0) {
+			}
+
+			else if (strncmp((char const *)buf, "GET /setoversampling=", 21) == 0)
+			{
 				shared_var.cis_oversampling = atoi(&buf[21]);
-			} else {
+				/* Check for API paths and handle GET/POST requests */
+			}
+
+			else if (strncmp((char const *)buf, "GET /getDPI", 11) == 0)
+			{
+			    char response[100];
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_dpi);
+
+			    netconn_write(conn, response, len, NETCONN_COPY);
+			}
+
+			else if (strncmp((char const *)buf, "POST /setDPI", 12) == 0)
+			{
+			    // Trouver le début de la valeur après "dpi="
+			    char *dpiValue = strstr(buf, "dpi=") + 4;  // Pointer sur le premier caractère de la valeur
+
+			    if (dpiValue) {
+			        // Convertir la valeur DPI en entier et mettre à jour
+			        shared_var.cis_dpi = atoi(dpiValue);
+
+			        // Envoie une réponse pour confirmer la mise à jour
+			        char response[100];
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_dpi);
+			        netconn_write(conn, response, len, NETCONN_COPY);
+			    } else {
+			        // Envoie une réponse d'erreur si "dpi=" n'est pas trouvé
+			        char *errorResponse = "Error: DPI value not found";
+			        netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+			    }
+			}
+
+			else
+			{
 				// if none match, send 404
 				fs_open(&file, "/404.html");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);

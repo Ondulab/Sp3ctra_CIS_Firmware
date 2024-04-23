@@ -1,100 +1,405 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>CISYNTH Configuration</title>
-    <style>
-        body {
-            font-family: 'Orbitron', sans-serif;
-            background-color: #222; /* Darker background */
-            color: #FFD700; /* Gold text for readability */
-            margin: 0;
-            padding: 20px;
-            height: 60vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>CISYNTH Configuration</title>
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+        <link rel="shortcut icon" href="img/favicon.ico" type="image/x-icon">
+        <style>
+            body {
+                font-family: 'Orbitron', sans-serif;
+                background-color: #222;
+                color: #D4AF37;
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            img.logo-inverted {
+                filter: invert(100%);
+            }
 
-        .select-container, .value-container, .radio-container, .button-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        label {
-            color: #FFD700; /* Gold color for labels */
-            margin-right: 10px;
-            font-size: 18px;
-        }
-
-        select, textarea, button, input[type="radio"] {
-            font-family: 'Orbitron', sans-serif;
-            color: #FFD700; /* Gold color text */
-            background-color: transparent;
-            border: 1px solid #FFD700; /* Gold border */
-            outline: none;
-            width: 150px;
-            height: 40px; /* Increased height */
-            line-height: 40px; /* Adjust line height to align text in center */
-            text-align: center;
-            resize: none;
-            overflow: hidden;
-            padding: 0;
-            box-sizing: border-box;
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        select {
-            color: #FFF; /* White color text for select */
-            background-color: #444; /* Darker background for select */
-        }
-
-        textarea {
-            cursor: text;
-            height: 40px; /* Match height with buttons */
-            width: 200px; /* Increased width */
-            color: #FFF; /* White color text for textarea */
-        }
-
-		button {
-    		color: #222; /* Dark text */
-    		background-color: #FFD700; /* Gold background */
-    		transition-duration: 0.4s;
-    		padding: 0; /* Removed padding to ensure text aligns properly */
-    		margin: 4px;
-    		height: 40px; /* Maintain height */
-    		line-height: 40px; /* Align text vertically */
-    		text-align: center; /* Center text horizontally */
-    		width: 120px; /* Define a specific width */
-		}
-
-		button:hover {
-    		background-color: #FFF; /* White background for hover */
-    		color: #222; /* Dark text for hover */
-		}
-
-        .radio-container input[type="radio"] {
-            margin: 0 5px;
-            width: auto;
-            height: auto;
-            filter: grayscale(100%); /* Black and white filter for radio buttons */
-        }
-
-        img {
-            filter: invert(100%);
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+            input[type="number"]::-webkit-inner-spin-button,
+            input[type="number"]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            
+            /* Pour Mozilla Firefox */
+            input[type="number"] {
+                -moz-appearance: textfield;
+            }
+    
+            .main-wrapper {
+                max-width: 800px;
+                min-width: 500px;
+                width: 100%;
+                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+                text-align: center;
+            }
+    
+            .containerHead {
+                width: 100%;
+                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+                text-align: center;
+            }
+    
+            .title {
+                color: #D4AF37;
+                font-size: 24px;
+                margin-bottom: 15px;
+                text-align: center;
+            }
+    
+            .container {
+                width: 100%;
+                border: 1px solid #D4AF37;
+                padding: 20px;
+                margin: 10px 0;
+                border-radius: 8px;
+                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+            }
+    
+            .section {
+                margin-bottom: 20px;
+            }
+    
+            select, input, button {
+                font-family: 'Orbitron', sans-serif;
+                color: #FFFFFF;
+                background-color: #333;
+                border: 1px solid #D4AF37;
+                outline: none;
+                padding: 10px;
+                margin: 5px 0;
+                box-sizing: border-box;
+                font-size: 16px;
+                cursor: pointer;
+            }
+    
+            input[disabled] {
+                background-color: #222;
+            }
+    
+            label {
+                color: #D4AF37;
+                background-color: transparent;
+                padding: 10px;
+                margin: 5px 0;
+                box-sizing: border-box;
+                font-size: 16px;
+                cursor: pointer;
+            }
+    
+            .dpi-button, .hand-button {
+                padding: 10px 20px;
+                margin: 5px;
+                background-color: #444;
+                color: #D4AF37;
+                border: 2px solid #555;
+                cursor: pointer;
+                transition: background-color 0.3s, border-color 0.3s;
+            }
+    
+            .dpi-button.selected, .hand-button.selected {
+                background-color: #D4AF37;
+                color: #222;
+                border-color: #D4AF37;
+            }
+    
+            button {
+                color: #222;
+                background-color: #D4AF37;
+                transition-duration: 0.4s;
+            }
+    
+            button:hover {
+                background-color: #FFF;
+                color: #222;
+            }
+    
+            input[type="file"] {
+                cursor: pointer;
+            }
+    
+            .form-group {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 10px;
+            }
+            
+            .form-group label {
+                flex-basis: 25%; /* Ajustez en fonction de la largeur désirée pour le label */
+                text-align: right;
+                padding-right: 10px; /* Espace entre le label et l'input */
+            }
+            
+            .form-group input, .form-group select, .form-group button {
+                flex-grow: 1;
+                margin-left: 5px;
+                margin-right: 5px;
+            }
+            
+            .input-group {
+                display: flex;
+                justify-content: space-between;
+            }
+            
+            .network-input-group input, .firmware-input-group input {
+                flex-grow: 1;
+                width: calc(60% / 4 - 10px);
+                margin-left: 5px;
+                margin-right: 5px;
+                text-align: center;
+            }
+    
+            .broadcast-button {
+                padding: 10px 20px;
+                margin: 5px;
+                background-color: #444;
+                color: #D4AF37;
+                border: 2px solid #555;
+                cursor: pointer;
+                transition: background-color 0.3s, border-color 0.3s;
+            }
+            
+            .broadcast-button.selected {
+                background-color: #D4AF37;
+                color: #222;
+                border-color: #D4AF37;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="main-wrapper">
+            <div class="containerHead">
+                <img src="img/CISYNTH.png" alt="Logo Image" class="logo-inverted" style="width: 300px; height: 300px;">
+            </div>    
+            <h1>Configuration Page</h1>
+            <hr style="border-color: #444;">
+    
+            <!-- CIS Parameters -->
+            <div class="container">
+                <span class="title">CIS Parameters</span>
+                <div class="section">
+                    <div class="form-group">
+                        <label for="dpi">DPI :</label>
+                        <button id="dpi200" class="dpi-button" onclick="updateDPI('200')">200</button>
+                        <button id="dpi400" class="dpi-button" onclick="updateDPI('400')">400</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="oversampling">OVSP :</label>
+                        <select id="oversampling" onchange="setOversampling(this.value)">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="4">4</option>
+                            <option value="8">8</option>
+                            <option value="16">16</option>
+                            <option value="32">32</option>
+                            <option value="64">64</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="freqValue">LPS :</label>
+                        <input id="freqValue" disabled/>
+                    </div>
+                    <div class="form-group">
+                        <label for="handedness">Hand :</label>
+                        <button id="leftHand" class="hand-button" onclick="setHandedness('left')">LEFT</button>
+                        <button id="rightHand" class="hand-button" onclick="setHandedness('right')">RIGHT</button>
+                    </div>
+                    <div class="button-container">
+                        <button id="calibrateButton" onclick="startCalibration()">Start Calibration</button>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- Network Configuration -->
+            <div class="container">
+                <span class="title">Network Configuration</span>
+                <div class="section">
+                    <div class="form-group network-input-group">
+                        <label>IP Address :</label>
+                            <input type="number" id="ipPart1" value="192" min="0" max="255">
+                            <input type="number" id="ipPart2" value="168" min="0" max="255">
+                            <input type="number" id="ipPart3" value="0" min="0" max="255">
+                            <input type="number" id="ipPart4" value="10" min="0" max="255">
+                    </div>
+                    <div class="form-group network-input-group">
+                        <label>Subnet Mask :</label>
+                            <input type="number" id="maskPart1" value="255" min="0" max="255">
+                            <input type="number" id="maskPart2" value="255" min="0" max="255">
+                            <input type="number" id="maskPart3" value="255" min="0" max="255">
+                            <input type="number" id="maskPart4" value="0" min="0" max="255"> 
+                    </div>
+                    <div class="form-group">
+                        <label for="port">UDP Port :</label>
+                            <input type="number" id="port" value="1151" min="0" max="65535"> 
+                    </div>
+                    <div class="form-group">
+                        <label for="broadcast">Broadcast :</label>
+                        <button id="broadcastEnable" class="broadcast-button" onclick="setBroadcast('enable')">ENABLE</button>
+                        <button id="broadcastDisable" class="broadcast-button" onclick="setBroadcast('disable')">DISABLE</button>
+                    </div>
+                    <div class="button-container">
+                        <button id="updateNetworkBtn" onclick="">Apply Network Settings</button>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- Firmware Update -->
+            <div class="container">
+                <span class="title">Firmware Update</span>
+                <div class="section">
+                    <div class="form-group">
+                        <label for="firmwareFile">Select Firmware :</label>
+                        <input type="file" id="firmwareFile">
+                    </div>
+                    <div class="button-container">
+                        <button onclick="uploadFirmware()">Upload Firmware</button>
+                    </div>
+                </div>
+            </div>
+        </div>     
     <script>
         var xhr;
 
-        function onloadFunction() {
+        function initialize() {
             xhr = new XMLHttpRequest();
-            timer(); // Initialize the timer to start the data fetching loop
+            attachEventListeners();
+            setHandedness('left');  // Set default hand to left
+            setBroadcast('disable');
+            loadDPI();
+            //timer();
+
+            var ipInputs = document.querySelectorAll('input[type="number"]');
+
+            ipInputs.forEach(function(input) {
+                input.addEventListener('input', function() {
+                    // Suppression de toute entrée non numérique
+                    this.value = this.value.replace(/\D/g, '');
+                    
+                    // Vérification que la valeur est dans la plage autorisée
+                    let num = parseInt(this.value, 10);
+                    if (this.value === "")
+                    {
+                        return;
+                    }
+                    if (num > parseInt(this.max, 10)) {
+                        this.value = this.max;
+                    } else if (num < parseInt(this.min, 10) || isNaN(num)) {
+                        this.value = this.min;
+                    }
+                });
+            });
+        }
+        
+        function attachEventListeners() {
+            document.getElementById('updateNetworkBtn').addEventListener('click', updateNetworkConfig);
+        }
+
+        function updateNetworkConfig() {
+            var ip1 = document.getElementById("ipPart1").value;
+            var ip2 = document.getElementById("ipPart2").value;
+            var ip3 = document.getElementById("ipPart3").value;
+            var ip4 = document.getElementById("ipPart4").value;
+            var mask1 = document.getElementById("maskPart1").value;
+            var mask2 = document.getElementById("maskPart2").value;
+            var mask3 = document.getElementById("maskPart3").value;
+            var mask4 = document.getElementById("maskPart4").value;
+            var port = document.getElementById("port").value;
+            var broadcast = document.querySelector('button.broadcast-button.selected').textContent.toLowerCase() === 'enable';
+        
+            var ip = `${ip1}.${ip2}.${ip3}.${ip4}`;
+            var mask = `${mask1}.${mask2}.${mask3}.${mask4}`;
+        
+            xhr.open("POST", "networkconfig", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.send(`ip=${ip}&mask=${mask}&port=${port}&broadcast=${broadcast}`);
+        }
+
+        function uploadFirmware() {
+            var fileInput = document.getElementById('firmwareFile');
+            var file = fileInput.files[0];  // On prend le premier fichier sélectionné
+        
+            if (!file) {
+                alert("Please select a file.");
+                return;
+            }
+        
+            var formData = new FormData();
+            formData.append('firmwareFile', file);
+        
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/uploadFirmware", true);  // Assure-toi que l'URL est correcte
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    alert("Firmware uploaded successfully!");
+                } else {
+                    alert("Failed to upload firmware.");
+                }
+            };
+            xhr.onerror = function () {
+                alert("Error in network request.");
+            };
+            xhr.send(formData);
+        }
+
+        function setHandedness(hand) {
+            var buttons = document.querySelectorAll('.hand-button');
+            buttons.forEach(function(button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim().toLowerCase() === hand) {
+                    button.classList.add('selected');
+                }
+            });
+        }
+
+        function loadDPI() {
+            console.log("Loading DPI settings...");
+            xhr.onreadystatechange = function() {
+                console.log("XHR state: ", xhr.readyState, "Status: ", xhr.status);
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("Response received: ", this.responseText);
+                    setDPI(this.responseText.trim());  // Cette fonction met à jour les boutons DPI
+                } else if (this.readyState == 4) {
+                    console.error("Failed to load DPI settings, server responded with status: ", this.status);
+                }
+            };
+            xhr.open("GET", "getDPI", true);
+            xhr.send();
+        }
+
+        function updateDPI(newDPI) {
+            if (!newDPI || isNaN(newDPI)) {
+                alert("Invalid DPI value. Please enter a numeric value.");
+                return;
+            }
+        
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("DPI updated to", newDPI);
+                    setDPI(newDPI.toString());  // Appelle setDPI pour mettre à jour l'UI après la confirmation du serveur
+                }
+            };
+            xhr.open("POST", "setDPI", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.send("dpi=" + newDPI);
+        }
+        
+        function setDPI(value) {
+            var buttons = document.querySelectorAll('.dpi-button');
+            buttons.forEach(function(button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim() === value) {
+                    button.classList.add('selected');
+                }
+            });
         }
 
         function timer() {
@@ -108,62 +413,22 @@
             setTimeout(timer, 1000);
         }
 
-        function setOversampling(value) {
-            xhr.open("GET", "setoversampling=" + value, true);
-            xhr.send();
+        function setBroadcast(status) {
+            var enableBtn = document.getElementById('broadcastEnable');
+            var disableBtn = document.getElementById('broadcastDisable');
+        
+            if (status === 'enable') {
+                enableBtn.classList.add('selected');
+                disableBtn.classList.remove('selected');
+            } else {
+                enableBtn.classList.remove('selected');
+                disableBtn.classList.add('selected');
+            }
+            // Sauvegarder la configuration du broadcast ici, si nécessaire
+            console.log("Broadcast set to", status);
         }
 
-        function setDPI(value) {
-            xhr.open("GET", "setdpi=" + value, true);
-            xhr.send();
-        }
-
-        function setHandedness(value) {
-            xhr.open("GET", "sethandedness=" + value, true);
-            xhr.send();
-        }
-
-        function startCalibration() {
-            xhr.open("GET", "startcalibration", true);
-            xhr.send();
-        }
+        document.addEventListener('DOMContentLoaded', initialize);
     </script>
-</head>
-<body onload="onloadFunction()">
-    <div style="text-align: center;">
-        <img src="img/CISYNTH.png" alt="Logo Image" style="width: 300px; height: 300px;">
-        <h1>Configuration page</h1>
-        <hr style="border-color: #444;">
-        <div class="radio-container">
-            <label for="dpi">DPI:</label>
-            <input type="radio" id="dpi200" name="dpi" value="200" onchange="setDPI('200')"><label for="dpi200">200</label>
-            <input type="radio" id="dpi400" name="dpi" value="400" onchange="setDPI('400')"><label for="dpi400">400</label>
-        </div>
-        <div class="select-container">
-            <label for="oversampling">Oversampling:</label>
-            <select id="oversampling" onchange="setOversampling(this.value)">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="4">4</option>
-                <option value="8">8</option>
-                <option value="16">16</option>
-                <option value="32">32</option>
-                <option value="64">64</option>
-            </select>
-        </div>
-        <div class="value-container">
-            <label for="freqValue">CIS FREQ:</label>
-            <textarea id="freqValue" readonly></textarea>
-        </div>
-        <div class="radio-container">
-            <label for="handedness">Hand:</label>
-            <input type="radio" id="leftHand" name="handedness" value="left" onchange="setHandedness('left')"><label for="leftHand">Left-Handed</label>
-            <input type="radio" id="rightHand" name="handedness" value="right" onchange="setHandedness('right')"><label for="rightHand">Right-Handed</label>
-        </div>
-        <div class="button-container">
-            <label for="calibrateButton">CALIBRATION :</label>
-            <button id="calibrateButton" onclick="startCalibration()">START</button>
-        </div>
-    </div>
-</body>
+    </body>
 </html>

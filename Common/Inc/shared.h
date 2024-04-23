@@ -132,6 +132,7 @@ struct shared_var {
 	uint32_t cis_cal_progressbar;
 	uint32_t cis_oversampling;
 	uint32_t cis_scanDir;
+	uint32_t cis_dpi;
 	CIS_Calibration_StateTypeDef cis_cal_state;
 };
 
