@@ -31,6 +31,21 @@ extern "C" {
 
 typedef enum
 {
+ SW1  = 0x00U,
+ SW2  = 0x01U,
+ SW3  = 0x02U,
+ SW4  = 0x03U,
+ SW5  = 0x04U
+}buttonTypeDef;
+
+typedef enum
+{
+	SWITCH_RELEASED = 0,
+	SWITCH_PRESSED
+}buttonStateTypeDef;
+
+typedef enum
+{
 	STARTUP_INFO_HEADER = 0,
 	IMAGE_DATA_HEADER,
 	IMU_DATA_HEADER,
@@ -135,6 +150,7 @@ struct shared_var {
 	uint32_t cis_scanDir;
 	uint32_t cis_dpi;
 	CIS_Calibration_StateTypeDef cis_cal_state;
+	buttonStateTypeDef  buttonState[3];
 };
 
 /**************************************************************************************/

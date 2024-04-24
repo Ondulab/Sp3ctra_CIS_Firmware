@@ -140,9 +140,9 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_HID.packet_id = packetsCounter++;
 
-	packet_HID.button_A = 0;
-	packet_HID.button_B = 0;
-	packet_HID.button_C = 0;
+	packet_HID.button_A = shared_var.buttonState[SW1];
+	packet_HID.button_B = shared_var.buttonState[SW2];
+	packet_HID.button_C = shared_var.buttonState[SW3];
 
 	udp_clientSendData(&packet_HID, sizeof(packet_HID));
 }

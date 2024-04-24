@@ -20,6 +20,7 @@
 #include "buttons.h"
 #include "ssd1362.h"
 #include "config.h"
+#include "shared.h"
 
 
 /* Private typedef -----------------------------------------------------------*/
@@ -29,7 +30,6 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-buttonStateTypeDef  buttonState[5] = {0};
 
 /* Private function prototypes -----------------------------------------------*/
 
@@ -45,13 +45,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	switch (GPIO_Pin)
 	{
 	case SW_1_Pin:
-		buttonState[SW1] = SWITCH_PRESSED;
+		shared_var.buttonState[SW1] = SWITCH_PRESSED;
 		break;
 	case SW_2_Pin:
-		buttonState[SW2] = SWITCH_PRESSED;
+		shared_var.buttonState[SW2] = SWITCH_PRESSED;
 		break;
 	case SW_3_Pin:
-		buttonState[SW3] = SWITCH_PRESSED;
+		shared_var.buttonState[SW3] = SWITCH_PRESSED;
 		break;
 	}
 }

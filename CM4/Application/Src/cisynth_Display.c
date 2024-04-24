@@ -472,27 +472,27 @@ void cisynth_interractiveMenu()
 		oldScanDir = shared_var.cis_scanDir;
 	}
 
-	if (buttonState[SW1] == SWITCH_PRESSED)
+	if (shared_var.buttonState[SW1] == SWITCH_PRESSED)
 	{
 		//ssd1362_fillRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-		buttonState[SW1] = SWITCH_RELEASED;
+		shared_var.buttonState[SW1] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (buttonState[SW2] == SWITCH_PRESSED)
+	if (shared_var.buttonState[SW2] == SWITCH_PRESSED)
 	{
 		//ssd1362_fillRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-		buttonState[SW2] = SWITCH_RELEASED;
+		shared_var.buttonState[SW2] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (buttonState[SW3] == SWITCH_PRESSED)
+	if (shared_var.buttonState[SW3] == SWITCH_PRESSED)
 	{
 		//ssd1362_fillRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-		buttonState[SW3] = SWITCH_RELEASED;
+		shared_var.buttonState[SW3] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
