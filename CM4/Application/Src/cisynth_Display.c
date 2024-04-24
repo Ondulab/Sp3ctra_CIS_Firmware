@@ -44,7 +44,6 @@
 static void cis_DisplayOversampling();
 static void cisynth_interractiveMenu(void);
 static void cis_StartCalibration(void);
-static void cis_ChangeOversampling();
 static void cis_ChangeScanDir();
 static void cisynth_interractiveMenu();
 
@@ -97,37 +96,25 @@ void cis_DisplayOversampling()
 {
 	uint8_t textData[256] = {0};
 
-	int32_t start_tick = 0;
+	ssd1362_fillRect(10, 10, 51, 30, 15, false);
+	ssd1362_drawRect(9, 9, 52, 31, 0, false);
 
-	while ((HAL_GPIO_ReadPin(SW_3_GPIO_Port, SW_2_Pin) != GPIO_PIN_SET) || (HAL_GetTick() < (start_tick + 200)))
+	if (shared_var.cis_oversampling < 10)
 	{
-		ssd1362_fillRect(10, 10, 51, 30, 15, false);
-		ssd1362_drawRect(9, 9, 52, 31, 0, false);
-
-		if (shared_var.cis_oversampling < 10)
-		{
-			sprintf((char *)textData, "OVS %d", (int)shared_var.cis_oversampling);
-		}
-		else
-		{
-			sprintf((char *)textData, "OVS%d", (int)shared_var.cis_oversampling);
-		}
-		ssd1362_drawString(12, 12, (int8_t *)textData, 0, 8);
-
-		if (HAL_GetTick() < (start_tick + 1000))
-		{
-			sprintf((char *)textData, "---Hz");
-		}
-		else
-		{
-			if (shared_var.cis_freq < 100)
-				sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
-			else
-				sprintf((char *)textData, "%dHz", (int)(shared_var.cis_freq));
-		}
-		ssd1362_drawString(12, 22, (int8_t*)textData, 0, 8);
-		ssd1362_writeUpdates();
+		sprintf((char *)textData, "OVS %d", (int)shared_var.cis_oversampling);
 	}
+	else
+	{
+		sprintf((char *)textData, "OVS%d", (int)shared_var.cis_oversampling);
+	}
+	ssd1362_drawString(12, 12, (int8_t *)textData, 0, 8);
+
+	if (shared_var.cis_freq < 100)
+		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
+	else
+		sprintf((char *)textData, "%dHz", (int)(shared_var.cis_freq));
+
+	ssd1362_drawString(12, 22, (int8_t*)textData, 0, 8);
 }
 
 int cisynth_Display(void)
@@ -187,8 +174,6 @@ int cisynth_Display(void)
 			old_process_cnt = shared_var.cis_process_cnt;
 		}
 
-		cisynth_interractiveMenu();
-
 		ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
 
 		// CIS DISPLAY
@@ -230,6 +215,8 @@ int cisynth_Display(void)
 				ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
 			}
 		}
+
+		cisynth_interractiveMenu();
 
 		// IMU DISPLAY
 		static int32_t x1 = 0;
@@ -451,21 +438,8 @@ void cis_StartCalibration()
 	}
 }
 
-void cis_ChangeOversampling()
-{
-	static int32_t n = 0;
-
-	n = (n + 1) % 6;
-	shared_var.cis_oversampling = 1 << n;
-
-	cis_DisplayOversampling();
-}
-
 void cis_ChangeScanDir()
 {
-	shared_var.cis_scanDir = !shared_var.cis_scanDir;
-	shared_var.cis_scanDir = shared_var.cis_scanDir < 0 ? 0 : shared_var.cis_scanDir > 1 ? 1 : shared_var.cis_scanDir;
-
 	ssd1362_screenRotation(shared_var.cis_scanDir);
 }
 
@@ -473,6 +447,30 @@ void cisynth_interractiveMenu()
 {
 	static uint32_t button_tick = 0;
 	static uint8_t clear_button = 0;
+	static uint8_t oldScanDir = 0;
+	static uint8_t oldOversampling = 0;
+	static uint32_t start_tick = 0;
+
+	if (shared_var.cis_cal_state == CIS_CAL_REQUESTED)
+	{
+		cis_StartCalibration();
+	}
+
+    if (shared_var.cis_oversampling != oldOversampling)
+    {
+        start_tick = HAL_GetTick();
+        oldOversampling = shared_var.cis_oversampling;
+    }
+    if ((HAL_GetTick() - start_tick) < 3000)
+    {
+        cis_DisplayOversampling();
+    }
+
+	if (shared_var.cis_scanDir != oldScanDir)
+	{
+		cis_ChangeScanDir();
+		oldScanDir = shared_var.cis_scanDir;
+	}
 
 	if (buttonState[SW1] == SWITCH_PRESSED)
 	{
@@ -481,7 +479,6 @@ void cisynth_interractiveMenu()
 		buttonState[SW1] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
-		cis_StartCalibration();
 	}
 	if (buttonState[SW2] == SWITCH_PRESSED)
 	{
@@ -490,7 +487,6 @@ void cisynth_interractiveMenu()
 		buttonState[SW2] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
-		cis_ChangeOversampling();
 	}
 	if (buttonState[SW3] == SWITCH_PRESSED)
 	{
@@ -499,7 +495,6 @@ void cisynth_interractiveMenu()
 		buttonState[SW3] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
-		cis_ChangeScanDir();
 	}
 
 	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)

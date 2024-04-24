@@ -98,7 +98,7 @@ static void cis_scanThread(void *arg)
 	{
 	    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-		if (shared_var.cis_cal_state != CIS_CAL_END)
+		if (shared_var.cis_cal_state == CIS_CAL_START)
 		{
 #ifdef POLYNOMIAL_CALIBRATION
 			cis_StartCalibration(20); //WIP
