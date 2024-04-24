@@ -47,44 +47,32 @@ static void http_server(struct netconn *conn)
 			netbuf_data(inbuf, (void**)&buf, &buflen);
 
 			/* Check for various paths and handle GET requests */
-			if (strncmp((char const *)buf, "GET /config.html", 15) == 0)
+			if (strncmp((char const *)buf, "GET /config.html", 16) == 0)
 			{
 				fs_open(&file, "/config.html");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
 			}
 
-			else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 15) == 0)
+			else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 20) == 0)
 			{
 				fs_open(&file, "/img/CISYNTH.png");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
 			}
 
-			else if (strncmp((char const *)buf, "GET /img/favicon.ico", 15) == 0)
+			else if (strncmp((char const *)buf, "GET /img/favicon.ico", 20) == 0)
 			{
 				fs_open(&file, "/img/favicon.ico");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
 			}
 
-			else if (strncmp((char const *)buf, "GET /buttoncolor=", 17) == 0)
+			else if (strncmp((char const *)buf, "GET /getFreq", 12) == 0)
 			{
-				colour = buf[17];
-			}
-
-			else if (strncmp((char const *)buf, "GET /getvalue", 13) == 0)
-			{
-				char *pagedata = pvPortMalloc(32);
-				int len = sprintf(pagedata, "%d", (int)shared_var.cis_freq);
-				netconn_write(conn, (const unsigned char*)pagedata, (size_t)len, NETCONN_NOCOPY);
-				vPortFree(pagedata);
-			}
-
-			else if (strncmp((char const *)buf, "GET /setoversampling=", 21) == 0)
-			{
-				shared_var.cis_oversampling = atoi(&buf[21]);
-				/* Check for API paths and handle GET/POST requests */
+			    char response[128];
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_freq);
+			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
 
 			else if (strncmp((char const *)buf, "GET /getDPI", 11) == 0)
@@ -112,6 +100,75 @@ static void http_server(struct netconn *conn)
 			        // Envoie une réponse d'erreur si "dpi=" n'est pas trouvé
 			        char *errorResponse = "Error: DPI value not found";
 			        netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+			    }
+			}
+
+			else if (strncmp((char const *)buf, "GET /getOversampling", 20) == 0)
+			{
+			    // Prepare a response with the current oversampling value
+			    char response[100];
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_oversampling);
+
+			    // Send the response
+			    netconn_write(conn, response, len, NETCONN_COPY);
+			}
+
+			else if (strncmp((char const *)buf, "POST /setOversampling", 21) == 0)
+			{
+			    // Finding the start of the value after "oversampling="
+			    char *oversamplingValue = strstr(buf, "oversampling=") + 13;  // Point to the first character of the value
+
+			    if (oversamplingValue) {
+			        // Convert the oversampling value to an integer and update
+			        shared_var.cis_oversampling = atoi(oversamplingValue);
+
+			        // Send a response to confirm the update
+			        char response[100];
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOversampling set to %d", (int)shared_var.cis_oversampling);
+			        netconn_write(conn, response, len, NETCONN_COPY);
+			    } else {
+			        // Send an error response if "oversampling=" is not found
+			        char *errorResponse = "Error: Oversampling value not found";
+			        netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+			    }
+			}
+
+			else if (strncmp((char const *)buf, "GET /getHand", 12) == 0)
+			{
+			    char response[100];
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_scanDir);
+
+			    netconn_write(conn, response, len, NETCONN_COPY);
+			}
+
+			else if (strncmp((char const *)buf, "POST /setHand", 13) == 0)
+			{
+			    // Trouver le début de la valeur après "hand="
+			    char *handValue = strstr(buf, "hand=") + 5;  // Pointer sur le premier caractère de la valeur
+
+			    if (handValue) {
+			        // Convertir la valeur Hand en entier et mettre à jour
+			        shared_var.cis_scanDir = atoi(handValue);
+
+			        // Envoie une réponse pour confirmer la mise à jour
+			        char response[100];
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_scanDir);
+			        netconn_write(conn, response, len, NETCONN_COPY);
+			    } else {
+			        // Envoie une réponse d'erreur si "hand=" n'est pas trouvé
+			        char *errorResponse = "Error: Hand value not found";
+			        netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+			    }
+			}
+
+			else if (strncmp((char const *)buf, "POST /startCalibration", 22) == 0)
+			{
+			    // Analyse du corps de la requête pour extraire la valeur
+			    char *body = strstr(buf, "\r\n\r\n");
+			    if (body && strstr(body, "CIS_CAL_START=0")) {
+			        shared_var.cis_cal_state = CIS_CAL_START; // Mettre à jour la variable de calibration
+			        const char *response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCalibration started";
+			        netconn_write(conn, response, strlen(response), NETCONN_COPY);
 			    }
 			}
 

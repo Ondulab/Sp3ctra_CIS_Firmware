@@ -35,16 +35,16 @@
             }
     
             .main-wrapper {
-                max-width: 800px;
-                min-width: 500px;
+                max-width: 600px;
+                min-width: 400px;
                 width: 100%;
-                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+                box-sizing: border-box;
                 text-align: center;
             }
     
             .containerHead {
                 width: 100%;
-                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+                box-sizing: border-box;
                 text-align: center;
             }
     
@@ -61,11 +61,11 @@
                 padding: 20px;
                 margin: 10px 0;
                 border-radius: 8px;
-                box-sizing: border-box; /* Inclut padding et border dans le calcul de la largeur */
+                box-sizing: border-box;
             }
     
             .section {
-                margin-bottom: 20px;
+                margin-bottom: 0px;
             }
     
             select, input, button {
@@ -79,6 +79,9 @@
                 box-sizing: border-box;
                 font-size: 16px;
                 cursor: pointer;
+                text-align: center;
+                -moz-text-align-last: center;
+                text-align-last: center;
             }
     
             input[disabled] {
@@ -134,9 +137,9 @@
             }
             
             .form-group label {
-                flex-basis: 25%; /* Ajustez en fonction de la largeur désirée pour le label */
+                flex-basis: 25%;
                 text-align: right;
-                padding-right: 10px; /* Espace entre le label et l'input */
+                padding-right: 10px;
             }
             
             .form-group input, .form-group select, .form-group button {
@@ -156,6 +159,11 @@
                 margin-left: 5px;
                 margin-right: 5px;
                 text-align: center;
+            }
+
+            .firmware-input-group input {
+                text-align: left;
+                text-align-last: left;
             }
     
             .broadcast-button {
@@ -188,30 +196,29 @@
                 <span class="title">CIS Parameters</span>
                 <div class="section">
                     <div class="form-group">
-                        <label for="dpi">DPI :</label>
+                        <label for="dpi">DPI</label>
                         <button id="dpi200" class="dpi-button" onclick="updateDPI('200')">200</button>
                         <button id="dpi400" class="dpi-button" onclick="updateDPI('400')">400</button>
                     </div>
                     <div class="form-group">
-                        <label for="oversampling">OVSP :</label>
-                        <select id="oversampling" onchange="setOversampling(this.value)">
+                        <label for="oversampling">OVSP</label>
+                        <select id="oversampling" onchange="updateOversampling(this.value)">
                             <option value="1">1</option>
                             <option value="2">2</option>
                             <option value="4">4</option>
                             <option value="8">8</option>
                             <option value="16">16</option>
                             <option value="32">32</option>
-                            <option value="64">64</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="freqValue">LPS :</label>
+                        <label for="freqValue">LPS</label>
                         <input id="freqValue" disabled/>
                     </div>
                     <div class="form-group">
-                        <label for="handedness">Hand :</label>
-                        <button id="leftHand" class="hand-button" onclick="setHandedness('left')">LEFT</button>
-                        <button id="rightHand" class="hand-button" onclick="setHandedness('right')">RIGHT</button>
+                        <label for="handedness">Hand</label>
+                        <button id="leftHand" class="hand-button" onclick="updateHand('0')">LEFT</button>
+                        <button id="rightHand" class="hand-button" onclick="updateHand('1')">RIGHT</button>
                     </div>
                     <div class="button-container">
                         <button id="calibrateButton" onclick="startCalibration()">Start Calibration</button>
@@ -224,25 +231,25 @@
                 <span class="title">Network Configuration</span>
                 <div class="section">
                     <div class="form-group network-input-group">
-                        <label>IP Address :</label>
+                        <label>IP Address</label>
                             <input type="number" id="ipPart1" value="192" min="0" max="255">
                             <input type="number" id="ipPart2" value="168" min="0" max="255">
                             <input type="number" id="ipPart3" value="0" min="0" max="255">
                             <input type="number" id="ipPart4" value="10" min="0" max="255">
                     </div>
                     <div class="form-group network-input-group">
-                        <label>Subnet Mask :</label>
+                        <label>Subnet Mask</label>
                             <input type="number" id="maskPart1" value="255" min="0" max="255">
                             <input type="number" id="maskPart2" value="255" min="0" max="255">
                             <input type="number" id="maskPart3" value="255" min="0" max="255">
                             <input type="number" id="maskPart4" value="0" min="0" max="255"> 
                     </div>
                     <div class="form-group">
-                        <label for="port">UDP Port :</label>
+                        <label for="port">UDP Port</label>
                             <input type="number" id="port" value="1151" min="0" max="65535"> 
                     </div>
                     <div class="form-group">
-                        <label for="broadcast">Broadcast :</label>
+                        <label for="broadcast">Broadcast</label>
                         <button id="broadcastEnable" class="broadcast-button" onclick="setBroadcast('enable')">ENABLE</button>
                         <button id="broadcastDisable" class="broadcast-button" onclick="setBroadcast('disable')">DISABLE</button>
                     </div>
@@ -256,8 +263,8 @@
             <div class="container">
                 <span class="title">Firmware Update</span>
                 <div class="section">
-                    <div class="form-group">
-                        <label for="firmwareFile">Select Firmware :</label>
+                    <div class="form-group firmware-input-group">
+                        <label for="firmwareFile">Select Firmware</label>
                         <input type="file" id="firmwareFile">
                     </div>
                     <div class="button-container">
@@ -270,21 +277,19 @@
         var xhr;
 
         function initialize() {
-            xhr = new XMLHttpRequest();
             attachEventListeners();
-            setHandedness('left');  // Set default hand to left
             setBroadcast('disable');
             loadDPI();
-            //timer();
+            loadHand();
+            loadOversampling();
+            timer();
 
             var ipInputs = document.querySelectorAll('input[type="number"]');
 
             ipInputs.forEach(function(input) {
                 input.addEventListener('input', function() {
-                    // Suppression de toute entrée non numérique
                     this.value = this.value.replace(/\D/g, '');
                     
-                    // Vérification que la valeur est dans la plage autorisée
                     let num = parseInt(this.value, 10);
                     if (this.value === "")
                     {
@@ -304,6 +309,7 @@
         }
 
         function updateNetworkConfig() {
+            var xhr = new XMLHttpRequest();
             var ip1 = document.getElementById("ipPart1").value;
             var ip2 = document.getElementById("ipPart2").value;
             var ip3 = document.getElementById("ipPart3").value;
@@ -324,8 +330,9 @@
         }
 
         function uploadFirmware() {
+            var xhr = new XMLHttpRequest();
             var fileInput = document.getElementById('firmwareFile');
-            var file = fileInput.files[0];  // On prend le premier fichier sélectionné
+            var file = fileInput.files[0];
         
             if (!file) {
                 alert("Please select a file.");
@@ -336,7 +343,7 @@
             formData.append('firmwareFile', file);
         
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", "/uploadFirmware", true);  // Assure-toi que l'URL est correcte
+            xhr.open("POST", "/uploadFirmware", true);
             xhr.onload = function () {
                 if (xhr.status === 200) {
                     alert("Firmware uploaded successfully!");
@@ -350,23 +357,14 @@
             xhr.send(formData);
         }
 
-        function setHandedness(hand) {
-            var buttons = document.querySelectorAll('.hand-button');
-            buttons.forEach(function(button) {
-                button.classList.remove('selected');
-                if (button.textContent.trim().toLowerCase() === hand) {
-                    button.classList.add('selected');
-                }
-            });
-        }
-
         function loadDPI() {
             console.log("Loading DPI settings...");
+            var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function() {
                 console.log("XHR state: ", xhr.readyState, "Status: ", xhr.status);
                 if (this.readyState == 4 && this.status == 200) {
                     console.log("Response received: ", this.responseText);
-                    setDPI(this.responseText.trim());  // Cette fonction met à jour les boutons DPI
+                    setDPI(this.responseText.trim());
                 } else if (this.readyState == 4) {
                     console.error("Failed to load DPI settings, server responded with status: ", this.status);
                 }
@@ -376,6 +374,7 @@
         }
 
         function updateDPI(newDPI) {
+            var xhr = new XMLHttpRequest();
             if (!newDPI || isNaN(newDPI)) {
                 alert("Invalid DPI value. Please enter a numeric value.");
                 return;
@@ -384,7 +383,7 @@
             xhr.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
                     console.log("DPI updated to", newDPI);
-                    setDPI(newDPI.toString());  // Appelle setDPI pour mettre à jour l'UI après la confirmation du serveur
+                    setDPI(newDPI.toString());
                 }
             };
             xhr.open("POST", "setDPI", true);
@@ -402,13 +401,115 @@
             });
         }
 
+        function loadOversampling() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    // Assuming the response is just the oversampling value
+                    var select = document.getElementById('oversampling');
+                    select.value = this.responseText.trim(); // Update the dropdown to reflect the current setting
+                } else if (this.readyState == 4) {
+                    console.error("Failed to load oversampling settings, server responded with status: ", this.status);
+                }
+            };
+            xhr.open("GET", "/getOversampling", true);
+            xhr.send();
+        }
+        
+        function updateOversampling(newOversampling) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/setOversampling", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.send("oversampling=" + newOversampling);
+        
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4 && this.status == 200) {
+                    console.log("Oversampling updated to: ", newOversampling);
+                    setOversampling(newOversampling); // Update UI after server confirmation
+                } else if (xhr.readyState == 4) {
+                    console.error("Failed to update oversampling, server responded with status: ", this.status);
+                }
+            };
+        }
+        
+        function setOversampling(value) {
+            var select = document.getElementById('oversampling');
+            select.value = value; // Set the dropdown to the current oversampling value
+        }
+
+        function loadHand() {
+            console.log("Loading hand settings...");
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                console.log("XHR state: ", xhr.readyState, "Status: ", xhr.status);
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("Response received: ", this.responseText);
+                    setHand(this.responseText.trim());
+                } else if (this.readyState == 4) {
+                    console.error("Failed to load Hand settings, server responded with status: ", this.status);
+                }
+            };
+            xhr.open("GET", "getHand", true);
+            xhr.send();
+        }
+
+        function updateHand(newHand) {
+            var xhr = new XMLHttpRequest();
+            if (!newHand || isNaN(newHand)) {
+                alert("Invalid Hand value. Please enter a numeric value.");
+                return;
+            }
+        
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("Hand updated to", newHand);
+                    setHand(newHand.toString());
+                }
+            };
+            xhr.open("POST", "setHand", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.send("hand=" + newHand);
+        }
+        
+        function setHand(value) {
+            var buttons = document.querySelectorAll('.hand-button');
+            var handValue = "";
+            if (value === "1") {
+                handValue = "right";
+            } else if (value === "0") {
+                handValue = "left";
+            }
+        
+            buttons.forEach(function(button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim().toLowerCase() === handValue) {
+                    button.classList.add('selected');
+                }
+            });
+        }
+
+        function startCalibration() {
+            var xhr = new XMLHttpRequest();
+        
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    console.log("Calibration started successfully");
+                }
+            };
+        
+            xhr.open("POST", "startCalibration", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.send("CIS_CAL_START=0");
+        }
+
         function timer() {
+            var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
                     document.getElementById("freqValue").value = this.responseText;
                 }
             };
-            xhr.open("GET", "getvalue?_=" + new Date().getTime(), true);
+            xhr.open("GET", "getFreq?_=" + new Date().getTime(), true);
             xhr.send();
             setTimeout(timer, 1000);
         }
@@ -424,7 +525,6 @@
                 enableBtn.classList.remove('selected');
                 disableBtn.classList.add('selected');
             }
-            // Sauvegarder la configuration du broadcast ici, si nécessaire
             console.log("Broadcast set to", status);
         }
 
