@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : cisynth_Display.c
+ * @file           : gui.c
  ******************************************************************************
  * @attention
  *
@@ -14,10 +14,10 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include <cisynth_Display.h>
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "basetypes.h"
 
 #include "shared.h"
 #include "config.h"
@@ -25,6 +25,7 @@
 #include "ssd1362.h"
 #include "buttons.h"
 
+#include "gui.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -41,11 +42,13 @@
 /* Variable containing black and white frame from CIS*/
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_DisplayOversampling();
-static void cisynth_interractiveMenu(void);
-static void cis_StartCalibration(void);
-static void cis_ChangeScanDir();
-static void cisynth_interractiveMenu();
+static void gui_displayOversampling();
+static void gui_displayImage(void);
+static void gui_displayIMU(void);
+static void gui_displayWaiting();
+static void gui_interractiveMenu(void);
+static void gui_startCalibration(void);
+static void gui_changeHand();
 
 //#define DISPLAY_SCOLL_IMAGE
 
@@ -59,6 +62,102 @@ struct IMU_average
 };
 
 struct IMU_average IMU_average = {0};
+
+int gui_mainLoop(void)
+{
+    int32_t last_refresh_tick = HAL_GetTick(); // Initialization of the last refresh tick
+    int32_t last_process_count = shared_var.cis_process_cnt; // Last recorded process counter
+    memset(&packet_Image, 0, sizeof(packet_Image));
+
+    /* Infinite loop */
+    while (1)
+    {
+        // Update the interface
+        gui_displayWaiting();
+        gui_displayImage();
+
+        int32_t current_tick = HAL_GetTick(); // Get the current tick
+
+        // Check if 25 ms have elapsed since the last refresh
+        if ((current_tick - last_refresh_tick) >= 25)
+        {
+            int32_t current_process_count = shared_var.cis_process_cnt;
+            int32_t process_count_diff = current_process_count - last_process_count;
+
+            if (process_count_diff > 0) // Make sure there have been processes since the last refresh
+            {
+                int32_t tick_diff = current_tick - last_refresh_tick;
+                if (tick_diff > 0)
+                {
+                    shared_var.cis_freq = 1000000 / (tick_diff * 1000 / process_count_diff);
+                }
+            }
+
+            gui_interractiveMenu();
+
+            last_refresh_tick = current_tick; // Update the last refresh tick
+            last_process_count = current_process_count; // Update the last process counter
+        }
+
+        gui_displayIMU();
+    	ssd1362_writeUpdates();
+    }
+}
+
+
+void gui_displayImage(void)
+{
+	uint8_t cis_rgb[3] = {0};
+	int32_t cis_color = 0;
+	int32_t i = 0;
+	int32_t y = 0;
+	float32_t packet, index;
+	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
+	int32_t pixel_intensity = 0;
+	float64_t angle = 0;
+
+	ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
+
+	// CIS DISPLAY
+	for (i = 0; i < (DISPLAY_WIDTH); i++)
+	{
+		packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1.0)/(DISPLAY_WIDTH - 1.0);
+
+		index = (packet - (uint32_t)packet) * (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
+
+		cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];
+		cis_rgb[1] = packet_Image[(uint32_t)packet].imageData_G[(uint32_t)index];
+		cis_rgb[2] = packet_Image[(uint32_t)packet].imageData_B[(uint32_t)index];
+
+		// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
+		// are weights given to the R, G, and B components respectively,
+		// according to the ITU-R BT.601 standard for converting color to grayscale.
+		// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
+		// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
+		// cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
+		cis_color = cis_rgb[0] + cis_rgb[1] + cis_rgb[2];
+
+		cis_color = cis_color < 0 ? 0 : cis_color > 765 ? 765 : cis_color;
+
+		angle = cis_color * (PI / 2) / 765.00;
+
+		for (y = 0; y < (DISPLAY_AERAS1_HEIGHT / 2); y++)
+		{
+			if (angle < (PI / 2))
+				pixel_intensity = tan(angle) * (y + 1);
+
+			pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+			pixel_intensity = 15 - pixel_intensity;
+
+			// Draw a pixel above the center of the line for symmetry
+			ssd1362_drawPixel(i, line_Ypos + y, pixel_intensity, false);
+
+			// Draw a pixel below the center of the line for symmetry
+			ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
+		}
+	}
+}
 
 // Function to update the moving average
 void update_IMU_average(void)
@@ -92,20 +191,115 @@ void update_IMU_average(void)
 	imuIndex[2] = (imuIndex[2] + 1) % WINDOW_IMU_AVERAGE_SIZE;
 }
 
-void cis_DisplayOversampling()
+void gui_displayIMU(void)
+{
+	// IMU DISPLAY
+	static int32_t x1 = 0;
+	static int32_t w2 = 0;
+
+	update_IMU_average();
+
+	ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 1, false);
+	ssd1362_fillRect(24, DISPLAY_AERA2_Y1POS + 4, 231, DISPLAY_AERA2_Y2POS - 4, 5, false);
+	ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, 22, DISPLAY_AERA2_Y2POS, 5, false);
+	ssd1362_fillRect(DISPLAY_WIDTH - 1, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH - 1 - 22, DISPLAY_AERA2_Y2POS, 5, false);
+
+	//ACC Y
+	int32_t accY = (int32_t)(IMU_average.acc[0] * 50);
+	if (accY > (DISPLAY_AERAS2_HEIGHT / 2))
+		accY = (DISPLAY_AERAS2_HEIGHT / 2);
+	if (accY < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
+		accY = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+
+	x1 = 2;
+	w2 = 18;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + accY, 0, false);
+
+	//GYRO Y
+	int32_t gyroY = (int32_t)(IMU_average.gyro[0]);
+	if (gyroY > 103)
+		gyroY = 103;
+	if (gyroY < -103)
+		gyroY = -103;
+
+	x1 = DISPLAY_WIDTH / 2;
+	w2 = gyroY;
+
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 4, x1 + w2, DISPLAY_AERA2_Y2POS - 4, 13, false);
+
+	//ACC X and ACC Z
+	int32_t accZ = (int32_t)(IMU_average.acc[2] * 200);
+	const int32_t accZ_RectWith = 25;
+
+	if (accZ > accZ_RectWith)
+		accZ = accZ_RectWith;
+	if (accZ < (accZ_RectWith * -1))
+		accZ = accZ_RectWith * -1;
+
+	int32_t accX = (int32_t)(IMU_average.acc[1] * 200);
+	if (accX > 51)
+		accX = 51;
+	if (accX < -51)
+		accX = -51;
+
+	x1 = DISPLAY_WIDTH / 2 - accX;
+	w2 = accZ_RectWith - accZ;
+
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 5, x1 + w2, DISPLAY_AERA2_Y2POS - 5, 0, false);
+	ssd1362_fillRect(x1 - w2, DISPLAY_AERA2_Y1POS + 5, x1, DISPLAY_AERA2_Y2POS - 5, 0, false);
+
+	//GYRO X
+	int32_t gyroX = (int32_t)(IMU_average.gyro[1] / 5);
+	x1 = 24;
+	w2 = 207;
+	if (gyroX < 0)
+	{
+		gyroX = abs((int)gyroX);
+		if ((gyroX) > 8)
+			gyroX = 8;
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7 + gyroX, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 8 - gyroX, false);
+	}
+	else if (gyroX > 0)
+	{
+		if ((gyroX) > 8)
+			gyroX = 8;
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7 + gyroX, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 8 - gyroX, false);
+	}
+	else
+	{
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7, false);
+	}
+
+	int32_t gyroZ = (int32_t)(IMU_average.gyro[2] / 5);
+	if (gyroZ > (DISPLAY_AERAS2_HEIGHT / 2))
+		gyroZ = (DISPLAY_AERAS2_HEIGHT / 2);
+	if (gyroZ < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
+		gyroZ = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+
+	w2 = 9;
+	x1 = 235 + 9;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + gyroZ, 15, false);
+	x1 = 235;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
+}
+
+void gui_displayOversampling()
 {
 	uint8_t textData[256] = {0};
 
 	ssd1362_fillRect(10, 10, 51, 30, 15, false);
 	ssd1362_drawRect(9, 9, 52, 31, 0, false);
 
-	if (shared_var.cis_oversampling < 10)
+	if (shared_config.cis_oversampling < 10)
 	{
-		sprintf((char *)textData, "OVS %d", (int)shared_var.cis_oversampling);
+		sprintf((char *)textData, "OVS %d", (int)shared_config.cis_oversampling);
 	}
 	else
 	{
-		sprintf((char *)textData, "OVS%d", (int)shared_var.cis_oversampling);
+		sprintf((char *)textData, "OVS%d", (int)shared_config.cis_oversampling);
 	}
 	ssd1362_drawString(12, 12, (int8_t *)textData, 0, 8);
 
@@ -117,206 +311,34 @@ void cis_DisplayOversampling()
 	ssd1362_drawString(12, 22, (int8_t*)textData, 0, 8);
 }
 
-int cisynth_Display(void)
+void gui_displayWaiting(void)
 {
-	uint8_t cis_rgb[3] = {0};
-	int32_t cis_color = 0;
-	int32_t i = 0;
-	int32_t y = 0;
-	float32_t packet, index;
-	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
-	int32_t pixel_intensity = 0;
-	float64_t angle = 0;
+	static uint32_t lastUpdateTime = 0; // Time of the last display update
+	static const uint32_t updateInterval = 1000; // Update display every 1 second
+	static int dotCount = 0;
+	static char waitMessage[20];
 
-	shared_var.cis_process_cnt = 0;
-	int32_t curr_tick = 0;
-	int32_t tick = 0;
-	int32_t old_process_cnt = shared_var.cis_process_cnt;
-
-	curr_tick = HAL_GetTick();
-
-	//printf("----- ETHERNET MODE START -----\n");
-	//printf("-------------------------------\n");
-
-	ssd1362_clearBuffer();
-	ssd1362_writeFullBuffer();
-
-	if (shared_var.cis_process_cnt == 0)
+	while (shared_var.cis_process_rdy != TRUE)
 	{
-		while (shared_var.cis_process_cnt == 0)
+		uint32_t currentTime = HAL_GetTick(); // Get current system tick
+
+		// Update display every second
+		if (currentTime - lastUpdateTime >= updateInterval)
 		{
-			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT.", 8, 10);
-			ssd1362_writeUpdates();
-			HAL_Delay(200);
-			if (shared_var.cis_process_cnt != 0)
-				break;
-			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT..", 8, 10);
-			ssd1362_writeUpdates();
-			HAL_Delay(200);
-			if (shared_var.cis_process_cnt != 0)
-				break;
-			ssd1362_drawString(76, 25, (int8_t *)"PLEASE WAIT...", 8, 10);
-			ssd1362_writeUpdates();
-			HAL_Delay(200);
+			lastUpdateTime = currentTime;
+			ssd1362_clearBuffer();
+			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT%.*s", dotCount + 1, "...");
+			ssd1362_drawString(76, 25, (int8_t *)waitMessage, 8, 10);
+			//ssd1362_writeUpdates();
+			ssd1362_writeFullBuffer();
+			dotCount = (dotCount + 1) % 3; // Cycle through 1, 2, 3 dots
 		}
-	}
-
-	/* Infinite loop */
-	while (1)
-	{
-
-		if ((shared_var.cis_process_cnt - old_process_cnt) > 50)
-		{
-			tick = HAL_GetTick();
-
-			shared_var.cis_freq = 1000000 / (((tick - curr_tick) * 1000) / (shared_var.cis_process_cnt - old_process_cnt));
-			curr_tick = tick;
-			old_process_cnt = shared_var.cis_process_cnt;
-		}
-
-		ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
-
-		// CIS DISPLAY
-		for (i = 0; i < (DISPLAY_WIDTH); i++)
-		{
-			packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1.0)/(DISPLAY_WIDTH - 1.0);
-
-			index = (packet - (uint32_t)packet) * (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
-
-			cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];
-			cis_rgb[1] = packet_Image[(uint32_t)packet].imageData_G[(uint32_t)index];
-			cis_rgb[2] = packet_Image[(uint32_t)packet].imageData_B[(uint32_t)index];
-
-			// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
-			// are weights given to the R, G, and B components respectively,
-			// according to the ITU-R BT.601 standard for converting color to grayscale.
-			// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
-			// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
-			// cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
-			cis_color = cis_rgb[0] + cis_rgb[1] + cis_rgb[2];
-
-			cis_color = cis_color < 0 ? 0 : cis_color > 765 ? 765 : cis_color;
-
-			angle = cis_color * (PI / 2) / 765.00;
-
-			for (y = 0; y < (DISPLAY_AERAS1_HEIGHT / 2); y++)
-			{
-				if (angle < (PI / 2))
-					pixel_intensity = tan(angle) * (y + 1);
-
-				pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
-
-				pixel_intensity = 15 - pixel_intensity;
-
-				// Draw a pixel above the center of the line for symmetry
-				ssd1362_drawPixel(i, line_Ypos + y, pixel_intensity, false);
-
-				// Draw a pixel below the center of the line for symmetry
-				ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
-			}
-		}
-
-		cisynth_interractiveMenu();
-
-		// IMU DISPLAY
-		static int32_t x1 = 0;
-		static int32_t w2 = 0;
-
-		update_IMU_average();
-
-		ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 1, false);
-		ssd1362_fillRect(24, DISPLAY_AERA2_Y1POS + 4, 231, DISPLAY_AERA2_Y2POS - 4, 5, false);
-		ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, 22, DISPLAY_AERA2_Y2POS, 5, false);
-		ssd1362_fillRect(DISPLAY_WIDTH - 1, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH - 1 - 22, DISPLAY_AERA2_Y2POS, 5, false);
-
-		//ACC Y
-		int32_t accY = (int32_t)(IMU_average.acc[0] * 50);
-		if (accY > (DISPLAY_AERAS2_HEIGHT / 2))
-			accY = (DISPLAY_AERAS2_HEIGHT / 2);
-		if (accY < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
-			accY = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
-
-		x1 = 2;
-		w2 = 18;
-		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + accY, 0, false);
-
-		//GYRO Y
-		int32_t gyroY = (int32_t)(IMU_average.gyro[0]);
-		if (gyroY > 103)
-			gyroY = 103;
-		if (gyroY < -103)
-			gyroY = -103;
-
-		x1 = DISPLAY_WIDTH / 2;
-		w2 = gyroY;
-
-		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 4, x1 + w2, DISPLAY_AERA2_Y2POS - 4, 13, false);
-
-		//ACC X and ACC Z
-		int32_t accZ = (int32_t)(IMU_average.acc[2] * 200);
-		const int32_t accZ_RectWith = 25;
-
-		if (accZ > accZ_RectWith)
-			accZ = accZ_RectWith;
-		if (accZ < (accZ_RectWith * -1))
-			accZ = accZ_RectWith * -1;
-
-		int32_t accX = (int32_t)(IMU_average.acc[1] * 200);
-		if (accX > 51)
-			accX = 51;
-		if (accX < -51)
-			accX = -51;
-
-		x1 = DISPLAY_WIDTH / 2 - accX;
-		w2 = accZ_RectWith - accZ;
-
-		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 5, x1 + w2, DISPLAY_AERA2_Y2POS - 5, 0, false);
-		ssd1362_fillRect(x1 - w2, DISPLAY_AERA2_Y1POS + 5, x1, DISPLAY_AERA2_Y2POS - 5, 0, false);
-
-		//GYRO X
-		int32_t gyroX = (int32_t)(IMU_average.gyro[1] / 5);
-		x1 = 24;
-		w2 = 207;
-		if (gyroX < 0)
-		{
-			gyroX = abs((int)gyroX);
-			if ((gyroX) > 8)
-				gyroX = 8;
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7 + gyroX, false);
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 8 - gyroX, false);
-		}
-		else if (gyroX > 0)
-		{
-			if ((gyroX) > 8)
-				gyroX = 8;
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7 + gyroX, false);
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 8 - gyroX, false);
-		}
-		else
-		{
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7, false);
-			ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7, false);
-		}
-
-		int32_t gyroZ = (int32_t)(IMU_average.gyro[2] / 5);
-		if (gyroZ > (DISPLAY_AERAS2_HEIGHT / 2))
-			gyroZ = (DISPLAY_AERAS2_HEIGHT / 2);
-		if (gyroZ < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
-			gyroZ = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
-
-		w2 = 9;
-		x1 = 235 + 9;
-		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + gyroZ, 15, false);
-		x1 = 235;
-		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
-
-		ssd1362_writeUpdates();
 	}
 }
 
-void cis_StartCalibration()
+void gui_startCalibration()
 {
-	uint8_t textData[256] = {0};
+	//uint8_t textData[256] = {0};
 	shared_var.cis_cal_state = CIS_CAL_START;
 
 #ifdef POLYNOMIAL_CALIBRATION
@@ -368,6 +390,8 @@ void cis_StartCalibration()
 			{
 				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT, BANNER_BACKGROUND_COLOR, false);
 			}
+
+#if 0
 			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
 			{
 				int32_t cis_color = (int32_t)(cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
@@ -376,6 +400,8 @@ void cis_StartCalibration()
 				cis_color = (int32_t)(cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
 				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color -1, 8, false);
 			}
+#endif
+
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_BLACK);
 			break;
@@ -385,6 +411,7 @@ void cis_StartCalibration()
 			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" EXTRACT EXTREMUMS AND DELTAS ", 0xF, 8);
 			ssd1362_writeFullBuffer();
 
+#if 0
 			//			uint8_t textData[256] = {0};
 			sprintf((char *)textData, "WH MIN R%d G%d B%d", (int)cisCals.whiteCal.red.minPix, (int)cisCals.whiteCal.green.minPix, (int)cisCals.whiteCal.blue.minPix);
 			ssd1362_drawString(0, 10, (int8_t*)textData, 15, 8);
@@ -399,6 +426,7 @@ void cis_StartCalibration()
 			ssd1362_drawString(0, 46, (int8_t*)textData, 15, 8);
 			sprintf((char *)textData, "BL DLT R%d G%d B%d", (int)cisCals.blackCal.red.deltaPix, (int)cisCals.blackCal.green.deltaPix, (int)cisCals.blackCal.blue.deltaPix);
 			ssd1362_drawString(0, 55, (int8_t*)textData, 15, 8);
+#endif
 
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_EXTREMUMS);
@@ -438,12 +466,12 @@ void cis_StartCalibration()
 	}
 }
 
-void cis_ChangeScanDir()
+void gui_changeHand()
 {
-	ssd1362_screenRotation(shared_var.cis_scanDir);
+	ssd1362_screenRotation(shared_config.cis_handedness);
 }
 
-void cisynth_interractiveMenu()
+void gui_interractiveMenu()
 {
 	static uint32_t button_tick = 0;
 	static uint8_t clear_button = 0;
@@ -453,28 +481,27 @@ void cisynth_interractiveMenu()
 
 	if (shared_var.cis_cal_state == CIS_CAL_REQUESTED)
 	{
-		cis_StartCalibration();
+		gui_startCalibration();
 	}
 
-    if (shared_var.cis_oversampling != oldOversampling)
-    {
-        start_tick = HAL_GetTick();
-        oldOversampling = shared_var.cis_oversampling;
-    }
-    if ((HAL_GetTick() - start_tick) < 3000)
-    {
-        cis_DisplayOversampling();
-    }
-
-	if (shared_var.cis_scanDir != oldScanDir)
+	if (shared_config.cis_oversampling != oldOversampling)
 	{
-		cis_ChangeScanDir();
-		oldScanDir = shared_var.cis_scanDir;
+		start_tick = HAL_GetTick();
+		oldOversampling = shared_config.cis_oversampling;
+	}
+	if ((HAL_GetTick() - start_tick) < 3000)
+	{
+		gui_displayOversampling();
+	}
+
+	if (shared_config.cis_handedness != oldScanDir)
+	{
+		gui_changeHand();
+		oldScanDir = shared_config.cis_handedness;
 	}
 
 	if (shared_var.buttonState[SW1] == SWITCH_PRESSED)
 	{
-		//ssd1362_fillRect(0 + 10, 60, 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW1] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
@@ -482,7 +509,6 @@ void cisynth_interractiveMenu()
 	}
 	if (shared_var.buttonState[SW2] == SWITCH_PRESSED)
 	{
-		//ssd1362_fillRect(56 + 10, 60, 56 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW2] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
@@ -490,14 +516,13 @@ void cisynth_interractiveMenu()
 	}
 	if (shared_var.buttonState[SW3] == SWITCH_PRESSED)
 	{
-		//ssd1362_fillRect(56 * 2 + 10, 60, 56 * 2 + 10 + 10, 54, 0x0F, false);
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW3] = SWITCH_RELEASED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
 
-	if (HAL_GetTick() > (button_tick + BUTTON_DELAY) && clear_button != 1)
+	if (HAL_GetTick() > (button_tick + shared_config.ui_button_delay) && clear_button != 1)
 	{
 		clear_button = 1;
 

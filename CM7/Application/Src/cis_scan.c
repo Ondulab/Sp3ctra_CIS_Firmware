@@ -20,6 +20,7 @@
 
 #include "lwip.h"
 
+#include "basetypes.h"
 #include "shared.h"
 #include "config.h"
 
@@ -66,15 +67,24 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
  */
 void cis_scanInit(void)
 {
-	printf("----- ETHERNET MODE START -----\n");
+	printf("----- CIS INITIALIZATIONS -----\n");
+	                                          //
 
 	udp_clientInit();
 
 	cis_init();
 
-	shared_var.cis_cal_state = CIS_CAL_END;
+	memset((uint32_t *)&packet_Image, 0, sizeof(packet_Image));
+	SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
+	shared_var.cis_process_cnt = 0;
+    shared_var.cis_process_rdy = TRUE;
 
-    xTaskCreate(cis_scanThread, "cis_thread", 32768, NULL, osPriorityHigh, &cis_scanThreadHandle);
+    if (xTaskCreate(cis_scanThread, "cis_thread", 32768, NULL, osPriorityHigh, &cis_scanThreadHandle) == pdPASS) {
+        printf("CIS task created successfully.\n");
+    } else {
+        printf("Failed to create CIS task.\n");
+        Error_Handler();
+    }
 
 	HAL_TIM_Base_Start_IT(&htim6);
 }
@@ -86,6 +96,8 @@ void cis_scanInit(void)
  */
 static void cis_scanThread(void *arg)
 {
+	printf("------ CIS THREAD SARTED ------\n");
+	                                          //
 
 #if 0
 	HAL_Delay(1000);
@@ -98,8 +110,10 @@ static void cis_scanThread(void *arg)
 	{
 	    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-		if (shared_var.cis_cal_state == CIS_CAL_START)
+		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
+			printf("CIS calibration state = %d\n", (int)shared_var.cis_cal_state);
+			while (shared_var.cis_cal_state != CIS_CAL_START);
 #ifdef POLYNOMIAL_CALIBRATION
 			cis_StartCalibration(20); //WIP
 #else

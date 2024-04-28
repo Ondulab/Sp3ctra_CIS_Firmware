@@ -25,7 +25,7 @@
 
 #include "arm_math.h"
 
-#include "stm32_flash.h"
+#include "file_manager.h"
 #include "cis.h"
 
 #include "cis_linearCal.h"
@@ -33,6 +33,21 @@
 /* Private includes ----------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
+__attribute__ ((packed))
+struct cisColorsParams {
+	float32_t maxPix;
+	float32_t minPix;
+	float32_t deltaPix;
+	float32_t inactiveAvrgPix[3];
+};
+
+__attribute__ ((packed))
+struct cisCalsTypes {
+	float32_t data[CIS_ADC_BUFF_SIZE * 3];
+	struct cisColorsParams red;
+	struct cisColorsParams green;
+	struct cisColorsParams blue;
+};
 
 /* Private define ------------------------------------------------------------*/
 
@@ -43,15 +58,34 @@
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
 static void cis_computeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDef color);
-static void cis_computeCalsOffsets(CIS_Color_TypeDef color);
-static void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue);
+static void cis_computeCalsOffsets(struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color);
+static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color);
 
 /* Private user code ---------------------------------------------------------*/
 
-void cis_LinearCalibrationInit()
+void cis_linearCalibrationInit()
 {
-	stm32_flashCalibrationRW(CIS_READ_CAL);
+    FIL file;              // File object for FatFs
+    FRESULT fres;          // Variable to store the result of FatFs operations
+
+    // Attempt to open the calibration file in read mode
+    fres = f_open(&file, CALIBRATION_FILE_PATH, FA_READ);
+
+    if (fres == FR_OK)
+    {
+        // The file exists and has been opened successfully
+        file_readCisCals(CALIBRATION_FILE_PATH, &cisCals);
+        f_close(&file);  // Close the file after reading
+        shared_var.cis_cal_state = CIS_CAL_END;  // No calibration requested
+    }
+    else
+    {
+        // The file does not exist or another file opening error occurred
+        printf("Calibration file not found, requesting new calibration.\n");
+        shared_var.cis_cal_state = CIS_CAL_REQUESTED;  // Request new calibration
+    }
 }
 
 #pragma GCC push_options
@@ -67,28 +101,9 @@ void cis_applyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue
 		dataOffset_Gx = (CIS_ADC_BUFF_SIZE * lane) + CIS_GREEN_LANE_OFFSET;									//Gx
 		dataOffset_Bx = (CIS_ADC_BUFF_SIZE * lane) + CIS_BLUE_LANE_OFFSET;									//Bx
 
-		//offset compensation
-		/*
-		static float32_t tmpImmactiveAvrg_R = 0.0;
-		static float32_t tmpImmactiveAvrg_G = 0.0;
-		static float32_t tmpImmactiveAvrg_B = 0.0;
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Rx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_R);
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Gx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_G);
-		arm_mean_f32(&cisDataCpy_f32[dataOffset_Bx - CIS_INACTIVE_WIDTH], CIS_INACTIVE_WIDTH, &tmpImmactiveAvrg_B);
-
-		tmpImmactiveAvrg_R -= cisCals.whiteCal.red.inactiveAvrgPix[lane];
-		tmpImmactiveAvrg_G -= cisCals.whiteCal.green.inactiveAvrgPix[lane];
-		tmpImmactiveAvrg_B -= cisCals.whiteCal.blue.inactiveAvrgPix[lane];
-
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Rx], tmpImmactiveAvrg_R, &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LINE);
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Gx], tmpImmactiveAvrg_G, &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LINE);
-		arm_offset_f32(&cisDataCpy_f32[dataOffset_Bx], tmpImmactiveAvrg_B, &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LINE);
-		 */
-		//end offset compensation
-
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.blackCal.data[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LANE);
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.blackCal.data[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
-		arm_sub_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.blackCal.data[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.offsetData[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LANE);
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.offsetData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
+		arm_sub_f32(&cisDataCpy_f32[dataOffset_Bx], &cisCals.offsetData[dataOffset_Bx], &cisDataCpy_f32[dataOffset_Bx], CIS_PIXELS_PER_LANE);
 
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Rx], &cisCals.gainsData[dataOffset_Rx], &cisDataCpy_f32[dataOffset_Rx], CIS_PIXELS_PER_LANE);
 		arm_mult_f32(&cisDataCpy_f32[dataOffset_Gx], &cisCals.gainsData[dataOffset_Gx], &cisDataCpy_f32[dataOffset_Gx], CIS_PIXELS_PER_LANE);
@@ -208,23 +223,23 @@ void cis_computeCalsExtremums(struct cisCalsTypes *currCisCals, CIS_Color_TypeDe
  * @param  current color calibration
  * @retval None
  */
-void cis_computeCalsOffsets(CIS_Color_TypeDef color)
+void cis_computeCalsOffsets(struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color)
 {
 	uint32_t laneOffset = 0, offset = 0;
-	struct cisColorsParams *currColor;
+	//struct cisColorsParams *currColor;
 
 	switch (color)
 	{
 	case CIS_RED :
-		currColor = &cisCals.blackCal.red;
+		//currColor = &blackCal->red;
 		offset = CIS_RED_LANE_OFFSET;
 		break;
 	case CIS_GREEN :
-		currColor = &cisCals.blackCal.green;
+		//currColor = &blackCal->green;
 		offset = CIS_GREEN_LANE_OFFSET;
 		break;
 	case CIS_BLUE :
-		currColor = &cisCals.blackCal.blue;
+		//currColor = &blackCal->blue;
 		offset = CIS_BLUE_LANE_OFFSET;
 		break;
 	default :
@@ -239,7 +254,8 @@ void cis_computeCalsOffsets(CIS_Color_TypeDef color)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-			cisCals.offsetData[laneOffset + i] = currColor->maxPix - cisCals.blackCal.data[laneOffset + i];
+			//cisCals.offsetData[laneOffset + i] = currColor->maxPix - cisCals.blackCal.data[laneOffset + i];
+			cisCals.offsetData[laneOffset + i] = blackCal->data[laneOffset + i];
 		}
 	}
 }
@@ -249,7 +265,7 @@ void cis_computeCalsOffsets(CIS_Color_TypeDef color)
  * @param  current color calibration
  * @retval None
  */
-void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
+void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color)
 {
 	uint32_t laneOffset = 0, offset;
 
@@ -276,7 +292,7 @@ void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
 		// Extract differential offsets
 		for (int32_t i = CIS_PIXELS_NB / CIS_ADC_OUT_LANES; --i >= 0;)
 		{
-			cisCals.gainsData[laneOffset + i] = (float32_t)(maxADCValue) / (float32_t)(cisCals.whiteCal.data[laneOffset + i] - cisCals.blackCal.data[laneOffset + i]);
+			cisCals.gainsData[laneOffset + i] = (float32_t)(maxADCValue) / (float32_t)(whiteCal->data[laneOffset + i] - blackCal->data[laneOffset + i]);
 		}
 	}
 }
@@ -289,8 +305,14 @@ void cis_computeCalsGains(CIS_Color_TypeDef color, uint32_t maxADCValue)
 void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 {
 	/* Set header description */
-	printf("------ START CALIBRATION ------\n");
+	printf("--- CIS CALIBRATION STARTED ---\n");
+	                                          //
 
+	struct cisCalsTypes blackCal;
+	struct cisCalsTypes whiteCal;
+
+	memset(&blackCal, 0, sizeof(blackCal));
+	memset(&whiteCal, 0, sizeof(whiteCal));
 	memset(&cisCals, 0, sizeof(cisCals));
 
 	/*-------- 1 --------*/
@@ -300,7 +322,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
 	HAL_Delay(200);
 
-	cis_imageProcessRGB_Calibration(cisCals.whiteCal.data, iterationNb);
+	cis_imageProcessRGB_Calibration(whiteCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 
 	HAL_Delay(200);
@@ -309,7 +331,8 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_ledPowerAdj(1, 1, 1);
 	HAL_Delay(20);
 
-	cis_imageProcessRGB_Calibration(cisCals.blackCal.data, iterationNb);
+	cis_imageProcessRGB_Calibration(blackCal.data, iterationNb);
+
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_ledPowerAdj(100, 100, 100);
 	HAL_Delay(500);
@@ -317,14 +340,14 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	printf("------- LOAD CALIBRATION ------\n");
 	/*-------- 1 --------*/
 	// Extrat Min Max and delta
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_RED);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_RED);
+	cis_ComputeCalsInactivesAvrg(&blackCal, CIS_RED);
+	cis_ComputeCalsInactivesAvrg(&whiteCal, CIS_RED);
 
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_GREEN);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_GREEN);
+	cis_ComputeCalsInactivesAvrg(&blackCal, CIS_GREEN);
+	cis_ComputeCalsInactivesAvrg(&whiteCal, CIS_GREEN);
 
-	cis_ComputeCalsInactivesAvrg(&cisCals.blackCal, CIS_BLUE);
-	cis_ComputeCalsInactivesAvrg(&cisCals.whiteCal, CIS_BLUE);
+	cis_ComputeCalsInactivesAvrg(&blackCal, CIS_BLUE);
+	cis_ComputeCalsInactivesAvrg(&whiteCal, CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
@@ -332,14 +355,14 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 2 --------*/
 	// Extrat Min Max and delta
-	cis_computeCalsExtremums(&cisCals.blackCal, CIS_RED);
-	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_RED);
+	cis_computeCalsExtremums(&blackCal, CIS_RED);
+	cis_computeCalsExtremums(&whiteCal, CIS_RED);
 
-	cis_computeCalsExtremums(&cisCals.blackCal, CIS_GREEN);
-	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_GREEN);
+	cis_computeCalsExtremums(&blackCal, CIS_GREEN);
+	cis_computeCalsExtremums(&whiteCal, CIS_GREEN);
 
-	cis_computeCalsExtremums(&cisCals.blackCal, CIS_BLUE);
-	cis_computeCalsExtremums(&cisCals.whiteCal, CIS_BLUE);
+	cis_computeCalsExtremums(&blackCal, CIS_BLUE);
+	cis_computeCalsExtremums(&whiteCal, CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
@@ -347,9 +370,9 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
-	cis_computeCalsOffsets(CIS_RED);
-	cis_computeCalsOffsets(CIS_GREEN);
-	cis_computeCalsOffsets(CIS_BLUE);
+	cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_RED);
+	cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_GREEN);
+	cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
@@ -357,9 +380,9 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	/*-------- 4 --------*/
 	// Compute gains
-	cis_computeCalsGains(CIS_RED, bitDepth);
-	cis_computeCalsGains(CIS_GREEN, bitDepth);
-	cis_computeCalsGains(CIS_BLUE, bitDepth);
+	cis_computeCalsGains(bitDepth, &whiteCal, &blackCal, CIS_RED);
+	cis_computeCalsGains( bitDepth, &whiteCal, &blackCal, CIS_GREEN);
+	cis_computeCalsGains( bitDepth, &whiteCal, &blackCal, CIS_BLUE);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
@@ -374,7 +397,8 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_stopCapture();
-	stm32_flashCalibrationRW(CIS_WRITE_CAL);
+	//stm32_flashCalibrationRW(CIS_WRITE_CAL);
+	file_writeCisCals(CALIBRATION_FILE_PATH, &cisCals);
 	cis_startCapture();
 	shared_var.cis_cal_state = CIS_CAL_END;
 	printf("-------------------------------\n");

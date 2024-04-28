@@ -1379,6 +1379,8 @@ static err_t ftpd_msgaccept(void *arg, struct tcp_pcb *pcb, err_t err)
 
 void ftpd_init(void)
 {
+	printf("----- FTP INITIALIZATIONS -----\n");
+	                                          //
 	struct tcp_pcb *pcb;
 
 	vfs_load_plugin(vfs_default_fs);

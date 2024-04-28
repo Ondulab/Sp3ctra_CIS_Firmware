@@ -48,6 +48,9 @@ void MX_TIM1_Init(void)
 
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
+    uint32_t CLK_DIVIDER = ((200000000) / shared_config.cis_clk_freq);
+    //uint32_t CLK_DIVIDER = ((50000000) / shared_config.cis_clk_freq)
+
 	prescalerValue = 0;
 	counterPeriod = (CLK_DIVIDER) - 1;
 	pulseValueCH2 = (CLK_DIVIDER / 2) - 1; //CLK OUT Ton 0.1ms
@@ -324,7 +327,7 @@ void MX_TIM6_Init(void)
   /* USER CODE BEGIN TIM6_Init 1 */
 	uint32_t prescalerValue, counterPeriod;
 
-	prescalerValue = (uint32_t)(((SystemCoreClock / 100) / (CIS_FREQ)) - 1);
+	prescalerValue = (uint32_t)(((SystemCoreClock / 100) / (shared_config.cis_clk_freq)) - 1);
 	counterPeriod = 50 - 1;
 
   /* USER CODE END TIM6_Init 1 */

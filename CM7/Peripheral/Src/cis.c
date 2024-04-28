@@ -74,7 +74,8 @@ void cis_init()
 
 	printf("CIS END CAPTURE = %d\n", CIS_LANE_SIZE);
 
-	stm32_flashCalibrationRW(CIS_READ_CAL);
+	//stm32_flashCalibrationRW(CIS_READ_CAL);
+	cis_linearCalibrationInit();
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
@@ -262,7 +263,7 @@ void cis_imageProcess_2(int32_t *cis_buff)
 	static struct RAWImage RAWImage = {0};
 	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
 
-	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
+	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
 	cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
 	cis_applyCalibration(&RAWImage, &rgbCalibration);
 	cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
@@ -303,7 +304,7 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 {
 	static int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
 
-	cis_getRAWImage(cisDataCpy_f32, shared_var.cis_oversampling);
+	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
 
 	cis_applyLinearCalibration(cisDataCpy_f32, 255);
 
@@ -311,7 +312,7 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 	{
 		lane = packet / (UDP_NB_PACKET_PER_LINE / CIS_ADC_OUT_LANES);
 
-		if (shared_var.cis_scanDir)
+		if (shared_config.cis_handedness)
 		{
 			startIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane) - 1;
 			endIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);

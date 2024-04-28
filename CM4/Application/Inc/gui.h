@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : cisynth_Display.h
+ * @file           : gui.h
  ******************************************************************************
  * @attention
  *
@@ -14,13 +14,13 @@
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __CISYNTH_DISPLAY_H
-#define __CISYNTH_DISPLAY_H
+#ifndef __GUI_H
+#define __GUI_H
 
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
 
-int cisynth_Display(void);
+int gui_mainLoop(void);
 
-#endif /* __CISYNTH_DISPLAY_H */
+#endif /* __GUI_H */

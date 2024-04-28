@@ -18,7 +18,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <cisynth_Display.h>
+#include <gui.h>
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
@@ -137,9 +137,7 @@ int main(void)
 	}
 #endif
 
-	//icm42688_init();
-
-	cisynth_Display();
+	gui_mainLoop();
 
   /* USER CODE END 2 */
 

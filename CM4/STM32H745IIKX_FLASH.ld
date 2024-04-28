@@ -45,7 +45,7 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 MEMORY
 {
   FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
-  RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 256K
+  RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
 }
@@ -121,6 +121,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP (*(.shared_var));  
+    KEEP (*(.shared_config));
     . = ALIGN(4); 
   } >RAM_SHARED
   

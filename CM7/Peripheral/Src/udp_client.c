@@ -55,6 +55,9 @@ static void udp_clientSendData(void *data, uint16_t length);
 
 void udp_clientInit(void)
 {
+	printf("-------- CIS UDP INIT ---------\n");
+	                                          //
+
 	ip_addr_t DestIPaddr;
 	err_t err;
 
@@ -66,15 +69,21 @@ void udp_clientInit(void)
 	if (upcb!=NULL)
 	{
 		/*assign destination IP address */
-		IP4_ADDR( &DestIPaddr, DEST_IP_ADDR0, DEST_IP_ADDR1, DEST_IP_ADDR2, DEST_IP_ADDR3 );
+		IP4_ADDR( &DestIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3]);
 
 		/* configure destination IP address and port */
-		err= udp_connect(upcb, &DestIPaddr, UDP_SERVER_PORT);
+		err = udp_connect(upcb, &DestIPaddr, shared_config.network_udp_port);
 
 		if (err == ERR_OK)
 		{
 			/* Set a receive callback for the upcb */
 			udp_recv(upcb, udp_clientReceiveCallback, NULL);
+			printf("CIS UDP initialization SUCCESS\n");
+		}
+		else
+		{
+			printf("failed to initialize CIS UDP \n");
+			Error_Handler();
 		}
 	}
 

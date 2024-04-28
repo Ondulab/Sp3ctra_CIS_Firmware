@@ -153,6 +153,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP (*(.shared_var));  
+    KEEP (*(.shared_config));
     . = ALIGN(4); 
   } >RAM_SHARED
   

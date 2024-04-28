@@ -23,7 +23,11 @@
 #include <stdio.h>
 #include "cmsis_os.h"
 
+#include "file_manager.h"
+
 #include "shared.h"
+
+TaskHandle_t http_ThreadHandle = NULL;
 
 char colour;
 int indx = 0;
@@ -82,7 +86,7 @@ static void http_server(struct netconn *conn)
 			else if (strncmp((char const *)buf, "GET /getDPI", 11) == 0)
 			{
 			    char response[100];
-			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_dpi);
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_dpi);
 
 			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
@@ -93,10 +97,12 @@ static void http_server(struct netconn *conn)
 			    char *dpiValue = strstr(buf, "dpi=") + 4;  // Point to the first character of the value
 
 			    if (dpiValue) {
-			        shared_var.cis_dpi = atoi(dpiValue);
+			         shared_config.cis_dpi = atoi(dpiValue);
+				     shared_config.cis_dpi  = shared_config.cis_dpi  < 200 ? 200 : shared_config.cis_dpi  > 200 ? 400 : shared_config.cis_dpi ;
+				     file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
 			        char response[100];
-			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_dpi);
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
 			        netconn_write(conn, response, len, NETCONN_COPY);
 			    } else {
 			        char *errorResponse = "Error: DPI value not found";
@@ -108,7 +114,7 @@ static void http_server(struct netconn *conn)
 			else if (strncmp((char const *)buf, "GET /getOversampling", 20) == 0)
 			{
 			    char response[100];
-			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_oversampling);
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_oversampling);
 
 			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
@@ -119,10 +125,12 @@ static void http_server(struct netconn *conn)
 			    char *oversamplingValue = strstr(buf, "oversampling=") + 13;
 
 			    if (oversamplingValue) {
-			        shared_var.cis_oversampling = atoi(oversamplingValue);
+			        shared_config.cis_oversampling = atoi(oversamplingValue);
+			        shared_config.cis_oversampling  = shared_config.cis_oversampling  < 0 ? 0 : shared_config.cis_oversampling  > 32 ? 32 : shared_config.cis_oversampling ;
+			        file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
 			        char response[100];
-			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOversampling set to %d", (int)shared_var.cis_oversampling);
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOversampling set to %d", (int)shared_config.cis_oversampling);
 			        netconn_write(conn, response, len, NETCONN_COPY);
 			    } else {
 			        char *errorResponse = "Error: Oversampling value not found";
@@ -134,7 +142,7 @@ static void http_server(struct netconn *conn)
 			else if (strncmp((char const *)buf, "GET /getHand", 12) == 0)
 			{
 			    char response[100];
-			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_scanDir);
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_handedness);
 
 			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
@@ -145,11 +153,12 @@ static void http_server(struct netconn *conn)
 			    char *handValue = strstr(buf, "hand=") + 5;
 
 			    if (handValue) {
-			        shared_var.cis_scanDir = atoi(handValue);
-			        shared_var.cis_scanDir = shared_var.cis_scanDir < 0 ? 0 : shared_var.cis_scanDir > 1 ? 1 : shared_var.cis_scanDir;
+			        shared_config.cis_handedness = atoi(handValue);
+			        shared_config.cis_handedness =  shared_config.cis_handedness < 0 ? 0 :  shared_config.cis_handedness > 1 ? 1 :  shared_config.cis_handedness;
+			        file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
 			        char response[100];
-			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_scanDir);
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_handedness);
 			        netconn_write(conn, response, len, NETCONN_COPY);
 			    } else {
 			        char *errorResponse = "Error: Hand value not found";
@@ -187,6 +196,9 @@ static void http_server(struct netconn *conn)
 
 static void http_thread(void *arg)
 {
+	printf("----- HTTP THREAD SARTED ------\n");
+	                                          //
+
 	struct netconn *conn, *newconn;
 	err_t err, accept_err;
 
@@ -223,5 +235,11 @@ static void http_thread(void *arg)
 
 void http_serverInit()
 {
-	sys_thread_new("http_thread", http_thread, NULL, 2048, osPriorityNormal);
+	printf("----- HTTP INITIALIZATIONS ----\n");
+	                                          //
+    if (xTaskCreate(http_thread, "http_thread", 2048, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS) {
+        printf("http task created successfully.\n");
+    } else {
+        printf("Failed to create http task.\n");
+    }
 }

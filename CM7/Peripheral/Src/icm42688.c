@@ -6,9 +6,9 @@
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
@@ -105,6 +105,9 @@ float icm42688_temp()
 /* starts communication with the ICM42688 */
 int icm42688_init()
 {
+	printf("----- IMU INITIALIZATIONS -----\n");
+										      //
+
 	icm42688_FIFO.enFifoAccel = false;
 	icm42688_FIFO.enFifoGyro = false;
 	icm42688_FIFO.enFifoTemp = false;
@@ -134,25 +137,42 @@ int icm42688_init()
 	// check the WHO AM I byte
 	if(icm42688_whoAmI() != WHO_AM_I)
 	{
+		printf("failed to reset IMU\n");
+		Error_Handler();
 		return -3;
 	}
 
 	// turn on accel and gyro in Low Noise (LN) Mode
 	if(icm42688_writeRegister(UB0_REG_PWR_MGMT0, 0x0F) < 0)
 	{
+		printf("failed to turn on IMU\n");
+		Error_Handler();
 		return -4;
 	}
 
 	// 16G is default -- do this to set up accel resolution scaling
 	int ret = icm42688_setAccelFS(gpm16);
-	if (ret < 0) return ret;
+	if (ret < 0)
+	{
+		printf("failed to set ACC FS IMU\n");
+		Error_Handler();
+		return ret;
+	}
 
 	// 2000DPS is default -- do this to set up gyro resolution scaling
 	ret = icm42688_setGyroFS(dps500);
-	if (ret < 0) return ret;
+	if (ret < 0)
+	{
+		printf("failed to set GYRO FS IMU\n");
+		Error_Handler();
+		return ret;
+	}
 
 	// disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-	if (icm42688_setFilters(false, false) < 0) {
+	if (icm42688_setFilters(false, false) < 0)
+	{
+		printf("failed to set filters IMU\n");
+		Error_Handler();
 		return -7;
 	}
 
@@ -160,16 +180,21 @@ int icm42688_init()
 
 	// estimate gyro bias
 	if (icm42688_calibrateGyro() < 0) {
+		printf("failed to calibrate GYRO IMU\n");
+		Error_Handler();
 		return -8;
 	}
 
 	// estimate acc bias
 	if (icm42688_calibrateAccel() < 0) {
+		printf("failed to calibrate ACC IMU\n");
+		Error_Handler();
 		return -9;
 	}
 
 	IMU_State = IMU_INIT_OK;
 	// successful init, return 1
+	printf("IMU initialization SUCCESS\n");
 	return 1;
 }
 

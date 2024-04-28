@@ -34,7 +34,10 @@
 #pragma GCC optimize ("O0")
 
 __attribute__ ((section(".shared_var")))
-volatile struct shared_var shared_var = {0};
+struct shared_var shared_var = {0};
+
+__attribute__ ((section(".shared_config")))
+struct shared_config shared_config = {0};
 
 __attribute__ ((section(".cisCals")))
 struct cisCals cisCals = {0};

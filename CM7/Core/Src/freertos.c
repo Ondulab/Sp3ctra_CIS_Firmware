@@ -28,10 +28,8 @@
 /* USER CODE BEGIN Includes */
 #include "lwip.h"
 #include "cis_scan.h"
-
-#include "ff.h" // FATFS include
-#include "diskio.h" // DiskIO include
-
+#include "icm42688.h"
+#include "file_manager.h"
 #include "ftpd.h"
 
 /* USER CODE END Includes */
@@ -43,7 +41,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define WORKING_BUFFER_SIZE (2 * _MAX_SS)  // Dépend de votre configuration et besoins
 
 //uint32_t defaultTaskBuffer[256] __attribute__((section(".dtcm")));
 
@@ -56,7 +53,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-FATFS FatFs; // Variable pour le volume de travail FATFS
 
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
@@ -134,68 +130,18 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+
+	file_initConfig(&shared_config);
+
+	icm42688_init();
+
 	MX_LWIP_Init();
-
-	FRESULT fres; // Variable to store the result of FATFS operations
-
-	// Attempt to mount the file system
-	fres = f_mount(&FatFs, "0:", 1); // 1 to mount immediately
-	if (fres != FR_OK)
-	{
-	    printf("FS mount ERROR\n");
-
-	    // If mounting fails, try to format the QSPI flash
-	    printf("Attempting to format the QSPI flash...\n");
-
-	    BYTE work[WORKING_BUFFER_SIZE]; // Static allocation to simplify
-
-	    fres = f_mkfs("0:", FM_ANY, 0, work, WORKING_BUFFER_SIZE);
-	    if (fres != FR_OK)
-	    {
-	        printf("Failed to format the QSPI flash.\n");
-	    }
-
-	    // Try to mount the file system again after formatting
-	    fres = f_mount(&FatFs, "0:", 1);
-	    if (fres != FR_OK)
-	    {
-	        printf("Failed to mount the filesystem even after formatting.\n");
-	    } else
-	    {
-	        printf("FS mount SUCCESS after formatting.\n");
-	    }
-	}
-	else
-	{
-	    printf("FS mount SUCCESS\n");
-	}
-
-#if 0
-	FIL fil; // Variable de fichier
-	UINT bw; // Variable pour compter les octets écrits
-
-	// Créer un fichier et l'ouvrir
-	fres = f_open(&fil, "test4.txt", FA_CREATE_ALWAYS | FA_WRITE);
-	if (fres == FR_OK) {
-		// Écrire quelque chose dans le fichier
-		fres = f_write(&fil, "Hello, World!\n", 14, &bw);
-		if (fres == FR_OK) {
-			// Données écrites avec succès
-		} else {
-			// Échec de l'écriture
-		}
-		// Fermer le fichier
-		f_close(&fil);
-	} else {
-		// Échec de l'ouverture du fichier
-	}
-#endif
-
-	cis_scanInit();
 
 	ftpd_init();
 
 	http_serverInit();
+
+	cis_scanInit();
 
 	/* Infinite loop */
 	for(;;)

@@ -38,8 +38,8 @@
 #include "config.h"
 #include "shared.h"
 
+#include "basetypes.h"
 #include "icm42688.h"
-
 #include "cis_scan.h"
 
 #include "MXIC.h"
@@ -166,18 +166,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	printf("-------------------------------\n");
-	printf("|           CIS START         |\n");
+	printf("|         CISYNTH START       |\n");
 	printf("-------------------------------\n");
 
-	shared_var.cis_oversampling = 8; //todo use flash to storage default parameters
-	shared_var.cis_scanDir = 1;
-	shared_var.cis_dpi = 200;
+	shared_var.cis_process_rdy = FALSE;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
-	if (icm42688_init() != 1)
-		Error_Handler();
+	HAL_Delay(100);
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-	HAL_Delay(20);
 
 
 	//MX25test();

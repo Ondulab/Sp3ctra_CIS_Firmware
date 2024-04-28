@@ -118,46 +118,44 @@ typedef enum
 }CIS_Calibration_StateTypeDef;
 
 __attribute__ ((packed))
-struct cisColorsParams {
-	float32_t maxPix;
-	float32_t minPix;
-	float32_t deltaPix;
-	float32_t inactiveAvrgPix[3];
-};
-
-__attribute__ ((packed))
-struct cisCalsTypes {
-	float32_t data[CIS_ADC_BUFF_SIZE * 3];
-	struct cisColorsParams red;
-	struct cisColorsParams green;
-	struct cisColorsParams blue;
-};
-
-__attribute__ ((packed))
 struct cisCals {
-	struct cisCalsTypes blackCal;
-	struct cisCalsTypes whiteCal;
 	float32_t offsetData[CIS_ADC_BUFF_SIZE * 3];
 	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
 };
 
 struct shared_var {
+	int32_t cis_process_rdy;
 	int32_t cis_process_cnt;
 	int32_t cis_freq;
 	int32_t cis_cal_request;
 	uint32_t cis_cal_progressbar;
-	uint32_t cis_oversampling;
-	uint32_t cis_scanDir;
-	uint32_t cis_dpi;
 	CIS_Calibration_StateTypeDef cis_cal_state;
 	buttonStateTypeDef  buttonState[3];
+};
+
+struct shared_config
+{
+    uint32_t ui_button_delay;
+    uint16_t network_udp_port;
+    uint8_t network_ip[4];
+    uint8_t network_netmask[4];
+    uint8_t network_gw[4];
+    uint8_t cis_print_calibration;
+    uint8_t cis_raw;
+    uint16_t cis_dpi;
+    uint8_t cis_monochrome;
+    uint16_t cis_max_line_freq;
+    uint32_t cis_clk_freq;
+    uint8_t cis_oversampling;
+    uint8_t cis_handedness;
 };
 
 /**************************************************************************************/
 /******************                  CM4 and CM7                    *******************/
 /**************************************************************************************/
 
-extern volatile struct shared_var shared_var;
+extern struct shared_var shared_var;
+extern struct shared_config shared_config;
 extern struct params params;
 extern struct cisCals cisCals;
 extern int32_t imageData[CIS_PIXELS_NB];

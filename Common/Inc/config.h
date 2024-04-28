@@ -50,7 +50,6 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-//#define PRINT_CIS_CALIBRATION
 //#define SKIP_SPLASH
 //#define ETHERNET_OFF
 //#define CIS_DESACTIVATE_CALIBRATION
@@ -78,8 +77,6 @@
 #define DISPLAY_AERA2_Y1POS			(DISPLAY_AERA1_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
 #define DISPLAY_AERA2_Y2POS			(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
 
-#define BUTTON_DELAY				(500)
-
 #define WINDOW_IMU_AVERAGE_SIZE 	(5)  // Window size for the moving average
 
 /**************************************************************************************/
@@ -88,51 +85,16 @@
 #define UDP_NB_PACKET_PER_LINE					(12)
 #define UDP_PACKET_SIZE							((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE))
 
-/* UDP local connection port */
-#define UDP_SERVER_PORT    						((uint16_t)55151U)
-/* UDP remote connection port */
-#define UDP_CLIENT_PORT   						((uint16_t)55151U)
-
-/*Static IP ADDRESS: */
-#define IP_ADDR0   								((uint8_t) 192U)
-#define IP_ADDR1   								((uint8_t) 168U)
-#define IP_ADDR2   								((uint8_t) 0U)
-#define IP_ADDR3   								((uint8_t) 10U)
-
-/*Static DESTINATION IP ADDRESS: */
-#define DEST_IP_ADDR0   						((uint8_t) 192U)
-#define DEST_IP_ADDR1   						((uint8_t) 168U)
-#define DEST_IP_ADDR2   						((uint8_t) 0U)
-#define DEST_IP_ADDR3   						((uint8_t) 255U)
-
-/*NETMASK*/
-#define NETMASK_ADDR0   						((uint8_t) 255U)
-#define NETMASK_ADDR1   						((uint8_t) 255U)
-#define NETMASK_ADDR2   						((uint8_t) 255U)
-#define NETMASK_ADDR3   						((uint8_t) 0U)
-
-/*Gateway Address*/
-#define GW_ADDR0   								((uint8_t) 0U)
-#define GW_ADDR1   								((uint8_t) 0U)
-#define GW_ADDR2   								((uint8_t) 0U)
-#define GW_ADDR3   								((uint8_t) 0U)
+#define LWIP_DEBUG 1
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/
-//#define CIS_400DPI
-//#define CIS_MONOCHROME
-
-#define CIS_FREQ								(800)	//in Hz
-
 //#define CIS_CLK_FREQ							(2500000)
-#define CIS_CLK_FREQ							(3125000)
+//#define CIS_CLK_FREQ							(3125000)
 //#define CIS_CLK_FREQ							(3200000)
 //#define CIS_CLK_FREQ							(4000000)
 //#define CIS_CLK_FREQ							(5000000)
-
-#define CLK_DIVIDER 							((200000000) / (CIS_CLK_FREQ))
-//#define CLK_DIVIDER 							((50000000) / (CIS_CLK_FREQ))
 
 #define CIS_ADC_OUT_LANES						(3)
 

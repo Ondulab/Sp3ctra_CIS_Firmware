@@ -28,6 +28,8 @@
 #include "ethernetif.h"
 
 /* USER CODE BEGIN 0 */
+#include "shared.h"
+#include "stdio.h"
 
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
@@ -72,6 +74,22 @@ void MX_LWIP_Init(void)
   GATEWAY_ADDRESS[3] = 0;
 
 /* USER CODE BEGIN IP_ADDRESSES */
+
+  printf("---- LWIP INITIALIZATIONS -----\n");
+										    //
+  IP_ADDRESS[0] = shared_config.network_ip[0];
+  IP_ADDRESS[1] = shared_config.network_ip[1];
+  IP_ADDRESS[2] = shared_config.network_ip[2];
+  IP_ADDRESS[3] = shared_config.network_ip[3];
+  NETMASK_ADDRESS[0] = shared_config.network_netmask[0];
+  NETMASK_ADDRESS[1] = shared_config.network_netmask[1];
+  NETMASK_ADDRESS[2] = shared_config.network_netmask[2];
+  NETMASK_ADDRESS[3] = shared_config.network_netmask[3];
+  GATEWAY_ADDRESS[0] = shared_config.network_gw[0];
+  GATEWAY_ADDRESS[1] = shared_config.network_gw[1];
+  GATEWAY_ADDRESS[2] = shared_config.network_gw[2];
+  GATEWAY_ADDRESS[3] = shared_config.network_gw[3];
+
 /* USER CODE END IP_ADDRESSES */
 
   /* Initilialize the LwIP stack with RTOS */
