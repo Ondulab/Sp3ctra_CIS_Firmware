@@ -29,8 +29,6 @@
 #include "cis_linearCal.h"
 #include "cis_polyCal.h"
 
-#include "stm32_flash.h"
-
 #include "udp_client.h"
 #include "lwip.h"
 #include "icm42688.h"
@@ -69,13 +67,13 @@ void cis_scanInit(void)
 {
 	printf("----- CIS INITIALIZATIONS -----\n");
 	                                          //
+	memset((uint32_t *)&packet_Image, 0, sizeof(packet_Image));
+	SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
 
 	udp_clientInit();
 
 	cis_init();
 
-	memset((uint32_t *)&packet_Image, 0, sizeof(packet_Image));
-	SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 

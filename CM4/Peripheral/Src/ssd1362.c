@@ -574,7 +574,7 @@ void ssd1362_init()
 	ssd1362_writeCmd(0X81); //Set contrast
 	ssd1362_writeCmd(0x2f);
 
-	ssd1362_screenRotation(shared_config.cis_handedness);
+	ssd1362_screenRotation(1);
 
 	ssd1362_writeCmd(0XA1); //Set Display Start Line
 	ssd1362_writeCmd(0X00);

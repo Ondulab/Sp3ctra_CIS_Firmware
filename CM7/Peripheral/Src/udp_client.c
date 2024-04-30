@@ -69,7 +69,8 @@ void udp_clientInit(void)
 	if (upcb!=NULL)
 	{
 		/*assign destination IP address */
-		IP4_ADDR( &DestIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3]);
+		IP4_ADDR( &DestIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], 255);
+
 
 		/* configure destination IP address and port */
 		err = udp_connect(upcb, &DestIPaddr, shared_config.network_udp_port);
@@ -85,6 +86,11 @@ void udp_clientInit(void)
 			printf("failed to initialize CIS UDP \n");
 			Error_Handler();
 		}
+	}
+	else
+	{
+		printf("failed to initialize CIS UDP \n");
+		Error_Handler();
 	}
 
 	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
@@ -149,11 +155,11 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_HID.packet_id = packetsCounter++;
 
-	packet_HID.button_A = shared_var.buttonState[SW1];
-	packet_HID.button_B = shared_var.buttonState[SW2];
-	packet_HID.button_C = shared_var.buttonState[SW3];
+	packet_HID.button_A = 0;//shared_var.buttonState[SW1];
+	packet_HID.button_B = 0;//shared_var.buttonState[SW2];
+	packet_HID.button_C = 0;//shared_var.buttonState[SW3];
 
-	udp_clientSendData(&packet_HID, sizeof(packet_HID));
+	//udp_clientSendData(&packet_HID, sizeof(packet_HID));
 }
 #pragma GCC pop_options
 

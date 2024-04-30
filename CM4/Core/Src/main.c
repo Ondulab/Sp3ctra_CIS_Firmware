@@ -18,7 +18,6 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <gui.h>
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
@@ -29,6 +28,7 @@
 #include "shared.h"
 #include "ssd1362.h"
 #include "pictures.h"
+#include "gui.h"
 
 /* USER CODE END Includes */
 

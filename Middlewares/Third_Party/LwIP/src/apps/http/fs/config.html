@@ -144,6 +144,7 @@
             
             .form-group input, .form-group select, .form-group button {
                 flex-grow: 1;
+                width: calc(60% / 4 - 10px);
                 margin-left: 5px;
                 margin-right: 5px;
             }
@@ -231,30 +232,37 @@
                 <span class="title">Network Configuration</span>
                 <div class="section">
                     <div class="form-group network-input-group">
-                        <label>IP Address</label>
-                            <input type="number" id="ipPart1" value="192" min="0" max="255">
-                            <input type="number" id="ipPart2" value="168" min="0" max="255">
-                            <input type="number" id="ipPart3" value="0" min="0" max="255">
-                            <input type="number" id="ipPart4" value="10" min="0" max="255">
+                        <label>IP Addr</label>
+                            <input type="number" id="ipPart1" min="0" max="255">
+                            <input type="number" id="ipPart2" min="0" max="255">
+                            <input type="number" id="ipPart3" min="0" max="255">
+                            <input type="number" id="ipPart4" min="0" max="255">
                     </div>
                     <div class="form-group network-input-group">
                         <label>Subnet Mask</label>
-                            <input type="number" id="maskPart1" value="255" min="0" max="255">
-                            <input type="number" id="maskPart2" value="255" min="0" max="255">
-                            <input type="number" id="maskPart3" value="255" min="0" max="255">
-                            <input type="number" id="maskPart4" value="0" min="0" max="255"> 
+                            <input type="number" id="maskPart1" min="0" max="255">
+                            <input type="number" id="maskPart2" min="0" max="255">
+                            <input type="number" id="maskPart3" min="0" max="255">
+                            <input type="number" id="maskPart4" min="0" max="255"> 
+                    </div>
+                    <div class="form-group network-input-group">
+                        <label>Dest IP Addr</label>
+                            <input type="number" id="ipDestPart1" min="0" max="255">
+                            <input type="number" id="ipDestPart2" min="0" max="255">
+                            <input type="number" id="ipDestPart3" min="0" max="255">
+                            <input type="number" id="ipDestPart4" min="0" max="255"> 
                     </div>
                     <div class="form-group">
                         <label for="port">UDP Port</label>
-                            <input type="number" id="port" value="1151" min="0" max="65535"> 
+                            <input type="number" id="port" min="0" max="65535"> 
                     </div>
                     <div class="form-group">
-                        <label for="broadcast">Broadcast</label>
+                        <label for="broadcast">Bcast</label>
                         <button id="broadcastEnable" class="broadcast-button" onclick="setBroadcast('enable')">ENABLE</button>
                         <button id="broadcastDisable" class="broadcast-button" onclick="setBroadcast('disable')">DISABLE</button>
                     </div>
                     <div class="button-container">
-                        <button id="updateNetworkBtn" onclick="">Apply Network Settings</button>
+                        <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply Network Settings</button>
                     </div>
                 </div>
             </div>
@@ -282,6 +290,7 @@
             loadDPI();
             loadHand();
             loadOversampling();
+            loadNetworkConfig();
             timer();
 
             var ipInputs = document.querySelectorAll('input[type="number"]');
@@ -308,6 +317,34 @@
             document.getElementById('updateNetworkBtn').addEventListener('click', updateNetworkConfig);
         }
 
+        function loadNetworkConfig() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    var config = JSON.parse(this.responseText);
+                    document.getElementById("ipPart1").value = config.ip.split('.')[0];
+                    document.getElementById("ipPart2").value = config.ip.split('.')[1];
+                    document.getElementById("ipPart3").value = config.ip.split('.')[2];
+                    document.getElementById("ipPart4").value = config.ip.split('.')[3];
+                    document.getElementById("maskPart1").value = config.mask.split('.')[0];
+                    document.getElementById("maskPart2").value = config.mask.split('.')[1];
+                    document.getElementById("maskPart3").value = config.mask.split('.')[2];
+                    document.getElementById("maskPart4").value = config.mask.split('.')[3];
+                    document.getElementById("ipDestPart1").value = config.dest_ip.split('.')[0];
+                    document.getElementById("ipDestPart2").value = config.dest_ip.split('.')[1];
+                    document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
+                    document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
+                    document.getElementById("port").value = config.udp_port;
+                    var broadcastButton = config.broadcast ? 'broadcastEnable' : 'broadcastDisable';
+                    document.getElementById(broadcastButton).click();  // Simulate a click to set the correct state
+                } else if (this.readyState == 4) {
+                    console.error("Failed to load network settings, server responded with status: ", this.status);
+                }
+            };
+            xhr.open("GET", "/getNetworkConfig", true);
+            xhr.send();
+        }
+
         function updateNetworkConfig() {
             var xhr = new XMLHttpRequest();
             var ip1 = document.getElementById("ipPart1").value;
@@ -318,15 +355,34 @@
             var mask2 = document.getElementById("maskPart2").value;
             var mask3 = document.getElementById("maskPart3").value;
             var mask4 = document.getElementById("maskPart4").value;
+            var ipDest1 = document.getElementById("ipDestPart1").value;
+            var ipDest2 = document.getElementById("ipDestPart2").value;
+            var ipDest3 = document.getElementById("ipDestPart3").value;
+            var ipDest4 = document.getElementById("ipDestPart4").value;
             var port = document.getElementById("port").value;
             var broadcast = document.querySelector('button.broadcast-button.selected').textContent.toLowerCase() === 'enable';
         
             var ip = `${ip1}.${ip2}.${ip3}.${ip4}`;
             var mask = `${mask1}.${mask2}.${mask3}.${mask4}`;
+            var ipDest = `${ipDest1}.${ipDest2}.${ipDest3}.${ipDest4}`;
+        
+            // add chargement indicator
+            document.getElementById('updateNetworkBtn').disabled = true;
+        
+            xhr.onreadystatechange = function() {
+                if (this.readyState == 4) {
+                    document.getElementById('updateNetworkBtn').disabled = false;
+                    if (this.status == 200) {
+                        alert("Update network setting success.");
+                    } else {
+                        alert("Failed to update network settings: " + this.statusText);
+                    }
+                }
+            };
         
             xhr.open("POST", "networkconfig", true);
             xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-            xhr.send(`ip=${ip}&mask=${mask}&port=${port}&broadcast=${broadcast}`);
+            xhr.send(`ip=${ip}&mask=${mask}&ipdest=${ipDest}&port=${port}&broadcast=${broadcast}`);
         }
 
         function uploadFirmware() {

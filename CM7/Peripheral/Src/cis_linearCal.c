@@ -75,6 +75,7 @@ void cis_linearCalibrationInit()
 
     if (fres == FR_OK)
     {
+    	printf("Read calibration file SUCCESS\n");
         // The file exists and has been opened successfully
         file_readCisCals(CALIBRATION_FILE_PATH, &cisCals);
         f_close(&file);  // Close the file after reading
@@ -397,7 +398,6 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_stopCapture();
-	//stm32_flashCalibrationRW(CIS_WRITE_CAL);
 	file_writeCisCals(CALIBRATION_FILE_PATH, &cisCals);
 	cis_startCapture();
 	shared_var.cis_cal_state = CIS_CAL_END;

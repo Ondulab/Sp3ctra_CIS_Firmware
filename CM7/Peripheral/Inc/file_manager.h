@@ -24,8 +24,8 @@
 #include "string.h"
 #include "stdlib.h"
 
-#define CALIBRATION_FILE_PATH "0:/calibration.bin"
-#define CONFIG_FILE_PATH "0:/config.txt"
+#define CALIBRATION_FILE_PATH "0:/CALIB.BIN"
+#define CONFIG_FILE_PATH "0:/CONFIG.TXT"
 
 int file_readConfig(const char* filePath, struct shared_config* config);
 int file_writeConfig(const char* filePath, const struct shared_config* config);

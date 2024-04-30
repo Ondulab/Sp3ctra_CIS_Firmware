@@ -117,9 +117,39 @@
 #define CHECKSUM_CHECK_TCP 0
 /*----- Value in opt.h for CHECKSUM_CHECK_ICMP6: 1 -----*/
 #define CHECKSUM_CHECK_ICMP6 0
+/*----- Default Value for MEM_DEBUG: LWIP_DBG_OFF ---*/
+#define MEM_DEBUG LWIP_DBG_ON
+/*----- Default Value for MEMP_DEBUG: LWIP_DBG_OFF ---*/
+#define MEMP_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_INPUT_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_INPUT_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_FR_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_FR_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_RTO_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_RTO_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_CWND_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_CWND_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_WND_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_WND_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_OUTPUT_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_OUTPUT_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_RST_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_RST_DEBUG LWIP_DBG_ON
+/*----- Default Value for TCP_QLEN_DEBUG: LWIP_DBG_OFF ---*/
+#define TCP_QLEN_DEBUG LWIP_DBG_ON
+/*----- Default Value for UDP_DEBUG: LWIP_DBG_OFF ---*/
+//#define UDP_DEBUG LWIP_DBG_ON
+/*----- Default Value for HTTPD_DEBUG: LWIP_DBG_OFF ---*/
+#define HTTPD_DEBUG LWIP_DBG_ON
+/*----- Default Value for HTTPD_DEBUG_TIMING: LWIP_DBG_OFF ---*/
+#define HTTPD_DEBUG_TIMING LWIP_DBG_ON
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
 #define HTTPD_USE_CUSTOM_FSDATA 0
+#define LWIP_DEBUG 1
+#define FTPD_DEBUG LWIP_DBG_ON
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

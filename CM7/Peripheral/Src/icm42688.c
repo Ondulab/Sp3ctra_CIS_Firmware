@@ -19,6 +19,7 @@
 #include "main.h"
 #include "basetypes.h"
 #include "icm42688_registers.h"
+#include "stdio.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "icm42688.h"

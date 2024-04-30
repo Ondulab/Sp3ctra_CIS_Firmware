@@ -165,14 +165,46 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
-	printf("-------------------------------\n");
-	printf("|         CISYNTH START       |\n");
-	printf("-------------------------------\n");
+  printf("                                        @                                       \n");
+  printf("                                        @                                       \n");
+  printf("                                   @    @   @*                                  \n");
+  printf("                               @@  @  @@ @  @*  @                               \n");
+  printf("                             @ @@  @  =@ @  @=  @  @                            \n");
+  printf("                             @ @@  @        @:  @  @                            \n");
+  printf("                          @  @ @@    @@@@@@@    @  @  @                         \n");
+  printf("                          @  @ @@ -@@@ @@@ @@@  @  @  @                         \n");
+  printf("                          .  .    @@   @@@   @@    .  .                         \n");
+  printf("                          @@@@@@ @@   @@@@@   @@ @@@@@@                         \n");
+  printf("                                 @@  @@  @@*  @@                                \n");
+  printf("                        @@       @@@  @@@@   @@                                 \n");
+  printf("                                  @@@       @@                                  \n");
+  printf("           @@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@          \n");
+  printf("          @@@       @=  @*       @   @@   @  @@@  @@       @   @@@  @@@         \n");
+  printf("          @@        @=  @*       @   @@   @   @@  @@           @@@  *@@         \n");
+  printf("          @@   @@@@@@=  @=  @@@@@@   @@   @   @@  @@@@   @@@   @@@  @@@         \n");
+  printf("          @@   @@@@@@=  @@    @@@@   @@   @    @  @@@@   @@@        @@@         \n");
+  printf("          @@   @@@@@@=  @@@@.    @@      @@  .    @@@@   @@@        @@@         \n");
+  printf("          @@   @@-  @=  @@@@@@   @@@@  @@@@  @    @@@@   @@@   @@@  @@@         \n");
+  printf("          @@@       @=  @@@      @@@@  @@@@  @@   @@@@   @@@   @@@  @@@         \n");
+  printf("          @@ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@  @@@         \n");
+  printf("          @@@:    @@             @@@  @@ @  -@@@@ @@         @@    @@@@         \n");
+  printf("           @@@@@@@@@@@@@@@@@@@@@@@@ @:@@ @ @@ @@@@@@@@@@@@@@@@@@@@@@@           \n");
+  printf("                                    @:@@ @ @@                                   \n");
+  printf("               @ @ @ @ @          @ @:@@ @ @@ @          @ @ @ @ @              \n");
+  printf("                   @ @   @@@@@  @ @ @:@@ @ @@ @ @  @@@@@   @ @                  \n");
+  printf("                         @@#@@  @ @ @-@@@@ @@ @ @  @ -=@                        \n");
+  printf("                          @@@  @@ @ @+  @  @@ @ @@  @@@                         \n");
+  printf("                            @  @  @     @     @  @                              \n");
+  printf("                            @  @  @ @   @  @@ @  @  @ *                         \n");
+  printf("                             @ @        @        @ @                            \n");
+  printf("                               @  @          @@  @                              \n");
+  printf("                               @                 @                              \n");
+  printf("\n");
 
 	shared_var.cis_process_rdy = FALSE;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
+	HAL_Delay(1000);
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 
 
@@ -419,7 +451,6 @@ void MPU_Config(void)
   MPU_InitStruct.Number = MPU_REGION_NUMBER3;
   MPU_InitStruct.BaseAddress = 0x24000000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_64B;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);

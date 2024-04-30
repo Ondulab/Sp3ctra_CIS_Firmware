@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include <http_server.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"

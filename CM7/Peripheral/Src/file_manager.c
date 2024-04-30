@@ -26,10 +26,12 @@
 const struct shared_config DefaultConfig =
 {
     .ui_button_delay = 500,
-    .network_udp_port = 55151,
     .network_ip = {192, 168, 0, 10},
     .network_netmask = {255, 255, 255, 0},
     .network_gw = {0, 0, 0, 0},
+    .network_dest_ip = {192, 168, 0, 255},
+    .network_udp_port = 55151,
+	.network_broadcast = 1,
     .cis_print_calibration = 0,
     .cis_raw = 0,
     .cis_dpi = 400,
@@ -77,10 +79,6 @@ void file_parseLine(char* line, struct shared_config* config)
             {
                 config->ui_button_delay = strtoul(value, NULL, 10);
             }
-            else if (strcmp(token, "NETWORK_UDP_PORT") == 0)
-            {
-                config->network_udp_port = (uint16_t)strtoul(value, NULL, 10);
-            }
             else if (strncmp(token, "NETWORK_IP_ADDR", 15) == 0)
             {
                 int index = token[15] - '0';
@@ -104,6 +102,22 @@ void file_parseLine(char* line, struct shared_config* config)
                 {
                     config->network_gw[index] = (uint8_t)strtoul(value, NULL, 10);
                 }
+            }
+            else if (strncmp(token, "NETWORK_DEST_IP_ADDR", 20) == 0)
+            {
+                int index = token[20] - '0';
+                if (index >= 0 && index < 4)
+                {
+                    config->network_dest_ip[index] = (uint8_t)strtoul(value, NULL, 10);
+                }
+            }
+            else if (strcmp(token, "NETWORK_UDP_PORT") == 0)
+            {
+                config->network_udp_port = (uint16_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "NETWORK_BROADCAST") == 0)
+            {
+                config->network_broadcast = (uint16_t)strtoul(value, NULL, 10);
             }
             else if (strcmp(token, "CIS_PRINT_CALIBRATION") == 0)
             {
@@ -153,7 +167,6 @@ int file_writeConfig(const char* filePath, const struct shared_config* config)
     }
 
     f_printf(&file, "UI_BUTTON_DELAY=%lu\n", config->ui_button_delay);
-    f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
     f_printf(&file, "NETWORK_IP_ADDR0=%u\n", config->network_ip[0]);
     f_printf(&file, "NETWORK_IP_ADDR1=%u\n", config->network_ip[1]);
     f_printf(&file, "NETWORK_IP_ADDR2=%u\n", config->network_ip[2]);
@@ -166,6 +179,12 @@ int file_writeConfig(const char* filePath, const struct shared_config* config)
     f_printf(&file, "NETWORK_GW_ADDR1=%u\n", config->network_gw[1]);
     f_printf(&file, "NETWORK_GW_ADDR2=%u\n", config->network_gw[2]);
     f_printf(&file, "NETWORK_GW_ADDR3=%u\n", config->network_gw[3]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[0]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[1]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[2]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[3]);
+    f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
+    f_printf(&file, "NETWORK_BROADCAST=%u\n", config->network_broadcast);
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
     f_printf(&file, "CIS_RAW=%u\n", config->cis_raw);
     f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
@@ -248,6 +267,8 @@ int file_writeCisCals(const char* filePath, const struct cisCals* data)
     fr = f_open(&file, filePath, FA_WRITE | FA_CREATE_ALWAYS);
     if (fr != FR_OK)
     {
+    	printf("Failed to create calibration file\n");
+    	Error_Handler();
         return -1;
     }
 
@@ -255,6 +276,7 @@ int file_writeCisCals(const char* filePath, const struct cisCals* data)
     fr = f_write(&file, data, sizeof(cisCals), &bw);
     if (fr != FR_OK || bw != sizeof(cisCals))
     {
+    	printf("Failed to write calibration file\n");
         f_close(&file);
         return -1;
     }

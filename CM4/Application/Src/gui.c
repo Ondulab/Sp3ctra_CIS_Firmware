@@ -79,7 +79,7 @@ int gui_mainLoop(void)
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
         // Check if 25 ms have elapsed since the last refresh
-        if ((current_tick - last_refresh_tick) >= 25)
+        if ((current_tick - last_refresh_tick) >= 50)
         {
             int32_t current_process_count = shared_var.cis_process_cnt;
             int32_t process_count_diff = current_process_count - last_process_count;
@@ -382,27 +382,6 @@ void gui_startCalibration()
 
 			ssd1362_progressBar(30, 30, 99, 0xF);
 			HAL_Delay(100);
-
-			// Print curves
-			ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
-			ssd1362_drawString(0, 28, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 5, 8);
-			for (uint32_t i = 1; i < 9; i++)
-			{
-				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 0, DISPLAY_HEIGHT, BANNER_BACKGROUND_COLOR, false);
-			}
-
-#if 0
-			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
-			{
-				int32_t cis_color = (int32_t)(cisCals.whiteCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color - 1, 14, false);
-
-				cis_color = (int32_t)(cisCals.blackCal.data[(uint32_t)(i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH))]) >> 6;
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color -1, 8, false);
-			}
-#endif
-
-			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_BLACK);
 			break;
 		case CIS_CAL_EXTRACT_EXTREMUMS :
@@ -410,23 +389,6 @@ void gui_startCalibration()
 			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" EXTRACT EXTREMUMS AND DELTAS ", 0xF, 8);
 			ssd1362_writeFullBuffer();
-
-#if 0
-			//			uint8_t textData[256] = {0};
-			sprintf((char *)textData, "WH MIN R%d G%d B%d", (int)cisCals.whiteCal.red.minPix, (int)cisCals.whiteCal.green.minPix, (int)cisCals.whiteCal.blue.minPix);
-			ssd1362_drawString(0, 10, (int8_t*)textData, 15, 8);
-			sprintf((char *)textData, "WH MAX R%d G%d B%d", (int)cisCals.whiteCal.red.maxPix, (int)cisCals.whiteCal.green.maxPix, (int)cisCals.whiteCal.blue.maxPix);
-			ssd1362_drawString(0, 19, (int8_t*)textData, 15, 8);
-			sprintf((char *)textData, "WH DLT R%d G%d B%d", (int)cisCals.whiteCal.red.deltaPix, (int)cisCals.whiteCal.green.deltaPix, (int)cisCals.whiteCal.blue.deltaPix);
-			ssd1362_drawString(0, 28, (int8_t*)textData, 15, 8);
-
-			sprintf((char *)textData, "BL MIN R%d G%d B%d", (int)cisCals.blackCal.red.minPix, (int)cisCals.blackCal.green.minPix, (int)cisCals.blackCal.blue.minPix);
-			ssd1362_drawString(0, 37, (int8_t*)textData, 15, 8);
-			sprintf((char *)textData, "BL MAX R%d G%d B%d", (int)cisCals.blackCal.red.maxPix, (int)cisCals.blackCal.green.maxPix, (int)cisCals.blackCal.blue.maxPix);
-			ssd1362_drawString(0, 46, (int8_t*)textData, 15, 8);
-			sprintf((char *)textData, "BL DLT R%d G%d B%d", (int)cisCals.blackCal.red.deltaPix, (int)cisCals.blackCal.green.deltaPix, (int)cisCals.blackCal.blue.deltaPix);
-			ssd1362_drawString(0, 55, (int8_t*)textData, 15, 8);
-#endif
 
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_EXTREMUMS);
@@ -464,6 +426,8 @@ void gui_startCalibration()
 			break;
 		}
 	}
+	ssd1362_clearBuffer();
+	ssd1362_writeFullBuffer();
 }
 
 void gui_changeHand()

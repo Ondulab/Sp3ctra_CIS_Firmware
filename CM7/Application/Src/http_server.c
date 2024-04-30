@@ -177,6 +177,34 @@ static void http_server(struct netconn *conn)
 			    }
 			}
 
+
+
+
+			/* Get network settings */
+			else if (strncmp((char const *)buf, "GET /getNetworkConfig", 21) == 0)
+			{
+			    char response[300];
+			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+			                                "{"
+			                                "\"ip\":\"%d.%d.%d.%d\","
+			                                "\"mask\":\"%d.%d.%d.%d\","
+			                                "\"gateway\":\"%d.%d.%d.%d\","
+			                                "\"dest_ip\":\"%d.%d.%d.%d\","
+			                                "\"udp_port\":%d,"
+			                                "\"broadcast\":%d"
+			                                "}",
+			                                shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3],
+			                                shared_config.network_netmask[0], shared_config.network_netmask[1], shared_config.network_netmask[2], shared_config.network_netmask[3],
+			                                shared_config.network_gw[0], shared_config.network_gw[1], shared_config.network_gw[2], shared_config.network_gw[3],
+			                                shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3],
+			                                shared_config.network_udp_port,
+			                                shared_config.network_broadcast);
+
+			    netconn_write(conn, response, len, NETCONN_COPY);
+			}
+
+
+
 			/* Send 404 if no route matches */
 			else
 			{

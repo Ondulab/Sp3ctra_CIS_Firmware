@@ -45,8 +45,7 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 768K 
-  CIS_FLASH (rw) 			: ORIGIN = 0x08000000 + LENGTH(FLASH), LENGTH = 256K 				/* Memory is divided. Actual start is 0x08000000 and actual length is 2048K */
+  FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 1024K 
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
@@ -200,6 +199,15 @@ SECTIONS
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
   } >RAM_AXI
+  
+  _sram_axi_start = ORIGIN(RAM_SHARED);
+  _sram_axi_end =  ORIGIN(RAM_SHARED) + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED) + LENGTH(RAM_AXI);
+  
+  _sram_dtcm_start = ORIGIN(DTCM);
+  _sram_dtcm_end = ORIGIN(DTCM) + LENGTH(DTCM);
+  
+  _sram_d2_start = ORIGIN(RAM_D2);
+  _sram_d2_end = ORIGIN(RAM_D2) + LENGTH(RAM_D2);
 
   /* User_heap_stack section, used to check that there is enough "RAM_AXI" Ram  type memory left */
   ._user_heap_stack :

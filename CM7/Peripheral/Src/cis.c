@@ -29,7 +29,6 @@
 #include "adc.h"
 #include "dma.h"
 
-#include "stm32_flash.h"
 #include "cis_linearCal.h"
 #include "cis_polyCal.h"
 
@@ -72,10 +71,9 @@ void cis_init()
 {
 	printf("----------- CIS INIT ----------\n");
 
-	printf("CIS END CAPTURE = %d\n", CIS_LANE_SIZE);
-
-	//stm32_flashCalibrationRW(CIS_READ_CAL);
 	cis_linearCalibrationInit();
+
+	printf("CIS END CAPTURE = %d\n", CIS_LANE_SIZE);
 
 	// Enable 5V power DC/DC for display
 	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);

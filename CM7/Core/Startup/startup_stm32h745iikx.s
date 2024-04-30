@@ -54,6 +54,17 @@ defined in linker script */
  * @param  None
  * @retval : None
 */
+.global fill_memory
+.type fill_memory, %function
+fill_memory:
+    /* r0 = start address, r1 = end address, r2 = value to fill */
+    movs r3, #0              /* Initialize the counter/register to hold the fill value */
+
+FillLoop:
+    str  r2, [r0], #4        /* Store the value and increment the address */
+    cmp  r0, r1              /* Compare current address with the end address */
+    blt  FillLoop            /* If not reached, loop */
+    bx   lr                  /* Return from the function */
 
     .section  .text.Reset_Handler
   .weak  Reset_Handler
@@ -63,6 +74,24 @@ Reset_Handler:
 
 /* Call the clock system initialization function.*/
   bl  SystemInit
+
+/* Fill RAM AXI */
+    ldr  r0, =_sram_axi_start
+    ldr  r1, =_sram_axi_end
+    movs r2, #0              /* Value to fill */
+    bl   fill_memory
+
+/* Fill DTCM */
+    ldr  r0, =_sram_dtcm_start
+    ldr  r1, =_sram_dtcm_end
+    movs r2, #0              /* Value to fill */
+    bl   fill_memory
+
+/* Fill RAM D2 */
+    ldr  r0, =_sram_d2_start
+    ldr  r1, =_sram_d2_end
+    movs r2, #0              /* Value to fill */
+    bl   fill_memory
 
 /* Copy the data segment initializers from flash to SRAM */
   ldr r0, =_sdata
