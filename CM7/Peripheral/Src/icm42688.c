@@ -177,7 +177,7 @@ int icm42688_init()
 		return -7;
 	}
 
-	HAL_Delay(100);
+	osDelay(100);
 
 	// estimate gyro bias
 	if (icm42688_calibrateGyro() < 0) {
@@ -485,7 +485,7 @@ int icm42688_calibrateGyro()
 		_gyroBD[0] += icm42688_gyrX();
 		_gyroBD[1] += icm42688_gyrY();
 		_gyroBD[2] += icm42688_gyrZ();
-		HAL_Delay(1);
+		osDelay(1);
 	}
 
 	_gyrB[0] = _gyroBD[0] / NUM_CALIB_SAMPLES;
@@ -553,7 +553,7 @@ int icm42688_calibrateAccel()
 		_accBD[0] += icm42688_accX();
 		_accBD[1] += icm42688_accY();
 		_accBD[2] += icm42688_accZ();
-		HAL_Delay(10);
+		osDelay(10);
 	}
 	_accBD[0] /= NUM_CALIB_SAMPLES;
 	_accBD[1] /= NUM_CALIB_SAMPLES;
@@ -711,7 +711,7 @@ void icm42688_reset()
 	icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01);
 
 	// wait for ICM42688 to come back up
-	HAL_Delay(1);
+	osDelay(1);
 }
 
 /* gets the ICM42688 WHO_AM_I register value */

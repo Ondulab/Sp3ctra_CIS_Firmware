@@ -68,6 +68,7 @@
 
 /* USER CODE BEGIN PV */
 extern struct netif gnetif;
+volatile unsigned long ulHighFrequencyTimerTicks = 0;
 int MX25test(void);
 /* USER CODE END PV */
 
@@ -160,9 +161,9 @@ int main(void)
   MX_TIM3_Init();
   MX_RNG_Init();
   MX_CRC_Init();
-  MX_TIM6_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 
   printf("                                        @                                       \n");
@@ -478,13 +479,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
   if (htim->Instance == TIM6)
   {
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(cis_scanThreadHandle, &xHigherPriorityTaskWoken);
-	icm42688_TIM_Callback();
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
+	  ulHighFrequencyTimerTicks++;
   }
-
   /* USER CODE END Callback 1 */
 }
 

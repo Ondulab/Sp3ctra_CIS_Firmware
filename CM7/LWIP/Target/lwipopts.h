@@ -52,9 +52,9 @@
 /*----- Default value in ETH configuration GUI in CubeMx: 1524 -----*/
 #define ETH_RX_BUFFER_SIZE 1536
 /*----- Default Value for MEMP_NUM_UDP_PCB: 4 ---*/
-#define MEMP_NUM_UDP_PCB 1
+#define MEMP_NUM_UDP_PCB 2
 /*----- Default Value for MEMP_NUM_TCP_PCB: 5 ---*/
-#define MEMP_NUM_TCP_PCB 10
+#define MEMP_NUM_TCP_PCB 15
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
@@ -140,7 +140,7 @@
 /*----- Default Value for TCP_QLEN_DEBUG: LWIP_DBG_OFF ---*/
 #define TCP_QLEN_DEBUG LWIP_DBG_ON
 /*----- Default Value for UDP_DEBUG: LWIP_DBG_OFF ---*/
-//#define UDP_DEBUG LWIP_DBG_ON
+#define UDP_DEBUG LWIP_DBG_ON
 /*----- Default Value for HTTPD_DEBUG: LWIP_DBG_OFF ---*/
 #define HTTPD_DEBUG LWIP_DBG_ON
 /*----- Default Value for HTTPD_DEBUG_TIMING: LWIP_DBG_OFF ---*/
@@ -148,7 +148,8 @@
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
 #define HTTPD_USE_CUSTOM_FSDATA 0
-#define LWIP_DEBUG 1
+//#define LWIP_DEBUG 1
+//#define SYS_LIGHTWEIGHT_PROT 1
 #define FTPD_DEBUG LWIP_DBG_ON
 /* USER CODE END 1 */
 

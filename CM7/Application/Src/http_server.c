@@ -39,6 +39,7 @@ static void http_server(struct netconn *conn)
 	char* buf;
 	u16_t buflen;
 	struct fs_file file;
+	int32_t close_conn = 0;
 
 	/* Read the data from the port, blocking if nothing yet there */
 	recv_err = netconn_recv(conn, &inbuf);
@@ -66,10 +67,10 @@ static void http_server(struct netconn *conn)
 				fs_close(&file);
 			}
 
-			/* Send a favicon for requests to '/img/favicon.ico' */
-			else if (strncmp((char const *)buf, "GET /img/favicon.ico", 20) == 0)
+			/* Send a favicon for requests to '/img/favicon_64x64.ico' */
+			else if (strncmp((char const *)buf, "GET /img/favicon_64x64.ico", 26) == 0)
 			{
-				fs_open(&file, "/img/favicon.ico");
+				fs_open(&file, "/img/favicon_64x64.ico");
 				netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 				fs_close(&file);
 			}
@@ -77,7 +78,7 @@ static void http_server(struct netconn *conn)
 			/* Get frequency data and send response */
 			else if (strncmp((char const *)buf, "GET /getFreq", 12) == 0)
 			{
-			    char response[128];
+			    char response[100];
 			    int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_freq);
 			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
@@ -177,9 +178,6 @@ static void http_server(struct netconn *conn)
 			    }
 			}
 
-
-
-
 			/* Get network settings */
 			else if (strncmp((char const *)buf, "GET /getNetworkConfig", 21) == 0)
 			{
@@ -188,7 +186,7 @@ static void http_server(struct netconn *conn)
 			                                "{"
 			                                "\"ip\":\"%d.%d.%d.%d\","
 			                                "\"mask\":\"%d.%d.%d.%d\","
-			                                "\"gateway\":\"%d.%d.%d.%d\","
+			                                "\"gw\":\"%d.%d.%d.%d\","
 			                                "\"dest_ip\":\"%d.%d.%d.%d\","
 			                                "\"udp_port\":%d,"
 			                                "\"broadcast\":%d"
@@ -203,7 +201,43 @@ static void http_server(struct netconn *conn)
 			    netconn_write(conn, response, len, NETCONN_COPY);
 			}
 
+			/* Handler for updating network settings */
+			else if (strncmp((char const *)buf, "POST /updateNetworkConfig", 25) == 0)
+			{
+			    char *data = strstr((char *)buf, "\r\n\r\n") + 4; // Assuming data starts after the header
+			    if (data) {
+			        int ip[4], mask[4], gw[4], dest_ip[4], udp_port, broadcast;
 
+			        // Parsing POST data
+			        sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d&broadcast=%d",
+			               &ip[0], &ip[1], &ip[2], &ip[3],
+			               &mask[0], &mask[1], &mask[2], &mask[3],
+						   &gw[0], &gw[1], &gw[2], &gw[3],
+			               &dest_ip[0], &dest_ip[1], &dest_ip[2], &dest_ip[3],
+			               &udp_port, &broadcast);
+
+			        // Updating shared configuration
+			        for (int i = 0; i < 4; i++) {
+			            shared_config.network_ip[i] = ip[i];
+			            shared_config.network_netmask[i] = mask[i];
+			            shared_config.network_gw[i] = gw[i];
+			            shared_config.network_dest_ip[i] = dest_ip[i];
+			        }
+			        shared_config.network_udp_port = udp_port;
+			        shared_config.network_broadcast = broadcast;
+
+			        file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+			        char response[100];
+			        int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nNetwork settings updated.");
+
+			        netconn_write(conn, response, len, NETCONN_COPY);
+			    } else {
+			        char response[100];
+			        int len = sprintf(response, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid request.");
+			        netconn_write(conn, response, len, NETCONN_COPY);
+			    }
+			}
 
 			/* Send 404 if no route matches */
 			else
@@ -214,60 +248,72 @@ static void http_server(struct netconn *conn)
 			}
 
 		}
+		else
+		{
+			close_conn = 1;
+		}
 	}
-	/* Close the connection (server closes in HTTP) */
-	netconn_close(conn);
+	else
+	{
+		close_conn = 1;
+	}
 
-	/* Free the buffer */
-	netbuf_delete(inbuf);
+    /* Perform necessary cleanup */
+    if (inbuf)
+    {
+        netbuf_delete(inbuf);
+    }
+    if (close_conn)
+    {
+        netconn_close(conn);
+    }
 }
 
 static void http_thread(void *arg)
 {
-	printf("----- HTTP THREAD SARTED ------\n");
-	                                          //
+	printf("----- HTTP THREAD STARTED ------\n");
 
-	struct netconn *conn, *newconn;
-	err_t err, accept_err;
+    struct netconn *conn, *newconn;
+    err_t err, accept_err;
 
-	/* Create a new TCP connection handle */
-	conn = netconn_new(NETCONN_TCP);
-
-	if (conn != NULL)
-	{
-		/* Bind to port 80 (HTTP) with default IP address */
-		err = netconn_bind(conn, IP_ADDR_ANY, 80);
-
-		if (err == ERR_OK)
-		{
-			/* Listen for incoming connections */
-			netconn_listen(conn);
-
-			while (1)
-			{
-				/* Accept any incoming connection */
-				accept_err = netconn_accept(conn, &newconn);
-				if (accept_err == ERR_OK)
-				{
-					/* Serve the connection */
-					http_server(newconn);
-
-					/* Delete the connection */
-					netconn_delete(newconn);
-
-				}
-			}
-		}
-	}
+    /* Create a new TCP connection handle */
+    conn = netconn_new(NETCONN_TCP);
+    if (conn != NULL)
+    {
+        err = netconn_bind(conn, IP_ADDR_ANY, 80);
+        if (err == ERR_OK)
+        {
+            netconn_listen(conn);
+            while (1)
+            {
+                accept_err = netconn_accept(conn, &newconn);
+                if (accept_err == ERR_OK)
+                {
+                    http_server(newconn);
+                    netconn_delete(newconn);
+                }
+            }
+        }
+        else
+        {
+            printf("Bind failed with error: %d\n", err);
+        }
+    }
+    else
+    {
+        printf("Failed to create new TCP connection handle.\n");
+    }
 }
 
 void http_serverInit()
 {
-	printf("----- HTTP INITIALIZATIONS ----\n");
-	                                          //
-    if (xTaskCreate(http_thread, "http_thread", 2048, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS) {
+    printf("----- HTTP INITIALIZATIONS ----\n");
+    if (xTaskCreate(http_thread, "http_thread", 4096, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS)
+    {
         printf("http task created successfully.\n");
-    } else {
+    }
+    else
+    {
         printf("Failed to create http task.\n");
     }
 }

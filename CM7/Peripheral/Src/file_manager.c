@@ -179,10 +179,10 @@ int file_writeConfig(const char* filePath, const struct shared_config* config)
     f_printf(&file, "NETWORK_GW_ADDR1=%u\n", config->network_gw[1]);
     f_printf(&file, "NETWORK_GW_ADDR2=%u\n", config->network_gw[2]);
     f_printf(&file, "NETWORK_GW_ADDR3=%u\n", config->network_gw[3]);
-    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[0]);
-    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[1]);
-    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[2]);
-    f_printf(&file, "NETWORK_DEST_IP_ADDR=%u\n", config->network_dest_ip[3]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR0=%u\n", config->network_dest_ip[0]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR1=%u\n", config->network_dest_ip[1]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR2=%u\n", config->network_dest_ip[2]);
+    f_printf(&file, "NETWORK_DEST_IP_ADDR3=%u\n", config->network_dest_ip[3]);
     f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
     f_printf(&file, "NETWORK_BROADCAST=%u\n", config->network_broadcast);
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);

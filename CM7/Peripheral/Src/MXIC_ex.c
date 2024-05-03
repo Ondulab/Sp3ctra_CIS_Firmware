@@ -1952,7 +1952,7 @@ int32_t BSP_QSPI_ReleaseFromDeepPowerDown(uint32_t Instance)
     ret = BSP_ERROR_COMPONENT_FAILURE;
   }
 
-  //HAL_Delay(1);         // For tRES1 time
+  //osDelay(1);         // For tRES1 time
 
   /* Return BSP status */
   return ret;

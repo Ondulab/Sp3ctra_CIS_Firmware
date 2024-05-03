@@ -321,22 +321,22 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_ledPowerAdj(100, 100, 100);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
-	HAL_Delay(200);
+	osDelay(200);
 
 	cis_imageProcessRGB_Calibration(whiteCal.data, iterationNb);
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 
-	HAL_Delay(200);
+	osDelay(200);
 	shared_var.cis_cal_progressbar = 0;
 	shared_var.cis_cal_state = CIS_CAL_PLACE_ON_BLACK;
 	cis_ledPowerAdj(1, 1, 1);
-	HAL_Delay(20);
+	osDelay(20);
 
 	cis_imageProcessRGB_Calibration(blackCal.data, iterationNb);
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_ledPowerAdj(100, 100, 100);
-	HAL_Delay(500);
+	osDelay(500);
 
 	printf("------- LOAD CALIBRATION ------\n");
 	/*-------- 1 --------*/
@@ -352,7 +352,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
-	HAL_Delay(200);
+	osDelay(200);
 
 	/*-------- 2 --------*/
 	// Extrat Min Max and delta
@@ -367,7 +367,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
-	HAL_Delay(200);
+	osDelay(200);
 
 	/*-------- 3 --------*/
 	// Extract differential offsets
@@ -377,7 +377,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
-	HAL_Delay(200);
+	osDelay(200);
 
 	/*-------- 4 --------*/
 	// Compute gains

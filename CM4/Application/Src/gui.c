@@ -79,7 +79,7 @@ int gui_mainLoop(void)
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
         // Check if 25 ms have elapsed since the last refresh
-        if ((current_tick - last_refresh_tick) >= 50)
+        if ((current_tick - last_refresh_tick) >= 200)
         {
             int32_t current_process_count = shared_var.cis_process_cnt;
             int32_t process_count_diff = current_process_count - last_process_count;
@@ -93,12 +93,18 @@ int gui_mainLoop(void)
                 }
             }
 
-            gui_interractiveMenu();
-
             last_refresh_tick = current_tick; // Update the last refresh tick
             last_process_count = current_process_count; // Update the last process counter
         }
 
+        static char str[12]; // Buffer suffisamment grand pour contenir des nombres longs
+        static int32_t counter = 0;
+        counter++;
+
+        sprintf(str, "%lu", counter);
+        ssd1362_drawString(0, 0, (int8_t *)str, 15, 8);
+
+        gui_interractiveMenu();
         gui_displayIMU();
     	ssd1362_writeUpdates();
     }

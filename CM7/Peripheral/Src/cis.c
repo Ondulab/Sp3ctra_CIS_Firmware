@@ -25,6 +25,8 @@
 
 #include "arm_math.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
 #include "tim.h"
 #include "adc.h"
 #include "dma.h"
@@ -171,7 +173,7 @@ void cis_init()
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_getRAWImage(float32_t* cisDataCpy_f32, uint16_t overSampling)
+void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
 {
 	int32_t acc = 0;
 	static int32_t lane, i;

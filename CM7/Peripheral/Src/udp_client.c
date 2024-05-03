@@ -110,7 +110,7 @@ void udp_clientInit(void)
 	udp_clientSendStartupInfoPacket();
 }
 
-void udp_clientSendData(void *data, uint16_t length)
+void udp_clientSendData2(void *data, uint16_t length)
 {
 	struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
 	if (p != NULL)
@@ -119,6 +119,22 @@ void udp_clientSendData(void *data, uint16_t length)
 		udp_send(upcb, p);
 		pbuf_free(p);
 	}
+}
+
+void udp_clientSendData(void *data, uint16_t length) {
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
+    if (p != NULL) {
+        pbuf_take(p, data, length);
+        err_t result = udp_send(upcb, p);
+        if (result != ERR_OK) {
+            // Log l'échec mais ne bloque pas
+            printf("UDP send failed with error code: %d, but it's non-critical\n", result);
+        }
+        pbuf_free(p);
+    } else {
+        // Également non-critique
+        printf("Failed to allocate pbuf for UDP send, but it's non-critical\n");
+    }
 }
 
 
@@ -151,13 +167,15 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	udp_clientSendData(&packet_IMU, sizeof(packet_IMU));
 
+	icm42688_TIM_Callback();
+
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
 
 	packet_HID.packet_id = packetsCounter++;
 
-	packet_HID.button_A = 0;//shared_var.buttonState[SW1];
-	packet_HID.button_B = 0;//shared_var.buttonState[SW2];
-	packet_HID.button_C = 0;//shared_var.buttonState[SW3];
+	//packet_HID.button_A = shared_var.buttonState[SW1];
+	//packet_HID.button_B = shared_var.buttonState[SW2];
+	//packet_HID.button_C = shared_var.buttonState[SW3];
 
 	//udp_clientSendData(&packet_HID, sizeof(packet_HID));
 }

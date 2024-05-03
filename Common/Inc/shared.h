@@ -60,6 +60,7 @@ typedef enum
 }CIS_Packet_ImageColorTypeDef;
 
 // Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
+__attribute__ ((packed))
 struct packet_StartupInfo {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
@@ -67,6 +68,7 @@ struct packet_StartupInfo {
 };
 
 // Structure for image data packets, including metadata for image fragmentation
+__attribute__ ((packed))
 struct packet_Image {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
@@ -80,6 +82,7 @@ struct packet_Image {
 };
 
 // Structure for packets containing button state information
+__attribute__ ((packed))
 struct packet_HID {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
@@ -89,6 +92,7 @@ struct packet_HID {
 };
 
 // Structure for packets containing sensor data (accelerometer and gyroscope)
+__attribute__ ((packed))
 struct packet_IMU {
     uint8_t type; 						// Identifies the data type
     uint32_t packet_id;               	// Sequence number, useful for ordering packets
@@ -98,6 +102,7 @@ struct packet_IMU {
     float32_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
 };
 
+__attribute__ ((packed))
 struct cisRgbBuffers {
 	uint8_t R[CIS_PIXELS_NB];
 	uint8_t G[CIS_PIXELS_NB];
@@ -123,6 +128,7 @@ struct cisCals {
 	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
 };
 
+__attribute__ ((packed))
 struct shared_var {
 	int32_t cis_process_rdy;
 	int32_t cis_process_cnt;
@@ -133,6 +139,7 @@ struct shared_var {
 	buttonStateTypeDef  buttonState[3];
 };
 
+__attribute__ ((packed))
 struct shared_config
 {
     uint32_t ui_button_delay;

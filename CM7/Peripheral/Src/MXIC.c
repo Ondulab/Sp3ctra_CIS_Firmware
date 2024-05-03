@@ -1259,7 +1259,7 @@ int32_t BSP_QSPI_ResetMemory(int32_t Instance)
 
       /* After S/W reset CMD, wait Reset Recovery time for 1ms. */
       /* The Reset Recovery time may be over 1ms, if reset issued during Flash operating. */
-      HAL_Delay(1);
+      osDelay(1);
     }
   }
   /* Return BSP status */

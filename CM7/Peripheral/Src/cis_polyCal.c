@@ -221,7 +221,7 @@ void cis_startPolyCalibration(uint16_t iterationNb)
 		//uint32_t current_ADC_value = (Leds_Power_Array[power_idx] * 4095) / 100;
 
 		cis_setLedsPower(Leds_Power_Array[power_idx]);
-		HAL_Delay(5);
+		osDelay(5);
 
 		cis_getRAWImage(cisDataCpy_f32, iterationNb);
 		//cis_ConvertRAWImageToFloatArray(cisDataCpy_f32, &RAWImageCalibration[power_idx]);

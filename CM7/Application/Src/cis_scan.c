@@ -32,6 +32,8 @@
 #include "udp_client.h"
 #include "lwip.h"
 #include "icm42688.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "cmsis_os.h"
 
@@ -77,14 +79,12 @@ void cis_scanInit(void)
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 
-    if (xTaskCreate(cis_scanThread, "cis_thread", 32768, NULL, osPriorityHigh, &cis_scanThreadHandle) == pdPASS) {
+    if (xTaskCreate(cis_scanThread, "cis_thread", 16000, NULL, osPriorityRealtime, &cis_scanThreadHandle) == pdPASS) {
         printf("CIS task created successfully.\n");
     } else {
         printf("Failed to create CIS task.\n");
         Error_Handler();
     }
-
-	HAL_TIM_Base_Start_IT(&htim6);
 }
 
 /* Private user code ---------------------------------------------------------*/
@@ -96,9 +96,14 @@ static void cis_scanThread(void *arg)
 {
 	printf("------ CIS THREAD SARTED ------\n");
 	                                          //
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = pdMS_TO_TICKS(2); // Converts approximately 1428.57 ms to ticks
+
+    // Initialize xLastWakeTime with the current tick count.
+    xLastWakeTime = xTaskGetTickCount();
 
 #if 0
-	HAL_Delay(1000);
+    osDelay(1000);
 	cis_PrintForcharacterization(cisDataCpy_f32);
 	while(1);
 #endif
@@ -106,7 +111,7 @@ static void cis_scanThread(void *arg)
 	/* Infinite loop */
 	while (1)
 	{
-	    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{
@@ -129,7 +134,7 @@ static void cis_scanThread(void *arg)
 					udp_clientSendImage(imageData);
 				}
 			}
-			HAL_Delay(2000);
+			osDelay(2000);
 #endif
 		}
 
@@ -143,7 +148,7 @@ static void cis_scanThread(void *arg)
 		if ((shared_var.cis_process_cnt % 100) == 0)
 		{
 			cis_Stop_capture();
-			HAL_Delay(100);
+			osDelay(100);
 			cis_Start_capture();
 		}
 		 */

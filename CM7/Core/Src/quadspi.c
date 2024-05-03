@@ -111,7 +111,7 @@ void HAL_QSPI_MspInit(QSPI_HandleTypeDef* qspiHandle)
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* QUADSPI interrupt Init */
-    HAL_NVIC_SetPriority(QUADSPI_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(QUADSPI_IRQn, 8, 0);
     HAL_NVIC_EnableIRQ(QUADSPI_IRQn);
   /* USER CODE BEGIN QUADSPI_MspInit 1 */
 

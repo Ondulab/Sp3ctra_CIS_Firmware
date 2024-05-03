@@ -37,7 +37,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern volatile unsigned long ulHighFrequencyTimerTicks;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
