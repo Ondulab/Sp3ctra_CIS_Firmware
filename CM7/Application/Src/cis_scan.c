@@ -79,7 +79,7 @@ void cis_scanInit(void)
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 
-    if (xTaskCreate(cis_scanThread, "cis_thread", 16000, NULL, osPriorityRealtime, &cis_scanThreadHandle) == pdPASS) {
+    if (xTaskCreate(cis_scanThread, "cis_thread", 16000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
         printf("CIS task created successfully.\n");
     } else {
         printf("Failed to create CIS task.\n");
@@ -97,7 +97,7 @@ static void cis_scanThread(void *arg)
 	printf("------ CIS THREAD SARTED ------\n");
 	                                          //
     TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(2); // Converts approximately 1428.57 ms to ticks
+    const TickType_t xFrequency = pdMS_TO_TICKS(1); // Converts approximately 1428.57 ms to ticks
 
     // Initialize xLastWakeTime with the current tick count.
     xLastWakeTime = xTaskGetTickCount();

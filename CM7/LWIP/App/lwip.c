@@ -114,7 +114,7 @@ void MX_LWIP_Init(void)
 
   /* Create the Ethernet link handler thread */
 /* USER CODE BEGIN H7_OS_THREAD_DEF_CREATE_CMSIS_RTOS_V1 */
-  osThreadDef(EthLink, ethernet_link_thread, osPriorityHigh, 0, 8192);// configMINIMAL_STACK_SIZE *2);
+  osThreadDef(EthLink, ethernet_link_thread, osPriorityHigh, 0, configMINIMAL_STACK_SIZE *2);
   osThreadCreate (osThread(EthLink), &gnetif);
 /* USER CODE END H7_OS_THREAD_DEF_CREATE_CMSIS_RTOS_V1 */
 

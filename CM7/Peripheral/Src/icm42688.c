@@ -20,6 +20,7 @@
 #include "basetypes.h"
 #include "icm42688_registers.h"
 #include "stdio.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 #include "icm42688.h"
@@ -711,7 +712,7 @@ void icm42688_reset()
 	icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01);
 
 	// wait for ICM42688 to come back up
-	osDelay(1);
+	osDelay(10);
 }
 
 /* gets the ICM42688 WHO_AM_I register value */

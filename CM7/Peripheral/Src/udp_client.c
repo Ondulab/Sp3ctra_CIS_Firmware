@@ -19,11 +19,13 @@
 #include "config.h"
 #include "shared.h"
 
-#include "lwip/pbuf.h"
-#include "lwip/udp.h"
-#include "lwip/tcp.h"
-#include "lwip.h"
+#include "lwip/opt.h"
+#include "lwip/arch.h"
+#include "lwip/api.h"
+#include "lwip/apps/fs.h"
 
+#include "shared.h"
+#include <stdio.h>
 #include "icm42688.h"
 
 #include "arm_math.h"
@@ -38,8 +40,9 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-struct udp_pcb *upcb;
+struct netconn *conn;
 __IO uint32_t message_count = 0;
+//struct udp_pcb *upcb;
 int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
@@ -48,50 +51,30 @@ static struct packet_HID packet_HID = {0};
 static uint32_t packetsCounter = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-static void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
+//static void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
 static void udp_clientSendData(void *data, uint16_t length);
 
 /* Private user code ---------------------------------------------------------*/
 
 void udp_clientInit(void)
-{
-	printf("-------- CIS UDP INIT ---------\n");
-	                                          //
+{                                      //
+	//ip_set_option(upcb, SOF_BROADCAST); // test for broadcast, useless at frist view
 
-	ip_addr_t DestIPaddr;
-	err_t err;
+    printf("-------- UDP INIT ---------\n");
+    ip_addr_t destIPaddr;
 
-	//	lwiperf_start_tcp_server_default(NULL, NULL); // TCP Perf = iperf -c 192.168.0.1 -i1 -t60 -u -b 1000M UDP Perf = iperf -c 192.168.0.1 -i1 -t60
+    /* Create a new UDP connection */
+    conn = netconn_new(NETCONN_UDP);
+    if (conn != NULL) {
+        IP4_ADDR(&destIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], 255);
+        netconn_bind(conn, NULL, 0);  // Bind to any local address and port
+        netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 
-	/* Create a new UDP control block  */
-	upcb = udp_new();
-	ip_set_option(upcb, SOF_BROADCAST); // test for broadcast, useless at frist view
-	if (upcb!=NULL)
-	{
-		/*assign destination IP address */
-		IP4_ADDR( &DestIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], 255);
-
-
-		/* configure destination IP address and port */
-		err = udp_connect(upcb, &DestIPaddr, shared_config.network_udp_port);
-
-		if (err == ERR_OK)
-		{
-			/* Set a receive callback for the upcb */
-			udp_recv(upcb, udp_clientReceiveCallback, NULL);
-			printf("CIS UDP initialization SUCCESS\n");
-		}
-		else
-		{
-			printf("failed to initialize CIS UDP \n");
-			Error_Handler();
-		}
-	}
-	else
-	{
-		printf("failed to initialize CIS UDP \n");
-		Error_Handler();
-	}
+        printf("UDP initialization successful\n");
+    } else {
+        printf("Failed to initialize UDP\n");
+        Error_Handler();
+    }
 
 	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
 	{
@@ -110,33 +93,16 @@ void udp_clientInit(void)
 	udp_clientSendStartupInfoPacket();
 }
 
-void udp_clientSendData2(void *data, uint16_t length)
-{
-	struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
-	if (p != NULL)
-	{
-		pbuf_take(p, data, length);
-		udp_send(upcb, p);
-		pbuf_free(p);
-	}
-}
-
 void udp_clientSendData(void *data, uint16_t length) {
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
-    if (p != NULL) {
-        pbuf_take(p, data, length);
-        err_t result = udp_send(upcb, p);
-        if (result != ERR_OK) {
-            // Log l'échec mais ne bloque pas
-            printf("UDP send failed with error code: %d, but it's non-critical\n", result);
-        }
-        pbuf_free(p);
-    } else {
-        // Également non-critique
-        printf("Failed to allocate pbuf for UDP send, but it's non-critical\n");
+    struct netbuf *buf = netbuf_new();
+    netbuf_alloc(buf, length);
+    netbuf_take(buf, data, length);
+    err_t err = netconn_send(conn, buf);
+    if (err != ERR_OK) {
+        printf("UDP send failed: %d\n", err);
     }
+    netbuf_delete(buf);
 }
-
 
 void udp_clientSendStartupInfoPacket(void)
 {
@@ -181,11 +147,19 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 }
 #pragma GCC pop_options
 
-void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
-{
-	/*increment message count */
-	message_count++;
+void udp_clientReceive(void) {
+    struct netbuf *buf;
+    void *data;
+    u16_t len;
+    while (netconn_recv(conn, &buf) == ERR_OK) {
+        netbuf_data(buf, &data, &len);
+        // Process incoming data
+        message_count++;
+        netbuf_delete(buf);
+    }
+}
 
-	/* Free receive pbuf */
-	pbuf_free(p);
+void udp_clientClose(void) {
+    netconn_close(conn);
+    netconn_delete(conn);
 }

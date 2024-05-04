@@ -51,6 +51,7 @@
 #include "stdbool.h"
 
 #include "arm_math.h"
+#include "cmsis_os.h"
 
 #include "cis.h"
 

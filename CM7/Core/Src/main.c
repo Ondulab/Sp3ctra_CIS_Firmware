@@ -101,7 +101,8 @@ int main(void)
 /* USER CODE END Boot_Mode_Sequence_0 */
 
   /* MPU Configuration--------------------------------------------------------*/
-  MPU_Config();
+
+	MPU_Config();
 /* Enable the CPU Cache */
 
   /* Enable I-Cache---------------------------------------------------------*/
@@ -403,7 +404,8 @@ static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
 
 void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+	MPU_Region_InitTypeDef MPU_InitStruct = {0};
 
   /* Disables the MPU */
   HAL_MPU_Disable();

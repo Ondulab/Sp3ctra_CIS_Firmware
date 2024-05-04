@@ -27,6 +27,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
 #include "quadspi.h"
+#include "cmsis_os.h"
 
 #include "MXIC.h"
 

@@ -3920,6 +3920,7 @@ static void prvCheckTasksWaitingTermination( void )
 				vPortFree( pxTCB->pxStack );
 				vPortFree( pxTCB );
 			}
+
 			else if( pxTCB->ucStaticallyAllocated == tskSTATICALLY_ALLOCATED_STACK_ONLY )
 			{
 				/* Only the stack was statically allocated, so the TCB is the
