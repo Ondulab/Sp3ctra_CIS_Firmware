@@ -163,11 +163,8 @@ struct shared_config
 /******************                  CM4 and CM7                    *******************/
 /**************************************************************************************/
 
-extern struct shared_var shared_var;
-extern struct shared_config shared_config;
-extern struct params params;
-extern struct cisCals cisCals;
-extern int32_t imageData[CIS_PIXELS_NB];
+extern volatile struct shared_var shared_var;
+extern volatile struct shared_config shared_config;
 extern struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE];
 extern struct packet_IMU packet_IMU;
 extern int params_size;
@@ -214,6 +211,7 @@ struct RAWImage{
 extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];
 extern float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3];
 extern struct RGB_Calibration rgbCalibration;
+extern struct cisCals cisCals;
 //extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));

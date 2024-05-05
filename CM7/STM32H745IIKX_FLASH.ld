@@ -47,7 +47,7 @@ MEMORY
 {
   FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 1024K 
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
-  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 64
+  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 128
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
@@ -142,9 +142,9 @@ SECTIONS
     KEEP (*(.dtcm));
     KEEP (*(.rgbCalibration)); 
     KEEP (*(.rgbCals));  
-    KEEP (*(.cisDataCpy)); 
     KEEP (*(.cisRAWImage)); 
     KEEP (*(.cisLeds_Calibration));  
+    KEEP (*(.cisCals));  
     . = ALIGN(4);
   } >DTCM
   
@@ -164,6 +164,7 @@ SECTIONS
     KEEP (*(.imuData));
     KEEP (*(.cisData));    
     KEEP (*(.cisCals));   
+    KEEP (*(.cisDataCpy)); 
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
 

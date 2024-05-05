@@ -345,6 +345,7 @@ void gui_displayWaiting(void)
 void gui_startCalibration()
 {
 	//uint8_t textData[256] = {0};
+	HAL_Delay(100);
 	shared_var.cis_cal_state = CIS_CAL_START;
 
 #ifdef POLYNOMIAL_CALIBRATION
@@ -404,20 +405,6 @@ void gui_startCalibration()
 			ssd1362_fillRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
 			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
 			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT DIFFERENTIAL OFFSETS", 0xF, 8);
-			ssd1362_drawString(0, 18, (int8_t *)"  R1 G1 B1  R2 G2 B2  R3 G3 B3", 10, 8);
-			for (uint32_t i = 1; i < 9; i++)
-			{
-				ssd1362_drawVLine(DISPLAY_WIDTH / 9 * i, 28, DISPLAY_HEIGHT, BANNER_BACKGROUND_COLOR, false);
-			}
-			ssd1362_writeFullBuffer();
-
-			// Print curve
-			for (uint32_t i = 0; i < (DISPLAY_WIDTH); i++)
-			{
-				uint32_t index = i * ((float)(CIS_ADC_BUFF_SIZE * 3) / (float)DISPLAY_WIDTH);
-				int32_t cis_color = (int32_t)(cisCals.offsetData[index]) >> 6;
-				ssd1362_drawPixel(DISPLAY_WIDTH - 1 - i, DISPLAY_HEIGHT - cis_color, 15, false);
-			}
 			ssd1362_writeFullBuffer();
 			while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_OFFSETS);
 			break;

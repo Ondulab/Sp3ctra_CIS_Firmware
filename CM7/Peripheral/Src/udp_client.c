@@ -42,7 +42,6 @@
 /* Private variables ---------------------------------------------------------*/
 struct netconn *conn;
 __IO uint32_t message_count = 0;
-//struct udp_pcb *upcb;
 int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
@@ -51,15 +50,12 @@ static struct packet_HID packet_HID = {0};
 static uint32_t packetsCounter = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-//static void udp_clientReceiveCallback(void *arg, struct udp_pcb *upcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
 static void udp_clientSendData(void *data, uint16_t length);
 
 /* Private user code ---------------------------------------------------------*/
 
 void udp_clientInit(void)
-{                                      //
-	//ip_set_option(upcb, SOF_BROADCAST); // test for broadcast, useless at frist view
-
+{
     printf("-------- UDP INIT ---------\n");
     ip_addr_t destIPaddr;
 
@@ -70,7 +66,7 @@ void udp_clientInit(void)
         netconn_bind(conn, NULL, 0);  // Bind to any local address and port
         netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 
-        printf("UDP initialization successful\n");
+        printf("UDP initialization SUCCESS\n");
     } else {
         printf("Failed to initialize UDP\n");
         Error_Handler();
@@ -139,9 +135,9 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	packet_HID.packet_id = packetsCounter++;
 
-	//packet_HID.button_A = shared_var.buttonState[SW1];
-	//packet_HID.button_B = shared_var.buttonState[SW2];
-	//packet_HID.button_C = shared_var.buttonState[SW3];
+	packet_HID.button_A = shared_var.buttonState[SW1];
+	packet_HID.button_B = shared_var.buttonState[SW2];
+	packet_HID.button_C = shared_var.buttonState[SW3];
 
 	//udp_clientSendData(&packet_HID, sizeof(packet_HID));
 }

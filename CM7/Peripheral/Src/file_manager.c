@@ -46,7 +46,7 @@ const struct shared_config DefaultConfig =
 
 FATFS fs;   // Filesystem object
 
-int file_readConfig(const char* filePath, struct shared_config* config)
+int file_readConfig(const char* filePath, volatile struct shared_config* config)
 {
     FIL file;
     FRESULT fr;
@@ -67,7 +67,7 @@ int file_readConfig(const char* filePath, struct shared_config* config)
     return 0;
 }
 
-void file_parseLine(char* line, struct shared_config* config)
+void file_parseLine(char* line, volatile struct shared_config* config)
 {
     char* token = strtok(line, "=");
     while (token != NULL)
@@ -156,7 +156,7 @@ void file_parseLine(char* line, struct shared_config* config)
     }
 }
 
-int file_writeConfig(const char* filePath, const struct shared_config* config)
+int file_writeConfig(const char* filePath, const volatile struct shared_config* config)
 {
     FIL file;
     FRESULT fr;
@@ -198,7 +198,7 @@ int file_writeConfig(const char* filePath, const struct shared_config* config)
     return 0;
 }
 
-void file_initConfig(struct shared_config* config)
+void file_initConfig(volatile struct shared_config* config)
 {
 	printf("- CONFIG FILE INITIALIZATIONS -\n");
 	                                          //
@@ -207,7 +207,7 @@ void file_initConfig(struct shared_config* config)
 
 	// Attempt to mount the file system
 	fres = f_mount(&fs, "0:", 1); // 1 to mount immediately
-	if (fres != FR_OK)
+	if (fres != FR_OK)//todo warning change to !=
 	{
 	    printf("FS mount ERROR\n");
 

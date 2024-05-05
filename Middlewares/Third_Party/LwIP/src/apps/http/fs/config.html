@@ -272,7 +272,7 @@
                     </div>
                 </div>
             </div>
-    
+
             <!-- Firmware Update -->
             <div class="container">
                 <span class="title">Firmware Update</span>
@@ -286,11 +286,16 @@
                     </div>
                 </div>
             </div>
-        </div>    
 
+            <!-- Progress Modal -->
+            <div id="progressModal" style="display:none;">
+                <progress id="uploadProgress" value="0" max="100" style="width: 100%;"></progress> <!-- Progress Bar -->
+                <p id="uploadStatus">No upload in progress.</p> <!-- Status Message -->
+            </div>
+        </div>    
+        <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
         <script>
             function initialize() {
-                //attachEventListeners();
                 setupInputListeners().then(() => {
                     console.log("Input listeners setup completed.");
                     return loadDPI();
@@ -434,8 +439,68 @@
                     xhr.send(data);
                 });
             }
-        
-            document.addEventListener('DOMContentLoaded', initialize);
+
+            function uploadFirmware() {
+                const file = document.getElementById('firmwareFile').files[0];
+                if (!file) {
+                    alert('Please select a file to upload.');
+                    return;
+                }
+            
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const fileData = new Uint8Array(e.target.result);
+
+                    const crc = CRC32.buf(fileData); // Calculate CRC of the file
+                    const crcHex = (crc >>> 0).toString(16); // Convert to unsigned hex string
+
+                    console.log("CRC calculated: ", crcHex); // Afficher le CRC calculé en hexadécimal
+
+                    const formData = new FormData();
+                    
+                    formData.append('crc', crcHex); // Add calculated CRC to FormData
+                    formData.append('firmwareFile', file);
+            
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("POST", "/uploadFirmware", true);
+                    //xhr.setRequestHeader("Content-Type", "multipart/form-data; charset=utf-8");
+
+                    document.getElementById('progressModal').style.display = 'block';
+            
+                    xhr.upload.onprogress = function(event) {
+                        if (event.lengthComputable) {
+                            const percentComplete = (event.loaded / event.total) * 100;
+                            document.getElementById('uploadProgress').value = percentComplete;
+                            document.getElementById('uploadStatus').textContent = 'Uploading... ' + percentComplete.toFixed(2) + '%';
+                        }
+                    };
+            
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {
+                            document.getElementById('uploadStatus').textContent = 'Firmware successfully uploaded! Please wait for the device to restart...';
+                            setTimeout(() => {
+                                document.getElementById('uploadStatus').textContent = 'Reconnecting, please do not disconnect the device.';
+                            }, 1000);
+                        } else {
+                            document.getElementById('uploadStatus').textContent = 'Firmware upload failed.';
+                        }
+                    };
+            
+                    xhr.onerror = function() {
+                        alert('Error in network request.');
+                        document.getElementById('uploadStatus').textContent = 'Network error, please try again.';
+                    };
+            
+                    xhr.send(formData);
+                };
+                reader.readAsArrayBuffer(file); // Read the file as buffer to calculate CRC
+            }
+
+
+
+
+
+
 
             function setDPI(value) {
                 var buttons = document.querySelectorAll('.dpi-button');
@@ -637,39 +702,6 @@
                     }
                     console.log("Broadcast set to", status);
                     resolve();  // Resolve immediately as this is a synchronous UI update
-                });
-            }
-            
-            function uploadFirmware() {
-                return new Promise((resolve, reject) => {
-                    var fileInput = document.getElementById('firmwareFile');
-                    var file = fileInput.files[0];
-                    
-                    if (!file) {
-                        alert("Please select a file.");
-                        reject(new Error("No file selected"));
-                        return;
-                    }
-                    
-                    var formData = new FormData();
-                    formData.append('firmwareFile', file);
-                    
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "/uploadFirmware", true);
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            alert("Firmware uploaded successfully!");
-                            resolve();
-                        } else {
-                            alert("Failed to upload firmware.");
-                            reject(new Error("Failed to upload firmware with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = function() {
-                        alert("Error in network request.");
-                        reject(new Error("Network request error"));
-                    };
-                    xhr.send(formData);
                 });
             }
 

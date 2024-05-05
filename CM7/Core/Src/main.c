@@ -101,8 +101,7 @@ int main(void)
 /* USER CODE END Boot_Mode_Sequence_0 */
 
   /* MPU Configuration--------------------------------------------------------*/
-
-	MPU_Config();
+  MPU_Config();
 /* Enable the CPU Cache */
 
   /* Enable I-Cache---------------------------------------------------------*/
@@ -404,8 +403,7 @@ static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
 
 void MPU_Config(void)
 {
-
-	MPU_Region_InitTypeDef MPU_InitStruct = {0};
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
 
   /* Disables the MPU */
   HAL_MPU_Disable();
@@ -453,7 +451,7 @@ void MPU_Config(void)
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER3;
   MPU_InitStruct.BaseAddress = 0x24000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_64B;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_128B;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);

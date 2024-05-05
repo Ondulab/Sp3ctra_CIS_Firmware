@@ -205,6 +205,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Drivers/BSP/Components/lan8742/lan8742.c</locationURI>
 		</link>
 		<link>
+			<name>Middlewares/Third_Party/FatFs/ccsbcs.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/FatFs/src/option/ccsbcs.c</locationURI>
+		</link>
+		<link>
 			<name>Middlewares/Third_Party/FatFs/diskio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Middlewares/Third_Party/FatFs/src/diskio.c</locationURI>
