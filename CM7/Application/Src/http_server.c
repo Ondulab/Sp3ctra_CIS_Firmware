@@ -32,72 +32,12 @@
 #include "file_manager.h"
 
 #include "usart.h"
-
 #include "crc.h"
 
 #include "shared.h"
 
 TaskHandle_t http_ThreadHandle = NULL;
 
-typedef enum {
-	FWUPDATE_STATE_HEADER,
-	FWUPDATE_STATE_DOWNLOAD_START,
-	FWUPDATE_STATE_DOWNLOAD_STREAM,
-
-} fwupdate_state_t;
-
-typedef struct {
-
-	fwupdate_state_t state;
-
-	int content_length;
-	int file_length;
-	int accum_length;
-
-	/* Data stream accumulation buffer to meet 8-byte size-alignment constraint with v1.3.0 .sfb file update */
-	uint8_t accum_buf[8];
-	uint8_t accum_buf_len;
-
-} fwupdate_t;
-
-static fwupdate_t fwupdate;
-
-#define CONTENT_LENGTH_TAG      "Content-Length:"
-//#define OCTET_STREAM_TAG      "application/octet-stream\r\n\r\n"
-#define OCTET_STREAM_TAG 			"Content-Type: image/png\r\n\r\n"
-#define EMPTY_LINE_TAG          "\r\n\r\n"
-
-#define FWUPDATE_STATUS_ERROR          -1
-#define FWUPDATE_STATUS_NONE            0
-#define FWUPDATE_STATUS_INPROGRESS      1
-#define FWUPDATE_STATUS_DONE            2
-
-void print_buf(const uint8_t* buf, int len)
-{
-	for (int i = 0; i < len; i++) {
-		uint8_t c = buf[i];
-		if (c == 0) {
-			char b[] = { 'n','u','l' };
-			HAL_UART_Transmit(&huart1, (uint8_t*) & b, sizeof(b), 100);
-		} else {
-			HAL_UART_Transmit(&huart1, &c, 1, 100);
-		}
-	}
-	uint8_t n = '\n';
-	HAL_UART_Transmit(&huart1, &n, 1, 100);
-}
-
-static const char* fwupdate_state_str(fwupdate_state_t state)
-{
-	switch (state) {
-	case FWUPDATE_STATE_HEADER: return "HEADER";
-	case FWUPDATE_STATE_DOWNLOAD_START: return "OCTET_START";
-	case FWUPDATE_STATE_DOWNLOAD_STREAM: return "OCTET_STREAM";
-	default:
-		return "<unknown>";
-	}
-
-}
 /*!
  * @value(StatusCode_NONE) No status code
  * @value(StatusCode_COMPLETED) Response to a completed API call or the update has completed in case of status poll
@@ -152,6 +92,12 @@ typedef enum
 	FW_UPDATE_StatusCode__MAX__
 }  FW_UPDATE_StatusCode;
 
+typedef enum {
+	FWUPDATE_STATE_HEADER,
+	FWUPDATE_STATE_DOWNLOAD_START,
+	FWUPDATE_STATE_DOWNLOAD_STREAM,
+} fwupdate_state_t;
+
 typedef enum
 {
 	FW_UPDATE_Stage_IDLE,
@@ -159,87 +105,67 @@ typedef enum
 	FW_UPDATE_Stage_VERIFIED
 }  FW_UPDATE_Stage;
 
-// Structure pour gérer l'état et le statut de la mise à jour
-typedef struct
-{
+typedef struct {
+
+	fwupdate_state_t state;
+
+	int content_length;
+	int file_length;
+	int accum_length;
+
 	bool completed;
 	bool error;
 	FW_UPDATE_StatusCode code;
 	FW_UPDATE_Stage stage;
-	uint32_t accumBytes;
-	uint32_t totalBytes;
+
+	/* Data stream accumulation buffer file update */
 	uint32_t has_been_initialized;
-} FW_UPDATE_Status;
+	uint8_t accum_buf[8];
+	uint8_t accum_buf_len;
+
+} fwupdate_t;
+
+static fwupdate_t fwupdate;
+
+#define CONTENT_LENGTH_TAG      "Content-Length:"
+//#define DOWNLOAD_STREAM_TAG      "application/octet-stream\r\n\r\n"
+#define DOWNLOAD_STREAM_TAG 			"Content-Type: image/png\r\n\r\n"
+#define EMPTY_LINE_TAG          "\r\n\r\n"
+
+#define FWUPDATE_STATUS_ERROR          -1
+#define FWUPDATE_STATUS_NONE            0
+#define FWUPDATE_STATUS_INPROGRESS      1
+#define FWUPDATE_STATUS_DONE            2
+
+
+static const char* fwupdate_state_str(fwupdate_state_t state)
+{
+	switch (state) {
+	case FWUPDATE_STATE_HEADER: return "HEADER";
+	case FWUPDATE_STATE_DOWNLOAD_START: return "DOWNLOAD_START";
+	case FWUPDATE_STATE_DOWNLOAD_STREAM: return "DOWNLOAD_STREAM";
+	default:
+		return "<unknown>";
+	}
+
+}
 
 /**
  * @brief  Secure Engine Error definition
  */
 typedef enum
 {
-	SE_ERROR = 0U,
-	FU_SUCCESS = !SE_ERROR
+	FU_ERROR = 0U,
+	FU_SUCCESS = !FU_ERROR
 } FU_ErrorStatus;
 
-#define FU_SUCCESS 1
-#define SE_ERROR -1
-
-// Définitions pour la gestion des étapes de la mise à jour
 #define FW_UPDATE_Stage_NOT_STARTED 0
 #define FW_UPDATE_Stage_IN_PROGRESS 1
 #define FW_UPDATE_Stage_VERIFIED 2
 
-FW_UPDATE_Status staticStatus = {0};
-
-/**
- * Initialiser le statut de mise à jour
- */
-void FW_UPDATE_InitStatus(FW_UPDATE_Status *status) {
-	status->completed = staticStatus.completed;
-	status->error = staticStatus.error;
-	status->code = staticStatus.code;
-	status->stage = staticStatus.stage;
-	status->accumBytes = staticStatus.accumBytes;
-	status->totalBytes = staticStatus.totalBytes;
-}
-
 static FIL file;
 
 #define FW_UPDATE_RebootDelay_NEXT            ((uint32_t)1)
-
-FU_ErrorStatus FW_UPDATE_Data(FW_UPDATE_Status *status, const uint8_t *data, uint32_t data_len)
-{
-	FRESULT fr;
-	UINT bytes_written;
-
-	if (!staticStatus.has_been_initialized)
-	{
-		fr = f_open(&file, "update.bin", FA_WRITE | FA_OPEN_APPEND);
-		if (fr != FR_OK) {
-			status->code = fr;
-			return SE_ERROR;
-		}
-		staticStatus.has_been_initialized = 1;
-		status->stage = FW_UPDATE_Stage_IN_PROGRESS;
-	}
-
-	fr = f_write(&file, data, data_len, &bytes_written);
-	if (fr != FR_OK || bytes_written != data_len) {
-		status->code = fr;
-		return SE_ERROR;
-	}
-
-	staticStatus.accumBytes += data_len;
-	FW_UPDATE_InitStatus(status);
-	printf("@ fwupdate accumBytes=%d\n", (int)staticStatus.accumBytes);
-
-	if (staticStatus.accumBytes >= status->totalBytes) {
-		f_close(&file);
-		staticStatus.has_been_initialized = 0;
-		status->stage = FW_UPDATE_Stage_VERIFIED;
-	}
-
-	return FU_SUCCESS;
-}
 
 /*!
  * High-level patching engine image types.
@@ -257,78 +183,47 @@ void FW_UPDATE_Finish()
 
 }
 
-FU_ErrorStatus FW_UPDATE_Init(FW_UPDATE_Status *status, const uint32_t totalLength)
+void print_buf(const uint8_t* buf, int len)
 {
-	if (status == NULL)
-	{
-		return SE_ERROR;
+	for (int i = 0; i < len; i++) {
+		uint8_t c = buf[i];
+		if (c == 0) {
+			char b[] = { 'n','u','l' };
+			HAL_UART_Transmit(&huart1, (uint8_t*) & b, sizeof(b), 100);
+		} else {
+			HAL_UART_Transmit(&huart1, &c, 1, 100);
+		}
 	}
-
-	status->totalBytes = totalLength;
-	status->accumBytes = 0;
-	status->stage = FW_UPDATE_Stage_UPDATE;
-	status->completed = false;
-	status->error = false;
-
-	staticStatus.completed = status->completed;
-	staticStatus.error = status->error;
-	staticStatus.code = status->code;
-	staticStatus.stage = status->stage;
-	staticStatus.accumBytes = status->accumBytes;
-	staticStatus.totalBytes = status->totalBytes;
-
-	return FU_SUCCESS;
+	uint8_t n = '\n';
+	HAL_UART_Transmit(&huart1, &n, 1, 100);
 }
 
-static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen)
-{
+static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen) {
 	int ret = FWUPDATE_STATUS_NONE;
-
 	char* buf_start = buf;
-	char* buf_end = buf + buflen; /* points to byte AFTER end of buffer! */
+	char* buf_end = buf + buflen; // points to byte AFTER end of buffer!
 
-	/* We advance the buffer pointer as parts are consumed.  Keep processing
-    until buffer pointer gets nulled either as a result of not finding what we want
-    or explicitly on error condition.
-	 */
 	while (buf && buf < buf_end) {
 
 		printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
 
-		switch (fwupdate.state)
-		{
+		switch (fwupdate.state) {
 		case FWUPDATE_STATE_HEADER:
-			/* Look for POST header */
 			if ((buflen >= 12) && (strncmp(buf, "POST /upload", 12) == 0)) {
-				ret = FWUPDATE_STATUS_ERROR; /* Error until we go to in progress */
-				/* This buffer must have the complete POST header */
+				ret = FWUPDATE_STATUS_ERROR; // Error until we go to in progress
 				printf("@ fwupdate -     Scanning HEADER\n");
-				/* Diagnostics */
 				print_buf((uint8_t*)buf, buflen);
 				buf = strstr(buf, CONTENT_LENGTH_TAG);
 				if (buf) {
 					buf += strlen(CONTENT_LENGTH_TAG);
 					fwupdate.content_length = atoi(buf);
-					/* sanity check  */
-					if (fwupdate.content_length > 0) {
-						/* Having obtained content length, need to next find the
-                        end of the header, denoted by an empty line.
-                        This is where the content-length starts from. */
-						buf = strstr(buf, EMPTY_LINE_TAG);
-						if (buf) {
-							buf += strlen(EMPTY_LINE_TAG);
-							/* To get the length of the file, have to subtract all bytes up to and including
-                            application/octet-stream\r\n\r\n"
-							 */
-							/* advance the buffer reference point to here */
-							buf_start = buf;
-							/* Got what we need/expect and must wait for the "octet-stream" content-type in
-                             the next multipart header packet. */
-							fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
-							ret = FWUPDATE_STATUS_INPROGRESS;
-
-							printf("@ fwupdate - Have content len=%d\n", fwupdate.content_length);
-						}
+					buf = strstr(buf, EMPTY_LINE_TAG);
+					if (buf) {
+						buf += strlen(EMPTY_LINE_TAG);
+						buf_start = buf;
+						fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
+						ret = FWUPDATE_STATUS_INPROGRESS;
+						printf("@ fwupdate - Have content len=%d\n", fwupdate.content_length);
 					}
 					else {
 						buf = 0;
@@ -339,151 +234,87 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 				buf = 0;
 			}
 			break;
-		case FWUPDATE_STATE_DOWNLOAD_START:
 
+		case FWUPDATE_STATE_DOWNLOAD_START:
 			ret = FWUPDATE_STATUS_ERROR;
 			fwupdate.state = FWUPDATE_STATE_HEADER;
-
-			/* Look for the start of the firmware update file */
-			buf = strstr(buf, OCTET_STREAM_TAG);
+			buf = strstr(buf, DOWNLOAD_STREAM_TAG);
 			if (buf) {
-				buf += strlen(OCTET_STREAM_TAG);
-				int multipart_length = buf - buf_start;
-				/* Strictly speaking this computed file length is incorrect - it is a bit too large as it includes
-                the ending multipart boundary tag of few dozen chars. This doesn't impact the update process because the
-                patching engine manages byte counters internally. This is just for diagnostic purposes and sanity check.
-				 */
-				fwupdate.file_length = fwupdate.content_length - multipart_length;
-				printf("@ fwupdate content len=%d multipart len=%d file len=%d\n",
-						fwupdate.content_length, multipart_length, fwupdate.file_length);
-				/* Now can init the update */
-				FW_UPDATE_Status FW_UPDATE_status;
-				FU_ErrorStatus status = FW_UPDATE_Init(&FW_UPDATE_status, fwupdate.file_length);
-				printf("@ fwupdate INIT %d\n", status);
-				//fwupdate_PrintStatus(&FW_UPDATE_status);
-				if (status == FU_SUCCESS)
-				{
-					/* Now need to consume rest of buffer as the file */
-					fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
-					fwupdate.accum_length = 0;
-					fwupdate.accum_buf_len = 0;
-					ret = FWUPDATE_STATUS_INPROGRESS;
-				}
-				else
-				{
-					//fwupdate_send_err(conn, fwupdate_GetStatusCodeString(FW_UPDATE_status.code));
-				}
+				buf += strlen(DOWNLOAD_STREAM_TAG);
+				fwupdate.file_length = fwupdate.content_length - (buf - buf_start);
+				printf("@ fwupdate content len=%d file len=%d\n", fwupdate.content_length, fwupdate.file_length);
+				printf("@ fwupdate INIT %d\n", fwupdate.state);
+				fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
+				fwupdate.accum_length = 0;
+				ret = FWUPDATE_STATUS_INPROGRESS;
 			}
 			break;
 
 		case FWUPDATE_STATE_DOWNLOAD_STREAM:
-		{
-			int len = buf_end - buf;
-			printf("@ fwupdate len=%d\n", len);
+			if (buf_end - buf > 0) {
+				FRESULT fr;
+				UINT bytes_written;
 
-			const uint8_t* input_buf; /* pointer to data we will consume */
-			int input_buf_len = 0; /* number of bytes to consume from this input buffer pointer */
-			int offset = 0; /* offset into the original buffer */
+				ret = FWUPDATE_STATUS_INPROGRESS;
 
-			ret = FWUPDATE_STATUS_INPROGRESS;
+				uint32_t data_len = buf_end - buf;
 
-			FW_UPDATE_Status FW_UPDATE_status;
-			FW_UPDATE_InitStatus(&FW_UPDATE_status);
-
-			/* One way or another we MUST consume all bytes in the received packet (buf).
-			 * Bytes that aren't a multiple of the accumulation buffer size are stored
-			 * in the accumulation buffer until next packet.
-			 */
-			while (len > 0) {
-
-				/* ----------------------------------------------------------------- */
-				input_buf = 0;
-
-				if (fwupdate.accum_buf_len > 0 ||
-						len < sizeof(fwupdate.accum_buf)) {
-					/* We have existing bytes in the buffer or and /or too few bytes to process.
-                      Store them in our internal buffer.
-					 */
-					int avail = sizeof(fwupdate.accum_buf) - fwupdate.accum_buf_len;
-					int copy = len > avail ? avail : len;
-					memcpy(fwupdate.accum_buf + fwupdate.accum_buf_len, buf + offset, copy);
-					fwupdate.accum_buf_len += copy;
-
-					/* consumed these bytes into the front end buffer */
-					len -= copy;
-					offset += copy;
-
-					printf("@   accum %d bytes\n", copy);
-				}
-
-				/* If the front end buffer is full, use it */
-				if (fwupdate.accum_buf_len == sizeof(fwupdate.accum_buf)) {
-					printf("@   use accum_buf\n");
-					/* We now have all required minimum bytes in the front end buffer.Process them */
-					input_buf = fwupdate.accum_buf;
-					fwupdate.accum_buf_len = 0;
-					input_buf_len = sizeof(fwupdate.accum_buf);
-				}
-				// otherwise use a block directly from original buffer if available
-				else if (len >= sizeof(fwupdate.accum_buf)) {
-					// No waiting bytes and we have enough to process another block(s)
-					input_buf = (const uint8_t*)buf + offset;
-					printf("@   use buf at %d\n", offset);
-
-					/* We will try to consume all bytes that are a multiple of the accumulation buffer.
-                    The rest will get consumed into the accumulation buffer and held for the next packet received.
-					 */
-					input_buf_len = (len / sizeof(fwupdate.accum_buf)) * sizeof(fwupdate.accum_buf);
-					len -= input_buf_len;
-					offset += input_buf_len;
-				}
-				/* ----------------------------------------------------------------- */
-
-				/* Only if there is at least one accum_buf number of bytes available */
-				if (input_buf) {
-
-					//print_hex_buf((const uint8_t*)input_buf, input_buf_len);
-
-					FW_UPDATE_InitStatus(&FW_UPDATE_status);
-					FU_ErrorStatus status = FW_UPDATE_Data(&FW_UPDATE_status, input_buf, input_buf_len);
-					printf("@ fwupdate DATA len=%d status=%d\n", input_buf_len, status);
-					//					fwupdate_PrintStatus(&FW_UPDATE_status);
-					if (status == SE_ERROR) {
+				if (!fwupdate.has_been_initialized)
+				{
+					fr = f_open(&file, "update.bin", FA_WRITE | FA_OPEN_APPEND);
+					if (fr != FR_OK) {
+						fwupdate.code = fr;
 						ret = FWUPDATE_STATUS_ERROR;
+					}
+					fwupdate.has_been_initialized = 1;
+					fwupdate.stage = FW_UPDATE_Stage_IN_PROGRESS;
+				}
+
+				fr = f_write(&file, buf, data_len, &bytes_written);
+				if (fr != FR_OK || bytes_written != data_len) {
+					fwupdate.code = fr;
+					f_close(&file);
+					ret = FWUPDATE_STATUS_ERROR;
+				}
+
+				fwupdate.accum_length += data_len;
+				printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
+
+				if (fwupdate.accum_length >= fwupdate.file_length) {
+					f_close(&file);
+					fwupdate.has_been_initialized = 0;
+					fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
+				}
+
+				printf("@ fwupdate DATA len=%d status=%d\n", (int)data_len, fwupdate.state);
+
+				buf = 0;
+
+				if (ret == FWUPDATE_STATUS_INPROGRESS)
+				{
+					if (fwupdate.accum_length >= fwupdate.file_length
+							|| fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
+					{
+						/* now the thing is, if rebootdelay_IMMEDIATE was selected, the device will have rebooted
+	                    before we get here.
+						 */
+						if (fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
+						{
+							ret = FWUPDATE_STATUS_DONE;
+						}
+						else
+						{
+							ret = FWUPDATE_STATUS_ERROR;
+						}
+
+						/* if we have all file bytes, we are done whether it worked or not */
 						fwupdate.state = FWUPDATE_STATE_HEADER;
 					}
-					else {
-						fwupdate.accum_length += len;
-					}
 				}
 			}
-
-			/* In any case we have consumed all bytes remaining in this buffer */
-			buf = 0;
-
-			if (ret == FWUPDATE_STATUS_INPROGRESS) {
-				if (fwupdate.accum_length >= fwupdate.file_length
-						|| FW_UPDATE_status.stage == FW_UPDATE_Stage_VERIFIED)
-				{
-					/* now the thing is, if rebootdelay_IMMEDIATE was selected, the device will have rebooted
-                    before we get here.
-					 */
-					if (FW_UPDATE_status.stage == FW_UPDATE_Stage_VERIFIED) {
-						ret = FWUPDATE_STATUS_DONE;
-					}
-					else {
-						ret = FWUPDATE_STATUS_ERROR;
-					}
-
-					/* if we have all file bytes, we are done whether it worked or not */
-					fwupdate.state = FWUPDATE_STATE_HEADER;
-				}
-			}
-
 			break;
 		}
-		}
-	} /* while (buf) */
+	}
 
 	return ret;
 }
