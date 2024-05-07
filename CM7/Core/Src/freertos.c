@@ -159,7 +159,7 @@ void StartDefaultTask(void const * argument)
 
 	http_serverInit();
 
-	cis_scanInit();
+	//cis_scanInit();
 
 	/* Infinite loop */
 	for(;;)
