@@ -97,12 +97,14 @@ int gui_mainLoop(void)
             last_process_count = current_process_count; // Update the last process counter
         }
 
+#if 0
         static char str[12]; // Buffer suffisamment grand pour contenir des nombres longs
         static int32_t counter = 0;
         counter++;
 
         sprintf(str, "%lu", counter);
         ssd1362_drawString(0, 0, (int8_t *)str, 15, 8);
+#endif
 
         gui_interractiveMenu();
         gui_displayIMU();

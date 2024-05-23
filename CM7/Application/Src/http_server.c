@@ -128,8 +128,7 @@ typedef struct {
 static fwupdate_t fwupdate;
 
 #define CONTENT_LENGTH_TAG      "Content-Length:"
-//#define DOWNLOAD_STREAM_TAG      "application/octet-stream\r\n\r\n"
-#define DOWNLOAD_STREAM_TAG 			"Content-Type: image/png\r\n\r\n"
+#define DOWNLOAD_STREAM_TAG      "application/octet-stream\r\n\r\n"
 #define EMPTY_LINE_TAG          "\r\n\r\n"
 
 #define FWUPDATE_STATUS_ERROR          -1
@@ -198,39 +197,72 @@ void print_buf(const uint8_t* buf, int len)
 	HAL_UART_Transmit(&huart1, &n, 1, 100);
 }
 
-static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen) {
+#define FILE_NAME_MAX_LENGTH 256  // D√©finissez une longueur maximale pour le nom du fichier.
+
+static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen)
+{
 	int ret = FWUPDATE_STATUS_NONE;
 	char* buf_start = buf;
 	char* buf_end = buf + buflen; // points to byte AFTER end of buffer!
+	char file_name[FILE_NAME_MAX_LENGTH] = {0};  // Buffer pour stocker le nom du fichier.
 
-	while (buf && buf < buf_end) {
+	int len = 0;
+	char response[100];
 
+	while (buf && buf < buf_end)
+	{
 		printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
 
-		switch (fwupdate.state) {
+		switch (fwupdate.state)
+		{
 		case FWUPDATE_STATE_HEADER:
-			if ((buflen >= 12) && (strncmp(buf, "POST /upload", 12) == 0)) {
+			if ((buflen >= 12) && (strncmp(buf, "POST /upload", 12) == 0))
+			{
 				ret = FWUPDATE_STATUS_ERROR; // Error until we go to in progress
 				printf("@ fwupdate -     Scanning HEADER\n");
 				print_buf((uint8_t*)buf, buflen);
 				buf = strstr(buf, CONTENT_LENGTH_TAG);
-				if (buf) {
+				if (buf)
+				{
 					buf += strlen(CONTENT_LENGTH_TAG);
 					fwupdate.content_length = atoi(buf);
 					buf = strstr(buf, EMPTY_LINE_TAG);
-					if (buf) {
+					if (buf)
+					{
 						buf += strlen(EMPTY_LINE_TAG);
 						buf_start = buf;
-						fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
-						ret = FWUPDATE_STATUS_INPROGRESS;
 						printf("@ fwupdate - Have content len=%d\n", fwupdate.content_length);
 					}
-					else {
+					else
+					{
 						buf = 0;
+						printf("@ fwupdate - Error extracting empty line tag\n");
+						ret = FWUPDATE_STATUS_ERROR;
+					}
+					buf = strstr(buf, "Content-Disposition:");
+					if (buf)
+					{
+						int extracted = sscanf(buf, "Content-Disposition: form-data; name=\"firmware\"; filename=\"%255[^\"]\"", file_name);
+						if (extracted == 1)
+						{
+							fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
+							ret = FWUPDATE_STATUS_INPROGRESS;
+						}
+						else
+						{
+							printf("@ fwupdate - Error extracting file name\n");
+							ret = FWUPDATE_STATUS_ERROR;
+						}
+					}
+					else
+					{
+						printf("@ fwupdate - No Content-Disposition field found\n");
+						ret = FWUPDATE_STATUS_ERROR;
 					}
 				}
 			}
-			else {
+			else
+			{
 				buf = 0;
 			}
 			break;
@@ -238,6 +270,13 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 		case FWUPDATE_STATE_DOWNLOAD_START:
 			ret = FWUPDATE_STATUS_ERROR;
 			fwupdate.state = FWUPDATE_STATE_HEADER;
+			FRESULT fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
+			if (fr != FR_OK)
+			{
+				fwupdate.code = fr;
+				ret = FWUPDATE_STATUS_ERROR;
+			}
+			f_close(&file);
 			buf = strstr(buf, DOWNLOAD_STREAM_TAG);
 			if (buf) {
 				buf += strlen(DOWNLOAD_STREAM_TAG);
@@ -247,6 +286,11 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 				fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
 				fwupdate.accum_length = 0;
 				ret = FWUPDATE_STATUS_INPROGRESS;
+			}
+			else
+			{
+				printf("@ fwupdate - Error extracting file length\n");
+				ret = FWUPDATE_STATUS_ERROR;
 			}
 			break;
 
@@ -259,9 +303,11 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
 				uint32_t data_len = buf_end - buf;
 
+
+
 				if (!fwupdate.has_been_initialized)
 				{
-					fr = f_open(&file, "update.bin", FA_WRITE | FA_OPEN_APPEND);
+					fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
 					if (fr != FR_OK) {
 						fwupdate.code = fr;
 						ret = FWUPDATE_STATUS_ERROR;
@@ -301,11 +347,15 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 						if (fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
 						{
 							ret = FWUPDATE_STATUS_DONE;
+							len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
 						}
 						else
 						{
 							ret = FWUPDATE_STATUS_ERROR;
+							len = sprintf(response, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nUpdate Failed.\r\n");
 						}
+
+						netconn_write(conn, response, len, NETCONN_COPY);
 
 						/* if we have all file bytes, we are done whether it worked or not */
 						fwupdate.state = FWUPDATE_STATE_HEADER;
@@ -316,8 +366,14 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 		}
 	}
 
+	if (ret == FWUPDATE_STATUS_ERROR)
+	{
+		fwupdate.state = FWUPDATE_STATE_HEADER;
+	}
+
 	return ret;
 }
+
 
 static void http_server(struct netconn *conn)
 {
@@ -389,25 +445,6 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
-					/* Process POST request to set DPI */
-					else if (strncmp((char const *)buf, "POST /setDPI", 12) == 0)
-					{
-						char *dpiValue = strstr(buf, "dpi=") + 4;  // Point to the first character of the value
-
-						if (dpiValue) {
-							shared_config.cis_dpi = atoi(dpiValue);
-							shared_config.cis_dpi  = shared_config.cis_dpi  < 200 ? 200 : shared_config.cis_dpi  > 200 ? 400 : shared_config.cis_dpi ;
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
-							netconn_write(conn, response, len, NETCONN_COPY);
-						} else {
-							char *errorResponse = "Error: DPI value not found";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
-						}
-					}
-
 					/* Get and set oversampling settings */
 					else if (strncmp((char const *)buf, "GET /getOversampling", 20) == 0)
 					{
@@ -415,25 +452,6 @@ static void http_server(struct netconn *conn)
 						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_oversampling);
 
 						netconn_write(conn, response, len, NETCONN_COPY);
-					}
-
-					/* Process POST request to set oversampling */
-					else if (strncmp((char const *)buf, "POST /setOversampling", 21) == 0)
-					{
-						char *oversamplingValue = strstr(buf, "oversampling=") + 13;
-
-						if (oversamplingValue) {
-							shared_config.cis_oversampling = atoi(oversamplingValue);
-							shared_config.cis_oversampling  = shared_config.cis_oversampling  < 0 ? 0 : shared_config.cis_oversampling  > 32 ? 32 : shared_config.cis_oversampling ;
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOversampling set to %d", (int)shared_config.cis_oversampling);
-							netconn_write(conn, response, len, NETCONN_COPY);
-						} else {
-							char *errorResponse = "Error: Oversampling value not found";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
-						}
 					}
 
 					/* Get hand settings */
@@ -445,96 +463,25 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
-					/* Process POST request to set hand settings */
-					else if (strncmp((char const *)buf, "POST /setHand", 13) == 0)
-					{
-						char *handValue = strstr(buf, "hand=") + 5;
-
-						if (handValue) {
-							shared_config.cis_handedness = atoi(handValue);
-							shared_config.cis_handedness =  shared_config.cis_handedness < 0 ? 0 :  shared_config.cis_handedness > 1 ? 1 :  shared_config.cis_handedness;
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_handedness);
-							netconn_write(conn, response, len, NETCONN_COPY);
-						} else {
-							char *errorResponse = "Error: Hand value not found";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
-						}
-					}
-
-					/* Process calibration start command */
-					else if (strncmp((char const *)buf, "POST /startCalibration", 22) == 0)
-					{
-						char *body = strstr(buf, "\r\n\r\n");
-						if (body && strstr(body, "CIS_CAL_START")) {
-							shared_var.cis_cal_state = CIS_CAL_REQUESTED;
-							const char *response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCalibration started";
-							netconn_write(conn, response, strlen(response), NETCONN_COPY);
-						}
-					}
-
 					/* Get network settings */
 					else if (strncmp((char const *)buf, "GET /getNetworkConfig", 21) == 0)
 					{
-						char response[300];
+						char response[400];
 						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
 								"{"
 								"\"ip\":\"%d.%d.%d.%d\","
 								"\"mask\":\"%d.%d.%d.%d\","
 								"\"gw\":\"%d.%d.%d.%d\","
 								"\"dest_ip\":\"%d.%d.%d.%d\","
-								"\"udp_port\":%d,"
-								"\"broadcast\":%d"
+								"\"udp_port\":%d"
 								"}",
 								shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3],
 								shared_config.network_netmask[0], shared_config.network_netmask[1], shared_config.network_netmask[2], shared_config.network_netmask[3],
 								shared_config.network_gw[0], shared_config.network_gw[1], shared_config.network_gw[2], shared_config.network_gw[3],
 								shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3],
-								shared_config.network_udp_port,
-								shared_config.network_broadcast);
+								shared_config.network_udp_port);
 
 						netconn_write(conn, response, len, NETCONN_COPY);
-					}
-
-
-					/* Handler for updating network settings */
-					else if (strncmp((char const *)buf, "POST /updateNetworkConfig", 25) == 0)
-					{
-						char *data = strstr((char *)buf, "\r\n\r\n") + 4; // Assuming data starts after the header
-						if (data) {
-							int ip[4], mask[4], gw[4], dest_ip[4], udp_port, broadcast;
-
-							// Parsing POST data
-							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d&broadcast=%d",
-									&ip[0], &ip[1], &ip[2], &ip[3],
-									&mask[0], &mask[1], &mask[2], &mask[3],
-									&gw[0], &gw[1], &gw[2], &gw[3],
-									&dest_ip[0], &dest_ip[1], &dest_ip[2], &dest_ip[3],
-									&udp_port, &broadcast);
-
-							// Updating shared configuration
-							for (int i = 0; i < 4; i++) {
-								shared_config.network_ip[i] = ip[i];
-								shared_config.network_netmask[i] = mask[i];
-								shared_config.network_gw[i] = gw[i];
-								shared_config.network_dest_ip[i] = dest_ip[i];
-							}
-							shared_config.network_udp_port = udp_port;
-							shared_config.network_broadcast = broadcast;
-
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nNetwork settings updated.");
-
-							netconn_write(conn, response, len, NETCONN_COPY);
-						} else {
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid request.");
-							netconn_write(conn, response, len, NETCONN_COPY);
-						}
 					}
 
 					/* Send 404 if no route matches */
@@ -546,21 +493,201 @@ static void http_server(struct netconn *conn)
 					}
 
 				}
-				else {
-					/* Not a handled GET request - process this as a potential multipart form POST */
+				else
+				{
+					/* Process POST request to set DPI */
+					if (strncmp((char const *)buf, "POST /setDPI", 12) == 0)
+					{
+						char *dpiValue = strstr(buf, "dpi=") + 4;  // Point to the first character of the value
+
+						if (dpiValue)
+						{
+							shared_config.cis_dpi = atoi(dpiValue);
+							shared_config.cis_dpi  = shared_config.cis_dpi  < 200 ? 200 : shared_config.cis_dpi  > 200 ? 400 : shared_config.cis_dpi ;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "Error: DPI value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+						}
+					}
+
+					/* Process POST request to set hand settings */
+					else if (strncmp((char const *)buf, "POST /setHand", 13) == 0)
+					{
+						char *handValue = strstr(buf, "hand=") + 5;
+
+						if (handValue)
+						{
+							shared_config.cis_handedness = atoi(handValue);
+							shared_config.cis_handedness =  shared_config.cis_handedness < 0 ? 0 :  shared_config.cis_handedness > 1 ? 1 :  shared_config.cis_handedness;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_handedness);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "Error: Hand value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+						}
+					}
+
+					/* Process POST request to set oversampling */
+					else if (strncmp((char const *)buf, "POST /setOversampling", 21) == 0)
+					{
+						char *oversamplingValue = strstr(buf, "oversampling=") + 13;
+
+						if (oversamplingValue)
+						{
+							shared_config.cis_oversampling = atoi(oversamplingValue);
+							shared_config.cis_oversampling  = shared_config.cis_oversampling  < 0 ? 0 : shared_config.cis_oversampling  > 32 ? 32 : shared_config.cis_oversampling ;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOversampling set to %d", (int)shared_config.cis_oversampling);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "Error: Oversampling value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+						}
+					}
+
+					/* Process calibration start command */
+					else if (strncmp((char const *)buf, "POST /startCalibration", 22) == 0)
+					{
+					    char *body = strstr(buf, "\r\n\r\n");
+					    if (body && strstr(body, "CIS_CAL_START"))
+					    {
+					        shared_var.cis_cal_state = CIS_CAL_REQUESTED;
+
+					        clock_t start_time = clock();
+					        const double timeout = 10.0;
+
+					        while (shared_var.cis_cal_state != CIS_CAL_END)
+					        {
+					            clock_t current_time = clock();
+					            double elapsed_time = (double)(current_time - start_time) / CLOCKS_PER_SEC;
+					            if (elapsed_time >= timeout)
+					            {
+					                const char *error_response = "HTTP/1.1 408 Request Timeout\r\nContent-Type: text/plain\r\n\r\nCalibration timeout";
+					                netconn_write(conn, error_response, strlen(error_response), NETCONN_COPY);
+					                break;
+					            }
+					        }
+
+					        if (shared_var.cis_cal_state == CIS_CAL_END)
+					        {
+					            const char *response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCalibration started";
+					            netconn_write(conn, response, strlen(response), NETCONN_COPY);
+					        }
+					    }
+					}
+
+					/* Handler for updating network settings */
+					else if (strncmp((char const *)buf, "POST /updateNetworkConfig", 25) == 0)
+					{
+						char *data = strstr((char *)buf, "\r\n\r\n") + 4; // Assuming data starts after the header
+						if (data)
+						{
+							int ip[4], mask[4], gw[4], dest_ip[4], udp_port;
+
+							// Parsing POST data
+							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d",
+									&ip[0], &ip[1], &ip[2], &ip[3],
+									&mask[0], &mask[1], &mask[2], &mask[3],
+									&gw[0], &gw[1], &gw[2], &gw[3],
+									&dest_ip[0], &dest_ip[1], &dest_ip[2], &dest_ip[3],
+									&udp_port);
+
+							// Updating shared configuration
+							for (int i = 0; i < 4; i++)
+							{
+								shared_config.network_ip[i] = ip[i];
+								shared_config.network_netmask[i] = mask[i];
+								shared_config.network_gw[i] = gw[i];
+								shared_config.network_dest_ip[i] = dest_ip[i];
+							}
+							shared_config.network_udp_port = udp_port;
+
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[200];
+					        int len = sprintf(response,
+					                "HTTP/1.1 200 OK\r\n"
+					                "Content-Type: text/plain\r\n"
+					                "Cache-Control: no-cache, no-store, must-revalidate\r\n"
+					                "Pragma: no-cache\r\n"
+					                "Expires: 0\r\n"
+					                "\r\n"
+					                "Network settings updated.");
+							netconn_write(conn, response, len, NETCONN_COPY);
+
+							char newIP[16];
+							sprintf(newIP, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+
+						    len = sprintf(response, "HTTP/1.1 302 Found\r\nLocation: http://%s/config.html\r\n\r\n", newIP);
+							netconn_write(conn, response, len, NETCONN_COPY);
+
+							reboot = true;
+						}
+						else
+						{
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid request.");
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+					}
+
+					/* start factory reset */
+					else if (strncmp((char const *)buf, "POST /factoryReset", 18) == 0)
+					{
+						char *body = strstr(buf, "\r\n\r\n");
+						const char *response;
+						if (body && strstr(body, "START_FACTORY_RESET"))
+						{
+
+							if (file_factoryReset() == SUCCESS)
+							{
+								response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nFactory reset done";
+								reboot = true;
+							}
+							else
+							{
+								response = "HTTP/1.1 500 Internal Server Error\r\n"
+										"Content-Type: text/plain\r\n\r\n"
+										"Error: Factory reset failed due to internal error";
+							}
+							netconn_write(conn, response, strlen(response), NETCONN_COPY);
+						}
+					}
+
+					/* firmware update */
 					int ret = fwupdate_multipart_state_machine(conn, buf, buflen);
-					if (ret == FWUPDATE_STATUS_NONE) {
+					if (ret == FWUPDATE_STATUS_NONE)
+					{
 						/* ignore */
 					}
-					else if (ret == FWUPDATE_STATUS_INPROGRESS) {
+					else if (ret == FWUPDATE_STATUS_INPROGRESS)
+					{
 						/* Don't close the connection! */
 						close = false;
 					}
-					else {
+					else
+					{
 						/* Some result, we should close the connection now. */
 						close = true;
 
-						if (ret == FWUPDATE_STATUS_DONE) {
+						if (ret == FWUPDATE_STATUS_DONE)
+						{
 							/* reboot after we close the connection. */
 							reboot = true;
 						}
@@ -568,16 +695,19 @@ static void http_server(struct netconn *conn)
 				}
 				/* Process all data that may be present in the netbuf */
 				printf("# netbuf_next = %d\n", netbuf_next(inbuf));
-			} while (netbuf_next(inbuf) >= 0);
+			}
+			while (netbuf_next(inbuf) >= 0);
 
 			/* Delete the buffer (netconn_recv gives us ownership,
 	         so we have to make sure to deallocate the buffer) */
 			netbuf_delete(inbuf);
 		}
-		else {
+		else
+		{
 			printf("# netconn_recv error: %d %d\n", recv_err, netconn_err(conn));
 		}
-		if (close) {
+		if (close)
+		{
 			/* Action requires us to close the connection now instead of
 	        blocking on the next netconn_recv. */
 			break;
@@ -588,10 +718,11 @@ static void http_server(struct netconn *conn)
 	/* Close the connection (server closes in HTTP) */
 	netconn_close(conn);
 
-	if (reboot) {
-		printf("Rebooting in 5\n");
+	if (reboot)
+		{
+		printf("Rebooting in 1\n");
 		/* Wait 5 seconds. */
-		osDelay(5000);
+		osDelay(1000);
 		NVIC_SystemReset();
 	}
 

@@ -28,10 +28,10 @@
 #define CALIBRATION_FILE_PATH "0:/CALIB.BIN"
 #define CONFIG_FILE_PATH "0:/CONFIG.TXT"
 
+int file_factoryReset(void);
+void file_initConfig(volatile struct shared_config* config);
 int file_readConfig(const char* filePath, volatile struct shared_config* config);
 int file_writeConfig(const char* filePath, const volatile struct shared_config* config);
-void file_parseLine(char* line, volatile struct shared_config* config);
-void file_initConfig(volatile struct shared_config* config);
 int file_writeCisCals(const char* filePath, const struct cisCals* data);
 int file_readCisCals(const char* filePath, struct cisCals* data);
 

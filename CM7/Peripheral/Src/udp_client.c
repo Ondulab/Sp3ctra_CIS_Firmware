@@ -62,7 +62,7 @@ void udp_clientInit(void)
     /* Create a new UDP connection */
     conn = netconn_new(NETCONN_UDP);
     if (conn != NULL) {
-        IP4_ADDR(&destIPaddr, shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], 255);
+        IP4_ADDR(&destIPaddr, shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
         netconn_bind(conn, NULL, 0);  // Bind to any local address and port
         netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 

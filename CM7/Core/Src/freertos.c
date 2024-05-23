@@ -149,6 +149,11 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
+	if (!HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) && !HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin))
+	{
+		file_factoryReset();
+	}
+
 	file_initConfig(&shared_config);
 
 	icm42688_init();
@@ -159,7 +164,7 @@ void StartDefaultTask(void const * argument)
 
 	http_serverInit();
 
-	//cis_scanInit();
+	cis_scanInit();
 
 	/* Infinite loop */
 	for(;;)

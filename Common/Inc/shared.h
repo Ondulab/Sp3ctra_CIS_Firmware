@@ -148,7 +148,6 @@ struct shared_config
     uint8_t network_gw[4];
     uint8_t network_dest_ip[4];
     uint16_t network_udp_port;
-    uint8_t network_broadcast;
     uint8_t cis_print_calibration;
     uint8_t cis_raw;
     uint16_t cis_dpi;

@@ -88,6 +88,13 @@ void Error_Handler(void);
 #define CIS_ADC_1_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
+#define SW_3_Pin GPIO_PIN_14
+#define SW_3_GPIO_Port GPIOE
+#define SW_2_Pin GPIO_PIN_13
+#define SW_2_GPIO_Port GPIOE
+#define SW_1_Pin GPIO_PIN_15
+#define SW_1_GPIO_Port GPIOE
+
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOH
 /* USER CODE END Private defines */
