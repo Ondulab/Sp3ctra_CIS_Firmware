@@ -23,7 +23,6 @@
 #include "config.h"
 
 #include "ssd1362.h"
-#include "buttons.h"
 
 #include "gui.h"
 

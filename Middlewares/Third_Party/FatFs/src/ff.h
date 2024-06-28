@@ -203,7 +203,7 @@ typedef struct {
 	TCHAR	altname[13];			/* Alternative file name */
 	TCHAR	fname[_MAX_LFN + 1];	/* Primary file name */
 #else
-//	TCHAR	fname[13];		/* File name */
+	TCHAR	fname[13];		/* File name */
 #endif
 } FILINFO;
 
