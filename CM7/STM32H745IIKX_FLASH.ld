@@ -136,6 +136,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
   
+  /* user sections... */
   .dtcm :
   {
     . = ALIGN(4);

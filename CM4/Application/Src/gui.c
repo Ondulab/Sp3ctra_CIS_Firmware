@@ -458,24 +458,24 @@ void gui_interractiveMenu()
 		oldScanDir = shared_config.cis_handedness;
 	}
 
-	if (shared_var.buttonState[SW1] == SWITCH_PRESSED)
+	if (HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-		shared_var.buttonState[SW1] = SWITCH_RELEASED;
+		shared_var.buttonState[SW1] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (shared_var.buttonState[SW2] == SWITCH_PRESSED)
+	if (HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-		shared_var.buttonState[SW2] = SWITCH_RELEASED;
+		shared_var.buttonState[SW2] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (shared_var.buttonState[SW3] == SWITCH_PRESSED)
+	if (HAL_GPIO_ReadPin(SW_3_GPIO_Port, SW_3_Pin) == GPIO_PIN_RESET)
 	{
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-		shared_var.buttonState[SW3] = SWITCH_RELEASED;
+		shared_var.buttonState[SW3] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
@@ -487,6 +487,9 @@ void gui_interractiveMenu()
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+		shared_var.buttonState[SW1] = SWITCH_RELEASED;
+		shared_var.buttonState[SW2] = SWITCH_RELEASED;
+		shared_var.buttonState[SW3] = SWITCH_RELEASED;
 	}
 }
 

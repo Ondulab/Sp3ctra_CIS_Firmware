@@ -205,6 +205,7 @@ int main(void)
 	printf("\n");
 
 	shared_var.cis_process_rdy = FALSE;
+	shared_var.firmware_update_requested = FALSE;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);

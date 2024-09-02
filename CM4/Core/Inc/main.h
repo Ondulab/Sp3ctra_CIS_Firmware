@@ -62,8 +62,14 @@ void Error_Handler(void);
 #define OLED_RESET_GPIO_Port GPIOB
 #define EN_12V_Pin GPIO_PIN_5
 #define EN_12V_GPIO_Port GPIOG
+#define SW_3_Pin GPIO_PIN_14
+#define SW_3_GPIO_Port GPIOE
 #define LED3_Pin GPIO_PIN_12
 #define LED3_GPIO_Port GPIOE
+#define SW_2_Pin GPIO_PIN_13
+#define SW_2_GPIO_Port GPIOE
+#define SW_1_Pin GPIO_PIN_15
+#define SW_1_GPIO_Port GPIOE
 #define LED1_Pin GPIO_PIN_6
 #define LED1_GPIO_Port GPIOH
 #define LED2_Pin GPIO_PIN_11

@@ -27,7 +27,7 @@ static void file_parseLine(char* line, volatile struct shared_config* config);
 
 const struct shared_config DefaultConfig =
 {
-		.ui_button_delay = 500,
+		.ui_button_delay = 100,
 		.network_ip = {192, 168, 0, 10},
 		.network_netmask = {255, 255, 255, 0},
 		.network_gw = {0, 0, 0, 0},

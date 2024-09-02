@@ -115,8 +115,7 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
   
-    /* autres sections... */
-  
+  /* user sections... */
   .shared :
   {
     . = ALIGN(4);

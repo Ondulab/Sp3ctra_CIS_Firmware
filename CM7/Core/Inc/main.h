@@ -78,18 +78,12 @@ void Error_Handler(void);
 #define CIS_LED_R_GPIO_Port GPIOD
 #define MEMS_INT_Pin GPIO_PIN_8
 #define MEMS_INT_GPIO_Port GPIOD
-#define SW_3_Pin GPIO_PIN_14
-#define SW_3_GPIO_Port GPIOE
 #define CIS_ADC_3_Pin GPIO_PIN_3
 #define CIS_ADC_3_GPIO_Port GPIOC
 #define CIS_LED_G_Pin GPIO_PIN_12
 #define CIS_LED_G_GPIO_Port GPIOH
 #define CIS_ADC_2_Pin GPIO_PIN_1
 #define CIS_ADC_2_GPIO_Port GPIOA
-#define SW_2_Pin GPIO_PIN_13
-#define SW_2_GPIO_Port GPIOE
-#define SW_1_Pin GPIO_PIN_15
-#define SW_1_GPIO_Port GPIOE
 #define CIS_ADC_1_Pin GPIO_PIN_0
 #define CIS_ADC_1_GPIO_Port GPIOA
 

@@ -689,6 +689,7 @@ static void http_server(struct netconn *conn)
 						if (ret == FWUPDATE_STATUS_DONE)
 						{
 							/* reboot after we close the connection. */
+							shared_var.firmware_update_requested = TRUE;
 							reboot = true;
 						}
 					}
