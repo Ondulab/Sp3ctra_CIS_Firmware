@@ -334,7 +334,7 @@ void gui_displayWaiting(void)
 		{
 			lastUpdateTime = currentTime;
 			ssd1362_clearBuffer();
-			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT%.*s", dotCount + 1, "...");
+			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT COUCOU%.*s", dotCount + 1, "...");
 			ssd1362_drawString(76, 25, (int8_t *)waitMessage, 8, 10);
 			//ssd1362_writeUpdates();
 			ssd1362_writeFullBuffer();

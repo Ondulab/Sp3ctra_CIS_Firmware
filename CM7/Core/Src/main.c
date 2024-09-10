@@ -111,15 +111,7 @@ int main(void)
   SCB_EnableDCache();
 
 /* USER CODE BEGIN Boot_Mode_Sequence_1 */
-	/* Wait until CPU2 boots and enters in stop mode or timeout*/
-#ifndef USE_BOTLOADER
-	timeout = 0xFFFF;
-	while((__HAL_RCC_GET_FLAG(RCC_FLAG_D2CKRDY) != RESET) && (timeout-- > 0));
-	if ( timeout < 0 )
-	{
-		Error_Handler();
-	}
-#endif
+
 /* USER CODE END Boot_Mode_Sequence_1 */
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -132,6 +124,8 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+
+  //RCC->GCR |= RCC_GCR_BOOT_C2;
 
 /* Configure the peripherals common clocks */
   PeriphCommonClock_Config();
@@ -205,14 +199,11 @@ int main(void)
 	printf("\n");
 
 	shared_var.cis_process_rdy = FALSE;
-	shared_var.firmware_update_requested = FALSE;
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 
-
-	//MX25test();
 
   /* USER CODE END 2 */
 

@@ -135,7 +135,6 @@ struct shared_var {
 	int32_t cis_freq;
 	int32_t cis_cal_request;
 	uint32_t cis_cal_progressbar;
-	int32_t firmware_update_requested;
 	CIS_Calibration_StateTypeDef cis_cal_state;
 	buttonStateTypeDef  buttonState[3];
 };

@@ -226,33 +226,31 @@ void SystemInit (void)
 
 #ifdef CORE_CM4
 
-  /* Configure the Vector Table location add offset address ------------------*/
+  /* Configure the Vector Table location and offset address for Cortex-M4 */
 #ifdef VECT_TAB_SRAM
   SCB->VTOR = D2_AXISRAM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
 #else
   SCB->VTOR = FLASH_BANK2_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
 #endif
 
-#else
-#ifdef CORE_CM7
+#elif defined(CORE_CM7)
 
   /*
    * Disable the FMC bank1 (enabled after reset).
-   * This, prevents CPU speculation access on this bank which blocks the use of FMC during
-   * 24us. During this time the others FMC master (such as LTDC) cannot use it!
+   * This prevents CPU speculation access on this bank which blocks the use of FMC during
+   * 24us. During this time, the other FMC masters (such as LTDC) cannot use it!
    */
   FMC_Bank1_R->BTCR[0] = 0x000030D2;
 
-  /* Configure the Vector Table location add offset address ------------------*/
+  /* Configure the Vector Table location and offset address for Cortex-M7 */
 #ifdef VECT_TAB_SRAM
-  SCB->VTOR = D1_AXISRAM_BASE  | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal D1 AXI-RAM */
+  SCB->VTOR = D1_AXISRAM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal D1 AXI-RAM */
 #else
-  SCB->VTOR = FLASH_BANK1_BASE | FLASH_BANK1_BASE | 0x20000;       /* Vector Table Relocation in Internal FLASH */
+  SCB->VTOR = FLASH_BANK1_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
 #endif
 
 #else
-#error Please #define CORE_CM4 or CORE_CM7
-#endif
+  #error "Please #define CORE_CM4 or CORE_CM7"
 #endif
 
 }

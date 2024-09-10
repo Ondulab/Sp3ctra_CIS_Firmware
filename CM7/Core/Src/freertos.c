@@ -32,6 +32,7 @@
 #include "ftpd.h"
 #include "http_server.h"
 #include "tim.h"
+#include "stm32_flash.h"
 
 /* USER CODE END Includes */
 
@@ -165,6 +166,33 @@ void StartDefaultTask(void const * argument)
 	http_serverInit();
 
 	cis_scanInit();
+
+	PersistentData dataRead;
+	STM32Flash_readPersistentData(&dataRead);
+
+	if (dataRead.updateState != FW_UPDATE_NONE)
+	{
+	    PersistentData dataToWrite = {
+	        .updateState = FW_UPDATE_DONE,
+	        .padding = {0}
+	    };
+
+		/* reboot after we close the connection. */
+	    HAL_StatusTypeDef status = STM32Flash_writePersistentData(&dataToWrite);
+	    if (status == HAL_OK)
+	    {
+	        printf("Persistent data written successfully.\n");
+	    }
+	    else
+	    {
+	        printf("Failed to write firmware update status in STM32 flash\n");
+	    }
+
+		printf("Rebooting in 3\n");
+		/* Wait 3 seconds. */
+		osDelay(3000);
+		NVIC_SystemReset();
+	}
 
 	/* Infinite loop */
 	for(;;)
