@@ -334,7 +334,7 @@ void gui_displayWaiting(void)
 		{
 			lastUpdateTime = currentTime;
 			ssd1362_clearBuffer();
-			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT COUCOU%.*s", dotCount + 1, "...");
+			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT%.*s", dotCount + 1, "...");
 			ssd1362_drawString(76, 25, (int8_t *)waitMessage, 8, 10);
 			//ssd1362_writeUpdates();
 			ssd1362_writeFullBuffer();
@@ -458,23 +458,24 @@ void gui_interractiveMenu()
 		oldScanDir = shared_config.cis_handedness;
 	}
 
-	if (HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) == GPIO_PIN_RESET)
+	if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW1] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin) == GPIO_PIN_RESET)
+
+	if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW2] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
-	if (HAL_GPIO_ReadPin(SW_3_GPIO_Port, SW_3_Pin) == GPIO_PIN_RESET)
+	if (HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
 		shared_var.buttonState[SW3] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;

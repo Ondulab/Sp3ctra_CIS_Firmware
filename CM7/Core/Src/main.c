@@ -125,8 +125,6 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  //RCC->GCR |= RCC_GCR_BOOT_C2;
-
 /* Configure the peripherals common clocks */
   PeriphCommonClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
