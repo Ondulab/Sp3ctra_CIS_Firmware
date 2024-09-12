@@ -204,215 +204,225 @@ void print_buf(const uint8_t* buf, int len)
 
 static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen)
 {
-	int ret = FWUPDATE_STATUS_NONE;
-	char* buf_start = buf;
-	char* buf_end = buf + buflen; // points to byte AFTER end of buffer!
-	char file_name[FILE_NAME_MAX_LENGTH] = {0};  // Buffer pour stocker le nom du fichier.
+    int ret = FWUPDATE_STATUS_NONE;
+    char* buf_start = buf;
+    char* buf_end = buf + buflen; // Points to byte AFTER end of buffer!
+    char file_name[FILE_NAME_MAX_LENGTH] = {0};  // Buffer to store the file name.
 
-	int len = 0;
-	char response[100];
+    int len = 0;
+    char response[100];
 
-	while (buf && buf < buf_end)
-	{
-		printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
+    while (buf && buf < buf_end)
+    {
+        printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
 
-		switch (fwupdate.state)
-		{
-		case FWUPDATE_STATE_HEADER:
-			if ((buflen >= 12) && (strncmp(buf, "POST /upload", 12) == 0))
-			{
-				ret = FWUPDATE_STATUS_ERROR; // Error until we go to in progress
-				printf("@ fwupdate -     Scanning HEADER\n");
-				print_buf((uint8_t*)buf, buflen);
-				buf = strstr(buf, CONTENT_LENGTH_TAG);
-				if (buf)
-				{
-					buf += strlen(CONTENT_LENGTH_TAG);
-					fwupdate.content_length = atoi(buf);
-					buf = strstr(buf, EMPTY_LINE_TAG);
-					if (buf)
-					{
-						buf += strlen(EMPTY_LINE_TAG);
-						buf_start = buf;
-						printf("@ fwupdate - Have content len=%d\n", fwupdate.content_length);
-					}
-					else
-					{
-						buf = 0;
-						printf("@ fwupdate - Error extracting empty line tag\n");
-						ret = FWUPDATE_STATUS_ERROR;
-					}
-					buf = strstr(buf, "Content-Disposition:");
-					if (buf)
-					{
-						int extracted = sscanf(buf, "Content-Disposition: form-data; name=\"firmware\"; filename=\"%255[^\"]\"", file_name);
-						if (extracted == 1)
-						{
-							fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
-							ret = FWUPDATE_STATUS_INPROGRESS;
-						}
-						else
-						{
-							printf("@ fwupdate - Error extracting file name\n");
-							ret = FWUPDATE_STATUS_ERROR;
-						}
-					}
-					else
-					{
-						printf("@ fwupdate - No Content-Disposition field found\n");
-						ret = FWUPDATE_STATUS_ERROR;
-					}
-				}
-			}
-			else
-			{
-				buf = 0;
-			}
-			break;
+        switch (fwupdate.state)
+        {
+            case FWUPDATE_STATE_HEADER:
+            {
+                if ((buflen >= 12) && (strncmp(buf, "POST /upload", 12) == 0))
+                {
+                    ret = FWUPDATE_STATUS_ERROR; // Error until we go to in progress
+                    printf("@ fwupdate -     Scanning HEADER\n");
+                    print_buf((uint8_t*)buf, buflen);
+                    buf = strstr(buf, CONTENT_LENGTH_TAG);
+                    if (buf)
+                    {
+                        buf += strlen(CONTENT_LENGTH_TAG);
+                        fwupdate.content_length = atoi(buf);
+                        buf = strstr(buf, EMPTY_LINE_TAG);
+                        if (buf)
+                        {
+                            buf += strlen(EMPTY_LINE_TAG);
+                            buf_start = buf;
+                            printf("@ fwupdate - Have content len=%d\n", fwupdate.content_length);
+                        }
+                        else
+                        {
+                            buf = 0;
+                            printf("@ fwupdate - Error extracting empty line tag\n");
+                            ret = FWUPDATE_STATUS_ERROR;
+                        }
 
-		case FWUPDATE_STATE_DOWNLOAD_START:
-		{
-		    const char *tags[] = {DOWNLOAD_STREAM_TAG, DOWNLOAD_STREAM_TAG_2};
-		    ret = FWUPDATE_STATUS_ERROR;
+                        buf = strstr(buf, "Content-Disposition:");
+                        if (buf)
+                        {
+                            int extracted = sscanf(buf, "Content-Disposition: form-data; name=\"firmware\"; filename=\"%255[^\"]\"", file_name);
+                            if (extracted == 1)
+                            {
+                                fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
+                                ret = FWUPDATE_STATUS_INPROGRESS;
+                            }
+                            else
+                            {
+                                printf("@ fwupdate - Error extracting file name\n");
+                                ret = FWUPDATE_STATUS_ERROR;
+                            }
+                        }
+                        else
+                        {
+                            printf("@ fwupdate - No Content-Disposition field found\n");
+                            ret = FWUPDATE_STATUS_ERROR;
+                        }
+                    }
+                }
+                else
+                {
+                    buf = 0;
+                }
+                break;
+            }
 
-		    FRESULT fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
-		    if (fr != FR_OK) {
-		        fwupdate.code = fr;
-		        ret = FWUPDATE_STATUS_ERROR;
-		        break;
-		    }
-		    f_close(&file);
+            case FWUPDATE_STATE_DOWNLOAD_START:
+            {
+                const char* tags[] = {DOWNLOAD_STREAM_TAG, DOWNLOAD_STREAM_TAG_2};
+                ret = FWUPDATE_STATUS_ERROR;
 
-		    for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); ++i) {
-		        char *found_tag = strstr(buf, tags[i]);
-		        if (found_tag) {
-		            found_tag += strlen(tags[i]);  // Move past the tag
-		            buf = found_tag;  // Now buf points to the start of the file content
+                FRESULT fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
+                if (fr != FR_OK)
+                {
+                    fwupdate.code = fr;
+                    ret = FWUPDATE_STATUS_ERROR;
+                    break;
+                }
+                f_close(&file);
 
-		            // Calculer la longueur des headers
-		            size_t header_length = buf - buf_start;
-		            fwupdate.file_length = fwupdate.content_length - header_length;
+                for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); ++i)
+                {
+                    char* found_tag = strstr(buf, tags[i]);
+                    if (found_tag)
+                    {
+                        found_tag += strlen(tags[i]);  // Move past the tag
+                        buf = found_tag;  // Now buf points to the start of the file content
 
-		            printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n", fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
+                        // Calculate the length of the headers
+                        size_t header_length = buf - buf_start;
+                        fwupdate.file_length = fwupdate.content_length - header_length;
 
-		            // Passer à l'état de téléchargement des données du fichier
-		            fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
-		            fwupdate.accum_length = 0;  // Réinitialiser l'accumulateur
-		            ret = FWUPDATE_STATUS_INPROGRESS;
-		            break;
-		        }
-		    }
+                        printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n", fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
 
-		    if (ret == FWUPDATE_STATUS_ERROR) {
-		        printf("@ fwupdate - Error extracting file length\n");
-		    }
-		    break;
-		}
+                        // Move to the state of downloading the file data
+                        fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
+                        fwupdate.accum_length = 0;  // Reset the accumulator
+                        ret = FWUPDATE_STATUS_INPROGRESS;
+                        break;
+                    }
+                }
 
-		case FWUPDATE_STATE_DOWNLOAD_STREAM:
-		{
-		    if (buf_end - buf > 0)
-		    {
-		        FRESULT fr;
-		        UINT bytes_written;
+                if (ret == FWUPDATE_STATUS_ERROR)
+                {
+                    printf("@ fwupdate - Error extracting file length\n");
+                }
+                break;
+            }
 
-		        ret = FWUPDATE_STATUS_INPROGRESS;
+            case FWUPDATE_STATE_DOWNLOAD_STREAM:
+            {
+                if (buf_end - buf > 0)
+                {
+                    FRESULT fr;
+                    UINT bytes_written;
 
-		        uint32_t data_len = buf_end - buf;
+                    ret = FWUPDATE_STATUS_INPROGRESS;
 
-		        if (!fwupdate.has_been_initialized)
-		        {
-		            // Ouvrir ou créer le fichier pour écrire les données
-		            fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
-		            if (fr != FR_OK) {
-		                fwupdate.code = fr;
-		                ret = FWUPDATE_STATUS_ERROR;
-		                break;
-		            }
-		            fwupdate.has_been_initialized = 1;
-		            fwupdate.stage = FW_UPDATE_Stage_IN_PROGRESS;
-		        }
+                    uint32_t data_len = buf_end - buf;
 
-		        // Écrire les données dans le fichier
-		        fr = f_write(&file, buf, data_len, &bytes_written);
-		        if (fr != FR_OK || bytes_written != data_len)
-		        {
-		            fwupdate.code = fr;
-		            f_close(&file);
-		            ret = FWUPDATE_STATUS_ERROR;
-		            break;
-		        }
+                    if (!fwupdate.has_been_initialized)
+                    {
+                        // Open or create the file to write the data
+                        fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
+                        if (fr != FR_OK)
+                        {
+                            fwupdate.code = fr;
+                            ret = FWUPDATE_STATUS_ERROR;
+                            break;
+                        }
+                        fwupdate.has_been_initialized = 1;
+                        fwupdate.stage = FW_UPDATE_Stage_IN_PROGRESS;
+                    }
 
-		        // Mettre à jour la longueur accumulée
-		        fwupdate.accum_length += data_len;
-		        printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
+                    // Write the data to the file
+                    fr = f_write(&file, buf, data_len, &bytes_written);
+                    if (fr != FR_OK || bytes_written != data_len)
+                    {
+                        fwupdate.code = fr;
+                        f_close(&file);
+                        ret = FWUPDATE_STATUS_ERROR;
+                        break;
+                    }
 
-		        // Si on a reçu toutes les données attendues
-		        if (fwupdate.accum_length >= fwupdate.file_length)
-		        {
-		        	const char* boundary = "\r\n-----------------------------";
-		        	size_t boundary_len = strlen(boundary);
-		        	size_t boundary_length = 0;
-		        	char* ptr = buf_end - 100;  // Examiner les 100 derniers octets
+                    // Update the accumulated length
+                    fwupdate.accum_length += data_len;
+                    printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
 
-		        	for (int i = 0; i < 100 - boundary_len; i++) {
-		        	    if (memcmp(ptr + i, boundary, boundary_len) == 0) {
-		        	        printf("Boundary found at position %d relative to buf_end - 200.\n", i);
-		        	        // Effectuer les ajustements de longueur ici
-		        	        boundary_length = (buf_end - (ptr + i));
-		        	        fwupdate.file_length -= boundary_length;
+                    // If we received all the expected data
+                    if (fwupdate.accum_length >= fwupdate.file_length)
+                    {
+                        const char* boundary = "\r\n-----------------------------";
+                        size_t boundary_len = strlen(boundary);
+                        size_t boundary_length = 0;
+                        char* ptr = buf_end - 100;  // Examine the last 100 bytes
 
-		        	        printf("@ fwupdate adjusted for manual boundary, new file len=%d, boundary len=%u\n", (int)fwupdate.file_length, (unsigned int)boundary_length);		        	        break;
-		        	    }
-		        	}
+                        for (int i = 0; i < 100 - boundary_len; i++)
+                        {
+                            if (memcmp(ptr + i, boundary, boundary_len) == 0)
+                            {
+                                printf("Boundary found at position %d relative to buf_end - 200.\n", i);
+                                // Make adjustments to length here
+                                boundary_length = (buf_end - (ptr + i));
+                                fwupdate.file_length -= boundary_length;
 
-		        	if (boundary_length)
-		        	{
-		        	    // Tronquer le fichier à la longueur correcte
-		        	    f_lseek(&file, fwupdate.file_length);  // Déplacer le pointeur à la nouvelle longueur
-		        	    f_truncate(&file);  // Tronquer le fichier à cette position
+                                printf("@ fwupdate adjusted for manual boundary, new file len=%d, boundary len=%u\n", (int)fwupdate.file_length, (unsigned int)boundary_length);
+                                break;
+                            }
+                        }
 
-		        	    printf("File truncated to new length %d.\n", (int)fwupdate.file_length);
-		        	}
+                        if (boundary_length)
+                        {
+                            // Truncate the file to the correct length
+                            f_lseek(&file, fwupdate.file_length);  // Move the pointer to the new length
+                            f_truncate(&file);  // Truncate the file at this position
 
-		            // Fermeture du fichier après réception complète
-		            f_close(&file);
-		            fwupdate.has_been_initialized = 0;
-		            fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
-		        }
+                            printf("File truncated to new length %d.\n", (int)fwupdate.file_length);
+                        }
 
-		        printf("@ fwupdate DATA len=%d status=%d\n", (int)data_len, fwupdate.state);
+                        // Close the file after complete reception
+                        f_close(&file);
+                        fwupdate.has_been_initialized = 0;
+                        fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
+                    }
 
-		        buf = 0;
+                    printf("@ fwupdate DATA len=%d status=%d\n", (int)data_len, fwupdate.state);
 
-		        if (ret == FWUPDATE_STATUS_INPROGRESS)
-		        {
-		            if (fwupdate.accum_length >= fwupdate.file_length
-		                    || fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
-		            {
-		                // Indiquer que la mise à jour est terminée avec succès
-		                ret = FWUPDATE_STATUS_DONE;
-		                len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
-		                netconn_write(conn, response, len, NETCONN_COPY);
+                    buf = 0;
 
-		                // Réinitialiser l'état pour un nouveau téléchargement
-		                fwupdate.state = FWUPDATE_STATE_HEADER;
-		            }
-		        }
-		    }
-		    break;
-		}
-		}
-	}
+                    if (ret == FWUPDATE_STATUS_INPROGRESS)
+                    {
+                        if (fwupdate.accum_length >= fwupdate.file_length
+                                || fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
+                        {
+                            // Indicate that the update is successfully completed
+                            ret = FWUPDATE_STATUS_DONE;
+                            len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
+                            netconn_write(conn, response, len, NETCONN_COPY);
 
-	if (ret == FWUPDATE_STATUS_ERROR)
-	{
-		fwupdate.state = FWUPDATE_STATE_HEADER;
-	}
+                            // Reset the state for a new download
+                            fwupdate.state = FWUPDATE_STATE_HEADER;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
 
-	return ret;
+    if (ret == FWUPDATE_STATUS_ERROR)
+    {
+        fwupdate.state = FWUPDATE_STATE_HEADER;
+    }
+
+    return ret;
 }
-
 
 static void http_server(struct netconn *conn)
 {
