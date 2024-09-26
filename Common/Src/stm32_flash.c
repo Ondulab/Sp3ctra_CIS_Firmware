@@ -224,7 +224,9 @@ HAL_StatusTypeDef STM32Flash_write32B(uint8_t *data, uint32_t address)
 
     // Write 32 bytes (8 words) to the flash memory
     for (i = 0; i < 32; i += 4) {
-        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address + i, *(uint32_t *)(data + i));
+        status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address + i, (uint32_t)(data + i));
+       // status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, flashAddress, (uint32_t)pData);
+
         if (status != HAL_OK) {
             HAL_FLASH_Lock();
             return status;

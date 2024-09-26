@@ -20,15 +20,21 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "tim.h"
 #include "gpio.h"
 #include "fmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "shared.h"
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+
 #include "ssd1362.h"
 #include "pictures.h"
 #include "gui.h"
+
+#include "usart.h"
 
 /* USER CODE END Includes */
 
@@ -108,7 +114,25 @@ int main(void)
   MX_DMA_Init();
   MX_GPIO_Init();
   MX_FMC_Init();
+  MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
+
+#ifdef PRINTF_CM4
+  MX_USART1_UART_Init();
+#endif
+
+    printf("CM4 BOOT\n");
+
+	printf("           @@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@          \n");
+	printf("          @@@       @=  @*       @   @@   @  @@@  @@       @   @@@  @@@         \n");
+	printf("          @@        @=  @*       @   @@   @   @@  @@           @@@  *@@         \n");
+	printf("          @@   @@@@@@=  @=  @@@@@@   @@   @   @@  @@@@   @@@   @@@  @@@         \n");
+	printf("          @@   @@@@@@=  @@    @@@@   @@   @    @  @@@@   @@@        @@@         \n");
+	printf("          @@   @@@@@@=  @@@@.    @@      @@  .    @@@@   @@@        @@@         \n");
+	printf("          @@   @@-  @=  @@@@@@   @@@@  @@@@  @    @@@@   @@@   @@@  @@@         \n");
+	printf("          @@@       @=  @@@      @@@@  @@@@  @@   @@@@   @@@   @@@  @@@         \n");
+	printf("          @@ @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@  @@@         \n");
+	printf("\n");
 
 	// Initialize oled display and print logo
 	ssd1362_init();
@@ -136,6 +160,8 @@ int main(void)
 		HAL_Delay(100);
 	}
 #endif
+
+	led_test();
 
 	gui_mainLoop();
 

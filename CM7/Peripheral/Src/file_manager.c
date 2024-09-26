@@ -33,6 +33,7 @@ const struct shared_config DefaultConfig =
 		.network_gw = {0, 0, 0, 0},
 		.network_dest_ip = {192, 168, 0, 255},
 		.network_udp_port = 55151,
+		.network_tcp_port = 5000,
 		.cis_print_calibration = 0,
 		.cis_raw = 0,
 		.cis_dpi = 400,
@@ -116,6 +117,10 @@ void file_parseLine(char* line, volatile struct shared_config* config)
 			{
 				config->network_udp_port = (uint16_t)strtoul(value, NULL, 10);
 			}
+			else if (strcmp(token, "NETWORK_TCP_PORT") == 0)
+			{
+				config->network_tcp_port = (uint16_t)strtoul(value, NULL, 10);
+			}
 			else if (strcmp(token, "CIS_PRINT_CALIBRATION") == 0)
 			{
 				config->cis_print_calibration = (uint8_t)strtoul(value, NULL, 10);
@@ -181,6 +186,7 @@ int file_writeConfig(const char* filePath, const volatile struct shared_config* 
 	f_printf(&file, "NETWORK_DEST_IP_ADDR2=%u\n", config->network_dest_ip[2]);
 	f_printf(&file, "NETWORK_DEST_IP_ADDR3=%u\n", config->network_dest_ip[3]);
 	f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
+	f_printf(&file, "NETWORK_TCP_PORT=%u\n", config->network_udp_port);
 	f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
 	f_printf(&file, "CIS_RAW=%u\n", config->cis_raw);
 	f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);

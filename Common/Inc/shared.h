@@ -6,9 +6,9 @@
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
@@ -31,11 +31,11 @@ extern "C" {
 
 typedef enum
 {
- SW1  = 0x00U,
- SW2  = 0x01U,
- SW3  = 0x02U,
- SW4  = 0x03U,
- SW5  = 0x04U
+	SW1  = 0x00U,
+	SW2  = 0x01U,
+	SW3  = 0x02U,
+	SW4  = 0x03U,
+	SW5  = 0x04U
 }buttonTypeDef;
 
 typedef enum
@@ -43,6 +43,24 @@ typedef enum
 	SWITCH_RELEASED = 0,
 	SWITCH_PRESSED
 }buttonStateTypeDef;
+
+typedef enum
+{
+	LED_A = 0,
+	LED_B,
+	LED_C
+}ledIdTypeDef;
+
+typedef struct
+{
+    int brightness_1;
+    int time_1;
+    int glide_1;
+    int brightness_2;
+    int time_2;
+    int glide_2;
+    int blink_count;
+} ledStateTypeDef;
 
 typedef enum
 {
@@ -61,49 +79,64 @@ typedef enum
 
 // Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
 __attribute__ ((packed))
-struct packet_StartupInfo {
-    uint8_t type; 						// Identifies the data type
-    uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    uint8_t version_info[64]; 			// Information about the version, and other startup details
+struct packet_StartupInfo
+{
+	uint8_t type; 						// Identifies the data type
+	uint32_t packet_id;               	// Sequence number, useful for ordering packets
+	uint8_t version_info[64]; 			// Information about the version, and other startup details
 };
 
 // Structure for image data packets, including metadata for image fragmentation
 __attribute__ ((packed))
-struct packet_Image {
-    uint8_t type; 						// Identifies the data type
-    uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    uint32_t line_id;      				// Line identifier
-    uint8_t fragment_id;      			// Fragment position
-    uint8_t total_fragments;  			// Total number of fragments for the complete image
-    uint16_t fragment_size;   			// Size of this particular fragment
-    uint8_t imageData_R[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented red image data
-    uint8_t imageData_G[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented green image data
-    uint8_t imageData_B[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented blue image data
+struct packet_Image
+{
+	uint8_t type; 						// Identifies the data type
+	uint32_t packet_id;               	// Sequence number, useful for ordering packets
+	uint32_t line_id;      				// Line identifier
+	uint8_t fragment_id;      			// Fragment position
+	uint8_t total_fragments;  			// Total number of fragments for the complete image
+	uint16_t fragment_size;   			// Size of this particular fragment
+	uint8_t imageData_R[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented red image data
+	uint8_t imageData_G[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented green image data
+	uint8_t imageData_B[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented blue image data
 };
 
 // Structure for packets containing button state information
 __attribute__ ((packed))
-struct packet_HID {
-    uint8_t type; 						// Identifies the data type
-    uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    uint8_t button_A;     				// State of the buttons (pressed/released, etc.)
-    uint8_t button_B;     				// State of the buttons (pressed/released, etc.)
-    uint8_t button_C;     				// State of the buttons (pressed/released, etc.)
+struct packet_HID
+{
+	uint8_t type; 						// Identifies the data type
+	uint32_t packet_id;               	// Sequence number, useful for ordering packets
+	buttonStateTypeDef button_A;     					// State of the led A
+	buttonStateTypeDef button_B;     					// State of the led B
+	buttonStateTypeDef button_C;     					// State of the led C
+};
+
+// Structure for packets containing leds state
+__attribute__ ((packed))
+struct packet_HID_Leds
+{
+	uint8_t type; 						// Identifies the data type
+	uint32_t packet_id;               	// Sequence number, useful for ordering packets
+	ledIdTypeDef led_id;     			// Id of the led
+	ledStateTypeDef led_state;     		// State of the selected led
 };
 
 // Structure for packets containing sensor data (accelerometer and gyroscope)
 __attribute__ ((packed))
-struct packet_IMU {
-    uint8_t type; 						// Identifies the data type
-    uint32_t packet_id;               	// Sequence number, useful for ordering packets
-    float32_t acc[3];           			// Accelerometer data: x, y, and z axis
-    float32_t gyro[3];          			// Gyroscope data: x, y, and z axis
-    float32_t integrated_acc[3];          // Accelerometer data: x, y, and z axis
-    float32_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
+struct packet_IMU
+{
+	uint8_t type; 						// Identifies the data type
+	uint32_t packet_id;               	// Sequence number, useful for ordering packets
+	float32_t acc[3];           			// Accelerometer data: x, y, and z axis
+	float32_t gyro[3];          			// Gyroscope data: x, y, and z axis
+	float32_t integrated_acc[3];          // Accelerometer data: x, y, and z axis
+	float32_t integrated_gyro[3];         // Gyroscope data: x, y, and z axis
 };
 
 __attribute__ ((packed))
-struct cisRgbBuffers {
+struct cisRgbBuffers
+{
 	uint8_t R[CIS_PIXELS_NB];
 	uint8_t G[CIS_PIXELS_NB];
 	uint8_t B[CIS_PIXELS_NB];
@@ -123,13 +156,15 @@ typedef enum
 }CIS_Calibration_StateTypeDef;
 
 __attribute__ ((packed))
-struct cisCals {
+struct cisCals
+{
 	float32_t offsetData[CIS_ADC_BUFF_SIZE * 3];
 	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
 };
 
 __attribute__ ((packed))
-struct shared_var {
+struct shared_var
+{
 	int32_t cis_process_rdy;
 	int32_t cis_process_cnt;
 	int32_t cis_freq;
@@ -137,25 +172,27 @@ struct shared_var {
 	uint32_t cis_cal_progressbar;
 	CIS_Calibration_StateTypeDef cis_cal_state;
 	buttonStateTypeDef  buttonState[3];
+	ledStateTypeDef ledState[3];
 };
 
 __attribute__ ((packed))
 struct shared_config
 {
-    uint32_t ui_button_delay;
-    uint8_t network_ip[4];
-    uint8_t network_netmask[4];
-    uint8_t network_gw[4];
-    uint8_t network_dest_ip[4];
-    uint16_t network_udp_port;
-    uint8_t cis_print_calibration;
-    uint8_t cis_raw;
-    uint16_t cis_dpi;
-    uint8_t cis_monochrome;
-    uint16_t cis_max_line_freq;
-    uint32_t cis_clk_freq;
-    uint8_t cis_oversampling;
-    uint8_t cis_handedness;
+	uint32_t ui_button_delay;
+	uint8_t network_ip[4];
+	uint8_t network_netmask[4];
+	uint8_t network_gw[4];
+	uint8_t network_dest_ip[4];
+	uint16_t network_udp_port;
+	uint16_t network_tcp_port;
+	uint8_t cis_print_calibration;
+	uint8_t cis_raw;
+	uint16_t cis_dpi;
+	uint8_t cis_monochrome;
+	uint16_t cis_max_line_freq;
+	uint32_t cis_clk_freq;
+	uint8_t cis_oversampling;
+	uint8_t cis_handedness;
 };
 
 /**************************************************************************************/
@@ -174,21 +211,24 @@ extern int params_size;
 /**************************************************************************************/
 
 __attribute__ ((packed))
-struct CalibrationCoefficients {
-    float32_t a;
-    float32_t b;
-    float32_t c;
+struct CalibrationCoefficients
+{
+	float32_t a;
+	float32_t b;
+	float32_t c;
 };
 
 __attribute__ ((packed))
-struct RGB_Calibration {
+struct RGB_Calibration
+{
 	struct CalibrationCoefficients red[CIS_PIXELS_NB];
 	struct CalibrationCoefficients green[CIS_PIXELS_NB];
 	struct CalibrationCoefficients blue[CIS_PIXELS_NB];
 };
 
 __attribute__ ((packed))
-struct cisLeds_Calibration {
+struct cisLeds_Calibration
+{
 	int32_t redLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
 	int32_t greenLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
 	int32_t blueLed_power2PWM[CIS_LEDS_MAX_PWM + 1];
@@ -202,9 +242,9 @@ struct cisLeds_Calibration {
 
 __attribute__((aligned(4)))
 struct RAWImage{
-     float32_t redLine[CIS_PIXELS_NB];
-     float32_t greenLine[CIS_PIXELS_NB];
-     float32_t blueLine[CIS_PIXELS_NB];
+	float32_t redLine[CIS_PIXELS_NB];
+	float32_t greenLine[CIS_PIXELS_NB];
+	float32_t blueLine[CIS_PIXELS_NB];
 };
 
 extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];

@@ -23,20 +23,25 @@
 #include "config.h"
 
 #include "ssd1362.h"
+#include "tim.h"
 
 #include "gui.h"
-
-/* Private includes ----------------------------------------------------------*/
-
-/* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
+// Structure to store IMU data and moving average
+struct IMU_average
+{
+	float32_t acc[3];  // Moving average of accelerometer
+	float32_t gyro[3]; // Moving average of gyroscope
+};
 
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
+
+struct IMU_average IMU_average = {0};
 
 /* Variable containing black and white frame from CIS*/
 
@@ -47,20 +52,7 @@ static void gui_displayIMU(void);
 static void gui_displayWaiting();
 static void gui_interractiveMenu(void);
 static void gui_startCalibration(void);
-static void gui_changeHand();
-
-//#define DISPLAY_SCOLL_IMAGE
-
-/* Private user code ---------------------------------------------------------*/
-
-// Structure to store IMU data and moving average
-struct IMU_average
-{
-	float32_t acc[3];  // Moving average of accelerometer
-	float32_t gyro[3]; // Moving average of gyroscope
-};
-
-struct IMU_average IMU_average = {0};
+static void gui_changeHand(void);
 
 int gui_mainLoop(void)
 {
@@ -111,6 +103,7 @@ int gui_mainLoop(void)
     }
 }
 
+/* Private functions ---------------------------------------------------------*/
 
 void gui_displayImage(void)
 {
@@ -493,5 +486,3 @@ void gui_interractiveMenu()
 		shared_var.buttonState[SW3] = SWITCH_RELEASED;
 	}
 }
-
-/* Private functions ---------------------------------------------------------*/

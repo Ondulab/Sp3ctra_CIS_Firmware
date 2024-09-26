@@ -155,6 +155,7 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
   * @param  None
   * @retval None
   */
+#ifndef PRINTF_CM4
 PUTCHAR_PROTOTYPE
 {
   /* Place your implementation of fputc here */
@@ -163,4 +164,5 @@ PUTCHAR_PROTOTYPE
 
   return ch;
 }
+#endif
 /* USER CODE END 1 */

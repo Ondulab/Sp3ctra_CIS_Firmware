@@ -35,10 +35,6 @@
 #include "stdio.h"
 #include "string.h"
 
-#include "config.h"
-#include "shared.h"
-
-#include "basetypes.h"
 #include "icm42688.h"
 #include "file_manager.h"
 

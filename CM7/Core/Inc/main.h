@@ -32,6 +32,9 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "config.h"
+#include "shared.h"
+#include "basetypes.h"
 
 /* USER CODE END Includes */
 

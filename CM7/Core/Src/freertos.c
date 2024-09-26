@@ -31,6 +31,7 @@
 #include "file_manager.h"
 #include "ftpd.h"
 #include "http_server.h"
+#include "tcp_client.h"
 #include "tim.h"
 #include "stm32_flash.h"
 
@@ -164,6 +165,8 @@ void StartDefaultTask(void const * argument)
 	ftpd_init();
 
 	http_serverInit();
+
+	tcp_clientInit();
 
 	cis_scanInit();
 

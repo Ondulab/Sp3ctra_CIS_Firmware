@@ -49,7 +49,6 @@ void MX_TIM1_Init(void)
 	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
 
     uint32_t CLK_DIVIDER = ((200000000) / shared_config.cis_clk_freq);
-    //uint32_t CLK_DIVIDER = ((50000000) / shared_config.cis_clk_freq)
 
 	prescalerValue = 0;
 	counterPeriod = (CLK_DIVIDER) - 1;
