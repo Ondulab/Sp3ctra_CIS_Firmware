@@ -26,7 +26,7 @@
 /**************************************************************************************/
 /********************              debug definitions               ********************/
 /**************************************************************************************/
-#define PRINTF_CM4
+//#define PRINTF_CM4
 //#define SKIP_SPLASH
 //#define ETHERNET_OFF
 //#define CIS_DESACTIVATE_CALIBRATION
@@ -55,6 +55,8 @@
 #define DISPLAY_AERA2_Y2POS			(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
 
 #define WINDOW_IMU_AVERAGE_SIZE 	(5)  // Window size for the moving average
+
+#define	NUMBER_OF_BUTTONS			(3)
 
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/

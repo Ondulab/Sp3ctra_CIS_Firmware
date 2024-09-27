@@ -21,6 +21,8 @@
 
 /* Private defines -----------------------------------------------------------*/
 
+void leds_timerInit(void);
+void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed);
 void led_test(void);
 
 #endif /* __GUI_H */

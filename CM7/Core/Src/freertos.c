@@ -151,7 +151,7 @@ void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
 
-	if (!HAL_GPIO_ReadPin(SW_1_GPIO_Port, SW_1_Pin) && !HAL_GPIO_ReadPin(SW_2_GPIO_Port, SW_2_Pin))
+	if (!HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) && !HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin))
 	{
 		file_factoryReset();
 	}
@@ -166,7 +166,7 @@ void StartDefaultTask(void const * argument)
 
 	http_serverInit();
 
-	tcp_clientInit();
+	//tcp_clientInit();
 
 	cis_scanInit();
 

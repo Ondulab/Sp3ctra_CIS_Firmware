@@ -24,6 +24,7 @@
 
 #include "ssd1362.h"
 #include "tim.h"
+#include "leds.h"
 
 #include "gui.h"
 
@@ -69,7 +70,6 @@ int gui_mainLoop(void)
 
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
-        // Check if 25 ms have elapsed since the last refresh
         if ((current_tick - last_refresh_tick) >= 200)
         {
             int32_t current_process_count = shared_var.cis_process_cnt;
@@ -78,9 +78,10 @@ int gui_mainLoop(void)
             if (process_count_diff > 0) // Make sure there have been processes since the last refresh
             {
                 int32_t tick_diff = current_tick - last_refresh_tick;
-                if (tick_diff > 0)
+
+                if (tick_diff > 0 && process_count_diff > 0)
                 {
-                    shared_var.cis_freq = 1000000 / (tick_diff * 1000 / process_count_diff);
+                    shared_var.cis_freq = (process_count_diff * 1000000) / (tick_diff * 1000);
                 }
             }
 
@@ -89,7 +90,7 @@ int gui_mainLoop(void)
         }
 
 #if 0
-        static char str[12]; // Buffer suffisamment grand pour contenir des nombres longs
+        static char str[12];
         static int32_t counter = 0;
         counter++;
 
@@ -453,7 +454,7 @@ void gui_interractiveMenu()
 
 	if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
+		leds_pressFeedback(SW1, SWITCH_PRESSED);
 		shared_var.buttonState[SW1] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
@@ -461,14 +462,14 @@ void gui_interractiveMenu()
 
 	if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+		leds_pressFeedback(SW2, SWITCH_PRESSED);
 		shared_var.buttonState[SW2] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
 	}
 	if (HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin) == GPIO_PIN_RESET)
 	{
-		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
+		leds_pressFeedback(SW3, SWITCH_PRESSED);
 		shared_var.buttonState[SW3] = SWITCH_PRESSED;
 		button_tick = HAL_GetTick();
 		clear_button = 0;
@@ -478,9 +479,9 @@ void gui_interractiveMenu()
 	{
 		clear_button = 1;
 
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
+		leds_pressFeedback(SW1, SWITCH_RELEASED);
+		leds_pressFeedback(SW2, SWITCH_RELEASED);
+		leds_pressFeedback(SW3, SWITCH_RELEASED);
 		shared_var.buttonState[SW1] = SWITCH_RELEASED;
 		shared_var.buttonState[SW2] = SWITCH_RELEASED;
 		shared_var.buttonState[SW3] = SWITCH_RELEASED;

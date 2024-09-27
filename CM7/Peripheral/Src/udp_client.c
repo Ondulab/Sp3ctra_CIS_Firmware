@@ -56,7 +56,7 @@ static void udp_clientSendData(void *data, uint16_t length);
 
 void udp_clientInit(void)
 {
-    printf("-------- UDP INIT ---------\n");
+    printf("---------- UDP INIT -----------\n");
     ip_addr_t destIPaddr;
 
     /* Create a new UDP connection */
@@ -95,7 +95,7 @@ void udp_clientSendData(void *data, uint16_t length) {
     netbuf_take(buf, data, length);
     err_t err = netconn_send(conn, buf);
     if (err != ERR_OK) {
-        printf("UDP send failed: %d\n", err);
+        printf("udp_send failed: %d\n", err);
     }
     netbuf_delete(buf);
 }
@@ -143,11 +143,13 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 }
 #pragma GCC pop_options
 
-void udp_clientReceive(void) {
+void udp_clientReceive(void)
+{
     struct netbuf *buf;
     void *data;
     u16_t len;
-    while (netconn_recv(conn, &buf) == ERR_OK) {
+    while (netconn_recv(conn, &buf) == ERR_OK)
+    {
         netbuf_data(buf, &data, &len);
         // Process incoming data
         message_count++;
@@ -155,7 +157,8 @@ void udp_clientReceive(void) {
     }
 }
 
-void udp_clientClose(void) {
+void udp_clientClose(void)
+{
     netconn_close(conn);
     netconn_delete(conn);
 }

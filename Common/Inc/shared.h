@@ -31,11 +31,9 @@ extern "C" {
 
 typedef enum
 {
-	SW1  = 0x00U,
-	SW2  = 0x01U,
-	SW3  = 0x02U,
-	SW4  = 0x03U,
-	SW5  = 0x04U
+	SW1  = 0,
+	SW2,
+	SW3,
 }buttonTypeDef;
 
 typedef enum
@@ -46,9 +44,9 @@ typedef enum
 
 typedef enum
 {
-	LED_A = 0,
-	LED_B,
-	LED_C
+	LED_1 = 0,
+	LED_2,
+	LED_3,
 }ledIdTypeDef;
 
 typedef struct
