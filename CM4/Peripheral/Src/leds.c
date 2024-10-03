@@ -30,22 +30,22 @@
 
 /* Private typedef -----------------------------------------------------------*/
 // Structure containing the current state of the LED
-typedef struct
+struct ledStateExtended
 {
-    uint32_t start_time;
-    volatile int32_t current_time;    // If modified by ISR
-    int32_t phase;
-    int32_t remaining_blinks;
-    int32_t led_state;    // Current LED state (0 = OFF, 1 = ON)
-    int32_t button_state; // Current button state (0 = Released, 1 = Pressed)
-} ledStateExtendedTypeDef;
+	uint32_t start_time;
+	volatile int32_t current_time;    // If modified by ISR
+	int32_t phase;
+	int32_t remaining_blinks;
+	int32_t led_state;    // Current LED state (0 = OFF, 1 = ON)
+	int32_t button_state; // Current button state (0 = Released, 1 = Pressed)
+};
 
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
 // Declaration of commands and states for 3 LEDs
-static ledStateTypeDef ledCommands[3];
-static ledStateExtendedTypeDef ledState[3];
+static struct packed_led ledCommands[3];
+static struct ledStateExtended ledState[3];
 static volatile uint32_t system_time = 0; // Global timer in milliseconds
 
 // Global variables for button and LED states
@@ -57,158 +57,182 @@ int32_t button_states[NUMBER_OF_BUTTONS]; // Array to store the state of each bu
 /* Private function prototypes -----------------------------------------------*/
 static int32_t leds_interpolate(int32_t start, int32_t end, int32_t duration, int32_t elapsed_time);
 static void leds_initCommand(int32_t led_index, int32_t brightness_1, int32_t time_1, int32_t glide_1, int32_t brightness_2, int32_t time_2, int32_t glide_2, int32_t blink_count);
-static void leds_handle(ledStateTypeDef *cmd, ledStateExtendedTypeDef *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id);
+static void leds_handle(struct packed_led *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id);
 
 // Timer initialization function for htim12
 void leds_timerInit(void)
 {
-    printf("Initializing Timer...\n");
-    HAL_TIM_Base_Start_IT(&htim12);  // Start timer with interrupt
+	printf("Initializing Timer...\n");
+	HAL_TIM_Base_Start_IT(&htim12);  // Start timer with interrupt
 }
 
 // Function for linear interpolation between two values
 static int32_t leds_interpolate(int32_t start, int32_t end, int32_t duration, int32_t elapsed_time)
 {
-    if (elapsed_time >= duration)
-    {
-        return end; // Return the final value if the duration is reached
-    }
-    return start + ((end - start) * elapsed_time) / duration; // Linear interpolation
+	if (elapsed_time >= duration)
+	{
+		return end; // Return the final value if the duration is reached
+	}
+	return start + ((end - start) * elapsed_time) / duration; // Linear interpolation
 }
 
 // Function to initialize the LED command parameters
 static void leds_initCommand(int32_t led_index, int32_t brightness_1, int32_t time_1, int32_t glide_1, int32_t brightness_2, int32_t time_2, int32_t glide_2, int32_t blink_count)
 {
-    printf("Initializing LED %d with brightness_1: %d, time_1: %d, glide_1: %d, brightness_2: %d, time_2: %d, glide_2: %d, blink_count: %d\n",
-           (int)led_index, (int)brightness_1, (int)time_1, (int)glide_1, (int)brightness_2, (int)time_2, (int)glide_2, (int)blink_count);
+	printf("Initializing LED %d with brightness_1: %d, time_1: %d, glide_1: %d, brightness_2: %d, time_2: %d, glide_2: %d, blink_count: %d\n",
+			(int)led_index, (int)brightness_1, (int)time_1, (int)glide_1, (int)brightness_2, (int)time_2, (int)glide_2, (int)blink_count);
 
-    ledStateTypeDef *cmd = &ledCommands[led_index];
-    cmd->brightness_1 = brightness_1;
-    cmd->time_1 = time_1 * 10;
-    cmd->glide_1 = glide_1;
-    cmd->brightness_2 = brightness_2;
-    cmd->time_2 = time_2 * 10;
-    cmd->glide_2 = glide_2;
-    cmd->blink_count = blink_count;
+	struct packed_led *cmd = &ledCommands[led_index];
+	cmd->brightness_1 = brightness_1;
+	cmd->time_1 = time_1 * 10;
+	cmd->glide_1 = glide_1;
+	cmd->brightness_2 = brightness_2;
+	cmd->time_2 = time_2 * 10;
+	cmd->glide_2 = glide_2;
+	cmd->blink_count = blink_count;
 
-    // Initialize the state of the LED
-    ledStateExtendedTypeDef *state = &ledState[led_index];
-    state->start_time = system_time;
-    state->current_time = 0;
-    state->phase = 1;  // Start with phase 1
-    state->remaining_blinks = (blink_count > 0) ? blink_count : -1;  // -1 for infinite loop
+	// Initialize the state of the LED
+	struct ledStateExtended *state = &ledState[led_index];
+	state->start_time = system_time;
+	state->current_time = 0;
+	state->phase = 1;  // Start with phase 1
+	state->remaining_blinks = (blink_count > 0) ? blink_count : -1;  // -1 for infinite loop
 }
 
 // Function to handle each LED based on its state
-static void leds_handle(ledStateTypeDef *cmd, ledStateExtendedTypeDef *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id)
+static void leds_handle(struct packed_led *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id)
 {
-    int32_t target_brightness;
-    uint32_t elapsed_time = system_time - state->start_time;
-    int32_t brightness_start, brightness_end, time, glide;
+	int32_t target_brightness;
+	uint32_t elapsed_time = system_time - state->start_time;
+	int32_t brightness_start, brightness_end, time, glide;
 
-    // Check if the button associated with the LED is pressed
-    if (button_states[button_id] == 1)
-    {
-        state->led_state = 1;  // Force LED ON
-        HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED
-        return;  // Skip normal LED handling if the button is pressed
-    }
+	// Check if the button associated with the LED is pressed
+	if (button_states[button_id] == 1)
+	{
+		state->led_state = 1;  // Force LED ON
+		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED
+		return;  // Skip normal LED handling if the button is pressed
+	}
 
-    if (state->remaining_blinks == 0)
-    {
-        HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);  // Turn off the LED
-        return;  // Stop processing if no blinks are remaining
-    }
+	if (state->remaining_blinks == 0)
+	{
+		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);  // Turn off the LED
+		return;  // Stop processing if no blinks are remaining
+	}
 
-    // Determine phase-specific values
-    if (state->phase == 1)
-    {
-        brightness_start = cmd->brightness_2;
-        brightness_end = cmd->brightness_1;
-        time = cmd->time_1;
-        glide = cmd->glide_1;
-    }
-    else
-    {
-        brightness_start = cmd->brightness_1;
-        brightness_end = cmd->brightness_2;
-        time = cmd->time_2;
-        glide = cmd->glide_2;
-    }
+	// Determine phase-specific values
+	if (state->phase == 1)
+	{
+		brightness_start = cmd->brightness_2;
+		brightness_end = cmd->brightness_1;
+		time = cmd->time_1;
+		glide = cmd->glide_1;
+	}
+	else
+	{
+		brightness_start = cmd->brightness_1;
+		brightness_end = cmd->brightness_2;
+		time = cmd->time_2;
+		glide = cmd->glide_2;
+	}
 
-    // Infinite duration check
-    if (time == 0)
-    {
-        target_brightness = brightness_end;
-    }
-    else
-    {
-        // Calculate interpolated brightness using glide
-        target_brightness = leds_interpolate(brightness_start, brightness_end, (time * glide) / 100, elapsed_time);
-    }
+	// Infinite duration check
+	if (time == 0)
+	{
+		target_brightness = brightness_end;
+	}
+	else
+	{
+		// Calculate interpolated brightness using glide
+		target_brightness = leds_interpolate(brightness_start, brightness_end, (time * glide) / 100, elapsed_time);
+	}
 
-    // Handle PWM based on target brightness
-    if ((system_time % 100) < target_brightness)
-    {
-        HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED
-    }
-    else
-    {
-        HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);    // Turn off the LED
-    }
+	// Handle PWM based on target brightness
+	if ((system_time % 100) < target_brightness)
+	{
+		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED
+	}
+	else
+	{
+		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);    // Turn off the LED
+	}
 
-    // Check if the phase is complete
-    if (elapsed_time >= time && time != 0)
-    {
-        if (state->phase == 1)
-        {
-            state->phase = 2;
-        }
-        else
-        {
-            if (state->remaining_blinks > 0)
-            {
-                state->remaining_blinks--;
-            }
-            if (state->remaining_blinks != 0)
-            {
-                state->phase = 1;
-            }
-            else
-            {
-                HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);  // Turn off the LED
-            }
-        }
-        state->start_time = system_time;  // Reset start time for the next phase
-    }
+	// Check if the phase is complete
+	if (elapsed_time >= time && time != 0)
+	{
+		if (state->phase == 1)
+		{
+			state->phase = 2;
+		}
+		else
+		{
+			if (state->remaining_blinks > 0)
+			{
+				state->remaining_blinks--;
+			}
+			if (state->remaining_blinks != 0)
+			{
+				state->phase = 1;
+			}
+			else
+			{
+				HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);  // Turn off the LED
+			}
+		}
+		state->start_time = system_time;  // Reset start time for the next phase
+	}
 }
 
 // Interrupt handler updated to manage multiple LEDs
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM12)
-    {
-    	leds_handle(&ledCommands[0], &ledState[0], LED1_GPIO_Port, LED1_Pin, 0);  // Manage LED 1
-    	leds_handle(&ledCommands[1], &ledState[1], LED2_GPIO_Port, LED2_Pin, 1);  // Manage LED 2
-    	leds_handle(&ledCommands[2], &ledState[2], LED3_GPIO_Port, LED3_Pin, 2);  // Manage LED 3
-        system_time++; // Increment global system time for PWM
-    }
+	if (htim->Instance == TIM12)
+	{
+		leds_handle(&ledCommands[0], &ledState[0], LED1_GPIO_Port, LED1_Pin, 0);  // Manage LED 1
+		leds_handle(&ledCommands[1], &ledState[1], LED2_GPIO_Port, LED2_Pin, 1);  // Manage LED 2
+		leds_handle(&ledCommands[2], &ledState[2], LED3_GPIO_Port, LED3_Pin, 2);  // Manage LED 3
+		system_time++; // Increment global system time for PWM
+	}
 }
 
 void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed)
 {
-    button_states[button_id] = is_pressed;  // Update the button state
+	button_states[button_id] = is_pressed;  // Update the button state
 
-    if (is_pressed == SWITCH_PRESSED)
-    {
-        // Forcing the LED associated with the button to stay on
-        led_states[button_id] = 1;  // Set the LED state to ON
-    }
-    else
-    {
-        // Releasing the button, restore normal LED behavior
-        led_states[button_id] = 0;  // Set the LED state to OFF or restore previous behavior
-    }
+	if (is_pressed == SWITCH_PRESSED)
+	{
+		// Forcing the LED associated with the button to stay on
+		led_states[button_id] = 1;  // Set the LED state to ON
+	}
+	else
+	{
+		// Releasing the button, restore normal LED behavior
+		led_states[button_id] = 0;  // Set the LED state to OFF or restore previous behavior
+	}
+}
+
+void leds_check_update_state(void)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		struct packed_led volatile *current_state = &shared_var.ledState[i];
+
+		// Check if an update was requested for this LED
+		if (current_state->update_requested == TRUE)
+		{
+			// Update the LED state
+			leds_initCommand(i,
+					current_state->brightness_1,
+					current_state->time_1,
+					current_state->glide_1,
+					current_state->brightness_2,
+					current_state->time_2,
+					current_state->glide_2,
+					current_state->blink_count);
+					// Clear the update request flag after processing
+					current_state->update_requested = FALSE;
+		}
+	}
 }
 
 /*
@@ -250,12 +274,12 @@ void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed)
  */
 void led_test(void)
 {
-    printf("Starting LED test...\n");
+	printf("Starting LED test...\n");
 
-    // Initialization of LED states
-    leds_initCommand(0, 10, 1000, 80, 79, 200, 0, 0);    // LED1: Constant lighting at 10% without blinking
-    HAL_Delay(500);
-    leds_initCommand(1, 30, 1000, 100, 0, 1000, 100, 20);  // LED2: Blinking with transitions
-    HAL_Delay(500);
-    leds_initCommand(2, 100, 1000, 80, 30, 1000, 0, 20);   // LED3: Transition from 100% to 30%
+	// Initialization of LED states
+	leds_initCommand(0, 10, 1000, 80, 79, 200, 0, 0);    // LED1: Constant lighting at 10% without blinking
+	HAL_Delay(500);
+	leds_initCommand(1, 30, 1000, 100, 0, 1000, 100, 20);  // LED2: Blinking with transitions
+	HAL_Delay(500);
+	leds_initCommand(2, 100, 1000, 80, 30, 1000, 0, 20);   // LED3: Transition from 100% to 30%
 }

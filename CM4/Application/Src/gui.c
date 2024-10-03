@@ -61,12 +61,15 @@ int gui_mainLoop(void)
     int32_t last_process_count = shared_var.cis_process_cnt; // Last recorded process counter
     memset(&packet_Image, 0, sizeof(packet_Image));
 
+    gui_displayWaiting();
+    gui_changeHand();
+
     /* Infinite loop */
     while (1)
     {
         // Update the interface
-        gui_displayWaiting();
         gui_displayImage();
+        leds_check_update_state();
 
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
@@ -312,7 +315,7 @@ void gui_displayOversampling()
 	ssd1362_drawString(12, 22, (int8_t*)textData, 0, 8);
 }
 
-void gui_displayWaiting(void)
+void gui_displayWaiting2(void)
 {
 	static uint32_t lastUpdateTime = 0; // Time of the last display update
 	static const uint32_t updateInterval = 1000; // Update display every 1 second
@@ -335,6 +338,92 @@ void gui_displayWaiting(void)
 			dotCount = (dotCount + 1) % 3; // Cycle through 1, 2, 3 dots
 		}
 	}
+	gui_changeHand();
+}
+
+void gui_displayWaiting(void)
+{
+    static uint32_t lastUpdateTime = 0; // Time of the last display update
+    static const uint32_t updateInterval = 50; // Update every 50 ms
+    static int offset = 0; // Horizontal offset for the scrolling pattern
+    static int lightOffset = 0; // Offset for the faster moving light wave
+    static const uint16_t screenWidth = SSD1362_WIDTH; // Screen width (256 pixels)
+    static const uint16_t screenHeight = SSD1362_HEIGHT; // Screen height (64 pixels)
+    static const uint8_t waveHeight = 8; // Height of each wave
+
+    // Fréquences de modulation qui évoluent dynamiquement
+    static float modFreqLine1 = 0.03;
+    static float modFreqLine2 = 0.01;
+    static float modFreqLine3 = 0.03;
+
+    while (shared_var.cis_process_rdy != TRUE)
+    {
+        uint32_t currentTime = HAL_GetTick(); // Get current system tick
+
+        // Update display every 50 ms for smooth animation
+        if (currentTime - lastUpdateTime >= updateInterval)
+        {
+            lastUpdateTime = currentTime;
+
+            // Clear the previous frame
+            ssd1362_clearBuffer();
+
+            // Dessiner 3 vagues avec modulation dynamique de l'épaisseur
+            for (int i = 0; i < 5; i++) // 3 lignes seulement
+            {
+                int y = waveHeight * (i + 1) * 2 - 16; // Espacement régulier des lignes
+
+                // Modulation d'épaisseur avec une onde dont la fréquence évolue
+                float modFreq = (i == 0) ? modFreqLine1 : (i == 1) ? modFreqLine2 : modFreqLine3;
+
+                for (int x = 0; x < screenWidth; x++) // Horizontal placement pixel by pixel
+                {
+                    // Créer une onde sinusoïdale pour la ligne de base (porteuse)
+                    int wave = (int)(waveHeight * sin((x + offset) * 0.1)); // Onde porteuse (modulation de base)
+                    int yPos = y + wave; // Position verticale de l'onde porteuse
+
+                    // Générer une modulation autour de l'onde porteuse
+                    int modulation = (int)(5 * sin((x + offset) * modFreq)); // Modulation en y+ et y-
+                    int thickness = 1 + abs(modulation); // L'épaisseur sera entre 1 et 4
+
+                    // Calculer l'intensité de la lumière (avec l'onde lumineuse rapide)
+                    uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * 0.05))); // Onde lumineuse rapide avec contraste
+
+                    // S'assurer que le contraste reste dans les limites de 0 à 15
+                    contrast = contrast > 15 ? 15 : contrast;
+
+                    if (yPos < screenHeight) // Assurer que la ligne est dans les limites de l'écran
+                    {
+                        // Dessiner la ligne avec l'épaisseur modulée
+                        for (int t = -thickness; t <= thickness; t++) // Épaisseur de la ligne avec modulation
+                        {
+                            if (yPos + t >= 0 && yPos + t < screenHeight) // Assurer que l'épaisseur reste dans les limites de l'écran
+                            {
+                                ssd1362_drawPixel(x, yPos + t, contrast, false); // Dessiner la ligne avec contraste et épaisseur
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mettre à jour les offsets pour les effets de défilement
+            offset = (offset + 1) % screenWidth;       // Incrémenter l'offset des vagues
+            lightOffset = (lightOffset - 5) % screenWidth; // Incrémenter plus rapidement l'offset de l'onde lumineuse
+
+            // Mettre à jour les fréquences de modulation pour créer une évolution dynamique
+            modFreqLine1 += 0.01;  // Augmenter progressivement la fréquence
+            modFreqLine2 += 0.015; // Fréquence différente pour chaque ligne
+            modFreqLine3 += 0.01;
+
+            // Limiter les fréquences pour éviter des valeurs trop élevées
+            if (modFreqLine1 > 0.5) modFreqLine1 = 0.05;
+            if (modFreqLine2 > 0.3) modFreqLine2 = 0.05;
+            if (modFreqLine3 > 0.5) modFreqLine3 = 0.05;
+
+            // Envoyer le buffer mis à jour à l'écran
+            ssd1362_writeFullBuffer();
+        }
+    }
 }
 
 void gui_startCalibration()

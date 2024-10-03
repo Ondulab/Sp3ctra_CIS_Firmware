@@ -101,22 +101,33 @@ void ssd1362_setPixelChanged(uint16_t x, uint16_t y, bool changed)
 //pixel xy coordinates 0-255, color 0-15, and whether to immediately output it to the display or buffer it
 void ssd1362_drawPixel(uint16_t x, uint16_t y, uint8_t color, bool display)
 {
-	uint32_t address = ssd1362_coordsToAddress(x,y);
-	if((x%2) == 0)
-	{//If this is an even pixel, and therefore needs shifting to the more significant nibble
-		frameBuffer[address] = (frameBuffer[address] & 0x0f) | (color<<4);
-	} else {
-		frameBuffer[address] = (frameBuffer[address] & 0xf0) | (color);
-	}
+    if (x >= SSD1362_WIDTH || y >= SSD1362_HEIGHT)
+    {
+        return;
+    }
 
-	if(display)
-	{
-		ssd1362_setWriteZone(x/2,y,x/2,y);
-		ssd1362_writeData(frameBuffer[address]);
-		ssd1362_setPixelChanged(x, y, false); // We've now synced the display with this byte of the buffer, no need to write it again
-	} else {
-		ssd1362_setPixelChanged(x, y, true); // This pixel is due for an update next refresh
-	}
+    uint32_t address = ssd1362_coordsToAddress(x, y);
+    if ((x % 2) == 0)
+    {
+        // Even pixel, shift to the more significant nibble
+        frameBuffer[address] = (frameBuffer[address] & 0x0F) | (color << 4);
+    }
+    else
+    {
+        // Odd pixel
+        frameBuffer[address] = (frameBuffer[address] & 0xF0) | (color & 0x0F);
+    }
+
+    if (display)
+    {
+        ssd1362_setWriteZone(x / 2, y, x / 2, y);
+        ssd1362_writeData(frameBuffer[address]);
+        ssd1362_setPixelChanged(x, y, false); // We've now synced the display with this byte of the buffer
+    }
+    else
+    {
+        ssd1362_setPixelChanged(x, y, true); // Mark pixel for update in the next refresh
+    }
 }
 
 void ssd1362_drawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint8_t color, bool display)
@@ -272,32 +283,39 @@ void ssd1362_drawVLine(uint16_t x, uint16_t y, int16_t length, uint8_t color, bo
     }
 }
 
-
-
 void ssd1362_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t color, bool display)
-{ //Bresenham's line algorithm
-	uint32_t deltaX = abs(x1-x0);
-	uint32_t deltaY = abs(y1-y0);
-	uint32_t signX = x0<x1 ? 1 : -1;
-	uint32_t signY = y0<y1 ? 1 : -1;
-	uint32_t error = (deltaX>deltaY ? deltaX : -deltaY)/2, error2;
+{
+    if (x0 >= SSD1362_WIDTH) x0 = SSD1362_WIDTH - 1;
+    if (x1 >= SSD1362_WIDTH) x1 = SSD1362_WIDTH - 1;
+    if (y0 >= SSD1362_HEIGHT) y0 = SSD1362_HEIGHT - 1;
+    if (y1 >= SSD1362_HEIGHT) y1 = SSD1362_HEIGHT - 1;
 
-	while (true)
-	{
-		ssd1362_drawPixel(x0, y0, color, display);
-		if (x0==x1 && y0==y1) break;
-		error2 = error;
-		if (error2 >-deltaX)
-		{
-			error -= deltaY;
-			x0 += signX;
-		}
-		if (error2 < deltaY)
-		{
-			error += deltaX;
-			y0 += signY;
-		}
-	}
+    int32_t deltaX = abs(x1 - x0);
+    int32_t deltaY = abs(y1 - y0);
+    int32_t signX = (x0 < x1) ? 1 : -1;
+    int32_t signY = (y0 < y1) ? 1 : -1;
+    int32_t error = deltaX - deltaY;
+
+    while (true)
+    {
+        ssd1362_drawPixel(x0, y0, color, display); // Draw the pixel at the current position
+
+        if (x0 == x1 && y0 == y1) // If the line is complete, exit the loop
+            break;
+
+        int32_t error2 = error * 2;
+
+        if (error2 > -deltaY)
+        {
+            error -= deltaY;
+            x0 += signX; // Move horizontally
+        }
+        if (error2 < deltaX)
+        {
+            error += deltaX;
+            y0 += signY; // Move vertically
+        }
+    }
 }
 
 //Draws a byte as an 8 pixel row

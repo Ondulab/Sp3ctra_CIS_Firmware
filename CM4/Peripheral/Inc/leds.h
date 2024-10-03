@@ -23,6 +23,7 @@
 
 void leds_timerInit(void);
 void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed);
+void leds_check_update_state(void);
 void led_test(void);
 
 #endif /* __GUI_H */

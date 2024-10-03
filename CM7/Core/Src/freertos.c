@@ -166,7 +166,7 @@ void StartDefaultTask(void const * argument)
 
 	http_serverInit();
 
-	//tcp_clientInit();
+	tcp_clientInit();
 
 	cis_scanInit();
 
