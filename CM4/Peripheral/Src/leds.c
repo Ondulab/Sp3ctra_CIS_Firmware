@@ -44,12 +44,12 @@ struct ledStateExtended
 
 /* Private variables ---------------------------------------------------------*/
 // Declaration of commands and states for 3 LEDs
-static struct packed_led ledCommands[3];
-static struct ledStateExtended ledState[3];
+static struct led_State ledCommands[NUMBER_OF_LEDS];
+static struct ledStateExtended ledState[NUMBER_OF_LEDS];
 static volatile uint32_t system_time = 0; // Global timer in milliseconds
 
 // Global variables for button and LED states
-int32_t led_states[NUMBER_OF_BUTTONS];    // Array to store the state of each LED (0 = OFF, 1 = ON)
+int32_t led_states[NUMBER_OF_LEDS];    // Array to store the state of each LED (0 = OFF, 1 = ON)
 int32_t button_states[NUMBER_OF_BUTTONS]; // Array to store the state of each button (0 = Released, 1 = Pressed)
 
 /* Variable containing black and white frame from CIS*/
@@ -57,7 +57,7 @@ int32_t button_states[NUMBER_OF_BUTTONS]; // Array to store the state of each bu
 /* Private function prototypes -----------------------------------------------*/
 static int32_t leds_interpolate(int32_t start, int32_t end, int32_t duration, int32_t elapsed_time);
 static void leds_initCommand(int32_t led_index, int32_t brightness_1, int32_t time_1, int32_t glide_1, int32_t brightness_2, int32_t time_2, int32_t glide_2, int32_t blink_count);
-static void leds_handle(struct packed_led *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id);
+static void leds_handle(struct led_State *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id);
 
 // Timer initialization function for htim12
 void leds_timerInit(void)
@@ -82,7 +82,7 @@ static void leds_initCommand(int32_t led_index, int32_t brightness_1, int32_t ti
 	printf("Initializing LED %d with brightness_1: %d, time_1: %d, glide_1: %d, brightness_2: %d, time_2: %d, glide_2: %d, blink_count: %d\n",
 			(int)led_index, (int)brightness_1, (int)time_1, (int)glide_1, (int)brightness_2, (int)time_2, (int)glide_2, (int)blink_count);
 
-	struct packed_led *cmd = &ledCommands[led_index];
+	struct led_State *cmd = &ledCommands[led_index];
 	cmd->brightness_1 = brightness_1;
 	cmd->time_1 = time_1 * 10;
 	cmd->glide_1 = glide_1;
@@ -100,7 +100,7 @@ static void leds_initCommand(int32_t led_index, int32_t brightness_1, int32_t ti
 }
 
 // Function to handle each LED based on its state
-static void leds_handle(struct packed_led *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id)
+static void leds_handle(struct led_State *cmd, struct ledStateExtended *state, GPIO_TypeDef *GPIO_Port, uint16_t GPIO_Pin, int32_t button_id)
 {
 	int32_t target_brightness;
 	uint32_t elapsed_time = system_time - state->start_time;
@@ -188,14 +188,34 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM12)
 	{
-		leds_handle(&ledCommands[0], &ledState[0], LED1_GPIO_Port, LED1_Pin, 0);  // Manage LED 1
-		leds_handle(&ledCommands[1], &ledState[1], LED2_GPIO_Port, LED2_Pin, 1);  // Manage LED 2
-		leds_handle(&ledCommands[2], &ledState[2], LED3_GPIO_Port, LED3_Pin, 2);  // Manage LED 3
+        for (int i = 0; i < NUMBER_OF_LEDS; i++)
+        {
+            GPIO_TypeDef *ledPort;
+            uint16_t ledPin;
+
+            switch (i)
+            {
+                case 0:
+                    ledPort = LED1_GPIO_Port;
+                    ledPin = LED1_Pin;
+                    break;
+                case 1:
+                    ledPort = LED2_GPIO_Port;
+                    ledPin = LED2_Pin;
+                    break;
+                case 2:
+                    ledPort = LED3_GPIO_Port;
+                    ledPin = LED3_Pin;
+                    break;
+            }
+
+            leds_handle(&ledCommands[i], &ledState[i], ledPort, ledPin, i);
+        }
 		system_time++; // Increment global system time for PWM
 	}
 }
 
-void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed)
+void leds_pressFeedback(buttonIdTypeDef button_id, buttonStateTypeDef is_pressed)
 {
 	button_states[button_id] = is_pressed;  // Update the button state
 
@@ -213,24 +233,22 @@ void leds_pressFeedback(buttonTypeDef button_id, buttonStateTypeDef is_pressed)
 
 void leds_check_update_state(void)
 {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < NUMBER_OF_LEDS; i++)
 	{
-		struct packed_led volatile *current_state = &shared_var.ledState[i];
-
 		// Check if an update was requested for this LED
-		if (current_state->update_requested == TRUE)
+		if (shared_var.led_update_requested[i] == TRUE)
 		{
 			// Update the LED state
 			leds_initCommand(i,
-					current_state->brightness_1,
-					current_state->time_1,
-					current_state->glide_1,
-					current_state->brightness_2,
-					current_state->time_2,
-					current_state->glide_2,
-					current_state->blink_count);
+					shared_var.ledState[i].brightness_1,
+					shared_var.ledState[i].time_1,
+					shared_var.ledState[i].glide_1,
+					shared_var.ledState[i].brightness_2,
+					shared_var.ledState[i].time_2,
+					shared_var.ledState[i].glide_2,
+					shared_var.ledState[i].blink_count);
 					// Clear the update request flag after processing
-					current_state->update_requested = FALSE;
+			shared_var.led_update_requested[i] = FALSE;
 		}
 	}
 }

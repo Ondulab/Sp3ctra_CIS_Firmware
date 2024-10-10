@@ -143,7 +143,9 @@ int main(void)
 #ifndef SKIP_SPLASH
 	for (uint8_t i = 0; i < 16; i++)
 	{
-		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, i, 1);
+		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, i, 0);
+		ssd1362_drawString(230, 56, VERSION, 4, 8);
+		ssd1362_writeFullBuffer();
 
 		if (i == 0)
 		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);

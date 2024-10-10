@@ -64,7 +64,7 @@ void print_received_data(uint8_t* data, uint16_t len)
  *
  * @param  arg: Argument passed to the task (not used).
  *
- * command line test : echo -n -e "\x03\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x64\x00\xE8\x03\x64\x00\x00\x00\xE8\x03\x64\x00\x0F\x00" | nc 192.168.0.10 5000
+ * command line test : echo -n -e "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x64\x00\xE8\x03\x64\x00\x00\x00\xE8\x03\x64\x00\x0F\x00" | nc 192.168.0.10 5000
  */
 static void tcp_client_task(void *arg)
 {
@@ -93,13 +93,13 @@ static void tcp_client_task(void *arg)
 				netbuf_data(buf, &data, &len);  // Extract data and its length
 
 				// Check if the received packet matches the expected structure size
-				if (len <= sizeof(struct packet_HID_Leds))
+				if (len <= sizeof(struct packet_Leds))
 				{
 					print_received_data(data, len);
 					// Cast received data into the `packet_HID_Leds` structure
-					struct packet_HID_Leds led_packet;
+					struct packet_Leds led_packet;
 					memset(&led_packet, 0, sizeof(led_packet));
-					memcpy(&led_packet, data, len < sizeof(struct packet_HID_Leds) ? len : sizeof(struct packet_HID_Leds));
+					memcpy(&led_packet, data, len < sizeof(struct packet_Leds) ? len : sizeof(struct packet_Leds));
 
 					printf("Received data: brightness_1=%d, time_1=%d, glide_1=%d, brightness_2=%d, time_2=%d, glide_2=%d, blink_count=%d\n",
 							(int)led_packet.led_state.brightness_1,
@@ -111,7 +111,7 @@ static void tcp_client_task(void *arg)
 							(int)led_packet.led_state.blink_count);
 
 					// Verify if the packet type is HID_DATA_HEADER
-					if (led_packet.type == HID_DATA_HEADER)
+					if (led_packet.type == LED_DATA_HEADER)
 					{
 						// Sanity check
 						if (led_packet.led_id < 3)
@@ -126,7 +126,7 @@ static void tcp_client_task(void *arg)
 							shared_var.ledState[led_packet.led_id].time_2 = led_packet.led_state.time_2;
 							shared_var.ledState[led_packet.led_id].blink_count = led_packet.led_state.blink_count;
 
-							shared_var.ledState[led_packet.led_id].update_requested = TRUE;
+							shared_var.led_update_requested[led_packet.led_id] = TRUE;
 						}
 					}
 					else

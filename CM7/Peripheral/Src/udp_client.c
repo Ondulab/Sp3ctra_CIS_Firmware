@@ -45,7 +45,7 @@ __IO uint32_t message_count = 0;
 int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
-static struct packet_HID packet_HID = {0};
+static struct packet_Button packet_Button = {0};
 
 static uint32_t packetsCounter = 0;
 
@@ -80,11 +80,11 @@ void udp_clientInit(void)
 	}
 
 	packet_StartupInfo.type = STARTUP_INFO_HEADER;
-	packet_HID.type = HID_DATA_HEADER;
+	packet_Button.type = BUTTON_DATA_HEADER;
 	packet_IMU.type = IMU_DATA_HEADER;
 
 	packet_StartupInfo.packet_id = packetsCounter;
-	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v3.0 RESO-NANCE");
+	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
 
 	udp_clientSendStartupInfoPacket();
 }
@@ -133,13 +133,21 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
 
-	packet_HID.packet_id = packetsCounter++;
+	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
+	{
+		// Check if an update was requested for this Button
+		if (shared_var.button_update_requested[i] == TRUE)
+		{
+			packet_Button.packet_id = packetsCounter++;
+			// Update the LED state
+			packet_Button.button_id = i;
+			packet_Button.button_state = shared_var.buttonState[i];
+			// Clear the update request flag after processing
+			shared_var.button_update_requested[i] = FALSE;
+		}
+	}
 
-	packet_HID.button_A = shared_var.buttonState[SW1];
-	packet_HID.button_B = shared_var.buttonState[SW2];
-	packet_HID.button_C = shared_var.buttonState[SW3];
-
-	udp_clientSendData(&packet_HID, sizeof(packet_HID));
+	udp_clientSendData(&packet_Button, sizeof(packet_Button));
 }
 #pragma GCC pop_options
 

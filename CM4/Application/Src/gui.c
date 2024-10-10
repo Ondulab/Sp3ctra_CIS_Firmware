@@ -341,6 +341,14 @@ void gui_displayWaiting2(void)
 	gui_changeHand();
 }
 
+// Function to generate a random float between two values
+float randomFloat(float min, float max)
+{
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+#define NUM_LINE 5
+
 void gui_displayWaiting(void)
 {
     static uint32_t lastUpdateTime = 0; // Time of the last display update
@@ -351,76 +359,82 @@ void gui_displayWaiting(void)
     static const uint16_t screenHeight = SSD1362_HEIGHT; // Screen height (64 pixels)
     static const uint8_t waveHeight = 8; // Height of each wave
 
-    // Fréquences de modulation qui évoluent dynamiquement
-    static float modFreqLine1 = 0.03;
-    static float modFreqLine2 = 0.01;
-    static float modFreqLine3 = 0.03;
+    // Frequency and increment min/max values
+    static const float modFreqMin[] = {0.03, 0.01, 0.03, 0.02, 0.04};
+    static const float modFreqMax[] = {0.5, 0.3, 0.5, 0.35, 0.45};
+    static const float modIncMin[] = {-0.01, -0.01, -0.03, -0.02, -0.04};
+    static const float modIncMax[] = {0.15, 0.03, 0.05, 0.08, 0.12};
+
+    // Dynamic modulation frequencies and increments
+    static float modFreqLine[NUM_LINE] = {0};
+    static float modIncLine[NUM_LINE] = {0};
+    for (int i = 0; i < NUM_LINE; i++) {
+        modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+        modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
+    }
+
+    static const float contrastFreqMin = 0.01;
+    static const float contrastFreqMax = 0.05;
+    static float contrastFreq = 0;
+    contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+
+    static const float contrastIncMin = -0.003;
+    static const float contrastIncMax = 0.003;
+    static float contrastInc = 0;
+    contrastInc = randomFloat(contrastIncMin, contrastIncMax);
 
     while (shared_var.cis_process_rdy != TRUE)
     {
-        uint32_t currentTime = HAL_GetTick(); // Get current system tick
+        uint32_t currentTime = HAL_GetTick();
 
-        // Update display every 50 ms for smooth animation
         if (currentTime - lastUpdateTime >= updateInterval)
         {
             lastUpdateTime = currentTime;
-
-            // Clear the previous frame
             ssd1362_clearBuffer();
 
-            // Dessiner 3 vagues avec modulation dynamique de l'épaisseur
-            for (int i = 0; i < 5; i++) // 3 lignes seulement
+            for (int i = 0; i < NUM_LINE; i++)
             {
-                int y = waveHeight * (i + 1) * 2 - 16; // Espacement régulier des lignes
+                int y = waveHeight * (i + 1) * 2 - 16;
 
-                // Modulation d'épaisseur avec une onde dont la fréquence évolue
-                float modFreq = (i == 0) ? modFreqLine1 : (i == 1) ? modFreqLine2 : modFreqLine3;
-
-                for (int x = 0; x < screenWidth; x++) // Horizontal placement pixel by pixel
+                for (int x = 0; x < screenWidth; x++)
                 {
-                    // Créer une onde sinusoïdale pour la ligne de base (porteuse)
-                    int wave = (int)(waveHeight * sin((x + offset) * 0.1)); // Onde porteuse (modulation de base)
-                    int yPos = y + wave; // Position verticale de l'onde porteuse
+                    int wave = (int)(waveHeight * sin((x + offset) * 0.1));
+                    int yPos = y + wave;
 
-                    // Générer une modulation autour de l'onde porteuse
-                    int modulation = (int)(5 * sin((x + offset) * modFreq)); // Modulation en y+ et y-
-                    int thickness = 1 + abs(modulation); // L'épaisseur sera entre 1 et 4
+                    int modulation = (int)(5 * sin((x + offset) * modFreqLine[i]));
+                    int thickness = 1 + abs(modulation);
 
-                    // Calculer l'intensité de la lumière (avec l'onde lumineuse rapide)
-                    uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * 0.05))); // Onde lumineuse rapide avec contraste
-
-                    // S'assurer que le contraste reste dans les limites de 0 à 15
+                    uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * contrastFreq)));
                     contrast = contrast > 15 ? 15 : contrast;
 
-                    if (yPos < screenHeight) // Assurer que la ligne est dans les limites de l'écran
+                    if (yPos < screenHeight)
                     {
-                        // Dessiner la ligne avec l'épaisseur modulée
-                        for (int t = -thickness; t <= thickness; t++) // Épaisseur de la ligne avec modulation
+                        for (int t = -thickness; t <= thickness; t++)
                         {
-                            if (yPos + t >= 0 && yPos + t < screenHeight) // Assurer que l'épaisseur reste dans les limites de l'écran
+                            if (yPos + t >= 0 && yPos + t < screenHeight)
                             {
-                                ssd1362_drawPixel(x, yPos + t, contrast, false); // Dessiner la ligne avec contraste et épaisseur
+                                ssd1362_drawPixel(x, yPos + t, contrast, false);
                             }
                         }
                     }
                 }
             }
 
-            // Mettre à jour les offsets pour les effets de défilement
-            offset = (offset + 1) % screenWidth;       // Incrémenter l'offset des vagues
-            lightOffset = (lightOffset - 5) % screenWidth; // Incrémenter plus rapidement l'offset de l'onde lumineuse
+            offset = (offset + 1) % screenWidth;
+            lightOffset = (lightOffset - 5) % screenWidth;
 
-            // Mettre à jour les fréquences de modulation pour créer une évolution dynamique
-            modFreqLine1 += 0.01;  // Augmenter progressivement la fréquence
-            modFreqLine2 += 0.015; // Fréquence différente pour chaque ligne
-            modFreqLine3 += 0.01;
+            for (int i = 0; i < NUM_LINE; i++)
+            {
+                modFreqLine[i] += modIncLine[i];
+                if (modFreqLine[i] > modFreqMax[i] || modFreqLine[i] < modFreqMin[i]) {
+                    modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+                }
+            }
 
-            // Limiter les fréquences pour éviter des valeurs trop élevées
-            if (modFreqLine1 > 0.5) modFreqLine1 = 0.05;
-            if (modFreqLine2 > 0.3) modFreqLine2 = 0.05;
-            if (modFreqLine3 > 0.5) modFreqLine3 = 0.05;
+            contrastFreq += contrastInc;
+            if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+            if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
 
-            // Envoyer le buffer mis à jour à l'écran
             ssd1362_writeFullBuffer();
         }
     }
@@ -514,8 +528,10 @@ void gui_changeHand()
 
 void gui_interractiveMenu()
 {
-	static uint32_t button_tick = 0;
-	static uint8_t clear_button = 0;
+	static uint32_t button_current_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
+	static uint32_t button_initial_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
+	static uint8_t clear_button[NUMBER_OF_BUTTONS] = {0, 0, 0};
+
 	static uint8_t oldScanDir = 0;
 	static uint8_t oldOversampling = 0;
 	static uint32_t start_tick = 0;
@@ -541,38 +557,33 @@ void gui_interractiveMenu()
 		oldScanDir = shared_config.cis_handedness;
 	}
 
-	if (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET)
+	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
 	{
-		leds_pressFeedback(SW1, SWITCH_PRESSED);
-		shared_var.buttonState[SW1] = SWITCH_PRESSED;
-		button_tick = HAL_GetTick();
-		clear_button = 0;
-	}
+		GPIO_TypeDef* button_port = (i == 0) ? SW1_GPIO_Port : (i == 1) ? SW2_GPIO_Port : SW3_GPIO_Port;
+		uint16_t button_pin = (i == 0) ? SW1_Pin : (i == 1) ? SW2_Pin : SW3_Pin;
 
-	if (HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == GPIO_PIN_RESET)
-	{
-		leds_pressFeedback(SW2, SWITCH_PRESSED);
-		shared_var.buttonState[SW2] = SWITCH_PRESSED;
-		button_tick = HAL_GetTick();
-		clear_button = 0;
-	}
-	if (HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin) == GPIO_PIN_RESET)
-	{
-		leds_pressFeedback(SW3, SWITCH_PRESSED);
-		shared_var.buttonState[SW3] = SWITCH_PRESSED;
-		button_tick = HAL_GetTick();
-		clear_button = 0;
-	}
+		if (HAL_GPIO_ReadPin(button_port, button_pin) == GPIO_PIN_RESET)
+		{
+			button_current_tick[i] = HAL_GetTick();
+			if (clear_button[i] == 1)
+			{
+				clear_button[i] = 0;
+				button_initial_tick[i] = button_current_tick[i];
+			}
 
-	if (HAL_GetTick() > (button_tick + shared_config.ui_button_delay) && clear_button != 1)
-	{
-		clear_button = 1;
+			leds_pressFeedback(i, SWITCH_PRESSED);
+			shared_var.buttonState[i].state = SWITCH_PRESSED;
+			shared_var.buttonState[i].pressed_time = button_current_tick[i] - button_initial_tick[i];
+			shared_var.button_update_requested[i] = TRUE;
+		}
 
-		leds_pressFeedback(SW1, SWITCH_RELEASED);
-		leds_pressFeedback(SW2, SWITCH_RELEASED);
-		leds_pressFeedback(SW3, SWITCH_RELEASED);
-		shared_var.buttonState[SW1] = SWITCH_RELEASED;
-		shared_var.buttonState[SW2] = SWITCH_RELEASED;
-		shared_var.buttonState[SW3] = SWITCH_RELEASED;
+		if (HAL_GetTick() > (button_current_tick[i] + shared_config.ui_button_delay) && clear_button[i] != 1)
+		{
+			clear_button[i] = 1;
+
+			leds_pressFeedback(i, SWITCH_RELEASED);
+			shared_var.buttonState[i].state = SWITCH_RELEASED;
+			shared_var.button_update_requested[i] = TRUE;
+		}
 	}
 }
