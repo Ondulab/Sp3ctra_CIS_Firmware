@@ -45,8 +45,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-//uint32_t defaultTaskBuffer[256] __attribute__((section(".dtcm")));
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/

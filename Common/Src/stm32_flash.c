@@ -17,7 +17,7 @@
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
-#include "shared.h"
+#include "globals.h"
 
 #include "stdlib.h"
 #include "stdio.h"

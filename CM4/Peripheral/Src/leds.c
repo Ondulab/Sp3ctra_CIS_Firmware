@@ -19,7 +19,7 @@
 #include "stdlib.h"
 #include "basetypes.h"
 
-#include "shared.h"
+#include "globals.h"
 #include "config.h"
 
 #include "tim.h"

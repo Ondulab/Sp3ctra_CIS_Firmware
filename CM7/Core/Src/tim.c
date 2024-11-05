@@ -131,12 +131,12 @@ void MX_TIM3_Init(void)
   pulseValue = CIS_LED_BLUE_OFF - 1;
 
   prescalerValue = 0;
-#ifndef CIS_MONOCHROME
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
-#else
-  counterPeriod = (CIS_END_CAPTURE) - 1;
-  pulseValue /= 3;
-#endif
+  #ifndef CIS_MONOCHROME
+    counterPeriod = (cisConfig.end_capture * 3) - 1;
+  #else
+    counterPeriod = (cisConfig.end_capture) - 1;
+    pulseValue /= 3;
+  #endif
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
@@ -199,9 +199,9 @@ void MX_TIM4_Init(void)
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
+  counterPeriod = (cisConfig.end_capture * 3) - 1;
 #else
-  counterPeriod = (CIS_END_CAPTURE) - 1;
+  counterPeriod = (cisConfig.end_capture) - 1;
   pulseValue /= 3;
 #endif
 
@@ -266,9 +266,9 @@ void MX_TIM5_Init(void)
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME
-  counterPeriod = (CIS_END_CAPTURE * 3) - 1;
+  counterPeriod = (cisConfig.end_capture * 3) - 1;
 #else
-  counterPeriod = (CIS_END_CAPTURE) - 1;
+  counterPeriod = (cisConfig.end_capture) - 1;
   pulseValue /= 3;
 #endif
 
@@ -367,9 +367,9 @@ void MX_TIM8_Init(void)
 
     uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  prescalerValue = 0;
-  counterPeriod = CIS_END_CAPTURE - 1;
-  pulseValue = CIS_SP_WIDTH - 1;
+    prescalerValue = 0;
+    counterPeriod = cisConfig.end_capture - 1;
+    pulseValue = CIS_SP_WIDTH - 1;
 
   /* USER CODE END TIM8_Init 1 */
   htim8.Instance = TIM8;

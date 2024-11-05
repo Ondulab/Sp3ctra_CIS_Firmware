@@ -44,7 +44,7 @@
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
-#include "shared.h"
+#include "globals.h"
 
 #include "stdlib.h"
 #include "stdio.h"
@@ -80,7 +80,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void cis_leastSquares(double* x, double* y, uint32_t n, double* a, double* b, double* c);
 static void cis_setLedsPower(int32_t power);
-void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration);
+void cis_startPolynomialCalibration(struct cisRGB_Calibration* cisRGBCalibration);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -93,7 +93,7 @@ void cis_getMeanAtLedPower(struct RAWImage* RAWImage, struct cisLeds_Calibration
 {
 	cis_ledPowerAdj(led_PWM, led_PWM, led_PWM);
 
-	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+	//float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0}; todo update definition
 
 	// Capture a raw image
 	cis_getRAWImage(cisDataCpy_f32, CIS_LEDS_CAL_MEASURE_CYCLES);
@@ -102,9 +102,9 @@ void cis_getMeanAtLedPower(struct RAWImage* RAWImage, struct cisLeds_Calibration
 	cis_convertRAWImageToFloatArray(cisDataCpy_f32, RAWImage);
 
 	// Calculate the mean red, green, and blue values
-	arm_mean_f32(RAWImage->redLine, CIS_PIXELS_NB, &cisLeds_Calibration->redMeanAtLedPower);
-	arm_mean_f32(RAWImage->greenLine, CIS_PIXELS_NB, &cisLeds_Calibration->greenMeanAtLedPower);
-	arm_mean_f32(RAWImage->blueLine, CIS_PIXELS_NB, &cisLeds_Calibration->blueMeanAtLedPower);
+	//arm_mean_f32(RAWImage->redLine, CIS_PIXELS_NB, &cisLeds_Calibration->redMeanAtLedPower); todo update definition
+	//arm_mean_f32(RAWImage->greenLine, CIS_PIXELS_NB, &cisLeds_Calibration->greenMeanAtLedPower); todo update definition
+	//arm_mean_f32(RAWImage->blueLine, CIS_PIXELS_NB, &cisLeds_Calibration->blueMeanAtLedPower); todo update definition
 }
 
 void cis_calibrateLeds(void)
@@ -203,7 +203,7 @@ void cis_setLedsPower(int32_t power)
 /**
  * @brief  CIS start calibration
  * @param  iterationNb: calibration iteration
- * @param  rgbCalibration: pointer to structure containing calibration coefficients for all three RGB components
+ * @param  cisRGBCalibration: pointer to structure containing calibration coefficients for all three RGB components
  * @retval None
  */
 void cis_startPolyCalibration(uint16_t iterationNb)
@@ -212,7 +212,7 @@ void cis_startPolyCalibration(uint16_t iterationNb)
 
 	printf("------- CIS CALIBRATION -------\n");
 
-	float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+	//float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0}; todo update definition
 
 	int32_t Leds_Power_Array[11] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};
 
@@ -230,16 +230,16 @@ void cis_startPolyCalibration(uint16_t iterationNb)
 
 	cis_setLedsPower(100);
 
-	cis_startPolynomialCalibration(&rgbCalibration);
+	cis_startPolynomialCalibration(&cisRGB_Calibration);
 }
 
-void calculateAverageCoefficients(struct RGB_Calibration* rgbCalibration, float32_t* avg_a, float32_t* avg_b, float32_t* avg_c, uint32_t numPixels) {
+void calculateAverageCoefficients(struct cisRGB_Calibration* cisRGBCalibration, float32_t* avg_a, float32_t* avg_b, float32_t* avg_c, uint32_t numPixels) {
     float32_t sum_a = 0.0f, sum_b = 0.0f, sum_c = 0.0f;
 
     for (uint32_t i = 0; i < numPixels; i++) {
-        sum_a += rgbCalibration->red[i].a;
-        sum_b += rgbCalibration->red[i].b;
-        sum_c += rgbCalibration->red[i].c;
+        sum_a += cisRGBCalibration->red[i].a;
+        sum_b += cisRGBCalibration->red[i].b;
+        sum_c += cisRGBCalibration->red[i].c;
     }
 
     *avg_c = sum_a / numPixels;
@@ -249,16 +249,16 @@ void calculateAverageCoefficients(struct RGB_Calibration* rgbCalibration, float3
     printf("Average Coefficients: Red(a: %f, b: %f, c: %f)\n", *avg_a, *avg_b, *avg_c);
 }
 
-void adjustIndividualCurves(struct RGB_Calibration* rgbCalibration, float32_t avg_a, float32_t avg_b, float32_t avg_c, uint32_t numPixels) {
+void adjustIndividualCurves(struct cisRGB_Calibration* cisRGBCalibration, float32_t avg_a, float32_t avg_b, float32_t avg_c, uint32_t numPixels) {
     for (uint32_t i = 0; i < numPixels; i++) {
-        rgbCalibration->red[i].a = avg_a;
-        rgbCalibration->red[i].b = avg_b;
-        rgbCalibration->red[i].c = avg_c;
+        cisRGBCalibration->red[i].a = avg_a;
+        cisRGBCalibration->red[i].b = avg_b;
+        cisRGBCalibration->red[i].c = avg_c;
     }
 
     // Log pour les 10 premiers pixels après ajustement
     for (uint32_t i = 0; i < 10; i++) {
-        printf("Pixel %d - Adjusted Coefficients: Red(a: %f, b: %f, c: %f)\n", (int)i, rgbCalibration->red[i].a, rgbCalibration->red[i].b, rgbCalibration->red[i].c);
+        printf("Pixel %d - Adjusted Coefficients: Red(a: %f, b: %f, c: %f)\n", (int)i, cisRGBCalibration->red[i].a, cisRGBCalibration->red[i].b, cisRGBCalibration->red[i].c);
     }
 }
 
@@ -270,19 +270,19 @@ void calculateScalingFunction(float32_t avg_a, float32_t avg_b, float32_t avg_c,
     *offset = -minVal * (*scale);
 }
 
-void applyScalingAndClipping(struct RGB_Calibration* rgbCalibration, float32_t scale, float32_t offset, uint32_t numPixels) {
+void applyScalingAndClipping(struct cisRGB_Calibration* cisRGBCalibration, float32_t scale, float32_t offset, uint32_t numPixels) {
     for (uint32_t i = 0; i < numPixels; i++) {
-        rgbCalibration->red[i].a = rgbCalibration->red[i].a * scale + offset;
+        cisRGBCalibration->red[i].a = cisRGBCalibration->red[i].a * scale + offset;
         // Clip if out of bounds
-        if (rgbCalibration->red[i].a > 4095.0f) rgbCalibration->red[i].a = 4095.0f;
-        if (rgbCalibration->red[i].a < 0.0f) rgbCalibration->red[i].a = 0.0f;
+        if (cisRGBCalibration->red[i].a > 4095.0f) cisRGBCalibration->red[i].a = 4095.0f;
+        if (cisRGBCalibration->red[i].a < 0.0f) cisRGBCalibration->red[i].a = 0.0f;
 
         // Répétez pour les coefficients b et c, si nécessaire.
     }
 
     // Log pour les 10 premiers pixels après scaling et écrêtage
     for (uint32_t i = 0; i < 10; i++) {
-        printf("Pixel %d - Scaled and Clipped Coefficients: Red(a: %f)\n", (int)i, rgbCalibration->red[i].a);
+        printf("Pixel %d - Scaled and Clipped Coefficients: Red(a: %f)\n", (int)i, cisRGBCalibration->red[i].a);
         // Répétez pour les coefficients b et c si nécessaire
     }
 }
@@ -399,7 +399,7 @@ void cis_leastSquares(double* x, double* y, uint32_t n, double* a, double* b, do
 
 
 
-void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
+void cis_startPolynomialCalibration(struct cisRGB_Calibration* cisRGBCalibration)
 {
 	double luminosityLevels[11] = {
         0.00, 409.50, 819.00, 1228.50, 1638.00,
@@ -407,7 +407,7 @@ void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
         4095.00
     };
 
-    memset(rgbCalibration, 0, sizeof(struct RGB_Calibration));
+    memset(cisRGBCalibration, 0, sizeof(struct cisRGB_Calibration));
 
     // Calcul des coefficients pour chaque pixel
     for (uint16_t pixel = 0; pixel < 1; pixel++)
@@ -426,18 +426,18 @@ void cis_startPolynomialCalibration(struct RGB_Calibration* rgbCalibration)
     		    2622.900146
         };
 
-        cis_leastSquares(yTest, luminosityLevels, 11, (double*)&rgbCalibration->red[pixel].a, (double*)&rgbCalibration->red[pixel].b, (double*)&rgbCalibration->red[pixel].c);
-        //cis_leastSquares(yGreen, luminosityLevels, 11, (double*)&rgbCalibration->green[pixel].a, (double*)&rgbCalibration->green[pixel].b, (double*)&rgbCalibration->green[pixel].c);
-        //cis_leastSquares(yBlue, luminosityLevels, 11, (double*)&rgbCalibration->blue[pixel].a, (double*)&rgbCalibration->blue[pixel].b, (double*)&rgbCalibration->blue[pixel].c);
+        cis_leastSquares(yTest, luminosityLevels, 11, (double*)&cisRGBCalibration->red[pixel].a, (double*)&cisRGBCalibration->red[pixel].b, (double*)&cisRGBCalibration->red[pixel].c);
+        //cis_leastSquares(yGreen, luminosityLevels, 11, (double*)&cisRGBCalibration->green[pixel].a, (double*)&cisRGBCalibration->green[pixel].b, (double*)&cisRGBCalibration->green[pixel].c);
+        //cis_leastSquares(yBlue, luminosityLevels, 11, (double*)&cisRGBCalibration->blue[pixel].a, (double*)&cisRGBCalibration->blue[pixel].b, (double*)&cisRGBCalibration->blue[pixel].c);
 
         // Log pour les 10 premiers pixels
         if (pixel < 1)
         {
             printf("Pixel %d - Coefficients: Red(a: %f, b: %f, c: %f), Green(a: %f, b: %f, c: %f), Blue(a: %f, b: %f, c: %f)\n",
                 pixel,
-                rgbCalibration->red[pixel].a, rgbCalibration->red[pixel].b, rgbCalibration->red[pixel].c,
-                rgbCalibration->green[pixel].a, rgbCalibration->green[pixel].b, rgbCalibration->green[pixel].c,
-                rgbCalibration->blue[pixel].a, rgbCalibration->blue[pixel].b, rgbCalibration->blue[pixel].c);
+                cisRGBCalibration->red[pixel].a, cisRGBCalibration->red[pixel].b, cisRGBCalibration->red[pixel].c,
+                cisRGBCalibration->green[pixel].a, cisRGBCalibration->green[pixel].b, cisRGBCalibration->green[pixel].c,
+                cisRGBCalibration->blue[pixel].a, cisRGBCalibration->blue[pixel].b, cisRGBCalibration->blue[pixel].c);
 
             // Log des valeurs yRed, yGreen, yBlue pour le pixel actuel
             printf("Pixel %d - Values: Red(", pixel);
@@ -472,16 +472,16 @@ void applyCalibrationToColorLine(float32_t* colorLine, struct CalibrationCoeffic
 }
 
 
-void cis_applyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration)
+void cis_applyCalibration(struct RAWImage* RAWImage, struct cisRGB_Calibration* cisRGBCalibration)
 {
     // Apply calibration to the red color line
-    applyCalibrationToColorLine(RAWImage->redLine, rgbCalibration->red, CIS_PIXELS_NB);
+    //applyCalibrationToColorLine(RAWImage->redLine, cisRGBCalibration->red, CIS_PIXELS_NB); todo update definition
 
     // Apply calibration to the green color line
-    applyCalibrationToColorLine(RAWImage->greenLine, rgbCalibration->green, CIS_PIXELS_NB);
+    //applyCalibrationToColorLine(RAWImage->greenLine, cisRGBCalibration->green, CIS_PIXELS_NB); todo update definition
 
     // Apply calibration to the blue color line
-    applyCalibrationToColorLine(RAWImage->blueLine, rgbCalibration->blue, CIS_PIXELS_NB);
+    //applyCalibrationToColorLine(RAWImage->blueLine, cisRGBCalibration->blue, CIS_PIXELS_NB); todo update definition
 }
 
 /**
@@ -492,9 +492,9 @@ void cis_applyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgb
  */
 void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
 {
-	uint32_t i;
+	//uint32_t i;
 
-	for(i = 0; i < CIS_PIXELS_NB; i++)
+	/*for(i = 0; i < CIS_PIXELS_NB; i++) todo update definition
 	{
 		//RGBimage[i] = 0;
 
@@ -504,5 +504,5 @@ void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
 
 		// Combine R, G, and B into a single uint32
 		RGBimage[i] = (b << 16) | (g << 8) | r;
-	}
+	}*/
 }

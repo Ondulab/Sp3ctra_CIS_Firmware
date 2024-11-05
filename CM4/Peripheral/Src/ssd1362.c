@@ -25,7 +25,7 @@
 #include "font16x32.h"
 #include "font8x8_basic.h"
 #include "config.h"
-#include "shared.h"
+#include "globals.h"
 
 /* Private typedef -----------------------------------------------------------*/
 

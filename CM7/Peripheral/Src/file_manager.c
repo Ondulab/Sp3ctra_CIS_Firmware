@@ -15,7 +15,7 @@
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
-#include "shared.h"
+#include "globals.h"
 #include "stdio.h"
 
 #include "ff.h" // FATFS include
@@ -27,21 +27,21 @@ static void file_parseLine(char* line, volatile struct shared_config* config);
 
 const struct shared_config DefaultConfig =
 {
-		.ui_button_delay = 100,
-		.network_ip = {192, 168, 0, 10},
-		.network_netmask = {255, 255, 255, 0},
-		.network_gw = {0, 0, 0, 0},
-		.network_dest_ip = {192, 168, 0, 255},
-		.network_udp_port = 55151,
-		.network_tcp_port = 5000,
-		.cis_print_calibration = 0,
-		.cis_raw = 0,
-		.cis_dpi = 200,
-		.cis_monochrome = 0,
-		.cis_max_line_freq = 900,
-		.cis_clk_freq = 3125000,
-		.cis_oversampling = 8,
-		.cis_handedness = 1
+    .ui_button_delay = DEFAULT_UI_BUTTON_DELAY,
+    .network_ip = DEFAULT_NETWORK_IP,
+    .network_netmask = DEFAULT_NETWORK_NETMASK,
+    .network_gw = DEFAULT_NETWORK_GW,
+    .network_dest_ip = DEFAULT_NETWORK_DEST_IP,
+    .network_udp_port = DEFAULT_NETWORK_UDP_PORT,
+    .network_tcp_port = DEFAULT_NETWORK_TCP_PORT,
+    .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
+    .cis_raw = DEFAULT_CIS_RAW,
+    .cis_dpi = DEFAULT_CIS_DPI,
+    .cis_monochrome = DEFAULT_CIS_MONOCHROME,
+    .cis_max_line_freq = DEFAULT_CIS_MAX_LINE_FREQ,
+    .cis_clk_freq = DEFAULT_CIS_CLK_FREQ,
+    .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
+    .cis_handedness = DEFAULT_CIS_HANDEDNESS
 };
 
 #define WORKING_BUFFER_SIZE (2 * _MAX_SS)
@@ -280,55 +280,55 @@ void file_initConfig(volatile struct shared_config* config)
 
 int file_writeCisCals(const char* filePath, const struct cisCals* data)
 {
-	FIL file;
-	UINT bw;
-	FRESULT fr;
+    FIL file;
+    UINT bw;
+    FRESULT fr;
 
-	// Open the file in write mode
-	fr = f_open(&file, filePath, FA_WRITE | FA_CREATE_ALWAYS);
-	if (fr != FR_OK)
-	{
-		printf("Failed to create calibration file\n");
-		Error_Handler();
-		return -1;
-	}
+    // Open the file in write mode
+    fr = f_open(&file, filePath, FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr != FR_OK)
+    {
+        printf("Failed to create calibration file: %s\n", filePath);
+        Error_Handler();
+        return -1;
+    }
 
-	// Write data to the file
-	fr = f_write(&file, data, sizeof(cisCals), &bw);
-	if (fr != FR_OK || bw != sizeof(cisCals))
-	{
-		printf("Failed to write calibration file\n");
-		f_close(&file);
-		return -1;
-	}
+    // Write data to the file
+    fr = f_write(&file, data, sizeof(cisCals), &bw);
+    if (fr != FR_OK || bw != sizeof(cisCals))
+    {
+        printf("Failed to write calibration file\n");
+        f_close(&file);
+        return -1;
+    }
 
-	// Close the file
-	f_close(&file);
-	return 0;
+    // Close the file
+    f_close(&file);
+    return 0;
 }
 
 int file_readCisCals(const char* filePath, struct cisCals* data)
 {
-	FIL file;
-	UINT br;
-	FRESULT fr;
+    FIL file;
+    UINT br;
+    FRESULT fr;
 
-	// Open the file in read mode
-	fr = f_open(&file, filePath, FA_READ);
-	if (fr != FR_OK)
-	{
-		return -1;
-	}
+    // Open the file in read mode
+    fr = f_open(&file, filePath, FA_READ);
+    if (fr != FR_OK)
+    {
+        return -1;
+    }
 
-	// Read data from the file
-	fr = f_read(&file, data, sizeof(cisCals), &br);
-	if (fr != FR_OK || br != sizeof(cisCals))
-	{
-		f_close(&file);
-		return -1;
-	}
+    // Read data from the file
+    fr = f_read(&file, data, sizeof(cisCals), &br);
+    if (fr != FR_OK || br != sizeof(cisCals))
+    {
+        f_close(&file);
+        return -1;
+    }
 
-	// Close the file
-	f_close(&file);
-	return 0;
+    // Close the file
+    f_close(&file);
+    return 0;
 }

@@ -36,7 +36,7 @@
 
 #include "stm32_flash.h"
 
-#include "shared.h"
+#include "globals.h"
 
 TaskHandle_t http_ThreadHandle = NULL;
 

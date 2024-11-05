@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : shared.h
+ * @file           : globals.h
  ******************************************************************************
  * @attention
  *
@@ -99,9 +99,9 @@ struct __attribute__((aligned(4))) packet_Image
 	uint8_t fragment_id;      			// Fragment position
 	uint8_t total_fragments;  			// Total number of fragments for the complete image
 	uint16_t fragment_size;   			// Size of this particular fragment
-	uint8_t imageData_R[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented red image data
-	uint8_t imageData_G[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented green image data
-	uint8_t imageData_B[CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE];   			// Pointer to the fragmented blue image data
+	uint8_t imageData_R[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented red image data
+	uint8_t imageData_G[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented green image data
+	uint8_t imageData_B[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented blue image data
 };
 
 struct __attribute__((aligned(4))) button_State
@@ -152,17 +152,17 @@ struct __attribute__((aligned(4))) packet_IMU
 
 struct __attribute__((aligned(4))) cisRgbBuffers
 {
-	uint8_t R[CIS_PIXELS_NB];
-	uint8_t G[CIS_PIXELS_NB];
-	uint8_t B[CIS_PIXELS_NB];
+	uint8_t R[CIS_MAX_PIXELS_NB];
+	uint8_t G[CIS_MAX_PIXELS_NB];
+	uint8_t B[CIS_MAX_PIXELS_NB];
 };
 
 /**************************************************************************************/
 
 struct __attribute__((aligned(4))) cisCals
 {
-	float32_t offsetData[CIS_ADC_BUFF_SIZE * 3];
-	float32_t gainsData[CIS_ADC_BUFF_SIZE * 3];
+	float32_t offsetData[CIS_MAX_ADC_BUFF_SIZE * 3];
+	float32_t gainsData[CIS_MAX_ADC_BUFF_SIZE * 3];
 };
 
 struct __attribute__((aligned(4))) shared_var
@@ -222,11 +222,11 @@ struct CalibrationCoefficients
 };
 
 __attribute__((aligned(4)))
-struct RGB_Calibration
+struct cisRGB_Calibration
 {
-	struct CalibrationCoefficients red[CIS_PIXELS_NB];
-	struct CalibrationCoefficients green[CIS_PIXELS_NB];
-	struct CalibrationCoefficients blue[CIS_PIXELS_NB];
+	struct CalibrationCoefficients red[CIS_MAX_PIXELS_NB];
+	struct CalibrationCoefficients green[CIS_MAX_PIXELS_NB];
+	struct CalibrationCoefficients blue[CIS_MAX_PIXELS_NB];
 };
 
 __attribute__((aligned(4)))
@@ -245,18 +245,18 @@ struct cisLeds_Calibration
 
 __attribute__((aligned(4)))
 struct RAWImage{
-	float32_t redLine[CIS_PIXELS_NB];
-	float32_t greenLine[CIS_PIXELS_NB];
-	float32_t blueLine[CIS_PIXELS_NB];
+	float32_t redLine[CIS_MAX_PIXELS_NB];
+	float32_t greenLine[CIS_MAX_PIXELS_NB];
+	float32_t blueLine[CIS_MAX_PIXELS_NB];
 };
 
-extern int16_t cisData[CIS_ADC_BUFF_SIZE * 3];
-extern float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3];
-extern struct RGB_Calibration rgbCalibration;
+extern int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
 //extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
-extern q31_t cisDataCpy_q31[CIS_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));
+extern q31_t cisDataCpy_q31[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));
 
 /* Exported constants --------------------------------------------------------*/
 

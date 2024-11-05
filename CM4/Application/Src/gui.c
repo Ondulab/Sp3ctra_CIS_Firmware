@@ -19,7 +19,7 @@
 #include "stdlib.h"
 #include "basetypes.h"
 
-#include "shared.h"
+#include "globals.h"
 #include "config.h"
 
 #include "ssd1362.h"
@@ -127,7 +127,14 @@ void gui_displayImage(void)
 	{
 		packet = (float32_t)(i * UDP_NB_PACKET_PER_LINE - 1.0)/(DISPLAY_WIDTH - 1.0);
 
-		index = (packet - (uint32_t)packet) * (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
+		if (shared_config.cis_dpi > 200)
+		{
+			index = (packet - (uint32_t)packet) * (CIS_MAX_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
+		}
+		else
+		{
+			index = (packet - (uint32_t)packet) * ((CIS_MAX_PIXELS_NB / 2) / UDP_NB_PACKET_PER_LINE);
+		}
 
 		cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];
 		cis_rgb[1] = packet_Image[(uint32_t)packet].imageData_G[(uint32_t)index];

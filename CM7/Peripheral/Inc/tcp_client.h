@@ -22,9 +22,6 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "arm_math.h"
-#include "config.h"
-#include "shared.h"
 
 /* Private includes ----------------------------------------------------------*/
 

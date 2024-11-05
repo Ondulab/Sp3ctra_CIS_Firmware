@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : shared.c
+ * @file           : globals.c
  ******************************************************************************
  * @attention
  *
@@ -14,7 +14,7 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include "shared.h"
+#include "globals.h"
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -54,22 +54,26 @@ struct packet_IMU packet_IMU = {0};
 /******************                      CM7                        *******************/
 /**************************************************************************************/
 
+#ifdef CORE_CM7
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
 __attribute__ ((section(".cisDataCpy")))
-float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
+float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 
 __attribute__ ((section(".cisData")))
-int16_t cisData[CIS_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32))) = {0};
+int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32))) = {0};
 
-__attribute__ ((section(".rgbCalibration")))
-struct RGB_Calibration rgbCalibration = {0};
+__attribute__ ((section(".cisRGBCalibration")))
+struct cisRGB_Calibration cisRGB_Calibration = {0};
 
-__attribute__ ((section(".cisLeds_Calibration")))
+__attribute__ ((section(".cisLedsCalibration")))
 struct cisLeds_Calibration cisLeds_Calibration = {0};
 
 #pragma GCC pop_options
+
+#endif
 
 /* Private function prototypes -----------------------------------------------*/
 

@@ -17,7 +17,7 @@
 #define FILE_MANAGER_H
 
 #include "basetypes.h"
-#include "shared.h"
+#include "globals.h"
 
 #include "ff.h"
 #include "stdint.h"
@@ -25,7 +25,7 @@
 #include "stdlib.h"
 
 #define ROOT_PATH "0:/"
-#define CALIBRATION_FILE_PATH "0:/CALIB.BIN"
+#define CALIBRATION_FILE_PATH_FORMAT "0:/CALIB_%ddpi.BIN"
 #define CONFIG_FILE_PATH "0:/CONFIG.TXT"
 
 int file_factoryReset(void);

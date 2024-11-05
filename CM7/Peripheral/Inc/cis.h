@@ -20,7 +20,25 @@
 #include "config.h"
 #include "main.h"
 #include "arm_math.h"
-#include "shared.h"
+#include "globals.h"
+
+typedef struct
+{
+    int32_t pixels_per_lane;
+    int32_t pixels_nb;
+    int32_t pixel_area_stop;
+    int32_t start_offset;
+    int32_t lane_size;
+    int32_t end_capture;
+    int32_t adc_buff_size;
+
+    int32_t red_lane_offset;
+    int32_t green_lane_offset;
+    int32_t blue_lane_offset;
+
+} CIS_Config;
+
+extern CIS_Config cisConfig;
 
 typedef enum
 {
@@ -36,11 +54,12 @@ typedef enum
 	CIS_BLUE,
 }CIS_Color_TypeDef;
 
-#define CIS_RED_LANE_OFFSET 		(CIS_START_OFFSET)
-#define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
-#define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
+//#define CIS_RED_LANE_OFFSET 		(CIS_START_OFFSET)
+//#define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
+//#define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
 
 void cis_init(void);
+void cis_configure(uint16_t dpi);
 void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t *cis_buff);

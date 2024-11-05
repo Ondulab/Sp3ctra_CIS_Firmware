@@ -39,7 +39,7 @@ struct RGB_CalibrationCoefficients{
 void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage);
 void cis_startPolyCalibration(uint16_t iterationNb);
 void cis_calibrate(struct RAWImage* rawImage);
-void cis_applyCalibration(struct RAWImage* RAWImage, struct RGB_Calibration* rgbCalibration);
+void cis_applyCalibration(struct RAWImage* RAWImage, struct cisRGB_Calibration* rgbCalibration);
 void cis_calibrateLeds(void);
 
 #endif /* __CIS_POLYCAL_H__ */

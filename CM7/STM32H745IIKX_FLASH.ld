@@ -48,7 +48,7 @@ MEMORY
   FLASH (rx)    			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 90K
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
@@ -140,14 +140,14 @@ SECTIONS
   .dtcm :
   {
     . = ALIGN(4);
-    KEEP (*(.dtcm));
-    KEEP (*(.rgbCalibration)); 
-    KEEP (*(.rgbCals));  
-    KEEP (*(.cisRAWImage)); 
-    KEEP (*(.cisLeds_Calibration));  
-    KEEP (*(.cisCals));  
+    KEEP (*(.cisData)); 
+    KEEP (*(.cisDataCpy)); 
+    /* KEEP (*(.cisRGBCalibration)); */
+    KEEP (*(.cisLedsCalibration));   
     . = ALIGN(4);
   } >DTCM
+  
+  /* user sections... */
   
   .shared :
   {
@@ -156,16 +156,13 @@ SECTIONS
     KEEP (*(.shared_config));
     . = ALIGN(4); 
   } >RAM_SHARED
-  
+
   .shared_cached :
   {
     . = ALIGN(4);
-    KEEP (*(.imageData));
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));
-    KEEP (*(.cisData));    
-    KEEP (*(.cisCals));   
-    KEEP (*(.cisDataCpy)); 
+    KEEP (*(.cisCals));
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
 

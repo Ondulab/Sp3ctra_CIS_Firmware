@@ -28,7 +28,7 @@
 #include "ethernetif.h"
 
 /* USER CODE BEGIN 0 */
-#include "shared.h"
+#include "globals.h"
 #include "stdio.h"
 
 /* USER CODE END 0 */

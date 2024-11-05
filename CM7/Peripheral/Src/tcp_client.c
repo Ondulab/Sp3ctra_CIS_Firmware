@@ -17,7 +17,7 @@
 #include "stm32h7xx_hal.h"
 #include "main.h"
 #include "config.h"
-#include "shared.h"
+#include "globals.h"
 #include "basetypes.h"
 
 #include "lwip/opt.h"
@@ -25,7 +25,6 @@
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
 
-#include "shared.h"
 #include <stdio.h>
 #include "icm42688.h"
 
@@ -78,7 +77,7 @@ static void tcp_client_task(void *arg)
 
 	// Create a new TCP connection
 	conn = netconn_new(NETCONN_TCP);
-	netconn_bind(conn, NULL, 5000);  // Bind to port 5000 (or any specified port)
+	netconn_bind(conn, NULL, shared_config.network_tcp_port);  // Bind to port 5000 (or any specified port)
 	netconn_listen(conn);            // Start listening for incoming connections
 
 	while (1)

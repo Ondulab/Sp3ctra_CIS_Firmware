@@ -21,7 +21,7 @@
 #include "lwip.h"
 
 #include "basetypes.h"
-#include "shared.h"
+#include "globals.h"
 #include "config.h"
 
 #include "tim.h"
@@ -79,7 +79,7 @@ void cis_scanInit(void)
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 
-    if (xTaskCreate(cis_scanThread, "cis_thread", 16000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
+    if (xTaskCreate(cis_scanThread, "cis_thread", 32000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
         printf("CIS task created successfully.\n");
     } else {
         printf("Failed to create CIS task.\n");

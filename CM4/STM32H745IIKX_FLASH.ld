@@ -47,7 +47,7 @@ MEMORY
   FLASH (rx)      		: ORIGIN = 0x08100000, LENGTH = 1024K
   RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 90K
 }
 
 /* Define output sections */
@@ -116,6 +116,7 @@ SECTIONS
   } >FLASH
   
   /* user sections... */
+  
   .shared :
   {
     . = ALIGN(4);
@@ -123,13 +124,13 @@ SECTIONS
     KEEP (*(.shared_config));
     . = ALIGN(4); 
   } >RAM_SHARED
-  
+
   .shared_cached :
   {
     . = ALIGN(4);
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));
-    KEEP (*(.cisData));     
+    KEEP (*(.cisCals));
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   

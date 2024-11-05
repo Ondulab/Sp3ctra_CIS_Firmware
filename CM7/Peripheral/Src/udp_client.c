@@ -17,14 +17,13 @@
 #include "stm32h7xx_hal.h"
 #include "main.h"
 #include "config.h"
-#include "shared.h"
+#include "globals.h"
 
 #include "lwip/opt.h"
 #include "lwip/arch.h"
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
 
-#include "shared.h"
 #include <stdio.h>
 #include "icm42688.h"
 
@@ -42,7 +41,6 @@
 /* Private variables ---------------------------------------------------------*/
 struct netconn *conn;
 __IO uint32_t message_count = 0;
-int32_t udp_imageData[UDP_PACKET_SIZE] = {0};
 
 static struct packet_StartupInfo packet_StartupInfo = {0};
 static struct packet_Button packet_Button = {0};
@@ -51,6 +49,7 @@ static uint32_t packetsCounter = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void udp_clientSendData(void *data, uint16_t length);
+void udp_clientSendStartupInfoPacket(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -72,21 +71,23 @@ void udp_clientInit(void)
         Error_Handler();
     }
 
-	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
-	{
-		packet_Image[packet].fragment_size = CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE;
-		packet_Image[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
-		packet_Image[packet].type = IMAGE_DATA_HEADER;
-	}
+    /* Initialiser le tableau packet_Image en fonction de cisConfig.pixels_nb */
+    for (int32_t packet = 0; packet < UDP_NB_PACKET_PER_LINE; packet++)
+    {
+        packet_Image[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
+        packet_Image[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
+        packet_Image[packet].type = IMAGE_DATA_HEADER;
+        packet_Image[packet].fragment_id = packet;
+    }
 
-	packet_StartupInfo.type = STARTUP_INFO_HEADER;
-	packet_Button.type = BUTTON_DATA_HEADER;
-	packet_IMU.type = IMU_DATA_HEADER;
+    packet_StartupInfo.type = STARTUP_INFO_HEADER;
+    packet_Button.type = BUTTON_DATA_HEADER;
+    packet_IMU.type = IMU_DATA_HEADER;
 
-	packet_StartupInfo.packet_id = packetsCounter;
-	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
+    packet_StartupInfo.packet_id = packetsCounter++;
+    sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
 
-	udp_clientSendStartupInfoPacket();
+    udp_clientSendStartupInfoPacket();
 }
 
 void udp_clientSendData(void *data, uint16_t length) {
