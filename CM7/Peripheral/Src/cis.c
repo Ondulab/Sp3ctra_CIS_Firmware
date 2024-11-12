@@ -41,8 +41,6 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
-#define CIS_GREEN_HALF_SIZE			((cis_adc_buff_size / 2) - (cis_lane_size + CIS_INACTIVE_WIDTH))
-#define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LANE) - (CIS_GREEN_HALF_SIZE))
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -72,7 +70,16 @@ static void cis_initAdc(void);
  */
 void cis_init(void)
 {
-    printf("----------- CIS HARDWARE INIT ----------\n");
+    printf("------ CIS HARDWARE INIT ------\n");
+
+    /* Enable 5V power DC/DC for display */
+    HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+
+    cis_configure(shared_config.cis_dpi);
+
+    shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
+
+    //cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
 
     /* Initialize hardware peripherals */
     cis_initAdc();
@@ -82,15 +89,17 @@ void cis_init(void)
     cis_initTimLedBlue();
     cis_initTimClok();
 
-    /* Stop any ongoing capture */
-    cis_stopCapture();
+    /* Stop any ongoing capture before reconfiguring */
+    //cis_stopCapture();
 
-    cis_configure(shared_config.cis_dpi);
+    /* Start capture with new configuration */
+    //cis_startCapture();
 
-    cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
 
-    /* Enable 5V power DC/DC for display */
-    HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+	cis_stopCapture();
+	cis_startCapture();
+	cis_stopCapture();
+	cis_startCapture();
 }
 
 /**
@@ -101,18 +110,22 @@ void cis_init(void)
  */
 void cis_configure(uint16_t dpi)
 {
-    printf("----------- CIS CONFIGURATION ----------\n");
+    printf("------ CIS CONFIGURATION ------\n");
 
     /* Initialize variables based on the desired DPI */
     if (dpi == 400)
     {
         /* Variables for 400 DPI */
         cisConfig.pixels_per_lane = 1152;
+        /* Set GPIO pin to RESET for 400 DPI */
+        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
     }
     else // Default to 200 DPI
     {
         /* Variables for 200 DPI */
         cisConfig.pixels_per_lane = 576;
+        /* Set GPIO pin to SET for 200 DPI */
+        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
     }
 
     /* Common configurations */
@@ -122,24 +135,12 @@ void cis_configure(uint16_t dpi)
     cisConfig.lane_size = cisConfig.pixel_area_stop + CIS_OVER_SCAN;
     cisConfig.end_capture = cisConfig.lane_size;
 
-    cisConfig.adc_buff_size = cisConfig.lane_size;
+    cisConfig.adc_buff_size = cisConfig.lane_size * CIS_ADC_OUT_LANES;
 
     /* Update lane offsets */
     cisConfig.red_lane_offset = cisConfig.start_offset;
     cisConfig.green_lane_offset = cisConfig.lane_size + cisConfig.start_offset;
     cisConfig.blue_lane_offset = (cisConfig.lane_size * 2) + cisConfig.start_offset;
-
-    /* Configure GPIO for DPI */
-    if (dpi == 400)
-    {
-        /* Set GPIO pin to RESET for 400 DPI */
-        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
-    }
-    else
-    {
-        /* Set GPIO pin to SET for 200 DPI */
-        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
-    }
 
     /* Initialize buffers */
     memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
@@ -156,12 +157,6 @@ void cis_configure(uint16_t dpi)
         cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
-
-    /* Stop any ongoing capture before reconfiguring */
-    cis_stopCapture();
-
-    /* Start capture with new configuration */
-    cis_startCapture();
 }
 
 /**
@@ -297,18 +292,18 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
 {
     // Copy segments to the complete buffer of the red line
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.red_lane_offset], RAWImage->redLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.red_lane_offset + cisConfig.adc_buff_size], &RAWImage->redLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.red_lane_offset + cisConfig.adc_buff_size * 2], &RAWImage->redLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->redLine, cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->redLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->redLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 
     // Do the same for the green and blue lines
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.green_lane_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.green_lane_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.green_lane_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.blue_lane_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.blue_lane_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.blue_lane_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 }
 
 void cis_imageProcess_2(int32_t *cis_buff)
@@ -357,6 +352,10 @@ void cis_imageProcess_2(int32_t *cis_buff)
 void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
 {
     int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
+
+	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
+
+	cis_applyLinearCalibration(cisDataCpy_f32, 255);
 
     for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
     {

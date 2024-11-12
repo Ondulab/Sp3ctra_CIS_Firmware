@@ -72,8 +72,8 @@ void udp_clientInit(void)
     }
 
     /* Initialiser le tableau packet_Image en fonction de cisConfig.pixels_nb */
-    for (int32_t packet = 0; packet < UDP_NB_PACKET_PER_LINE; packet++)
-    {
+	for (int32_t packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
+	{
         packet_Image[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
         packet_Image[packet].total_fragments = UDP_NB_PACKET_PER_LINE;
         packet_Image[packet].type = IMAGE_DATA_HEADER;
@@ -87,7 +87,7 @@ void udp_clientInit(void)
     packet_StartupInfo.packet_id = packetsCounter++;
     sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
 
-    udp_clientSendStartupInfoPacket();
+    //udp_clientSendStartupInfoPacket();
 }
 
 void udp_clientSendData(void *data, uint16_t length) {

@@ -45,15 +45,15 @@ int vfs_read (void* buffer, int dummy, int len, vfs_file_t* file) {
 }
 
 vfs_dirent_t* vfs_readdir(vfs_dir_t* dir) {
-	FILINFO fi;
-#if _USE_LFN
-//	fi.lfname = NULL;
-#endif
-	FRESULT r = f_readdir(dir, &fi);
-	if (r != FR_OK) return NULL;
-	if (fi.fname[0] == 0) return NULL;
-	memcpy(dir_ent.name, fi.fname, sizeof(fi.fname));
-	return &dir_ent;
+    FILINFO fi;
+    FRESULT r = f_readdir(dir, &fi);
+    if (r != FR_OK || fi.fname[0] == 0) return NULL;
+
+    // Copy the filename while avoiding overflow
+    strncpy(dir_ent.name, fi.fname, sizeof(dir_ent.name) - 1);
+    dir_ent.name[sizeof(dir_ent.name) - 1] = '\0'; // Ensure null termination
+
+    return &dir_ent;
 }
 
 int vfs_stat(vfs_t* vfs, const char* filename, vfs_stat_t* st) {

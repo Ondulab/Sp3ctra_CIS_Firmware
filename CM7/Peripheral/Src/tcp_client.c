@@ -67,7 +67,7 @@ void print_received_data(uint8_t* data, uint16_t len)
  */
 static void tcp_client_task(void *arg)
 {
-	printf("----- HTTP THREAD STARTED ------\n");
+	printf("------ TCP THREAD STARTED ------\n");
 
 	struct netconn *conn, *newconn;  // Connection and new connection pointers
 	err_t err;                       // Variable for error handling

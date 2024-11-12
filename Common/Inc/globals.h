@@ -87,7 +87,7 @@ struct __attribute__((aligned(4))) packet_StartupInfo
 {
 	CIS_Packet_HeaderTypeDef type; 		// Identifies the data type
 	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	uint8_t version_info[64]; 			// Information about the version, and other startup details
+	uint8_t version_info[32]; 			// Information about the version, and other startup details
 };
 
 // Structure for image data packets, including metadata for image fragmentation

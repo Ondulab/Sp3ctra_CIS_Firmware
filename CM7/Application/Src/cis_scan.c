@@ -68,7 +68,7 @@ extern void Ethernet_Link_Periodic_Handle(struct netif *netif);
 void cis_scanInit(void)
 {
 	printf("----- CIS INITIALIZATIONS -----\n");
-	                                          //
+
 	memset((uint32_t *)&packet_Image, 0, sizeof(packet_Image));
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
 
@@ -79,7 +79,7 @@ void cis_scanInit(void)
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 
-    if (xTaskCreate(cis_scanThread, "cis_thread", 32000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
+    if (xTaskCreate(cis_scanThread, "cis_thread", 34464, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
         printf("CIS task created successfully.\n");
     } else {
         printf("Failed to create CIS task.\n");
@@ -94,8 +94,8 @@ void cis_scanInit(void)
  */
 static void cis_scanThread(void *arg)
 {
-	printf("------ CIS THREAD SARTED ------\n");
-	                                          //
+	printf("------ CIS THREAD SARTED -------\n");
+
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(1); // Converts approximately 1428.57 ms to ticks
 
@@ -141,6 +141,8 @@ static void cis_scanThread(void *arg)
 		cis_imageProcess(cisDataCpy_f32, packet_Image);
 		SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
 		udp_clientSendPackets(packet_Image);
+
+		UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
 
 		shared_var.cis_process_cnt++;
 
