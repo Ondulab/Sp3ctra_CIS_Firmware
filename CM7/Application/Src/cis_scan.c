@@ -79,7 +79,7 @@ void cis_scanInit(void)
 	shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
 
-    if (xTaskCreate(cis_scanThread, "cis_thread", 34464, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
+    if (xTaskCreate(cis_scanThread, "cis_thread", 32000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
         printf("CIS task created successfully.\n");
     } else {
         printf("Failed to create CIS task.\n");
@@ -138,11 +138,19 @@ static void cis_scanThread(void *arg)
 #endif
 		}
 
+		UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
+
 		cis_imageProcess(cisDataCpy_f32, packet_Image);
+
+		highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
+
 		SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
+
+		highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
+
 		udp_clientSendPackets(packet_Image);
 
-		UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
+		highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
 
 		shared_var.cis_process_cnt++;
 

@@ -1,0 +1,842 @@
+diff --git a/CM7/Application/Src/cis_scan.c b/CM7/Application/Src/cis_scan.c
+index c67f34a..ce70d89 100644
+--- a/CM7/Application/Src/cis_scan.c
++++ b/CM7/Application/Src/cis_scan.c
+@@ -24 +24 @@
+-#include "shared.h"
++#include "globals.h"
+@@ -71 +71 @@ void cis_scanInit(void)
+-	                                          //
++
+@@ -82 +82 @@ void cis_scanInit(void)
+-    if (xTaskCreate(cis_scanThread, "cis_thread", 16000, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
++    if (xTaskCreate(cis_scanThread, "cis_thread", 34464, NULL, osPriorityNormal, &cis_scanThreadHandle) == pdPASS) {
+@@ -97,2 +97,2 @@ static void cis_scanThread(void *arg)
+-	printf("------ CIS THREAD SARTED ------\n");
+-	                                          //
++	printf("------ CIS THREAD SARTED -------\n");
++
+@@ -144,0 +145,2 @@ static void cis_scanThread(void *arg)
++		UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
++
+diff --git a/CM7/Core/Inc/FreeRTOSConfig.h b/CM7/Core/Inc/FreeRTOSConfig.h
+index 469d07c..74f3216 100644
+--- a/CM7/Core/Inc/FreeRTOSConfig.h
++++ b/CM7/Core/Inc/FreeRTOSConfig.h
+@@ -71 +71 @@
+-#define configTOTAL_HEAP_SIZE                    ((size_t)200000)
++#define configTOTAL_HEAP_SIZE                    ((size_t)380000)
+@@ -78,0 +79 @@
++#define configCHECK_FOR_STACK_OVERFLOW           2
+@@ -135,0 +137 @@ header file. */
++#define configCHECK_FOR_STACK_OVERFLOW 2
+diff --git a/CM7/Peripheral/Inc/cis.h b/CM7/Peripheral/Inc/cis.h
+index d120a07..6e8468c 100644
+--- a/CM7/Peripheral/Inc/cis.h
++++ b/CM7/Peripheral/Inc/cis.h
+@@ -23 +23,19 @@
+-#include "shared.h"
++#include "globals.h"
++
++typedef struct
++{
++    int32_t pixels_per_lane;
++    int32_t pixels_nb;
++    int32_t pixel_area_stop;
++    int32_t start_offset;
++    int32_t lane_size;
++    int32_t end_capture;
++    int32_t adc_buff_size;
++
++    int32_t red_lane_offset;
++    int32_t green_lane_offset;
++    int32_t blue_lane_offset;
++
++} CIS_Config;
++
++extern CIS_Config cisConfig;
+@@ -39,3 +57,3 @@ typedef enum
+-#define CIS_RED_LANE_OFFSET 		(CIS_START_OFFSET)
+-#define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
+-#define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
++//#define CIS_RED_LANE_OFFSET 		(CIS_START_OFFSET)
++//#define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
++//#define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
+@@ -43,0 +62 @@ void cis_init(void);
++void cis_configure(uint16_t dpi);
+diff --git a/CM7/Peripheral/Src/cis.c b/CM7/Peripheral/Src/cis.c
+index a33218d..2cd663f 100644
+--- a/CM7/Peripheral/Src/cis.c
++++ b/CM7/Peripheral/Src/cis.c
+@@ -20 +20 @@
+-#include "shared.h"
++#include "globals.h"
+@@ -44,2 +43,0 @@
+-#define CIS_GREEN_HALF_SIZE			((CIS_ADC_BUFF_SIZE / 2) - (CIS_LANE_SIZE + CIS_INACTIVE_WIDTH))
+-#define CIS_GREEN_FULL_SIZE			((CIS_PIXELS_PER_LANE) - (CIS_GREEN_HALF_SIZE))
+@@ -49,0 +48,2 @@
++static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[CIS_ADC_OUT_LANES] = {0};
++static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[CIS_ADC_OUT_LANES] = {0};
+@@ -51,3 +51 @@
+-static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[3] = {0};
+-static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[3] = {0};
+-
++CIS_Config cisConfig = {0};
+@@ -68,2 +66,3 @@ static void cis_initAdc(void);
+- * @brief  CIS init
+- * @param  Void
++ * @brief  CIS hardware initialization
++ *         Initializes STM32 peripherals independent of the CIS configuration.
++ * @param  None
+@@ -72 +71 @@ static void cis_initAdc(void);
+-void cis_init()
++void cis_init(void)
+@@ -74 +73 @@ void cis_init()
+-	printf("----------- CIS INIT ----------\n");
++    printf("------ CIS HARDWARE INIT ------\n");
+@@ -76 +75,2 @@ void cis_init()
+-	cis_linearCalibrationInit();
++    /* Enable 5V power DC/DC for display */
++    HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+@@ -78 +78 @@ void cis_init()
+-	printf("CIS END CAPTURE = %d\n", CIS_LANE_SIZE);
++    cis_configure(shared_config.cis_dpi);
+@@ -80,2 +80 @@ void cis_init()
+-	// Enable 5V power DC/DC for display
+-	HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
++    shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
+@@ -83,2 +82 @@ void cis_init()
+-	memset(cisData, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint16_t));
+-	memset(cisDataCpy_f32, 0, CIS_ADC_BUFF_SIZE * 3 * sizeof(uint32_t));
++    //cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
+@@ -86,3 +84,7 @@ void cis_init()
+-	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
+-	cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
+-	cisLeds_Calibration.blueLed_maxPulse = CIS_LED_BLUE_OFF;
++    /* Initialize hardware peripherals */
++    cis_initAdc();
++    cis_initTimSartPulse();
++    cis_initTimLedRed();
++    cis_initTimLedGreen();
++    cis_initTimLedBlue();
++    cis_initTimClok();
+@@ -90,5 +92,5 @@ void cis_init()
+-#ifdef CIS_400DPI
+-	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); //SET : 200DPI   RESET : 400DPI
+-#else
+-	HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); //SET : 200DPI   RESET : 400DPI
+-#endif
++    /* Stop any ongoing capture before reconfiguring */
++    //cis_stopCapture();
++
++    /* Start capture with new configuration */
++    //cis_startCapture();
+@@ -96,6 +97,0 @@ void cis_init()
+-	cis_initAdc();
+-	cis_initTimSartPulse();
+-	cis_initTimLedRed();
+-	cis_initTimLedGreen();
+-	cis_initTimLedBlue();
+-	cis_initTimClok();
+@@ -108,0 +105,57 @@ void cis_init()
++/**
++ * @brief  CIS configuration
++ *         Configures the CIS, including DPI setting and variables dependent on DPI.
++ * @param  dpi: Desired resolution in DPI (200 or 400)
++ * @retval None
++ */
++void cis_configure(uint16_t dpi)
++{
++    printf("------ CIS CONFIGURATION ------\n");
++
++    /* Initialize variables based on the desired DPI */
++    if (dpi == 400)
++    {
++        /* Variables for 400 DPI */
++        cisConfig.pixels_per_lane = 1152;
++        /* Set GPIO pin to RESET for 400 DPI */
++        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
++    }
++    else // Default to 200 DPI
++    {
++        /* Variables for 200 DPI */
++        cisConfig.pixels_per_lane = 576;
++        /* Set GPIO pin to SET for 200 DPI */
++        HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
++    }
++
++    /* Common configurations */
++    cisConfig.pixels_nb = cisConfig.pixels_per_lane * CIS_ADC_OUT_LANES;
++    cisConfig.pixel_area_stop = CIS_INACTIVE_WIDTH + cisConfig.pixels_per_lane;
++    cisConfig.start_offset = CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2;
++    cisConfig.lane_size = cisConfig.pixel_area_stop + CIS_OVER_SCAN;
++    cisConfig.end_capture = cisConfig.lane_size;
++
++    cisConfig.adc_buff_size = cisConfig.lane_size * CIS_ADC_OUT_LANES;
++
++    /* Update lane offsets */
++    cisConfig.red_lane_offset = cisConfig.start_offset;
++    cisConfig.green_lane_offset = cisConfig.lane_size + cisConfig.start_offset;
++    cisConfig.blue_lane_offset = (cisConfig.lane_size * 2) + cisConfig.start_offset;
++
++    /* Initialize buffers */
++    memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
++    memset(cisDataCpy_f32, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
++
++    /* Initialize calibration data */
++    cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
++    cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
++    cisLeds_Calibration.blueLed_maxPulse = CIS_LED_BLUE_OFF;
++
++    /* Reset buffer states */
++    for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
++    {
++        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
++        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
++    }
++}
++
+@@ -129,2 +182,2 @@ void cis_init()
+- *      R2 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *     	R3 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      R2 = CIS_START_OFFSET + cis_adc_buff_size
++ *     	R3 = CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -132,3 +185,3 @@ void cis_init()
+- *      G1 = CIS_LANE_SIZE + CIS_START_OFFSET
+- *      G2 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *      G3 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      G1 = cis_lane_size + CIS_START_OFFSET
++ *      G2 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size
++ *      G3 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -136,3 +189,3 @@ void cis_init()
+- *      B1 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET
+- *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      B1 = cis_lane_size * 2 + CIS_START_OFFSET
++ *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
++ *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -178,63 +231,59 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
+-	int32_t acc = 0;
+-	static int32_t lane, i;
+-
+-	if ( overSampling > 1)
+-	{
+-		arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+-	}
+-
+-	while (acc < overSampling)
+-	{
+-		// Read and copy half DMAs buffers
+-		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+-		{
+-			/* 1st half DMA buffer Data represent Full R region + 1/2 of G region */
+-			while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
+-
+-			/* Invalidate Data Cache */
+-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * lane], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+-			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
+-			{
+-				if ( overSampling > 1)
+-				{
+-					cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] += (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
+-				}
+-				else
+-				{
+-					cisDataCpy_f32[CIS_ADC_BUFF_SIZE * lane + i] = (float32_t)(cisData[CIS_ADC_BUFF_SIZE * lane + i]);
+-				}
+-			}
+-
+-			cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
+-		}
+-
+-		// Read and copy full DMAs buffers
+-		for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+-		{
+-			/* 2nd full DMA buffer Data represent last 1/2 of G region + Full B region */
+-			while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
+-
+-			/* Invalidate Data Cache */
+-			SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2)], (CIS_ADC_BUFF_SIZE * sizeof(uint16_t)) / 2);
+-			for (i = (CIS_ADC_BUFF_SIZE / 2); --i >= 0;)
+-			{
+-				if ( overSampling > 1)
+-				{
+-					cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] += (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+-				}
+-				else
+-				{
+-					cisDataCpy_f32[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i] = (float32_t)(cisData[(CIS_ADC_BUFF_SIZE * lane) + (CIS_ADC_BUFF_SIZE / 2) + i]);
+-				}
+-			}
+-
+-			cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
+-		}
+-
+-		acc ++;
+-	}
+-
+-	if ( overSampling > 1)
+-	{
+-		arm_scale_f32(cisDataCpy_f32, 1.0 / (float32_t)overSampling, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3);
+-	}
++    int32_t acc = 0;
++    int32_t lane, i;
++
++    if (overSampling > 1)
++    {
++        arm_fill_f32(0, cisDataCpy_f32, cisConfig.adc_buff_size * 3); // Clear the buffer
++    }
++
++    while (acc < overSampling)
++    {
++        // Read and copy the half-filled DMA buffers
++        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
++        {
++            while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
++
++            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
++            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
++            {
++                if (overSampling > 1)
++                {
++                    cisDataCpy_f32[cisConfig.adc_buff_size * lane + i] += (float32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
++                }
++                else
++                {
++                    cisDataCpy_f32[cisConfig.adc_buff_size * lane + i] = (float32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
++                }
++            }
++
++            cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
++        }
++
++        // Read and copy the full DMA buffers
++        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
++        {
++            while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
++
++            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
++            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
++            {
++                if (overSampling > 1)
++                {
++                    cisDataCpy_f32[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] += (float32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
++                }
++                else
++                {
++                    cisDataCpy_f32[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] = (float32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
++                }
++            }
++
++            cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
++        }
++
++        acc++;
++    }
++
++    if (overSampling > 1)
++    {
++        arm_scale_f32(cisDataCpy_f32, 1.0f / (float32_t)overSampling, cisDataCpy_f32, cisConfig.adc_buff_size * 3);
++    }
+@@ -245,14 +294,13 @@ void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage*
+-	// Get the segments and copy them to the full red lane buffer
+-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET], RAWImage->redLine, CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->redLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->redLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
+-
+-	// Get the segments and copy them to the full green lane buffer
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET], RAWImage->greenLine, CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->greenLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->greenLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
+-
+-	// Get the segments and copy them to the full blue lane buffer
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET], RAWImage->blueLine, CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE], &RAWImage->blueLine[CIS_PIXELS_PER_LANE], CIS_PIXELS_PER_LANE);
+-	arm_copy_f32(&cisDataCpy_f32[CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2], &RAWImage->blueLine[CIS_PIXELS_PER_LANE * 2], CIS_PIXELS_PER_LANE);
++    // Copy segments to the complete buffer of the red line
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->redLine, cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->redLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->redLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
++
++    // Do the same for the green and blue lines
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
++
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
++    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+@@ -263,2 +311,2 @@ void cis_imageProcess_2(int32_t *cis_buff)
+-	static struct RAWImage RAWImage = {0};
+-	static float32_t cisDataCpy_f32[CIS_ADC_BUFF_SIZE * 3] = {0};
++    static struct RAWImage RAWImage = {0};
++    static float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
+@@ -266,4 +314,4 @@ void cis_imageProcess_2(int32_t *cis_buff)
+-	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
+-	cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
+-	cis_applyCalibration(&RAWImage, &rgbCalibration);
+-	cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
++    cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
++    cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
++    cis_applyCalibration(&RAWImage, &cisRGB_Calibration);
++    cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
+@@ -271,0 +320 @@ void cis_imageProcess_2(int32_t *cis_buff)
++
+@@ -292,2 +341,2 @@ void cis_imageProcess_2(int32_t *cis_buff)
+- *      R2 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *     	R3 = CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      R2 = CIS_START_OFFSET + cis_adc_buff_size
++ *     	R3 = CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -295,3 +344,3 @@ void cis_imageProcess_2(int32_t *cis_buff)
+- *      G1 = CIS_LANE_SIZE + CIS_START_OFFSET
+- *      G2 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *      G3 = CIS_LANE_SIZE + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      G1 = cis_lane_size + CIS_START_OFFSET
++ *      G2 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size
++ *      G3 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -299,3 +348,3 @@ void cis_imageProcess_2(int32_t *cis_buff)
+- *      B1 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET
+- *      B2 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE
+- *      B3 = CIS_LANE_SIZE * 2 + CIS_START_OFFSET + CIS_ADC_BUFF_SIZE * 2
++ *      B1 = cis_lane_size * 2 + CIS_START_OFFSET
++ *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
++ *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
+@@ -305 +354 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
+-	static int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
++    int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
+@@ -311,38 +360,38 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
+-	for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
+-	{
+-		lane = packet / (UDP_NB_PACKET_PER_LINE / CIS_ADC_OUT_LANES);
+-
+-		if (shared_config.cis_handedness)
+-		{
+-			startIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane) - 1;
+-			endIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
+-
+-			for (i = startIdx; i >= endIdx; --i)
+-			{
+-				offsetIndex = i - endIdx;
+-
+-				imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+-				imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+-				imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[i + (CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE))];
+-			}
+-		}
+-		else
+-		{
+-			startIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
+-			endIdx = (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane);
+-
+-			for (i = startIdx; i < endIdx; i++)
+-			{
+-				offsetIndex = i - startIdx;
+-
+-				ii = startIdx - 1 - i + (CIS_PIXELS_NB / UDP_NB_PACKET_PER_LINE) + startIdx;
+-
+-				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_RED_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+-				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_GREEN_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+-				imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + CIS_BLUE_LANE_OFFSET + (lane * CIS_ADC_BUFF_SIZE)];
+-			}
+-		}
+-
+-		imageBuffers[packet].fragment_id = packet;
+-		imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+-	}
++    for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
++    {
++        lane = packet / (UDP_NB_PACKET_PER_LINE / CIS_ADC_OUT_LANES);
++
++        if (shared_config.cis_handedness)
++        {
++            startIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane) - 1;
++            endIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
++
++            for (i = startIdx; i >= endIdx; --i)
++            {
++                offsetIndex = i - endIdx;
++
++                imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
++                imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
++                imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
++            }
++        }
++        else
++        {
++            startIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
++            endIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane);
++
++            for (i = startIdx; i < endIdx; i++)
++            {
++                offsetIndex = i - startIdx;
++
++                ii = startIdx - 1 - i + (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) + startIdx;
++
++                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
++                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
++                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
++            }
++        }
++
++        imageBuffers[packet].fragment_id = packet;
++        imageBuffers[packet].line_id = shared_var.cis_process_cnt;
++    }
+@@ -359,2 +408,2 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
+-	static int32_t iteration;
+-	shared_var.cis_cal_progressbar = 0;
++    static int32_t iteration;
++    shared_var.cis_cal_progressbar = 0;
+@@ -362,2 +411,2 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
+-	arm_fill_f32(0, cisCalData, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
+-	arm_fill_f32(0, cisDataCpy_f32, CIS_ADC_BUFF_SIZE * 3); //Clear buffer
++    arm_fill_f32(0, cisCalData, cisConfig.adc_buff_size * 3); // Clear buffer
++    arm_fill_f32(0, cisDataCpy_f32, cisConfig.adc_buff_size * 3); // Clear buffer
+@@ -365,6 +414,6 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
+-	for (iteration = 0; iteration < iterationNb; iteration++)
+-	{
+-		cis_getRAWImage(cisDataCpy_f32, 1);
+-		arm_add_f32(cisCalData, cisDataCpy_f32, cisCalData, CIS_ADC_BUFF_SIZE * 3);
+-		shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
+-	}
++    for (iteration = 0; iteration < iterationNb; iteration++)
++    {
++        cis_getRAWImage(cisDataCpy_f32, 1);
++        arm_add_f32(cisCalData, cisDataCpy_f32, cisCalData, cisConfig.adc_buff_size * 3);
++        shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
++    }
+@@ -372 +421 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
+-	arm_scale_f32(cisCalData, 1.0 / (float32_t)iterationNb, cisCalData, CIS_ADC_BUFF_SIZE * 3);
++    arm_scale_f32(cisCalData, 1.0f / (float32_t)iterationNb, cisCalData, cisConfig.adc_buff_size * 3);
+@@ -385,3 +434,3 @@ void cis_startCapture()
+-	/* Reset CLKs ############################################*/
+-	//Reset CLK counter
+-	__HAL_TIM_SET_COUNTER(&htim1, 0);
++    /* Reset CLKs ############################################*/
++    // Reset CLK counter
++    __HAL_TIM_SET_COUNTER(&htim1, 0);
+@@ -389,2 +438,2 @@ void cis_startCapture()
+-	//Reset SP counter
+-	__HAL_TIM_SET_COUNTER(&htim8, CIS_LANE_SIZE - CIS_SP_WIDTH);
++    // Reset SP counter
++    __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
+@@ -392 +441 @@ void cis_startCapture()
+-	//Set RGB phase shift
++    // Set RGB phase shift
+@@ -394,3 +443,3 @@ void cis_startCapture()
+-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LANE_SIZE * 1) - CIS_LED_RED_ON);	//R
+-	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LANE_SIZE * 3) - CIS_LED_GREEN_ON);	//G
+-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LANE_SIZE * 2) - CIS_LED_BLUE_ON);	//B
++    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_RED_ON);   // R
++    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 3) - CIS_LED_GREEN_ON); // G
++    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 2) - CIS_LED_BLUE_ON);  // B
+@@ -398,3 +447,3 @@ void cis_startCapture()
+-	__HAL_TIM_SET_COUNTER(&htim4, (CIS_LANE_SIZE * 1) - CIS_LED_RED_ON);	//R
+-	__HAL_TIM_SET_COUNTER(&htim5, (CIS_LANE_SIZE * 1) - CIS_LED_GREEN_ON);	//G
+-	__HAL_TIM_SET_COUNTER(&htim3, (CIS_LANE_SIZE * 1) - CIS_LED_BLUE_ON);	//B
++    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_RED_ON);   // R
++    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 1) - CIS_LED_GREEN_ON); // G
++    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 1) - CIS_LED_BLUE_ON);  // B
+@@ -403,6 +452,3 @@ void cis_startCapture()
+-	/* Start LEDs ############################################*/
+-	/* Start LED R generation ###############################*/
+-	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+-
+-	/* Start LED G generation ###############################*/
+-	HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
++    /* Start LEDs ############################################*/
++    /* Start LED R generation ###############################*/
++    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+@@ -410,2 +456,2 @@ void cis_startCapture()
+-	/* Start LED B generation ###############################*/
+-	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
++    /* Start LED G generation ###############################*/
++    HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_3);
+@@ -413,2 +459,2 @@ void cis_startCapture()
+-	/* Start CLK generation ##################################*/
+-	//HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
++    /* Start LED B generation ###############################*/
++    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+@@ -416,2 +462,2 @@ void cis_startCapture()
+-	/* Start SP generation ##################################*/
+-	HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
++    /* Start SP generation ##################################*/
++    HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+@@ -419,2 +465,2 @@ void cis_startCapture()
+-	/* Start CLK generation ##################################*/
+-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
++    /* Start CLK generation ##################################*/
++    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+@@ -422,4 +468,4 @@ void cis_startCapture()
+-	/* Start DMA #############################################*/
+-	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], CIS_ADC_BUFF_SIZE);
+-	HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[CIS_ADC_BUFF_SIZE], CIS_ADC_BUFF_SIZE);
+-	HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[CIS_ADC_BUFF_SIZE * 2], CIS_ADC_BUFF_SIZE);
++    /* Start DMA #############################################*/
++    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
++    HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
++    HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);
+@@ -427,2 +473,2 @@ void cis_startCapture()
+-	__HAL_TIM_SET_COUNTER(&htim1, 0);
+-	__HAL_TIM_SET_COUNTER(&htim8, CIS_LANE_SIZE - CIS_SP_WIDTH);
++    __HAL_TIM_SET_COUNTER(&htim1, 0);
++    __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
+@@ -430,2 +476,2 @@ void cis_startCapture()
+-	/* Start ADC Main Timer #######################################*/
+-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
++    /* Start ADC Main Timer #######################################*/
++    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+@@ -433,8 +479,8 @@ void cis_startCapture()
+-	printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
+-	printf("adc2 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc2));
+-	printf("adc3 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc3));
+-	printf("CLK  TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim1));
+-	printf("SP   TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim8));
+-	printf("LEDR TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim4));
+-	printf("LEDG TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim5));
+-	printf("LEDB TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim3));
++    printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
++    printf("adc2 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc2));
++    printf("adc3 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc3));
++    printf("CLK  TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim1));
++    printf("SP   TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim8));
++    printf("LEDR TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim4));
++    printf("LEDG TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim5));
++    printf("LEDB TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim3));
+@@ -450,57 +496,56 @@ void cis_stopCapture()
+-	/* Stop ADC Timer #####"##################################*/
+-	if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	/* Stop CLK generation ###################################*/
+-	if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	/* Stop SP generation ####################################*/
+-	if(HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	/* Stop DMA ##############################################*/
+-	if (HAL_ADC_Stop_DMA(&hadc1) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	if (HAL_ADC_Stop_DMA(&hadc2) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	if (HAL_ADC_Stop_DMA(&hadc3) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	/* Stop LEDs ############################################*/
+-	/* Stop LED R generation ################################*/
+-	if(HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-	/* Stop LED G generation ################################*/
+-	if(HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-	/* Stop LED B generation ################################*/
+-	if(HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1) != HAL_OK)
+-	{
+-		Error_Handler();
+-	}
+-
+-	cisHalfBufferState[0] = CIS_BUFFER_OFFSET_NONE;
+-	cisHalfBufferState[1] = CIS_BUFFER_OFFSET_NONE;
+-	cisHalfBufferState[2] = CIS_BUFFER_OFFSET_NONE;
+-	cisFullBufferState[0] = CIS_BUFFER_OFFSET_NONE;
+-	cisFullBufferState[1] = CIS_BUFFER_OFFSET_NONE;
+-	cisFullBufferState[2] = CIS_BUFFER_OFFSET_NONE;
++    /* Stop ADC Timer ######################################*/
++    if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    /* Stop CLK generation ###################################*/
++    if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    /* Stop SP generation ####################################*/
++    if(HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_3) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    /* Stop DMA ##############################################*/
++    if (HAL_ADC_Stop_DMA(&hadc1) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    if (HAL_ADC_Stop_DMA(&hadc2) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    if (HAL_ADC_Stop_DMA(&hadc3) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    /* Stop LEDs ############################################*/
++    /* Stop LED R generation ################################*/
++    if(HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2) != HAL_OK)
++    {
++        Error_Handler();
++    }
++    /* Stop LED G generation ################################*/
++    if(HAL_TIM_PWM_Stop(&htim5, TIM_CHANNEL_3) != HAL_OK)
++    {
++        Error_Handler();
++    }
++    /* Stop LED B generation ################################*/
++    if(HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_1) != HAL_OK)
++    {
++        Error_Handler();
++    }
++
++    for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
++    {
++        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
++        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
++    }
+diff --git a/CM7/STM32H745IIKX_FLASH.ld b/CM7/STM32H745IIKX_FLASH.ld
+index 3a514ef..eb3044b 100755
+--- a/CM7/STM32H745IIKX_FLASH.ld
++++ b/CM7/STM32H745IIKX_FLASH.ld
+@@ -48 +48 @@ MEMORY
+-  FLASH (rx)    			: ORIGIN = 0x08000000, LENGTH = 1024K 
++  FLASH (rx)    			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
+@@ -50,2 +50,2 @@ MEMORY
+-  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 128
+-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 120K
++  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
++  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 90K
+@@ -138,0 +139 @@ SECTIONS
++  /* user sections... */
+@@ -142,6 +143,4 @@ SECTIONS
+-    KEEP (*(.dtcm));
+-    KEEP (*(.rgbCalibration)); 
+-    KEEP (*(.rgbCals));  
+-    KEEP (*(.cisRAWImage)); 
+-    KEEP (*(.cisLeds_Calibration));  
+-    KEEP (*(.cisCals));  
++    KEEP (*(.cisData)); 
++    KEEP (*(.cisDataCpy)); 
++    /* KEEP (*(.cisRGBCalibration)); */
++    KEEP (*(.cisLedsCalibration));   
+@@ -150,0 +150,2 @@ SECTIONS
++  /* user sections... */
++  
+@@ -158 +159 @@ SECTIONS
+-  
++
+@@ -162 +162,0 @@ SECTIONS
+-    KEEP (*(.imageData));
+@@ -165,3 +165 @@ SECTIONS
+-    KEEP (*(.cisData));    
+-    KEEP (*(.cisCals));   
+-    KEEP (*(.cisDataCpy)); 
++    KEEP (*(.cisCals));
+diff --git a/Common/Src/globals.c b/Common/Src/globals.c
+new file mode 100755
+index 0000000..125c985
+--- /dev/null
++++ b/Common/Src/globals.c
+@@ -0,0 +1,80 @@
++/**
++ ******************************************************************************
++ * @file           : globals.c
++ ******************************************************************************
++ * @attention
++ *
++ * Copyright (C) 2018-present Reso-nance Numerique.
++ * All rights reserved.
++  *
++  * This software is licensed under terms that can be found in the LICENSE file
++  * in the root directory of this software component.
++ *
++ ******************************************************************************
++ */
++
++/* Includes ------------------------------------------------------------------*/
++#include "globals.h"
++
++/* Private includes ----------------------------------------------------------*/
++
++/* Private typedef -----------------------------------------------------------*/
++
++/* Private define ------------------------------------------------------------*/
++
++/* Private macro -------------------------------------------------------------*/
++
++/* Private variables ---------------------------------------------------------*/
++
++/**************************************************************************************/
++/******************                  CM4 and CM7                    *******************/
++/**************************************************************************************/
++
++#pragma GCC push_options
++#pragma GCC optimize ("O0")
++
++__attribute__ ((section(".shared_var")))
++volatile struct shared_var shared_var = {0};
++
++__attribute__ ((section(".shared_config")))
++volatile struct shared_config shared_config = {0};
++
++__attribute__ ((section(".cisCals")))
++struct cisCals cisCals = {0};
++
++__attribute__ ((section(".rgbBuffers")))
++struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE] = {0};
++
++__attribute__ ((section(".imuData")))
++struct packet_IMU packet_IMU = {0};
++
++#pragma GCC pop_options
++
++/**************************************************************************************/
++/******************                      CM7                        *******************/
++/**************************************************************************************/
++
++#ifdef CORE_CM7
++
++#pragma GCC push_options
++#pragma GCC optimize ("O0")
++
++__attribute__ ((section(".cisDataCpy")))
++float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
++
++__attribute__ ((section(".cisData")))
++int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32))) = {0};
++
++__attribute__ ((section(".cisRGBCalibration")))
++struct cisRGB_Calibration cisRGB_Calibration = {0};
++
++__attribute__ ((section(".cisLedsCalibration")))
++struct cisLeds_Calibration cisLeds_Calibration = {0};
++
++#pragma GCC pop_options
++
++#endif
++
++/* Private function prototypes -----------------------------------------------*/
++
++/* Private user code ---------------------------------------------------------*/

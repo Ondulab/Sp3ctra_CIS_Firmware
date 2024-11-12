@@ -31,6 +31,8 @@
 #include "adc.h"
 #include "dma.h"
 
+#include "cis_scan.h"
+
 #include "cis_linearCal.h"
 #include "cis_polyCal.h"
 
@@ -355,7 +357,11 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 
 	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
 
+	UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
+
 	cis_applyLinearCalibration(cisDataCpy_f32, 255);
+
+	highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
 
     for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
     {
@@ -466,6 +472,7 @@ void cis_startCapture()
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
     /* Start DMA #############################################*/
+    SCB_CleanDCache_by_Addr((uint32_t*)cisData, sizeof(cisData));
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);

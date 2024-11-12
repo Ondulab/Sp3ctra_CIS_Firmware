@@ -147,7 +147,12 @@ SECTIONS
     . = ALIGN(4);
   } >DTCM
   
-  /* user sections... */
+  .axi :
+  {
+    . = ALIGN(4);
+    /*KEEP (*(.cisData)); */
+    . = ALIGN(4);
+  } >RAM_AXI
   
   .shared :
   {
@@ -163,6 +168,7 @@ SECTIONS
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));
     KEEP (*(.cisCals));
+    KEEP (*(.cisData)); 
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
 
