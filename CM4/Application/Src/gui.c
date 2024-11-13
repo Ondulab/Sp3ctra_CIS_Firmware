@@ -129,11 +129,11 @@ void gui_displayImage(void)
 
 		if (shared_config.cis_dpi > 200)
 		{
-			index = (packet - (uint32_t)packet) * (CIS_MAX_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
+			index = (packet - (uint32_t)packet) * (CIS_400DPI_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
 		}
 		else
 		{
-			index = (packet - (uint32_t)packet) * ((CIS_MAX_PIXELS_NB / 2) / UDP_NB_PACKET_PER_LINE);
+			index = (packet - (uint32_t)packet) * (CIS_200DPI_PIXELS_NB / UDP_NB_PACKET_PER_LINE);
 		}
 
 		cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];

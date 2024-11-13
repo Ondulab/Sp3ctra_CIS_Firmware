@@ -176,11 +176,11 @@ void StartDefaultTask(void const * argument)
 
 	MX_LWIP_Init();
 
-	//ftpd_init();
+	ftpd_init();
 
-	//http_serverInit();
+	http_serverInit();
 
-	//tcp_clientInit();
+	tcp_clientInit();
 
 	cis_scanInit();
 

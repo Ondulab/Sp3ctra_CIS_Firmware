@@ -79,9 +79,9 @@ void cis_init(void)
 
     cis_configure(shared_config.cis_dpi);
 
-    shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
+    //shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
 
-    //cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
+    cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
 
     /* Initialize hardware peripherals */
     cis_initAdc();
@@ -118,14 +118,14 @@ void cis_configure(uint16_t dpi)
     if (dpi == 400)
     {
         /* Variables for 400 DPI */
-        cisConfig.pixels_per_lane = 1152;
+        cisConfig.pixels_per_lane = CIS_400DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to RESET for 400 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
     }
     else // Default to 200 DPI
     {
         /* Variables for 200 DPI */
-        cisConfig.pixels_per_lane = 576;
+        cisConfig.pixels_per_lane = CIS_200DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to SET for 200 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
     }
@@ -135,7 +135,7 @@ void cis_configure(uint16_t dpi)
     cisConfig.pixel_area_stop = CIS_INACTIVE_WIDTH + cisConfig.pixels_per_lane;
     cisConfig.start_offset = CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2;
     cisConfig.lane_size = cisConfig.pixel_area_stop + CIS_OVER_SCAN;
-    cisConfig.end_capture = cisConfig.lane_size;
+    cisConfig.lane_size;
 
     cisConfig.adc_buff_size = cisConfig.lane_size * CIS_ADC_OUT_LANES;
 
@@ -357,11 +357,7 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
 
 	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
 
-	UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
-
 	cis_applyLinearCalibration(cisDataCpy_f32, 255);
-
-	highWaterMark = uxTaskGetStackHighWaterMark(cis_scanThreadHandle);
 
     for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
     {
@@ -472,7 +468,6 @@ void cis_startCapture()
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
     /* Start DMA #############################################*/
-    SCB_CleanDCache_by_Addr((uint32_t*)cisData, sizeof(cisData));
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);

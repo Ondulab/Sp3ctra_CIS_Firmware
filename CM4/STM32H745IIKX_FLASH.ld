@@ -129,8 +129,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP (*(.rgbBuffers));
-    KEEP (*(.imuData));
-    KEEP (*(.cisCals));
+    KEEP (*(.imuData));    
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   

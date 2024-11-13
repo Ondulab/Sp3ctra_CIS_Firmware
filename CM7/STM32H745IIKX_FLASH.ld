@@ -140,17 +140,17 @@ SECTIONS
   .dtcm :
   {
     . = ALIGN(4);
-    KEEP (*(.cisData)); 
-    KEEP (*(.cisDataCpy)); 
+    KEEP (*(.cisDataCpy));
+    KEEP (*(.cisCals));  
     /* KEEP (*(.cisRGBCalibration)); */
-    KEEP (*(.cisLedsCalibration));   
+    /* KEEP (*(.cisLedsCalibration)); */  
     . = ALIGN(4);
   } >DTCM
   
   .axi :
   {
     . = ALIGN(4);
-    /*KEEP (*(.cisData)); */
+    KEEP (*(.cisData)); 
     . = ALIGN(4);
   } >RAM_AXI
   
@@ -166,9 +166,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP (*(.rgbBuffers));
-    KEEP (*(.imuData));
-    KEEP (*(.cisCals));
-    KEEP (*(.cisData)); 
+    KEEP (*(.imuData));    
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
 
