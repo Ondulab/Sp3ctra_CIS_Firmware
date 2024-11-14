@@ -29,7 +29,6 @@ typedef struct
     int32_t pixel_area_stop;
     int32_t start_offset;
     int32_t lane_size;
-    int32_t end_capture;
     int32_t adc_buff_size;
 
     int32_t red_lane_offset;
@@ -53,10 +52,6 @@ typedef enum
 	CIS_GREEN,
 	CIS_BLUE,
 }CIS_Color_TypeDef;
-
-//#define CIS_RED_LANE_OFFSET 		(CIS_START_OFFSET)
-//#define CIS_GREEN_LANE_OFFSET 		((CIS_LANE_SIZE) + (CIS_START_OFFSET))
-//#define CIS_BLUE_LANE_OFFSET  		((CIS_LANE_SIZE * 2)) + (CIS_START_OFFSET)
 
 void cis_init(void);
 void cis_configure(uint16_t dpi);

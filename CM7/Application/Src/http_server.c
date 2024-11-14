@@ -30,6 +30,7 @@
 #include "diskio.h" // DiskIO include
 
 #include "file_manager.h"
+#include "cis.h"
 
 #include "usart.h"
 #include "crc.h"
@@ -558,6 +559,8 @@ static void http_server(struct netconn *conn)
 							char response[100];
 							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
 							netconn_write(conn, response, len, NETCONN_COPY);
+
+							cis_configure(shared_config.cis_dpi);
 						}
 						else
 						{

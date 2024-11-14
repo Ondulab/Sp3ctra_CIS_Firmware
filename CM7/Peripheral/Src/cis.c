@@ -26,6 +26,7 @@
 #include "arm_math.h"
 
 #include "FreeRTOS.h"
+#include "cmsis_os.h"
 #include "task.h"
 #include "tim.h"
 #include "adc.h"
@@ -55,11 +56,11 @@ CIS_Config cisConfig = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
-static void cis_initTimClok(void);
-static void cis_initTimSartPulse(void);
-static void cis_initTimLedRed(void);
-static void cis_initTimLedGreen(void);
-static void cis_initTimLedBlue(void);
+static void cis_initTimClock();
+static void cis_initTimStartPulse();
+static void cis_initTimLedRed();
+static void cis_initTimLedGreen();
+static void cis_initTimLedBlue();
 static void cis_initAdc(void);
 
 /* Private user code ---------------------------------------------------------*/
@@ -77,31 +78,9 @@ void cis_init(void)
     /* Enable 5V power DC/DC for display */
     HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
-    cis_configure(shared_config.cis_dpi);
-
-    //shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
-
-    cis_linearCalibrationInit(); // Appel après la configuration pour s'assurer que cisConfig est initialisé
-
-    /* Initialize hardware peripherals */
     cis_initAdc();
-    cis_initTimSartPulse();
-    cis_initTimLedRed();
-    cis_initTimLedGreen();
-    cis_initTimLedBlue();
-    cis_initTimClok();
 
-    /* Stop any ongoing capture before reconfiguring */
-    //cis_stopCapture();
-
-    /* Start capture with new configuration */
-    //cis_startCapture();
-
-
-	cis_stopCapture();
-	cis_startCapture();
-	cis_stopCapture();
-	cis_startCapture();
+    cis_configure(shared_config.cis_dpi);
 }
 
 /**
@@ -113,6 +92,11 @@ void cis_init(void)
 void cis_configure(uint16_t dpi)
 {
     printf("------ CIS CONFIGURATION ------\n");
+
+    cis_linearCalibrationInit();
+
+    /* Stop any ongoing capture before reconfiguring */
+    cis_stopCapture();
 
     /* Initialize variables based on the desired DPI */
     if (dpi == 400)
@@ -130,12 +114,13 @@ void cis_configure(uint16_t dpi)
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
     }
 
+    osDelay(100);
+
     /* Common configurations */
     cisConfig.pixels_nb = cisConfig.pixels_per_lane * CIS_ADC_OUT_LANES;
     cisConfig.pixel_area_stop = CIS_INACTIVE_WIDTH + cisConfig.pixels_per_lane;
     cisConfig.start_offset = CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2;
     cisConfig.lane_size = cisConfig.pixel_area_stop + CIS_OVER_SCAN;
-    cisConfig.lane_size;
 
     cisConfig.adc_buff_size = cisConfig.lane_size * CIS_ADC_OUT_LANES;
 
@@ -153,12 +138,8 @@ void cis_configure(uint16_t dpi)
     cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
     cisLeds_Calibration.blueLed_maxPulse = CIS_LED_BLUE_OFF;
 
-    /* Reset buffer states */
-    for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
-    {
-        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
-        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
-    }
+    /* Start capture with new configuration */
+    cis_startCapture();
 }
 
 /**
@@ -299,13 +280,13 @@ void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage*
     arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->redLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 
     // Do the same for the green and blue lines
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
+    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
 }
 
 void cis_imageProcess_2(int32_t *cis_buff)
@@ -398,8 +379,8 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
         imageBuffers[packet].line_id = shared_var.cis_process_cnt;
     }
 }
-#pragma GCC pop_options
 
+#pragma GCC pop_options
 /**
  * @brief  cis_ImageProcessRGB_Calibration
  * @param  cis calibration buffer ptr
@@ -433,6 +414,13 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
  */
 void cis_startCapture()
 {
+    /* Initialize hardware peripherals */
+    cis_initTimStartPulse();
+    cis_initTimLedRed();
+    cis_initTimLedGreen();
+    cis_initTimLedBlue();
+    cis_initTimClock();
+
     /* Reset CLKs ############################################*/
     // Reset CLK counter
     __HAL_TIM_SET_COUNTER(&htim1, 0);
@@ -468,14 +456,20 @@ void cis_startCapture()
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
     /* Start DMA #############################################*/
+    /* Reset buffer states */
+    for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
+    {
+        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+    }
+
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);
 
+    /* Start ADC Main Timer #######################################*/
     __HAL_TIM_SET_COUNTER(&htim1, 0);
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
-
-    /* Start ADC Main Timer #######################################*/
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
     printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
@@ -546,13 +540,16 @@ void cis_stopCapture()
         Error_Handler();
     }
 
+    HAL_ADC_Stop_DMA(&hadc1);
+    HAL_ADC_Stop_DMA(&hadc2);
+    HAL_ADC_Stop_DMA(&hadc3);
+
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
         cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 }
-
 #pragma GCC pop_options
 
 /**
@@ -560,7 +557,7 @@ void cis_stopCapture()
  * @param  None
  * @retval None
  */
-void cis_initTimClok()
+void cis_initTimClock()
 {
 	MX_TIM1_Init();
 }
@@ -570,7 +567,7 @@ void cis_initTimClok()
  * @param  None
  * @retval None
  */
-void cis_initTimSartPulse()
+void cis_initTimStartPulse()
 {
 	MX_TIM8_Init();
 }

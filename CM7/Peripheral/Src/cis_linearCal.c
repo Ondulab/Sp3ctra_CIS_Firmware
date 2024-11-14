@@ -67,30 +67,30 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
 
 void cis_linearCalibrationInit()
 {
-	FIL file;
-	FRESULT fres;
-	char calibrationFilePath[64];
+    FIL file;
+    FRESULT fres;
+    char calibrationFilePath[64];
 
-	// Construire le chemin du fichier de calibration en fonction du DPI actuel
-	sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
+    // Build the calibration file path based on the current DPI setting
+    sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
 
-	// Tenter d'ouvrir le fichier de calibration en mode lecture
-	fres = f_open(&file, calibrationFilePath, FA_READ);
+    // Attempt to open the calibration file in read mode
+    fres = f_open(&file, calibrationFilePath, FA_READ);
 
-	if (fres == FR_OK)
-	{
-		printf("Read calibration file for %d DPI SUCCESS\n", shared_config.cis_dpi);
-		// Le fichier existe et a été ouvert avec succès
-		file_readCisCals(calibrationFilePath, &cisCals);
-		f_close(&file);  // Fermer le fichier après la lecture
-		shared_var.cis_cal_state = CIS_CAL_END;  // Pas de calibration requise
-	}
-	else
-	{
-		// Le fichier n'existe pas ou une autre erreur s'est produite lors de l'ouverture
-		printf("Calibration file not found for %d DPI, requesting new calibration.\n", shared_config.cis_dpi);
-		shared_var.cis_cal_state = CIS_CAL_REQUESTED;  // Demander une nouvelle calibration
-	}
+    if (fres == FR_OK)
+    {
+        printf("Read calibration file for %d DPI SUCCESS\n", shared_config.cis_dpi);
+        // File exists and was successfully opened
+        file_readCisCals(calibrationFilePath, &cisCals);
+        f_close(&file);  // Close the file after reading
+        shared_var.cis_cal_state = CIS_CAL_END;  // No calibration needed
+    }
+    else
+    {
+        // File not found or an error occurred while opening
+        printf("Calibration file not found for %d DPI, requesting new calibration.\n", shared_config.cis_dpi);
+        shared_var.cis_cal_state = CIS_CAL_REQUESTED;  // Request new calibration
+    }
 }
 
 void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
@@ -113,7 +113,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	osDelay(200);
 
 	cis_imageProcessRGB_Calibration(whiteCal.data, iterationNb);
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 
 	osDelay(200);
 	shared_var.cis_cal_progressbar = 0;
@@ -124,7 +124,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	/* Step 2: Capture black calibration data */
 	cis_imageProcessRGB_Calibration(blackCal.data, iterationNb);
 
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	cis_ledPowerAdj(100, 100, 100);
 	osDelay(500);
 
@@ -140,7 +140,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_ComputeCalsInactivesAvrg(&blackCal, CIS_BLUE);
 	cis_ComputeCalsInactivesAvrg(&whiteCal, CIS_BLUE);
 
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
 	osDelay(200);
 
@@ -154,7 +154,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_computeCalsExtremums(&blackCal, CIS_BLUE);
 	cis_computeCalsExtremums(&whiteCal, CIS_BLUE);
 
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
 	osDelay(200);
 
@@ -163,7 +163,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_GREEN);
 	cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_BLUE);
 
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_EXTRACT_OFFSETS;
 	osDelay(200);
 
@@ -172,7 +172,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 	cis_computeCalsGains(bitDepth, &whiteCal, &blackCal, CIS_GREEN);
 	cis_computeCalsGains(bitDepth, &whiteCal, &blackCal, CIS_BLUE);
 
-	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+	SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals) * (sizeof(uint32_t)));
 	shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
 
 	printf("-------- COMPUTE GAINS --------\n");

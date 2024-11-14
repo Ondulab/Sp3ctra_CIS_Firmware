@@ -132,9 +132,9 @@ void MX_TIM3_Init(void)
 
   prescalerValue = 0;
   #ifndef CIS_MONOCHROME
-    counterPeriod = (cisConfig.end_capture * 3) - 1;
+    counterPeriod = (cisConfig.lane_size * 3) - 1;
   #else
-    counterPeriod = (cisConfig.end_capture) - 1;
+    counterPeriod = (cisConfig.lane_size) - 1;
     pulseValue /= 3;
   #endif
 
@@ -199,9 +199,9 @@ void MX_TIM4_Init(void)
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME
-  counterPeriod = (cisConfig.end_capture * 3) - 1;
+  counterPeriod = (cisConfig.lane_size * 3) - 1;
 #else
-  counterPeriod = (cisConfig.end_capture) - 1;
+  counterPeriod = (cisConfig.lane_size) - 1;
   pulseValue /= 3;
 #endif
 
@@ -266,9 +266,9 @@ void MX_TIM5_Init(void)
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME
-  counterPeriod = (cisConfig.end_capture * 3) - 1;
+  counterPeriod = (cisConfig.lane_size * 3) - 1;
 #else
-  counterPeriod = (cisConfig.end_capture) - 1;
+  counterPeriod = (cisConfig.lane_size) - 1;
   pulseValue /= 3;
 #endif
 
@@ -368,7 +368,7 @@ void MX_TIM8_Init(void)
     uint32_t prescalerValue, counterPeriod, pulseValue;
 
     prescalerValue = 0;
-    counterPeriod = cisConfig.end_capture - 1;
+    counterPeriod = cisConfig.lane_size - 1;
     pulseValue = CIS_SP_WIDTH - 1;
 
   /* USER CODE END TIM8_Init 1 */
