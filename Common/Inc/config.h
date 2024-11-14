@@ -66,9 +66,6 @@
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
-//#define UDP_NB_PACKET_PER_LINE					(12)
-//#define UDP_PACKET_SIZE							((CIS_PIXELS_NB) / (UDP_NB_PACKET_PER_LINE))
-
 #define UDP_NB_PACKET_PER_LINE					(12)
 #define UDP_LINE_FRAGMENT_SIZE					(CIS_MAX_PIXELS_NB / UDP_NB_PACKET_PER_LINE)
 
@@ -93,16 +90,13 @@
 #define DEFAULT_CIS_DPI 200
 #define DEFAULT_CIS_MONOCHROME 0
 #define DEFAULT_CIS_MAX_LINE_FREQ 900
+#define DEFAULT_CIS_OVERSAMPLING 8
 
 //#define DEFAULT_CIS_CLK_FREQ							(2500000)
 #define   DEFAULT_CIS_CLK_FREQ					(3125000)
 //#define DEFAULT_CIS_CLK_FREQ							(3200000)
 //#define DEFAULT_CIS_CLK_FREQ							(4000000)
 //#define DEFAULT_CIS_CLK_FREQ							(5000000)
-
-#define DEFAULT_CIS_OVERSAMPLING 8
-
-
 
 #define CIS_ADC_OUT_LANES						(3)
 
@@ -128,27 +122,8 @@
 #define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
 
 // LED illumination durations in microseconds
-#define LED_RED_DURATION_US     				(178)  // Duration in microseconds for the red LED
-#define LED_GREEN_DURATION_US   				(178)  // Duration in microseconds for the green LED
-#define LED_BLUE_DURATION_US    				(178)  // Duration in microseconds for the blue LED
-
-// Ensure DEFAULT_CIS_CLK_FREQ is defined to avoid issues
-#define CYCLE_DURATION_US       				((float)(1000000.0f / DEFAULT_CIS_CLK_FREQ))
-
-// Macro to calculate LED off index based on illumination duration
-#define LED_OFF_INDEX(duration_us)  			((int)((duration_us) / CYCLE_DURATION_US))
-
-// Safety check for LED illumination durations
-//#define SAFE_LED_OFF_INDEX(duration_us)  		(LED_OFF_INDEX(duration_us) <= CIS_END_CAPTURE ? LED_OFF_INDEX(duration_us) : CIS_END_CAPTURE)
-
-// Calculating off indices for each LED with safety checks
-//#define CIS_LED_RED_OFF       					(CIS_LED_RED_ON + LED_OFF_INDEX(LED_RED_DURATION_US))
-//#define CIS_LED_GREEN_OFF     					(CIS_LED_GREEN_ON + LED_OFF_INDEX(LED_GREEN_DURATION_US))
-//#define CIS_LED_BLUE_OFF      					(CIS_LED_BLUE_ON + LED_OFF_INDEX(LED_BLUE_DURATION_US))
-
-#define CIS_LED_RED_OFF							(CIS_MAX_LANE_SIZE)//((202.0 * 2.5))
-#define CIS_LED_GREEN_OFF						(CIS_MAX_LANE_SIZE)//((244.0 * 2.5))
-#define CIS_LED_BLUE_OFF						(CIS_MAX_LANE_SIZE)//((243.0 * 2.5))
+#define CIS_400DPI_LED_DURATION_US     			(356)  // Duration in microseconds
+#define CIS_200DPI_LED_DURATION_US     			(178)  // Duration in microseconds
 
 #define CIS_MAX_ADC_BUFF_SIZE 	 	 		 	((CIS_MAX_LANE_SIZE) * (CIS_ADC_OUT_LANES))
 

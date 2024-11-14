@@ -35,6 +35,7 @@ typedef struct
     int32_t green_lane_offset;
     int32_t blue_lane_offset;
 
+    int32_t leds_off_index;
 } CIS_Config;
 
 extern CIS_Config cisConfig;

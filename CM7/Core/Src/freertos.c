@@ -184,8 +184,6 @@ void StartDefaultTask(void const * argument)
 
 	cis_scanInit();
 
-	UBaseType_t highWaterMark = uxTaskGetStackHighWaterMark(defaultTaskHandle);
-
 	PersistentData dataRead;
 	STM32Flash_readPersistentData(&dataRead);
 

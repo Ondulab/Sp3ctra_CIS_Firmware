@@ -119,9 +119,9 @@ void cis_calibrateLeds(void)
 	struct RAWImage RAWImage = {0};
 
 	// Set to max led power range for eatch leds colors
-	cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
-	cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
-	cisLeds_Calibration.blueLed_maxPulse = CIS_LED_BLUE_OFF;
+	cisLeds_Calibration.redLed_maxPulse = cisConfig.leds_off_index;
+	cisLeds_Calibration.greenLed_maxPulse = cisConfig.leds_off_index;
+	cisLeds_Calibration.blueLed_maxPulse = cisConfig.leds_off_index;
 
 	// Set to max power all LEDs
 	led_PWM = 100;

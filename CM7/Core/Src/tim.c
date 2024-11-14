@@ -128,7 +128,7 @@ void MX_TIM3_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  pulseValue = CIS_LED_BLUE_OFF - 1;
+  pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
   #ifndef CIS_MONOCHROME
@@ -195,7 +195,7 @@ void MX_TIM4_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  pulseValue = CIS_LED_RED_OFF - 1;
+  pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME
@@ -262,7 +262,7 @@ void MX_TIM5_Init(void)
 
   uint32_t prescalerValue, counterPeriod, pulseValue;
 
-  pulseValue = CIS_LED_GREEN_OFF - 1;
+  pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
 #ifndef CIS_MONOCHROME

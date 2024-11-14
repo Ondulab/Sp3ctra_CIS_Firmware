@@ -91,6 +91,8 @@ void cis_init(void)
  */
 void cis_configure(uint16_t dpi)
 {
+    float32_t leds_duration_us;
+
     printf("------ CIS CONFIGURATION ------\n");
 
     cis_linearCalibrationInit();
@@ -105,6 +107,7 @@ void cis_configure(uint16_t dpi)
         cisConfig.pixels_per_lane = CIS_400DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to RESET for 400 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
+        leds_duration_us = CIS_400DPI_LED_DURATION_US;
     }
     else // Default to 200 DPI
     {
@@ -112,6 +115,7 @@ void cis_configure(uint16_t dpi)
         cisConfig.pixels_per_lane = CIS_200DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to SET for 200 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
+        leds_duration_us = CIS_200DPI_LED_DURATION_US;
     }
 
     osDelay(100);
@@ -133,10 +137,22 @@ void cis_configure(uint16_t dpi)
     memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
     memset(cisDataCpy_f32, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
 
+    /* Calculate the cycle duration in microseconds */
+    float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
+
+    /* Calculate LED OFF index */
+    cisConfig.leds_off_index = (int)(leds_duration_us / cycle_duration_us) + CIS_LED_RED_ON;
+
+    /* Check that led_off_index does not exceed CIS_MAX_LANE_SIZE */
+    if (cisConfig.leds_off_index > CIS_MAX_LANE_SIZE)
+    {
+    	cisConfig.leds_off_index = CIS_MAX_LANE_SIZE;
+    }
+
     /* Initialize calibration data */
-    cisLeds_Calibration.redLed_maxPulse = CIS_LED_RED_OFF;
-    cisLeds_Calibration.greenLed_maxPulse = CIS_LED_GREEN_OFF;
-    cisLeds_Calibration.blueLed_maxPulse = CIS_LED_BLUE_OFF;
+    cisLeds_Calibration.redLed_maxPulse = cisConfig.leds_off_index;
+    cisLeds_Calibration.greenLed_maxPulse = cisConfig.leds_off_index;
+    cisLeds_Calibration.blueLed_maxPulse = cisConfig.leds_off_index;
 
     /* Start capture with new configuration */
     cis_startCapture();
