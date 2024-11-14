@@ -47,7 +47,7 @@ struct IMU_average IMU_average = {0};
 /* Variable containing black and white frame from CIS*/
 
 /* Private function prototypes -----------------------------------------------*/
-static void gui_displayOversampling();
+static void gui_displayPopUp();
 static void gui_displayImage(void);
 static void gui_displayIMU(void);
 static void gui_displayWaiting();
@@ -297,29 +297,32 @@ void gui_displayIMU(void)
 	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
 }
 
-void gui_displayOversampling()
+void gui_displayPopUp()
 {
 	uint8_t textData[256] = {0};
 
-	ssd1362_fillRect(10, 10, 51, 30, 15, false);
-	ssd1362_drawRect(9, 9, 52, 31, 0, false);
+	ssd1362_fillRect(10, 5, 61, 35, 15, false);
+	ssd1362_drawRect(9, 4, 62, 36, 0, false);
+
+    sprintf((char *)textData, "%dDPI", (int)shared_config.cis_dpi);
+	ssd1362_drawString(12, 07, (int8_t *)textData, 0, 8);
 
 	if (shared_config.cis_oversampling < 10)
 	{
-		sprintf((char *)textData, "OVS %d", (int)shared_config.cis_oversampling);
+		sprintf((char *)textData, "OVS  %d", (int)shared_config.cis_oversampling);
 	}
 	else
 	{
-		sprintf((char *)textData, "OVS%d", (int)shared_config.cis_oversampling);
+		sprintf((char *)textData, "OVS %d", (int)shared_config.cis_oversampling);
 	}
-	ssd1362_drawString(12, 12, (int8_t *)textData, 0, 8);
+	ssd1362_drawString(12, 17, (int8_t *)textData, 0, 8);
 
 	if (shared_var.cis_freq < 100)
-		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
+		sprintf((char *)textData, "%d  Hz", (int)(shared_var.cis_freq));
 	else
-		sprintf((char *)textData, "%dHz", (int)(shared_var.cis_freq));
+		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
 
-	ssd1362_drawString(12, 22, (int8_t*)textData, 0, 8);
+	ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
 }
 
 void gui_displayWaiting2(void)
@@ -541,6 +544,7 @@ void gui_interractiveMenu()
 
 	static uint8_t oldScanDir = 0;
 	static uint8_t oldOversampling = 0;
+	static uint16_t oldDPI = 0;
 	static uint32_t start_tick = 0;
 
 	if (shared_var.cis_cal_state == CIS_CAL_REQUESTED)
@@ -553,9 +557,14 @@ void gui_interractiveMenu()
 		start_tick = HAL_GetTick();
 		oldOversampling = shared_config.cis_oversampling;
 	}
+	if (shared_config.cis_dpi != oldDPI)
+	{
+		start_tick = HAL_GetTick();
+		oldDPI = shared_config.cis_dpi;
+	}
 	if ((HAL_GetTick() - start_tick) < 3000)
 	{
-		gui_displayOversampling();
+		gui_displayPopUp();
 	}
 
 	if (shared_config.cis_handedness != oldScanDir)

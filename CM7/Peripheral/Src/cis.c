@@ -95,10 +95,10 @@ void cis_configure(uint16_t dpi)
 
     printf("------ CIS CONFIGURATION ------\n");
 
-    cis_linearCalibrationInit();
-
     /* Stop any ongoing capture before reconfiguring */
     cis_stopCapture();
+
+    cis_linearCalibrationInit();
 
     /* Initialize variables based on the desired DPI */
     if (dpi == 400)
