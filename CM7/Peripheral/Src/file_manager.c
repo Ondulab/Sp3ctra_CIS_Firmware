@@ -24,6 +24,7 @@
 #include "file_manager.h"
 
 static void file_parseLine(char* line, volatile struct shared_config* config);
+static void print_shared_config(struct shared_config config);
 
 const struct shared_config DefaultConfig =
 {
@@ -200,6 +201,49 @@ int file_writeConfig(const char* filePath, const volatile struct shared_config* 
 	return 0;
 }
 
+#include <stdio.h>
+
+void print_shared_config(struct shared_config config)
+{
+    printf("Button Delay: %u ms\n", (unsigned int)config.ui_button_delay);
+
+    printf("Network IP: %u.%u.%u.%u\n",
+           config.network_ip[0], config.network_ip[1],
+           config.network_ip[2], config.network_ip[3]);
+
+    printf("Network Netmask: %u.%u.%u.%u\n",
+           config.network_netmask[0], config.network_netmask[1],
+           config.network_netmask[2], config.network_netmask[3]);
+
+    printf("Network Gateway: %u.%u.%u.%u\n",
+           config.network_gw[0], config.network_gw[1],
+           config.network_gw[2], config.network_gw[3]);
+
+    printf("Network Destination IP: %u.%u.%u.%u\n",
+           config.network_dest_ip[0], config.network_dest_ip[1],
+           config.network_dest_ip[2], config.network_dest_ip[3]);
+
+    printf("Network UDP Port: %u\n", config.network_udp_port);
+
+    printf("Network TCP Port: %u\n", config.network_tcp_port);
+
+    printf("CIS Print Calibration: %u\n", config.cis_print_calibration);
+
+    printf("CIS Raw: %u\n", config.cis_raw);
+
+    printf("CIS DPI: %u\n", config.cis_dpi);
+
+    printf("CIS Monochrome: %u\n", config.cis_monochrome);
+
+    printf("CIS Max Line Frequency: %u Hz\n", config.cis_max_line_freq);
+
+    printf("CIS Clock Frequency: %u Hz\n", (unsigned int)config.cis_clk_freq);
+
+    printf("CIS Oversampling: %u\n", config.cis_oversampling);
+
+    printf("CIS Handedness: %u\n", config.cis_handedness);
+}
+
 int file_factoryReset(void)
 {
 	printf("- CONFIG FILE TO FACTORY RESET -\n");
@@ -275,6 +319,7 @@ void file_initConfig(volatile struct shared_config* config)
 	else
 	{
 		printf("Read configuration SUCCESS\n");
+		print_shared_config(*config);
 	}
 }
 

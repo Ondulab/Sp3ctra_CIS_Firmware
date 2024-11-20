@@ -43,7 +43,7 @@ __attribute__ ((section(".cisCals")))
 struct cisCals cisCals = {0};
 
 __attribute__ ((section(".rgbBuffers")))
-struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE] = {0};
+struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE] = {0};
 
 __attribute__ ((section(".imuData")))
 struct packet_IMU packet_IMU = {0};
@@ -70,6 +70,8 @@ struct cisRGB_Calibration cisRGB_Calibration = {0};
 
 __attribute__ ((section(".cisLedsCalibration")))
 struct cisLeds_Calibration cisLeds_Calibration = {0};
+
+CIS_Config cisConfig = {0};
 
 #pragma GCC pop_options
 

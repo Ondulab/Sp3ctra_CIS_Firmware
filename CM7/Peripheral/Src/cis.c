@@ -51,8 +51,6 @@
 static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[CIS_ADC_OUT_LANES] = {0};
 static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[CIS_ADC_OUT_LANES] = {0};
 
-CIS_Config cisConfig = {0};
-
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -153,6 +151,14 @@ void cis_configure(uint16_t dpi)
     cisLeds_Calibration.redLed_maxPulse = cisConfig.leds_off_index;
     cisLeds_Calibration.greenLed_maxPulse = cisConfig.leds_off_index;
     cisLeds_Calibration.blueLed_maxPulse = cisConfig.leds_off_index;
+
+    /* Update the number of UDP packets per line */
+    cisConfig.udp_nb_packet_per_line = cisConfig.pixels_nb / UDP_LINE_FRAGMENT_SIZE;
+
+    for (int32_t packet = UDP_MAX_NB_PACKET_PER_LINE; --packet >= 0;)
+    {
+        packet_Image[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+    }
 
     /* Start capture with new configuration */
     cis_startCapture();
@@ -350,24 +356,24 @@ void cis_imageProcess_2(int32_t *cis_buff)
  */
 void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
 {
-    int32_t lane, i, ii, packet, startIdx, offsetIndex, endIdx;
+    int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
 
 	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
 
 	cis_applyLinearCalibration(cisDataCpy_f32, 255);
 
-    for (packet = UDP_NB_PACKET_PER_LINE; --packet >= 0;)
+    for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
     {
-        lane = packet / (UDP_NB_PACKET_PER_LINE / CIS_ADC_OUT_LANES);
+        lane = packet / (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES);
 
         if (shared_config.cis_handedness)
         {
-            startIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane) - 1;
-            endIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
+            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane) - 1;
+            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
 
             for (i = startIdx; i >= endIdx; --i)
             {
-                offsetIndex = i - endIdx;
+            	offsetIndex = i - endIdx;
 
                 imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
                 imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
@@ -376,18 +382,18 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
         }
         else
         {
-            startIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet - 4 * lane);
-            endIdx = (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) * (packet + 1 - 4 * lane);
+            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
+            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
 
             for (i = startIdx; i < endIdx; i++)
             {
-                offsetIndex = i - startIdx;
+            	offsetIndex = i - startIdx;
 
-                ii = startIdx - 1 - i + (cisConfig.pixels_nb / UDP_NB_PACKET_PER_LINE) + startIdx;
+                ii = startIdx - 1 - i + (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) + startIdx;
 
-                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[UDP_NB_PACKET_PER_LINE - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
             }
         }
 

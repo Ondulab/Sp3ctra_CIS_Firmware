@@ -22,24 +22,6 @@
 #include "arm_math.h"
 #include "globals.h"
 
-typedef struct
-{
-    int32_t pixels_per_lane;
-    int32_t pixels_nb;
-    int32_t pixel_area_stop;
-    int32_t start_offset;
-    int32_t lane_size;
-    int32_t adc_buff_size;
-
-    int32_t red_lane_offset;
-    int32_t green_lane_offset;
-    int32_t blue_lane_offset;
-
-    int32_t leds_off_index;
-} CIS_Config;
-
-extern CIS_Config cisConfig;
-
 typedef enum
 {
 	CIS_BUFFER_OFFSET_NONE = 0,

@@ -145,14 +145,14 @@ SECTIONS
     /* KEEP (*(.cisRGBCalibration)); */
     /* KEEP (*(.cisLedsCalibration)); */  
     . = ALIGN(4);
-  } >DTCM
+  } >DTCM AT> FLASH
   
   .axi :
   {
     . = ALIGN(4);
     KEEP (*(.cisData)); 
     . = ALIGN(4);
-  } >RAM_AXI
+  } >RAM_AXI AT> FLASH
   
   .shared :
   {
@@ -160,7 +160,7 @@ SECTIONS
     KEEP (*(.shared_var));  
     KEEP (*(.shared_config));
     . = ALIGN(4); 
-  } >RAM_SHARED
+  } >RAM_SHARED AT> FLASH
 
   .shared_cached :
   {
@@ -168,7 +168,7 @@ SECTIONS
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));    
     . = ALIGN(4);    
-  } >RAM_SHARED_CACHED
+  } >RAM_SHARED_CACHED AT> FLASH
 
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);

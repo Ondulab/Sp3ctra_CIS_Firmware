@@ -834,7 +834,7 @@ static void http_thread(void *arg)
 void http_serverInit()
 {
 	printf("----- HTTP INITIALIZATIONS ----\n");
-	if (xTaskCreate(http_thread, "http_thread", 4096, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS)
+	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS)
 	{
 		printf("HTTP initialisation SUCCESS\n");
 	}

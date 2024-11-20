@@ -85,23 +85,23 @@ typedef enum
 // Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
 struct __attribute__((aligned(4))) packet_StartupInfo
 {
-	CIS_Packet_HeaderTypeDef type; 		// Identifies the data type
-	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	uint8_t version_info[32]; 			// Information about the version, and other startup details
+	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
+	uint32_t packet_id;               				// Sequence number, useful for ordering packets
+	uint8_t version_info[32]; 						// Information about the version, and other startup details
 };
 
 // Structure for image data packets, including metadata for image fragmentation
 struct __attribute__((aligned(4))) packet_Image
 {
-	CIS_Packet_HeaderTypeDef type; 						// Identifies the data type
-	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	uint32_t line_id;      				// Line identifier
-	uint8_t fragment_id;      			// Fragment position
-	uint8_t total_fragments;  			// Total number of fragments for the complete image
-	uint16_t fragment_size;   			// Size of this particular fragment
-	uint8_t imageData_R[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented red image data
-	uint8_t imageData_G[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented green image data
-	uint8_t imageData_B[UDP_LINE_FRAGMENT_SIZE];   			// Pointer to the fragmented blue image data
+	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
+	uint32_t packet_id;               				// Sequence number, useful for ordering packets
+	uint32_t line_id;      							// Line identifier
+	uint8_t fragment_id;      						// Fragment position
+	uint8_t total_fragments;  						// Total number of fragments for the complete image
+	uint16_t fragment_size;   						// Size of this particular fragment
+	uint8_t imageData_R[UDP_LINE_FRAGMENT_SIZE];   	// Pointer to the fragmented red image data
+	uint8_t imageData_G[UDP_LINE_FRAGMENT_SIZE];  	// Pointer to the fragmented green image data
+	uint8_t imageData_B[UDP_LINE_FRAGMENT_SIZE];	// Pointer to the fragmented blue image data
 };
 
 struct __attribute__((aligned(4))) button_State
@@ -113,10 +113,10 @@ struct __attribute__((aligned(4))) button_State
 // Structure for packets containing button state information
 struct __attribute__((aligned(4))) packet_Button
 {
-	CIS_Packet_HeaderTypeDef type; 						// Identifies the data type
-	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	buttonIdTypeDef button_id;     			// Id of the button
-	struct button_State button_state;     	// State of the led A
+	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
+	uint32_t packet_id;               				// Sequence number, useful for ordering packets
+	buttonIdTypeDef button_id;     					// Id of the button
+	struct button_State button_state;     			// State of the led A
 };
 
 struct __attribute__((aligned(4))) led_State
@@ -133,21 +133,21 @@ struct __attribute__((aligned(4))) led_State
 // Structure for packets containing leds state
 struct __attribute__((aligned(4))) packet_Leds
 {
-	CIS_Packet_HeaderTypeDef type; 						// Identifies the data type
-	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	ledIdTypeDef led_id;     			// Id of the led
-	struct led_State led_state;     	// State of the selected led
+	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
+	uint32_t packet_id;               				// Sequence number, useful for ordering packets
+	ledIdTypeDef led_id;     						// Id of the led
+	struct led_State led_state;     				// State of the selected led
 };
 
 // Structure for packets containing sensor data (accelerometer and gyroscope)
 struct __attribute__((aligned(4))) packet_IMU
 {
-	CIS_Packet_HeaderTypeDef type; 						// Identifies the data type
-	uint32_t packet_id;               	// Sequence number, useful for ordering packets
-	float_t acc[3];           		// Accelerometer data: x, y, and z axis
-	float_t gyro[3];          		// Gyroscope data: x, y, and z axis
-	float_t integrated_acc[3];        // Accelerometer data: x, y, and z axis
-	float_t integrated_gyro[3];       // Gyroscope data: x, y, and z axis
+	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
+	uint32_t packet_id;               				// Sequence number, useful for ordering packets
+	float_t acc[3];           						// Accelerometer data: x, y, and z axis
+	float_t gyro[3];          						// Gyroscope data: x, y, and z axis
+	float_t integrated_acc[3];        				// Accelerometer data: x, y, and z axis
+	float_t integrated_gyro[3];       				// Gyroscope data: x, y, and z axis
 };
 
 struct __attribute__((aligned(4))) cisRgbBuffers
@@ -204,7 +204,7 @@ struct __attribute__((aligned(4))) shared_config
 
 extern volatile struct shared_var shared_var;
 extern volatile struct shared_config shared_config;
-extern struct packet_Image packet_Image[UDP_NB_PACKET_PER_LINE];
+extern struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE];
 extern struct packet_IMU packet_IMU;
 extern int params_size;
 
@@ -212,6 +212,25 @@ extern int params_size;
 /**************************************************************************************/
 /******************                      CM7                        *******************/
 /**************************************************************************************/
+
+__attribute__((aligned(4)))
+typedef struct
+{
+    int32_t pixels_per_lane;
+    int32_t pixels_nb;
+    int32_t pixel_area_stop;
+    int32_t start_offset;
+    int32_t lane_size;
+    int32_t adc_buff_size;
+
+    int32_t red_lane_offset;
+    int32_t green_lane_offset;
+    int32_t blue_lane_offset;
+
+    int32_t leds_off_index;
+
+    uint16_t udp_nb_packet_per_line;
+} CIS_Config;
 
 __attribute__((aligned(4)))
 struct CalibrationCoefficients
@@ -250,6 +269,7 @@ struct RAWImage{
 	float32_t blueLine[CIS_MAX_PIXELS_NB];
 };
 
+extern CIS_Config cisConfig;
 extern int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern struct cisRGB_Calibration cisRGB_Calibration;

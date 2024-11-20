@@ -123,7 +123,7 @@ SECTIONS
     KEEP (*(.shared_var));  
     KEEP (*(.shared_config));
     . = ALIGN(4); 
-  } >RAM_SHARED
+  } >RAM_SHARED AT> FLASH
 
   .shared_cached :
   {
@@ -131,7 +131,7 @@ SECTIONS
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));    
     . = ALIGN(4);    
-  } >RAM_SHARED_CACHED
+  } >RAM_SHARED_CACHED AT> FLASH
   
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
