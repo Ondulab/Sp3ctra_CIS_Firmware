@@ -436,8 +436,9 @@ static void http_server(struct netconn *conn)
 	bool close = true;
 	bool reboot = false;
 
-
+#ifdef HTTP_SERVER_DEBUG
 	printf("===== http_server_serve recv\n");
+#endif
 
 	/* Read the data from the port, blocking if nothing yet there.
 	   We assume the request (the part we care about) is in one netbuf */
@@ -447,7 +448,9 @@ static void http_server(struct netconn *conn)
 		{
 			do {
 				netbuf_data(inbuf, (void**)&buf, &buflen);
+#ifdef HTTP_SERVER_DEBUG
 				printf("# Process buffer: %p %d bytes\n", buf, buflen);
+#endif
 
 				/* Is this an HTTP GET command? (only check the first 5 chars, since
 	            there are other formats for GET, and we're keeping it very simple )*/
@@ -740,14 +743,9 @@ static void http_server(struct netconn *conn)
 
 						if (ret == FWUPDATE_STATUS_DONE)
 						{
-						    PersistentData dataToWrite = {
-						        .updateState = FW_UPDATE_NONE,//RECEIVED,
-						        .padding = {0}
-						    };
-
 							/* reboot after we close the connection. */
-						    HAL_StatusTypeDef status = STM32Flash_writePersistentData(&dataToWrite);
-						    if (status == HAL_OK)
+						    STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_RECEIVED);
+						    if (status == STM32FLASH_OK)
 						    {
 						        printf("Firmware update received\n");
 						    }
@@ -761,7 +759,9 @@ static void http_server(struct netconn *conn)
 					}
 				}
 				/* Process all data that may be present in the netbuf */
+#ifdef HTTP_SERVER_DEBUG
 				printf("# netbuf_next = %d\n", netbuf_next(inbuf));
+#endif
 			}
 			while (netbuf_next(inbuf) >= 0);
 
@@ -771,7 +771,9 @@ static void http_server(struct netconn *conn)
 		}
 		else
 		{
+#ifdef HTTP_SERVER_DEBUG
 			printf("# netconn_recv error: %d %d\n", recv_err, netconn_err(conn));
+#endif
 		}
 		if (close)
 		{
@@ -780,8 +782,9 @@ static void http_server(struct netconn *conn)
 			break;
 		}
 	} /* while netconn_recv */
-
+#ifdef HTTP_SERVER_DEBUG
 	printf("===== http_server_serve close\n");
+#endif
 	/* Close the connection (server closes in HTTP) */
 	netconn_close(conn);
 

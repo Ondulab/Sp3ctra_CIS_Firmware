@@ -494,6 +494,7 @@ void cis_startCapture()
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
+	printf("=========== COUNTERS ==========\n");
     printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
     printf("adc2 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc2));
     printf("adc3 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc3));
@@ -502,6 +503,7 @@ void cis_startCapture()
     printf("LEDR TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim4));
     printf("LEDG TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim5));
     printf("LEDB TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim3));
+	printf("===============================\n");
 }
 
 /**

@@ -180,25 +180,15 @@ void StartDefaultTask(void const * argument)
 
 	http_serverInit();
 
-	tcp_clientInit();
-
-	cis_scanInit();
-
-	PersistentData dataRead;
+	FW_UpdateState dataRead;
 	STM32Flash_readPersistentData(&dataRead);
 
-	if (dataRead.updateState != FW_UPDATE_NONE)
+	if (dataRead != FW_UPDATE_NONE)
 	{
-	    PersistentData dataToWrite = {
-	        .updateState = FW_UPDATE_DONE,
-	        .padding = {0}
-	    };
-
-		/* reboot after we close the connection. */
-	    HAL_StatusTypeDef status = STM32Flash_writePersistentData(&dataToWrite);
-	    if (status == HAL_OK)
+	    STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_DONE);
+	    if (status == STM32FLASH_OK)
 	    {
-	        printf("Persistent data written successfully.\n");
+	        printf("Firmware update must be tested now.\n");
 	    }
 	    else
 	    {
@@ -210,6 +200,10 @@ void StartDefaultTask(void const * argument)
 		osDelay(3000);
 		NVIC_SystemReset();
 	}
+
+	tcp_clientInit();
+
+	cis_scanInit();
 
 	/* Infinite loop */
 	for(;;)

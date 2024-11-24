@@ -205,6 +205,7 @@ int file_writeConfig(const char* filePath, const volatile struct shared_config* 
 
 void print_shared_config(struct shared_config config)
 {
+	printf("=========== CONFIG ============\n");
     printf("Button Delay: %u ms\n", (unsigned int)config.ui_button_delay);
 
     printf("Network IP: %u.%u.%u.%u\n",
@@ -242,6 +243,7 @@ void print_shared_config(struct shared_config config)
     printf("CIS Oversampling: %u\n", config.cis_oversampling);
 
     printf("CIS Handedness: %u\n", config.cis_handedness);
+	printf("===============================\n");
 }
 
 int file_factoryReset(void)
