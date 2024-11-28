@@ -34,6 +34,7 @@ typedef enum {
     FW_UPDATE_DONE      = 0xFFFFFFFF
 } FW_UpdateState;
 
+uint32_t stm32_flashGetSector(uint32_t Address);
 STM32Flash_StatusTypeDef STM32Flash_readPersistentData(FW_UpdateState* state);
 STM32Flash_StatusTypeDef STM32Flash_writePersistentData(FW_UpdateState updateState);
 STM32Flash_StatusTypeDef STM32Flash_erase_app_memory(uint32_t flashBank, uint32_t flashSector, uint32_t NbSectors);

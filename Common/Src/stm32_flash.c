@@ -38,14 +38,13 @@ typedef struct {
 } PersistentData;
 
 /* Private function prototypes -----------------------------------------------*/
-static uint32_t stm32_flashGetSector(uint32_t Address);
 
 /**
  * @brief  Gets the sector of a given address.
  * @param  Address Address of the FLASH Memory.
  * @retval The sector of a given address.
  */
-static uint32_t stm32_flashGetSector(uint32_t Address)
+uint32_t stm32_flashGetSector(uint32_t Address)
 {
     if (((Address < ADDR_FLASH_SECTOR_1_BANK1) && (Address >= ADDR_FLASH_SECTOR_0_BANK1)) ||
         ((Address < ADDR_FLASH_SECTOR_1_BANK2) && (Address >= ADDR_FLASH_SECTOR_0_BANK2))) {
