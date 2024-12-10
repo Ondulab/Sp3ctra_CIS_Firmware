@@ -67,22 +67,6 @@ def crc32(data):
     # No final XOR of the CRC
     return crc & 0xFFFFFFFF  # Ensure CRC is 32 bits
 
-def calculate_crc32_stm32(data_words):
-    crc = 0xFFFFFFFF  # Valeur initiale
-    poly = 0x04C11DB7  # Polynôme standard pour CRC32
-
-    for word in data_words:
-        crc ^= word  # XOR avec le mot courant
-        for _ in range(32):  # Traiter chaque bit du mot
-            if crc & 0x80000000:
-                crc = (crc << 1) ^ poly
-            else:
-                crc <<= 1
-            crc &= 0xFFFFFFFF  # S'assurer que le CRC reste sur 32 bits
-
-    # Pas de XOR final selon le comportement par défaut du STM32
-    return crc
-
 def create_update_file(config_path, output_dir):
     """
     Creates a binary update file containing CM7, CM4, and a compressed archive of additional data.
@@ -138,7 +122,6 @@ def create_update_file(config_path, output_dir):
 
     # Compute CRC for validation
     crc = crc32(full_data)
-    #crc = calculate_crc32_stm32(full_data)
     print(f"Computed CRC: {crc:#010x}")  # Ajout du print du CRC
 
     # Add the footer

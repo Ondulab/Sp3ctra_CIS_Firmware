@@ -159,25 +159,39 @@ STM32Flash_StatusTypeDef STM32Flash_writePersistentData(FW_UpdateState updateSta
  */
 STM32Flash_StatusTypeDef STM32Flash_write32B(uint8_t* data, uint32_t address)
 {
+    // Check alignments
     if ((address % 32) != 0 || (((uint32_t)data) % 32) != 0) {
+        printf("Alignment error: address=0x%08lx, data=0x%08lx\n", address, (uint32_t)data);
         return STM32FLASH_ERROR;
     }
 
+    // Unlock flash memory
     HAL_StatusTypeDef halStatus = HAL_FLASH_Unlock();
     if (halStatus != HAL_OK) {
+        printf("Failed to unlock FLASH\n");
         return STM32FLASH_ERROR;
     }
 
+    // Clear flash error flags
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS_BANK1);
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS_BANK2);
 
+    // Write to flash memory
     halStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, address, (uint32_t)data);
     if (halStatus != HAL_OK) {
+        uint32_t error = HAL_FLASH_GetError();
+        printf("FLASH programming error: 0x%08lx at address 0x%08lx\n", error, address);
         HAL_FLASH_Lock();
         return STM32FLASH_ERROR;
     }
 
-    HAL_FLASH_Lock();
+    // Lock flash memory
+    halStatus = HAL_FLASH_Lock();
+    if (halStatus != HAL_OK) {
+        printf("Failed to lock FLASH\n");
+        return STM32FLASH_ERROR;
+    }
+
     return STM32FLASH_OK;
 }
 
