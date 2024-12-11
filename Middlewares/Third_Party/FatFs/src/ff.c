@@ -1787,55 +1787,56 @@ void put_lfn (
 
 static
 void gen_numname (
-    BYTE* dst,          /* Pointer to the buffer to store numbered SFN */
-    const BYTE* src,    /* Pointer to SFN */
-    const WCHAR* lfn,   /* Pointer to LFN */
-    UINT seq            /* Sequence number */
+	BYTE* dst,			/* Pointer to the buffer to store numbered SFN */
+	const BYTE* src,	/* Pointer to SFN */
+	const WCHAR* lfn,	/* Pointer to LFN */
+	UINT seq			/* Sequence number */
 )
 {
-    BYTE ns[8], c;
-    UINT i, j;
-    WCHAR wc;
-    DWORD sr;
+	BYTE ns[8], c;
+	UINT i, j;
+	WCHAR wc;
+	DWORD sr;
 
 
-    mem_cpy(dst, src, 11);
+	mem_cpy(dst, src, 11);
 
-    if (seq > 5) {  /* In case of many collisions, generate a hash number instead of sequential number */
-        sr = seq;
-        while (*lfn) {  /* Create a CRC */
-            wc = *lfn++;
-            for (i = 0; i < 16; i++) {
-                sr = (sr << 1) + (wc & 1);
-                wc >>= 1;
-                if (sr & 0x10000) sr ^= 0x11021;
-            }
-        }
-        seq = (UINT)sr;
-    }
+	if (seq > 5) {	/* In case of many collisions, generate a hash number instead of sequential number */
+		sr = seq;
+		while (*lfn) {	/* Create a CRC */
+			wc = *lfn++;
+			for (i = 0; i < 16; i++) {
+				sr = (sr << 1) + (wc & 1);
+				wc >>= 1;
+				if (sr & 0x10000) sr ^= 0x11021;
+			}
+		}
+		seq = (UINT)sr;
+	}
 
-    /* itoa (hexadecimal) */
-    i = 7;
-    do {
-        c = (BYTE)((seq % 16) + '0');
-        if (c > '9') c += 7;
-        ns[i--] = c;
-        seq /= 16;
-    } while (seq && i > 0);
-    ns[i] = '~';
+	/* itoa (hexdecimal) */
+	i = 7;
+	do {
+		c = (BYTE)((seq % 16) + '0');
+		if (c > '9') c += 7;
+		ns[i--] = c;
+		seq /= 16;
+	} while (seq);
+	ns[i] = '~';
 
-    /* Append the number */
-    for (j = 0; j < i && dst[j] != ' '; j++) {
-        if (IsDBCS1(dst[j])) {
-            if (j == i - 1) break;
-            j++;
-        }
-    }
-    do {
-        dst[j++] = (i < 8) ? ns[i++] : ' ';
-    } while (j < 8);
+	/* Append the number */
+	for (j = 0; j < i && dst[j] != ' '; j++) {
+		if (IsDBCS1(dst[j])) {
+			if (j == i - 1) break;
+			j++;
+		}
+	}
+	do {
+		dst[j++] = (i < 8) ? ns[i++] : ' ';
+	} while (j < 8);
 }
-#endif  /* _USE_LFN != 0 && !_FS_READONLY */
+#endif	/* _USE_LFN != 0 && !_FS_READONLY */
+
 
 
 #if _USE_LFN != 0

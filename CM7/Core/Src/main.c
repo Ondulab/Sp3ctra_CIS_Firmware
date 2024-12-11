@@ -88,6 +88,7 @@ void MX_FREERTOS_Init(void);
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -98,7 +99,8 @@ int main(void)
 
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
-/* Enable the CPU Cache */
+
+  /* Enable the CPU Cache */
 
   /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
@@ -122,7 +124,7 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-/* Configure the peripherals common clocks */
+  /* Configure the peripherals common clocks */
   PeriphCommonClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
 	/* When system initialization is finished, Cortex-M7 will release Cortex-M4 by means of HSEM notification */
@@ -149,7 +151,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  //MX_TIM3_Init();
+  MX_TIM3_Init();
   MX_RNG_Init();
   MX_CRC_Init();
   MX_SPI2_Init();
@@ -179,13 +181,14 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Call init function for freertos objects (in freertos.c) */
+  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
 
   /* Start scheduler */
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1)
@@ -365,7 +368,7 @@ static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
 }
 /* USER CODE END 4 */
 
-/* MPU Configuration */
+ /* MPU Configuration */
 
 void MPU_Config(void)
 {

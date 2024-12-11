@@ -39,6 +39,8 @@
 /* Private define ------------------------------------------------------------*/
 /* The time to block waiting for input. */
 #define TIME_WAITING_FOR_INPUT ( portMAX_DELAY )
+/* Time to block waiting for transmissions to finish */
+#define ETHIF_TX_TIMEOUT (2000U)
 /* USER CODE BEGIN OS_THREAD_STACK_SIZE_WITH_RTOS */
 /* Stack size of the interface thread */
 #define INTERFACE_THREAD_STACK_SIZE ( 350 )
@@ -60,9 +62,9 @@
 /* Private variables ---------------------------------------------------------*/
 /*
 @Note: This interface is implemented to operate in zero-copy mode only:
-        - Rx buffers will be allocated from LwIP stack memory heap,
+        - Rx Buffers will be allocated from LwIP stack Rx memory pool,
           then passed to ETH HAL driver.
-        - Tx buffers will be allocated from LwIP stack memory heap,
+        - Tx Buffers will be allocated from LwIP stack memory heap,
           then passed to ETH HAL driver.
 
 @Notes:
@@ -117,6 +119,17 @@ __attribute__((at(0x30000100))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT
 ETH_DMADescTypeDef DMARxDscrTab[ETH_RX_DESC_CNT] __attribute__((section(".RxDecripSection"))); /* Ethernet Rx DMA Descriptors */
 ETH_DMADescTypeDef DMATxDscrTab[ETH_TX_DESC_CNT] __attribute__((section(".TxDecripSection")));   /* Ethernet Tx DMA Descriptors */
 
+#endif
+
+#if defined ( __ICCARM__ ) /*!< IAR Compiler */
+#pragma location = 0x30000100
+extern u8_t memp_memory_RX_POOL_base[];
+
+#elif defined ( __CC_ARM ) /* MDK ARM Compiler */
+__attribute__((section(".Rx_PoolSection"))) extern u8_t memp_memory_RX_POOL_base[];
+
+#elif defined ( __GNUC__ ) /* GNU */
+__attribute__((section(".Rx_PoolSection"))) extern u8_t memp_memory_RX_POOL_base[];
 #endif
 
 /* USER CODE BEGIN 2 */
@@ -294,7 +307,12 @@ static void low_level_init(struct netif *netif)
   LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
 
   /* Initialize the LAN8742 ETH PHY */
-  LAN8742_Init(&LAN8742);
+  if(LAN8742_Init(&LAN8742) != LAN8742_STATUS_OK)
+  {
+    netif_set_link_down(netif);
+    netif_set_down(netif);
+    return;
+  }
 
   if (hal_eth_init_status == HAL_OK)
   {
@@ -412,16 +430,30 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
   pbuf_ref(p);
 
-  if (HAL_ETH_Transmit_IT(&heth, &TxConfig) == HAL_OK) {
-    while(osSemaphoreWait(TxPktSemaphore, TIME_WAITING_FOR_INPUT)!=osOK)
-
+  do
+  {
+    if(HAL_ETH_Transmit_IT(&heth, &TxConfig) == HAL_OK)
     {
+      errval = ERR_OK;
     }
+    else
+    {
 
-    HAL_ETH_ReleaseTxPacket(&heth);
-  } else {
-    pbuf_free(p);
-  }
+      if(HAL_ETH_GetError(&heth) & HAL_ETH_ERROR_BUSY)
+      {
+        /* Wait for descriptors to become available */
+        osSemaphoreWait(TxPktSemaphore, ETHIF_TX_TIMEOUT);
+        HAL_ETH_ReleaseTxPacket(&heth);
+        errval = ERR_BUF;
+      }
+      else
+      {
+        /* Other error */
+        pbuf_free(p);
+        errval =  ERR_IF;
+      }
+    }
+  }while(errval == ERR_BUF);
 
   return errval;
 }
