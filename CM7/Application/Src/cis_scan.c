@@ -96,22 +96,16 @@ static void cis_scanThread(void *arg)
 {
 	printf("------ CIS THREAD SARTED ------\n");
 
-    TickType_t xLastWakeTime;
-    const TickType_t xFrequency = pdMS_TO_TICKS(1); // Converts approximately 1428.57 ms to ticks
+    //TickType_t xLastWakeTime;
+    //const TickType_t xFrequency = pdMS_TO_TICKS(1); // Converts approximately 1428.57 ms to ticks
 
     // Initialize xLastWakeTime with the current tick count.
-    xLastWakeTime = xTaskGetTickCount();
-
-#if 0
-    osDelay(1000);
-	cis_PrintForcharacterization(cisDataCpy_f32);
-	while(1);
-#endif
+    //xLastWakeTime = xTaskGetTickCount();
 
 	/* Infinite loop */
 	while (1)
 	{
-        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+        //vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
 		if (shared_var.cis_cal_state != CIS_CAL_END)
 		{

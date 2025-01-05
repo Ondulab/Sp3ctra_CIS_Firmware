@@ -17,6 +17,9 @@
 #define __HTTP_SERVER_NETCONN_H__
 
 #include "lwip/api.h"
+
+extern TaskHandle_t http_ThreadHandle;
+
 void http_serverInit(void);
 
 #endif /* __HTTP_SERVER_NETCONN_H__ */

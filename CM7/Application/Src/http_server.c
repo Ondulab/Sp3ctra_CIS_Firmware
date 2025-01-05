@@ -140,7 +140,7 @@ static fwupdate_t fwupdate;
 #define FWUPDATE_STATUS_INPROGRESS      1
 #define FWUPDATE_STATUS_DONE            2
 
-
+#ifdef HTTP_SERVER_DEBUG
 static const char* fwupdate_state_str(fwupdate_state_t state)
 {
 	switch (state) {
@@ -152,6 +152,7 @@ static const char* fwupdate_state_str(fwupdate_state_t state)
 	}
 
 }
+#endif
 
 /**
  * @brief  Secure Engine Error definition
@@ -215,7 +216,9 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
     while (buf && buf < buf_end)
     {
+#ifdef HTTP_SERVER_DEBUG
         printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
+#endif
 
         switch (fwupdate.state)
         {
@@ -300,8 +303,9 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                         size_t header_length = buf - buf_start;
                         fwupdate.file_length = fwupdate.content_length - header_length;
 
+#ifdef HTTP_SERVER_DEBUG
                         printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n", fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
-
+#endif
                         // Move to the state of downloading the file data
                         fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
                         fwupdate.accum_length = 0;  // Reset the accumulator
@@ -440,6 +444,12 @@ static void http_server(struct netconn *conn)
 	printf("===== http_server_serve recv\n");
 #endif
 
+    if (conn == NULL)
+    {
+        printf("Error: Null connection passed to http_server.\n");
+        return;
+    }
+
 	/* Read the data from the port, blocking if nothing yet there.
 	   We assume the request (the part we care about) is in one netbuf */
 	while ((recv_err = netconn_recv(conn, &inbuf)) == ERR_OK)
@@ -471,6 +481,8 @@ static void http_server(struct netconn *conn)
 						fs_open(&file, "/img/CISYNTH.png");
 						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 						fs_close(&file);
+
+						//osDelay(50);
 					}
 
 					/* Send a favicon for requests to '/img/favicon_64x64.ico' */
@@ -785,8 +797,6 @@ static void http_server(struct netconn *conn)
 #ifdef HTTP_SERVER_DEBUG
 	printf("===== http_server_serve close\n");
 #endif
-	/* Close the connection (server closes in HTTP) */
-	netconn_close(conn);
 
 	if (reboot)
 		{
@@ -798,46 +808,99 @@ static void http_server(struct netconn *conn)
 
 }
 
+// Function to initialize and manage the HTTP server thread
 static void http_thread(void *arg)
 {
-	printf("----- HTTP THREAD STARTED ------\n");
+    printf("----- HTTP THREAD STARTED ------\n");
 
-	struct netconn *conn, *newconn;
-	err_t err, accept_err;
+    struct netconn *conn, *newconn;
+    err_t err, accept_err;
 
-	/* Create a new TCP connection handle */
-	conn = netconn_new(NETCONN_TCP);
-	if (conn != NULL)
-	{
-		err = netconn_bind(conn, IP_ADDR_ANY, 80);
-		if (err == ERR_OK)
-		{
-			netconn_listen(conn);
-			while (1)
-			{
-				accept_err = netconn_accept(conn, &newconn);
-				if (accept_err == ERR_OK)
-				{
-					http_server(newconn);
-					netconn_delete(newconn);
-				}
-			}
-		}
-		else
-		{
-			printf("Bind failed with error: %d\n", err);
-		}
-	}
-	else
-	{
-		printf("Failed to create new TCP connection handle.\n");
-	}
+    // Create a new TCP connection handle
+    conn = netconn_new(NETCONN_TCP);
+    if (conn == NULL)
+    {
+        // If the connection handle cannot be created, exit the function
+        printf("Error: Failed to create new TCP connection handle.\n");
+        return;
+    }
+
+    // Bind the connection to port 80 and listen for incoming connections
+    if (conn != NULL)
+    {
+        netconn_set_sendtimeout(conn, 5000);
+
+        err_t err = netconn_bind(conn, IP_ADDR_ANY, 80);
+        if (err == ERR_OK)
+        {
+            netconn_listen(conn);
+#ifdef HTTP_SERVER_DEBUG
+            printf("The server is now listening on port 80\n");
+#endif
+        }
+        else
+        {
+#ifdef HTTP_SERVER_DEBUG
+            printf("Failed to bind to port 80.\n");
+#endif
+        }
+    }
+    else
+    {
+        printf("Unable to create a netconn.\n");
+    }
+
+    // Start listening for incoming connections
+    err = netconn_listen(conn);
+    if (err != ERR_OK)
+    {
+        // If listening fails, print the error code and clean up
+        printf("Error: netconn_listen failed with error code %d\n", err);
+        netconn_delete(conn);
+        return;
+    }
+
+#ifdef HTTP_SERVER_DEBUG
+    printf("HTTP server is listening on port 80...\n");
+#endif
+
+    // Main loop: wait for and handle incoming connections
+    while (1)
+    {
+        // Accept an incoming connection
+        accept_err = netconn_accept(conn, &newconn);
+        if (accept_err == ERR_OK)
+        {
+#ifdef HTTP_SERVER_DEBUG
+            printf("New connection accepted.\n");
+#endif
+
+            // Handle the connection using a separate function
+            http_server(newconn);
+
+        	// Close the connection (server closes in HTTP)
+            netconn_close(newconn);
+            netconn_delete(newconn);
+
+#ifdef HTTP_SERVER_DEBUG
+            printf("Connection closed.\n");
+#endif
+        }
+        else
+        {
+            // Print an error message if the connection accept fails
+            printf("Error: netconn_accept failed with error code %d\n", accept_err);
+        }
+    }
+
+    // Clean up the main connection handle (should never reach here)
+    netconn_delete(conn);
 }
 
 void http_serverInit()
 {
 	printf("----- HTTP INITIALIZATIONS ----\n");
-	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityNormal, &http_ThreadHandle) == pdPASS)
+	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityHigh, &http_ThreadHandle) == pdPASS)
 	{
 		printf("HTTP initialisation SUCCESS\n");
 	}

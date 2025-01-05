@@ -24,6 +24,10 @@
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
 
+#include "stm32h7xx_hal_eth.h"
+#include "lan8742.h"
+#include "lwip/netif.h"
+
 #include <stdio.h>
 #include "icm42688.h"
 
@@ -47,12 +51,17 @@ static struct packet_Button packet_Button = {0};
 
 static uint32_t packetsCounter = 0;
 
+volatile uint32_t isConnected = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 static void udp_clientSendData(void *data, uint16_t length);
 void udp_clientSendStartupInfoPacket(void);
 
 /* Private user code ---------------------------------------------------------*/
 
+/**
+ * @brief Initialize the UDP client.
+ */
 void udp_clientInit(void)
 {
     printf("---------- UDP INIT -----------\n");
@@ -61,8 +70,11 @@ void udp_clientInit(void)
     /* Create a new UDP connection */
     conn = netconn_new(NETCONN_UDP);
     if (conn != NULL) {
+
+        netconn_set_sendtimeout(conn, 100);
+
         IP4_ADDR(&destIPaddr, shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
-        netconn_bind(conn, NULL, 0);  // Bind to any local address and port
+        netconn_bind(conn, NULL, 0);//        DEFAULT_NETWORK_UDP_PORT);
         netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 
         printf("UDP initialization SUCCESS\n");
@@ -90,22 +102,75 @@ void udp_clientInit(void)
     udp_clientSendStartupInfoPacket();
 }
 
-void udp_clientSendData(void *data, uint16_t length) {
-    struct netbuf *buf = netbuf_new();
-    netbuf_alloc(buf, length);
-    netbuf_take(buf, data, length);
-    err_t err = netconn_send(conn, buf);
-    if (err != ERR_OK) {
-        printf("udp_send failed: %d\n", err);
+/**
+ * @brief Send data over UDP.
+ * @param data Pointer to the data to send.
+ * @param length Length of the data in bytes.
+ */
+void udp_clientSendData(void *data, uint16_t length)
+{
+    if (isConnected == 0)
+    {
+        //if (conn == NULL)
+        //{
+            //return;
+        //}
+        //netconn_close(conn);
+        //netconn_delete(conn);
+        //conn = NULL;
+        return;
     }
+#if 0
+    if (conn == NULL)
+    {
+        udp_clientInit();
+        return;
+    }
+#endif
+
+    // Create a new netbuf
+    struct netbuf *buf = netbuf_new();
+    if (buf == NULL)
+    {
+        printf("Failed to allocate netbuf.\n");
+        return;
+    }
+
+    // Allocate space in the netbuf
+    if (netbuf_alloc(buf, length) == NULL)
+    {
+        printf("Failed to allocate buffer in netbuf.\n");
+        netbuf_delete(buf);
+        return;
+    }
+
+    // Copy data into the netbuf
+    netbuf_take(buf, data, length);
+
+    // Send the data
+    err_t err = netconn_send(conn, buf);
+    if (err != ERR_OK)
+    {
+        printf("Failed to send UDP data: %d\n", err);
+    }
+
+    // Cleanup
     netbuf_delete(buf);
 }
 
+/**
+ * @brief Send startup information packet.
+ */
 void udp_clientSendStartupInfoPacket(void)
 {
 	udp_clientSendData(&packet_StartupInfo, sizeof(packet_StartupInfo));
 }
 
+
+/**
+ * @brief Send multiple packets, including IMU and button states.
+ * @param rgbBuffers Pointer to array of image packets.
+ */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
 void udp_clientSendPackets(struct packet_Image *rgbBuffers)
@@ -151,23 +216,3 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 	udp_clientSendData(&packet_Button, sizeof(packet_Button));
 }
 #pragma GCC pop_options
-
-void udp_clientReceive(void)
-{
-    struct netbuf *buf;
-    void *data;
-    u16_t len;
-    while (netconn_recv(conn, &buf) == ERR_OK)
-    {
-        netbuf_data(buf, &data, &len);
-        // Process incoming data
-        message_count++;
-        netbuf_delete(buf);
-    }
-}
-
-void udp_clientClose(void)
-{
-    netconn_close(conn);
-    netconn_delete(conn);
-}

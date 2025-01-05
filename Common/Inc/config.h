@@ -22,8 +22,8 @@
 /*******************              General definitions               *******************/
 /**************************************************************************************/
 #define USE_BOTLOADER
-#define SHORT_VERSION	"3.3"
-#define VERSION "3.3.0"
+#define SHORT_VERSION	"3.4"
+#define VERSION "3.4.0"
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -98,8 +98,6 @@
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
-#define LWIP_DEBUG 0
-
 // Network configurations
 #define DEFAULT_NETWORK_IP 						{192, 168, 0, 10}
 #define DEFAULT_NETWORK_NETMASK 				{255, 255, 255, 0}
@@ -121,11 +119,11 @@
 #define DEFAULT_CIS_MAX_LINE_FREQ 900
 #define DEFAULT_CIS_OVERSAMPLING 8
 
-//#define DEFAULT_CIS_CLK_FREQ							(2500000)
-#define   DEFAULT_CIS_CLK_FREQ					(3125000)
-//#define DEFAULT_CIS_CLK_FREQ							(3200000)
-//#define DEFAULT_CIS_CLK_FREQ							(4000000)
-//#define DEFAULT_CIS_CLK_FREQ							(5000000)
+//#define DEFAULT_CIS_CLK_FREQ					(2500000)
+#define   DEFAULT_CIS_CLK_FREQ				(3125000)
+//#define DEFAULT_CIS_CLK_FREQ					(3200000)
+//#define DEFAULT_CIS_CLK_FREQ					(4000000)
+//#define DEFAULT_CIS_CLK_FREQ					(5000000)
 
 #define CIS_ADC_OUT_LANES						(3)
 
@@ -146,9 +144,7 @@
 
 #define CIS_MAX_LANE_SIZE 						(CIS_MAX_PIXEL_AERA_STOP + CIS_OVER_SCAN)
 
-#define CIS_LED_RED_ON							(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_GREEN_ON						(CIS_INACTIVE_WIDTH + 30)
-#define CIS_LED_BLUE_ON							(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_ON								(CIS_INACTIVE_WIDTH + 30)
 
 // LED illumination durations in microseconds
 #define CIS_400DPI_LED_DURATION_US     			(356)  // Duration in microseconds

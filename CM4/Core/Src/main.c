@@ -46,9 +46,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#if 0
 #ifndef HSEM_ID_0
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
+#endif
 #endif
 /* USER CODE END PD */
 
@@ -85,6 +86,7 @@ int main(void)
   /* USER CODE END 1 */
 
 /* USER CODE BEGIN Boot_Mode_Sequence_1 */
+#if 0
 	/*HW semaphore Clock enable*/
 	__HAL_RCC_HSEM_CLK_ENABLE();
 	/* Activate HSEM notification for Cortex-M4*/
@@ -97,6 +99,7 @@ int main(void)
 	HAL_PWREx_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFE, PWR_D2_DOMAIN);
 	/* Clear HSEM flag */
 	__HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(HSEM_ID_0));
+#endif
 
 /* USER CODE END Boot_Mode_Sequence_1 */
   /* MCU Configuration--------------------------------------------------------*/

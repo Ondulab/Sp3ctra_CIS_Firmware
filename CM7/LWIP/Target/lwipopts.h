@@ -51,10 +51,6 @@
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Default value in ETH configuration GUI in CubeMx: 1524 -----*/
 #define ETH_RX_BUFFER_SIZE 1536
-/*----- Default Value for MEMP_NUM_UDP_PCB: 4 ---*/
-#define MEMP_NUM_UDP_PCB 2
-/*----- Default Value for MEMP_NUM_TCP_PCB: 5 ---*/
-#define MEMP_NUM_TCP_PCB 15
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
@@ -65,14 +61,20 @@
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
 #define LWIP_ETHERNET 1
+/*----- Default Value for LWIP_MULTICAST_TX_OPTIONS: 0 ---*/
+#define LWIP_MULTICAST_TX_OPTIONS 1
 /*----- Value in opt.h for LWIP_DNS_SECURE: (LWIP_DNS_SECURE_RAND_XID | LWIP_DNS_SECURE_NO_MULTIPLE_OUTSTANDING | LWIP_DNS_SECURE_RAND_SRC_PORT) -*/
 #define LWIP_DNS_SECURE 7
+/*----- Default Value for LWIP_UDPLITE: 0 ---*/
+#define LWIP_UDPLITE 1
 /*----- Default Value for TCP_MSS: 536 ---*/
 #define TCP_MSS 1460
 /*----- Default Value for TCP_SND_BUF: 2920 ---*/
 #define TCP_SND_BUF 5840
 /*----- Default Value for TCP_SND_QUEUELEN: 17 ---*/
 #define TCP_SND_QUEUELEN 16
+/*----- Default Value for LWIP_NETIF_API: 0 ---*/
+#define LWIP_NETIF_API 1
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
@@ -117,12 +119,56 @@
 #define CHECKSUM_CHECK_TCP 0
 /*----- Value in opt.h for CHECKSUM_CHECK_ICMP6: 1 -----*/
 #define CHECKSUM_CHECK_ICMP6 0
-/*----- Default Value for LWIP_DBG_MIN_LEVEL: LWIP_DBG_LEVEL_ALL ---*/
-#define LWIP_DBG_MIN_LEVEL LWIP_DBG_LEVEL_WARNING
 /*-----------------------------------------------------------------------------*/
 /* USER CODE BEGIN 1 */
 #define HTTPD_USE_CUSTOM_FSDATA 	0
-#define FTPD_DEBUG 					LWIP_DBG_OFF
+
+#define LWIP_DEBUG 0
+#define LWIP_DBG_MIN_LEVEL LWIP_DBG_LEVEL_ALL //WARNING
+#define LWIP_DBG_TYPES_ON LWIP_DBG_OFF
+
+#define FTPD_DEBUG LWIP_DBG_OFF
+
+#define ETHARP_DEBUG LWIP_DBG_OFF
+#define NETIF_DEBUG LWIP_DBG_OFF
+#define PBUF_DEBUG LWIP_DBG_OFF
+#define API_LIB_DEBUG LWIP_DBG_OFF
+#define API_MSG_DEBUG LWIP_DBG_OFF
+#define SOCKETS_DEBUG LWIP_DBG_OFF
+#define ICMP_DEBUG LWIP_DBG_OFF
+#define INET_DEBUG LWIP_DBG_OFF
+#define IP_DEBUG LWIP_DBG_OFF
+#define IP_REASS_DEBUG LWIP_DBG_OFF
+#define RAW_DEBUG LWIP_DBG_OFF
+#define MEM_DEBUG LWIP_DBG_OFF
+#define MEMP_DEBUG LWIP_DBG_OFF
+#define SYS_DEBUG LWIP_DBG_OFF
+#define TIMERS_DEBUG LWIP_DBG_OFF
+#define TCP_DEBUG LWIP_DBG_OFF
+#define TCP_INPUT_DEBUG LWIP_DBG_OFF
+#define TCP_OUTPUT_DEBUG LWIP_DBG_OFF
+#define TCP_RST_DEBUG LWIP_DBG_OFF
+#define TCP_CWND_DEBUG LWIP_DBG_OFF
+#define TCP_WND_DEBUG LWIP_DBG_OFF
+#define TCP_FR_DEBUG LWIP_DBG_OFF
+#define TCP_QLEN_DEBUG LWIP_DBG_OFF
+#define UDP_DEBUG LWIP_DBG_OFF
+#define TCPIP_DEBUG LWIP_DBG_OFF
+#define SLIP_DEBUG LWIP_DBG_OFF
+#define DHCP_DEBUG LWIP_DBG_OFF
+#define AUTOIP_DEBUG LWIP_DBG_OFF
+#define DNS_DEBUG LWIP_DBG_OFF
+#define IP6_DEBUG LWIP_DBG_OFF
+#define HTTPD_DEBUG LWIP_DBG_OFF
+
+#define MEMP_SANITY_CHECK          1
+
+#define TCP_LISTEN_BACKLOG 1
+#define TCP_DEFAULT_LISTEN_BACKLOG 8
+
+#define LWIP_SO_SNDTIMEO           1
+//#define LWIP_SO_RCVTIMEO           1
+
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

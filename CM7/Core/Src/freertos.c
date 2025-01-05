@@ -144,7 +144,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 4096);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 4096);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -173,6 +173,8 @@ void StartDefaultTask(void const * argument)
 	file_initConfig(&shared_config);
 
 	icm42688_init();
+
+
 
 	MX_LWIP_Init();
 
@@ -206,6 +208,9 @@ void StartDefaultTask(void const * argument)
 	cis_scanInit();
 
 	/* Infinite loop */
+    printf("----- INIT TASK COMPLETE -------\n");
+    vTaskDelete(NULL); //delete task
+
 	for(;;)
 	{
 		osDelay(1);

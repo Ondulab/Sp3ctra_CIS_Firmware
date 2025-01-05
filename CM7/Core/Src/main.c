@@ -49,9 +49,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#if 0
 #ifndef HSEM_ID_0
 #define HSEM_ID_0 (0U) /* HW semaphore 0*/
+#endif
 #endif
 /* USER CODE END PD */
 
@@ -93,7 +94,6 @@ int main(void)
 
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
-	int32_t timeout;
 
 /* USER CODE END Boot_Mode_Sequence_0 */
 
@@ -117,7 +117,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  HAL_PWREx_DisableUSBVoltageDetector();
 
   /* USER CODE END Init */
 
@@ -127,6 +126,10 @@ int main(void)
   /* Configure the peripherals common clocks */
   PeriphCommonClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
+  /* Enable CPU2 (Cortex-M4) boot regardless of option byte values */
+
+#if 0
+
 	/* When system initialization is finished, Cortex-M7 will release Cortex-M4 by means of HSEM notification */
 	/*HW semaphore Clock enable*/
 	__HAL_RCC_HSEM_CLK_ENABLE();
@@ -141,6 +144,7 @@ int main(void)
 	{
 		Error_Handler();
 	}
+#endif
 /* USER CODE END Boot_Mode_Sequence_2 */
 
   /* USER CODE BEGIN SysInit */
@@ -151,7 +155,6 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_TIM3_Init();
   MX_RNG_Init();
   MX_CRC_Init();
   MX_SPI2_Init();
@@ -160,6 +163,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   printf("CM7 BOOT\n");
+
+  HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
 
 	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
 	printf("@@@       @=  @*       @   @@   @  @@@  @@       @   @@@  @@@\n");
@@ -177,7 +182,6 @@ int main(void)
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
-
 
   /* USER CODE END 2 */
 
@@ -366,6 +370,29 @@ static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
 		buffer[i] = i % 256;  // Pattern simple : 0, 1, 2, ..., 255, 0, 1, ...
 	}
 }
+
+/**
++--------------------------+ 0x30020000
+|      LWIP_RAM_HEAP       | <--- Region 1: MPU_TEX_LEVEL1, Not cacheable
+|                          |  (Size: 128KB)
+|                          |
+|                          |
+|                          |
++--------------------------+ 0x30040000
+|     RX_DESCRIPTOR        | <--- Region 2: MPU_TEX_LEVEL0, Shareable, Bufferable, Not cacheable
+|                          |  (Size: 256B)
++--------------------------+ 0x30040100
+|     TX_DESCRIPTOR        | <--- Region 2: MPU_TEX_LEVEL0, Shareable, Bufferable, Not cacheable
+|                          |  (Size: 256B)
++--------------------------+ 0x30040200
+|        RX_POOL           |
+|                          |  (Size: 18,720 bytes)
+|                          |
+|                          |
+|                          |
+|                          |
++--------------------------+ 0x30044780
+**/
 /* USER CODE END 4 */
 
  /* MPU Configuration */
@@ -393,6 +420,43 @@ void MPU_Config(void)
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
 
+  // Configuration pour RAM_SHARED
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x24000000;          // Adresse de base de RAM_SHARED
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;       // Taille de la région
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS; // Lecture/écriture autorisées
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE; // Partageable entre CM7 et CM4
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;       // Utilisez une autre région MPU
+  MPU_InitStruct.BaseAddress = 0x24000100;          // Adresse de base de RAM_SHARED_CACHED
+  MPU_InitStruct.Size = MPU_REGION_SIZE_16KB;       // Taille de la région
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS; // Lecture/écriture autorisées
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;      // Mémoire bufferisée (accélération)
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;        // Mémoire cacheable (accélération)
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;    // Non-partageable si cache activé
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.BaseAddress = 0x00;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
+  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.SubRegionDisable = 0x87;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
+
   /** Initializes and configures the Region and the memory to be protected
   */
   MPU_InitStruct.Number = MPU_REGION_NUMBER1;
@@ -413,15 +477,6 @@ void MPU_Config(void)
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-  /** Initializes and configures the Region and the memory to be protected
-  */
-  MPU_InitStruct.Number = MPU_REGION_NUMBER3;
-  MPU_InitStruct.BaseAddress = 0x24000000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_256B;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */

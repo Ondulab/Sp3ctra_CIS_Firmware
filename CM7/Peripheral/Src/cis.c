@@ -139,7 +139,7 @@ void cis_configure(uint16_t dpi)
     float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
 
     /* Calculate LED OFF index */
-    cisConfig.leds_off_index = (int)(leds_duration_us / cycle_duration_us) + CIS_LED_RED_ON;
+    cisConfig.leds_off_index = (int)(leds_duration_us / cycle_duration_us) + CIS_LED_ON;
 
     /* Check that led_off_index does not exceed CIS_MAX_LANE_SIZE */
     if (cisConfig.leds_off_index > CIS_MAX_LANE_SIZE)
@@ -452,13 +452,13 @@ void cis_startCapture()
 
     // Set RGB phase shift
 #ifndef CIS_MONOCHROME
-    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_RED_ON);   // R
-    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 3) - CIS_LED_GREEN_ON); // G
-    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 2) - CIS_LED_BLUE_ON);  // B
+    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_ON);  // R
+    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 3) - CIS_LED_ON);  // G
+    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 2) - CIS_LED_ON);  // B
 #else
-    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_RED_ON);   // R
-    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 1) - CIS_LED_GREEN_ON); // G
-    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 1) - CIS_LED_BLUE_ON);  // B
+    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_ON);  // R
+    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 1) - CIS_LED_ON);  // G
+    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 1) - CIS_LED_ON);  // B
 #endif
 
     /* Start LEDs ############################################*/

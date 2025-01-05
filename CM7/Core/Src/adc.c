@@ -7,7 +7,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2022 STMicroelectronics.
+  * Copyright (c) 2024 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -21,8 +21,6 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
-
-#include "config.h"
 
 /* USER CODE END 0 */
 
@@ -163,7 +161,7 @@ void MX_ADC3_Init(void)
   ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC3_Init 1 */
-
+  hadc3.Init.Resolution = ADC_RESOLUTION_12B; //To fix STM32CubeMX bug
   /* USER CODE END ADC3_Init 1 */
 
   /** Common config

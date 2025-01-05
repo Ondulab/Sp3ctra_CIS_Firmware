@@ -161,9 +161,9 @@ void tcp_clientInit(void)
 	printf("--- TCP LED INITIALIZATIONS ---\n");
 
 	// Create the TCP client task for LED control with a stack size of 1024 and normal priority
-	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 1024, NULL, osPriorityNormal, NULL) == pdPASS)
+	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 512, NULL, osPriorityNormal, NULL) == pdPASS)
 	{
-		printf("TCP TASK SUCCESS\n");
+		printf("TCP initialisation SUCCESS\n");
 	}
 	else
 	{

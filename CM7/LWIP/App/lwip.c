@@ -30,6 +30,9 @@
 /* USER CODE BEGIN 0 */
 #include "globals.h"
 #include "stdio.h"
+#include "udp_client.h"
+#include "http_server.h"
+#include "lwip/netifapi.h"
 
 /* USER CODE END 0 */
 /* Private function prototypes -----------------------------------------------*/
@@ -38,7 +41,7 @@ static void ethernet_link_status_updated(struct netif *netif);
 void Error_Handler(void);
 
 /* USER CODE BEGIN 1 */
-
+TaskHandle_t LinkManagerTaskHandle;
 /* USER CODE END 1 */
 
 /* Variables Initialization */
@@ -75,20 +78,20 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN IP_ADDRESSES */
 
-  printf("---- LWIP INITIALIZATIONS -----\n");
-										    //
-  IP_ADDRESS[0] = shared_config.network_ip[0];
-  IP_ADDRESS[1] = shared_config.network_ip[1];
-  IP_ADDRESS[2] = shared_config.network_ip[2];
-  IP_ADDRESS[3] = shared_config.network_ip[3];
-  NETMASK_ADDRESS[0] = shared_config.network_netmask[0];
-  NETMASK_ADDRESS[1] = shared_config.network_netmask[1];
-  NETMASK_ADDRESS[2] = shared_config.network_netmask[2];
-  NETMASK_ADDRESS[3] = shared_config.network_netmask[3];
-  GATEWAY_ADDRESS[0] = shared_config.network_gw[0];
-  GATEWAY_ADDRESS[1] = shared_config.network_gw[1];
-  GATEWAY_ADDRESS[2] = shared_config.network_gw[2];
-  GATEWAY_ADDRESS[3] = shared_config.network_gw[3];
+    printf("---- LWIP INITIALIZATIONS -----\n");
+  										    //
+    IP_ADDRESS[0] = shared_config.network_ip[0];
+    IP_ADDRESS[1] = shared_config.network_ip[1];
+    IP_ADDRESS[2] = shared_config.network_ip[2];
+    IP_ADDRESS[3] = shared_config.network_ip[3];
+    NETMASK_ADDRESS[0] = shared_config.network_netmask[0];
+    NETMASK_ADDRESS[1] = shared_config.network_netmask[1];
+    NETMASK_ADDRESS[2] = shared_config.network_netmask[2];
+    NETMASK_ADDRESS[3] = shared_config.network_netmask[3];
+    GATEWAY_ADDRESS[0] = shared_config.network_gw[0];
+    GATEWAY_ADDRESS[1] = shared_config.network_gw[1];
+    GATEWAY_ADDRESS[2] = shared_config.network_gw[2];
+    GATEWAY_ADDRESS[3] = shared_config.network_gw[3];
 
 /* USER CODE END IP_ADDRESSES */
 
@@ -140,11 +143,19 @@ static void ethernet_link_status_updated(struct netif *netif)
   if (netif_is_up(netif))
   {
 /* USER CODE BEGIN 5 */
+      /* Lien Ethernet actif */
+      printf("Ethernet link is UP\n");
+      isConnected = 1;
+
 /* USER CODE END 5 */
   }
   else /* netif is down */
   {
 /* USER CODE BEGIN 6 */
+      /* Lien Ethernet inactif */
+      printf("Ethernet link is DOWN\n");
+      isConnected = 0;
+
 /* USER CODE END 6 */
   }
 }
