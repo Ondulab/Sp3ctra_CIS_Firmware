@@ -51,14 +51,28 @@
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 /*----- Default value in ETH configuration GUI in CubeMx: 1524 -----*/
 #define ETH_RX_BUFFER_SIZE 1536
+/*----- Default Value for MEMP_NUM_UDP_PCB: 4 ---*/
+#define MEMP_NUM_UDP_PCB 2
+/*----- Default Value for MEMP_NUM_TCP_PCB: 5 ---*/
+#define MEMP_NUM_TCP_PCB 15
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
 #define MEM_SIZE 131048
 /*----- Default Value for F7/H7 devices: 0x30044000 -----*/
 #define LWIP_RAM_HEAP_POINTER 0x30020000
+/*----- Default Value for MEMP_NUM_TCP_PCB_LISTEN: 8 ---*/
+#define MEMP_NUM_TCP_PCB_LISTEN 10
+/*----- Default Value for MEMP_NUM_TCP_SEG: 16 ---*/
+#define MEMP_NUM_TCP_SEG 20
+/*----- Default Value for MEMP_NUM_NETCONN: 4 ---*/
+#define MEMP_NUM_NETCONN 8
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
+/*----- Default Value for PBUF_POOL_SIZE: 16 ---*/
+#define PBUF_POOL_SIZE 20
+/*----- Default Value for PBUF_POOL_BUFSIZE: 592 ---*/
+#define PBUF_POOL_BUFSIZE 1500
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
 #define LWIP_ETHERNET 1
 /*----- Default Value for LWIP_MULTICAST_TX_OPTIONS: 0 ---*/
@@ -123,7 +137,22 @@
 /* USER CODE BEGIN 1 */
 #define HTTPD_USE_CUSTOM_FSDATA 	0
 
-#define LWIP_DEBUG 0
+//#define MEMP_NUM_TCP_PCB 15
+
+#define LWIP_DEBUG 1
+
+#if 0
+#define LWIP_STATS                   1   // Activer les statistiques globales
+#define LWIP_STATS_DISPLAY           1   // Activer l'affichage des statistiques (si vous voulez les imprimer)
+#define LINK_STATS                   1   // Activer les statistiques liées aux interfaces réseau
+#define IP_STATS                     1   // Statistiques IP
+#define TCP_STATS                    1   // Statistiques TCP
+#define UDP_STATS                    1   // Statistiques UDP
+#define MEM_STATS                    1   // Statistiques de gestion de mémoire
+#define MEMP_STATS                   1   // Statistiques sur les pools mémoire
+#define SYS_STATS                    1   // Statistiques système (threads, etc.)
+#endif
+
 #define LWIP_DBG_MIN_LEVEL LWIP_DBG_LEVEL_ALL //WARNING
 #define LWIP_DBG_TYPES_ON LWIP_DBG_OFF
 
@@ -163,8 +192,8 @@
 
 #define MEMP_SANITY_CHECK          1
 
-#define TCP_LISTEN_BACKLOG 1
-#define TCP_DEFAULT_LISTEN_BACKLOG 8
+//#define TCP_LISTEN_BACKLOG 1
+//#define TCP_DEFAULT_LISTEN_BACKLOG 8
 
 #define LWIP_SO_SNDTIMEO           1
 //#define LWIP_SO_RCVTIMEO           1

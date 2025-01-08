@@ -31,6 +31,7 @@
 #include "tim.h"
 #include "adc.h"
 #include "dma.h"
+#include "iwdg.h"
 
 #include "cis_scan.h"
 
@@ -54,6 +55,7 @@ static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[CIS_ADC_OUT_LANES] = {
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+static void cis_resetStart(void);
 static void cis_initTimClock();
 static void cis_initTimStartPulse();
 static void cis_initTimLedRed();
@@ -79,6 +81,8 @@ void cis_init(void)
     cis_initAdc();
 
     cis_configure(shared_config.cis_dpi);
+
+    MX_IWDG1_Init();
 }
 
 /**
@@ -116,7 +120,7 @@ void cis_configure(uint16_t dpi)
         leds_duration_us = CIS_200DPI_LED_DURATION_US;
     }
 
-    osDelay(100);
+    osDelay(50);
 
     /* Common configurations */
     cisConfig.pixels_nb = cisConfig.pixels_per_lane * CIS_ADC_OUT_LANES;
@@ -228,13 +232,16 @@ void cis_configure(uint16_t dpi)
  * 		        ^                                        ^                                        ^
  *              M1                                       M2                                       M3
  *
- */
+ **/
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
+
 void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
 {
     int32_t acc = 0;
     int32_t lane, i;
+
+    HAL_IWDG_Refresh(&hiwdg1);
 
     if (overSampling > 1)
     {
@@ -246,7 +253,16 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
         // Read and copy the half-filled DMA buffers
         for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
         {
-            while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF);
+            uint32_t startTick = HAL_GetTick();
+            while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
+            {
+                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
+                {
+                    printf("Timeout: Half buffer state not reached for lane %d\n", (int)lane);
+                    cis_resetStart();
+                    return;
+                }
+            }
 
             SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
             for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
@@ -267,7 +283,16 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
         // Read and copy the full DMA buffers
         for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
         {
-            while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL);
+            uint32_t startTick = HAL_GetTick();
+            while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
+            {
+                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
+                {
+                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)lane);
+                    cis_resetStart();
+                    return;
+                }
+            }
 
             SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
             for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
@@ -402,7 +427,6 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffe
     }
 }
 
-#pragma GCC pop_options
 /**
  * @brief  cis_ImageProcessRGB_Calibration
  * @param  cis calibration buffer ptr
@@ -426,8 +450,24 @@ void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb
     arm_scale_f32(cisCalData, 1.0f / (float32_t)iterationNb, cisCalData, cisConfig.adc_buff_size * 3);
 }
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
+/**
+ * @brief Resets the CIS capture process by stopping, clearing buffer states, and restarting.
+ */
+void cis_resetStart(void)
+{
+    // Stop the capture process
+    cis_stopCapture();
+
+    // Reset buffer states
+    for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
+    {
+        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+    }
+
+    // Restart the capture process
+    cis_startCapture();
+}
 
 /**
  * @brief  CIS start captures
@@ -494,6 +534,7 @@ void cis_startCapture()
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 
+#ifdef CIS_PRINT_COUNTER
 	printf("=========== COUNTERS ==========\n");
     printf("adc1 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc1));
     printf("adc2 DMA count : %d \n",(int)__HAL_DMA_GET_COUNTER(&hdma_adc2));
@@ -504,6 +545,7 @@ void cis_startCapture()
     printf("LEDG TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim5));
     printf("LEDB TIM count : %d \n",(int)__HAL_TIM_GET_COUNTER(&htim3));
 	printf("===============================\n");
+#endif
 }
 
 /**

@@ -481,8 +481,6 @@ static void http_server(struct netconn *conn)
 						fs_open(&file, "/img/CISYNTH.png");
 						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 						fs_close(&file);
-
-						//osDelay(50);
 					}
 
 					/* Send a favicon for requests to '/img/favicon_64x64.ico' */
@@ -556,7 +554,6 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 						fs_close(&file);
 					}
-
 				}
 				else
 				{
@@ -811,7 +808,7 @@ static void http_server(struct netconn *conn)
 // Function to initialize and manage the HTTP server thread
 static void http_thread(void *arg)
 {
-    printf("----- HTTP THREAD STARTED ------\n");
+    printf("----- HTTP THREAD STARTED -----\n");
 
     struct netconn *conn, *newconn;
     err_t err, accept_err;
