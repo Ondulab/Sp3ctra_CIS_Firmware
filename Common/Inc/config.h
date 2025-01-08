@@ -122,11 +122,11 @@
 
 //#define DEFAULT_CIS_CLK_FREQ					(2500000)
 //#define   DEFAULT_CIS_CLK_FREQ				(3125000)
-//#define DEFAULT_CIS_CLK_FREQ					(3200000)
-#define DEFAULT_CIS_CLK_FREQ					(4000000)
+#define DEFAULT_CIS_CLK_FREQ					(3200000)
+//#define DEFAULT_CIS_CLK_FREQ					(4000000)
 //#define DEFAULT_CIS_CLK_FREQ					(5000000)
 
-#define CIS_CAPTURE_TIMEOUT 					(10)
+#define CIS_CAPTURE_TIMEOUT 					(100)
 
 #define CIS_ADC_OUT_LANES						(3)
 
