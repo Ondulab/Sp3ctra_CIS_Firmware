@@ -41,7 +41,7 @@ static void ethernet_link_status_updated(struct netif *netif);
 void Error_Handler(void);
 
 /* USER CODE BEGIN 1 */
-TaskHandle_t LinkManagerTaskHandle;
+
 /* USER CODE END 1 */
 
 /* Variables Initialization */

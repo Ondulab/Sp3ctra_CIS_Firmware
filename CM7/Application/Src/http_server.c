@@ -825,7 +825,7 @@ static void http_thread(void *arg)
     // Bind the connection to port 80 and listen for incoming connections
     if (conn != NULL)
     {
-        netconn_set_sendtimeout(conn, 5000);
+        //netconn_set_sendtimeout(conn, 500);
 
         err_t err = netconn_bind(conn, IP_ADDR_ANY, 80);
         if (err == ERR_OK)

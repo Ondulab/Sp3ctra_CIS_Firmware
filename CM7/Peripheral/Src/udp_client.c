@@ -75,7 +75,7 @@ void udp_clientInit(void)
     conn = netconn_new(NETCONN_UDP);
     if (conn != NULL) {
 
-        netconn_set_sendtimeout(conn, 100);
+        //netconn_set_sendtimeout(conn, 100);
 
         IP4_ADDR(&destIPaddr, shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
         netconn_bind(conn, NULL, 0);//        DEFAULT_NETWORK_UDP_PORT);
@@ -103,7 +103,7 @@ void udp_clientInit(void)
     packet_StartupInfo.packet_id = packetsCounter++;
     sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
 
-    udp_clientSendStartupInfoPacket();
+    //udp_clientSendStartupInfoPacket();
 }
 
 /**

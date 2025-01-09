@@ -69,10 +69,6 @@
 #define MEMP_NUM_NETCONN 8
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
-/*----- Default Value for PBUF_POOL_SIZE: 16 ---*/
-#define PBUF_POOL_SIZE 20
-/*----- Default Value for PBUF_POOL_BUFSIZE: 592 ---*/
-#define PBUF_POOL_BUFSIZE 1500
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
 #define LWIP_ETHERNET 1
 /*----- Default Value for LWIP_MULTICAST_TX_OPTIONS: 0 ---*/
@@ -87,8 +83,6 @@
 #define TCP_SND_BUF 5840
 /*----- Default Value for TCP_SND_QUEUELEN: 17 ---*/
 #define TCP_SND_QUEUELEN 16
-/*----- Default Value for LWIP_NETIF_API: 0 ---*/
-#define LWIP_NETIF_API 1
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
@@ -195,7 +189,7 @@
 //#define TCP_LISTEN_BACKLOG 1
 //#define TCP_DEFAULT_LISTEN_BACKLOG 8
 
-#define LWIP_SO_SNDTIMEO           1
+//#define LWIP_SO_SNDTIMEO           1
 //#define LWIP_SO_RCVTIMEO           1
 
 /* USER CODE END 1 */
