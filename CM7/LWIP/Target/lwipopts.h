@@ -141,7 +141,7 @@
 
 #define LWIP_DEBUG 1
 
-#if 0
+#ifdef DEBUG_LWIP_STATS
 #define LWIP_STATS                   1   // Activer les statistiques globales
 #define LWIP_STATS_DISPLAY           1   // Activer l'affichage des statistiques (si vous voulez les imprimer)
 #define LINK_STATS                   1   // Activer les statistiques liées aux interfaces réseau

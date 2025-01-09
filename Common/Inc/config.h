@@ -30,10 +30,12 @@
 /**************************************************************************************/
 //#define PRINTF_CM4
 //#define SKIP_SPLASH
-//#define ETHERNET_OFF
+
+//#define DEBUG_LWIP_STATS
+//#define HTTP_SERVER_DEBUG
+
 //#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_PRINT_COUNTER
-//#define HTTP_SERVER_DEBUG
 
 /**************************************************************************************/
 /****************              Flash Address definitions               ****************/

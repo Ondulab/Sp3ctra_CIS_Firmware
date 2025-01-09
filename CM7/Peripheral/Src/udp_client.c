@@ -23,10 +23,14 @@
 #include "lwip/arch.h"
 #include "lwip/api.h"
 #include "lwip/apps/fs.h"
+#include "lwip/netif.h"
+
+#include "lwip/udp.h"
+#include "lwip/api.h"
+#include "lwip/err.h"
 
 #include "stm32h7xx_hal_eth.h"
 #include "lan8742.h"
-#include "lwip/netif.h"
 
 #include <stdio.h>
 #include "icm42688.h"

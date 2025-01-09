@@ -174,7 +174,6 @@ void StartDefaultTask(void const * argument)
 
 	icm42688_init();
 
-
 	MX_LWIP_Init();
 
 	ftpd_init();
@@ -206,9 +205,11 @@ void StartDefaultTask(void const * argument)
 
 	cis_scanInit();
 
+#ifndef DEBUG_LWIP_STATS
 	/* Infinite loop */
     printf("------ INIT TASK COMPLETE -----\n");
     vTaskDelete(NULL); //delete task
+#endif
 
 	for(;;)
 	{

@@ -43,7 +43,7 @@ __attribute__ ((section(".cisCals")))
 struct cisCals cisCals = {0};
 
 __attribute__ ((section(".rgbBuffers")))
-struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE] = {0};
+struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE * 2] = {0};
 
 __attribute__ ((section(".imuData")))
 struct packet_IMU packet_IMU = {0};

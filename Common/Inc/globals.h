@@ -204,7 +204,7 @@ struct __attribute__((aligned(4))) shared_config
 
 extern volatile struct shared_var shared_var;
 extern volatile struct shared_config shared_config;
-extern struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE];
+extern struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE * 2];
 extern struct packet_IMU packet_IMU;
 extern int params_size;
 
