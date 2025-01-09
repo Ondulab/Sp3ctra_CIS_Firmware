@@ -17,8 +17,6 @@
 #ifndef CIS_SCAN_H
 #define CIS_SCAN_H
 
-extern TaskHandle_t cis_scanThreadHandle;
-
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
