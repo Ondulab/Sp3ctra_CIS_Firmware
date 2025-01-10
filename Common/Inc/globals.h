@@ -189,10 +189,7 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t network_udp_port;
 	uint16_t network_tcp_port;
 	uint8_t cis_print_calibration;
-	uint8_t cis_raw;
 	uint16_t cis_dpi;
-	uint8_t cis_monochrome;
-	uint16_t cis_max_line_freq;
 	uint32_t cis_clk_freq;
 	uint8_t cis_oversampling;
 	uint8_t cis_handedness;

@@ -82,7 +82,7 @@ void cis_init(void)
 
     cis_configure(shared_config.cis_dpi);
 
-   // MX_IWDG1_Init();
+    MX_IWDG1_Init();
 }
 
 /**

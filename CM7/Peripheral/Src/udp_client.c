@@ -103,7 +103,7 @@ void udp_clientInit(void)
     packet_StartupInfo.packet_id = packetsCounter++;
     sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
 
-    //udp_clientSendStartupInfoPacket();
+    udp_clientSendStartupInfoPacket();
 }
 
 /**
@@ -115,22 +115,8 @@ void udp_clientSendData(void *data, uint16_t length)
 {
     if (isConnected == 0)
     {
-        //if (conn == NULL)
-        //{
-            //return;
-        //}
-        //netconn_close(conn);
-        //netconn_delete(conn);
-        //conn = NULL;
         return;
     }
-#if 0
-    if (conn == NULL)
-    {
-        udp_clientInit();
-        return;
-    }
-#endif
 
     // Create a new netbuf
     struct netbuf *buf = netbuf_new();
@@ -197,11 +183,11 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 	packet_IMU.gyro[1] = icm42688_gyrY();
 	packet_IMU.gyro[2] = icm42688_gyrZ();
 
-	udp_clientSendData(&packet_IMU, sizeof(packet_IMU));
+	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
+
+	udp_clientSendData(&packet_IMU, sizeof(struct packet_IMU));
 
 	icm42688_TIM_Callback();
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
 
 	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
 	{

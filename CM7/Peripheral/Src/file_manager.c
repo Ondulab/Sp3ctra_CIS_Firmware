@@ -36,10 +36,7 @@ const struct shared_config DefaultConfig =
     .network_udp_port = DEFAULT_NETWORK_UDP_PORT,
     .network_tcp_port = DEFAULT_NETWORK_TCP_PORT,
     .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
-    .cis_raw = DEFAULT_CIS_RAW,
     .cis_dpi = DEFAULT_CIS_DPI,
-    .cis_monochrome = DEFAULT_CIS_MONOCHROME,
-    .cis_max_line_freq = DEFAULT_CIS_MAX_LINE_FREQ,
     .cis_clk_freq = DEFAULT_CIS_CLK_FREQ,
     .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
     .cis_handedness = DEFAULT_CIS_HANDEDNESS
@@ -126,21 +123,9 @@ void file_parseLine(char* line, volatile struct shared_config* config)
 			{
 				config->cis_print_calibration = (uint8_t)strtoul(value, NULL, 10);
 			}
-			else if (strcmp(token, "CIS_RAW") == 0)
-			{
-				config->cis_raw = (uint8_t)strtoul(value, NULL, 10);
-			}
 			else if (strcmp(token, "CIS_DPI") == 0)
 			{
 				config->cis_dpi = (uint16_t)strtoul(value, NULL, 10);
-			}
-			else if (strcmp(token, "CIS_MONOCHROME") == 0)
-			{
-				config->cis_monochrome = (uint8_t)strtoul(value, NULL, 10);
-			}
-			else if (strcmp(token, "CIS_MAX_LINE_FREQ") == 0)
-			{
-				config->cis_max_line_freq = (uint16_t)strtoul(value, NULL, 10);
 			}
 			else if (strcmp(token, "CIS_CLK_FREQ") == 0)
 			{
@@ -189,10 +174,7 @@ int file_writeConfig(const char* filePath, const volatile struct shared_config* 
 	f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
 	f_printf(&file, "NETWORK_TCP_PORT=%u\n", config->network_tcp_port);
 	f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
-	f_printf(&file, "CIS_RAW=%u\n", config->cis_raw);
 	f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
-	f_printf(&file, "CIS_MONOCHROME=%u\n", config->cis_monochrome);
-	f_printf(&file, "CIS_MAX_LINE_FREQ=%u\n", config->cis_max_line_freq);
 	f_printf(&file, "CIS_CLK_FREQ=%lu\n", config->cis_clk_freq);
 	f_printf(&file, "CIS_OVERSAMPLING=%u\n", config->cis_oversampling);
 	f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
@@ -230,13 +212,7 @@ void print_shared_config(struct shared_config config)
 
     printf("CIS Print Calibration: %u\n", config.cis_print_calibration);
 
-    printf("CIS Raw: %u\n", config.cis_raw);
-
     printf("CIS DPI: %u\n", config.cis_dpi);
-
-    printf("CIS Monochrome: %u\n", config.cis_monochrome);
-
-    printf("CIS Max Line Frequency: %u Hz\n", config.cis_max_line_freq);
 
     printf("CIS Clock Frequency: %u Hz\n", (unsigned int)config.cis_clk_freq);
 

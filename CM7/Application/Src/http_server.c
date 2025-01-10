@@ -888,6 +888,9 @@ static void http_thread(void *arg)
             // Print an error message if the connection accept fails
             printf("Error: netconn_accept failed with error code %d\n", accept_err);
         }
+
+        // Small delay to avoid hogging CPU
+        osDelay(1); // 1 ms delay, adjust as needed
     }
 
     // Clean up the main connection handle (should never reach here)

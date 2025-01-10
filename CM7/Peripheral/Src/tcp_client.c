@@ -147,6 +147,9 @@ static void tcp_client_task(void *arg)
 			netconn_delete(newconn);
 		}
 	}
+
+    // Add a small delay to avoid CPU starvation
+    osDelay(10); // Delay of 10 ms, adjust as needed
 }
 
 /**
@@ -161,7 +164,7 @@ void tcp_clientInit(void)
 	printf("--- TCP LED INITIALIZATIONS ---\n");
 
 	// Create the TCP client task for LED control with a stack size of 1024 and normal priority
-	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 512, NULL, osPriorityNormal, NULL) == pdPASS)
+	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 512, NULL, osPriorityHigh, NULL) == pdPASS)
 	{
 		printf("TCP initialisation SUCCESS\n");
 	}

@@ -121,8 +121,10 @@ static void cis_userCal(void)
     {
         printf("----- CALIBRATION STARTED ------\n");
 
-        printf("CIS calibration state = %d\n", (int)shared_var.cis_cal_state);
-        while (shared_var.cis_cal_state != CIS_CAL_START);
+        while (shared_var.cis_cal_state != CIS_CAL_START)
+        {
+        	 osDelay(1);
+        }
 #ifdef POLYNOMIAL_CALIBRATION
         cis_StartCalibration(20); // WIP
 #else
@@ -163,7 +165,7 @@ static void cis_scanTask(void *argument)
         xQueueReceive(freeBufferQueue, &pCurrentBuffer, portMAX_DELAY);
 
         // 2) Process the image data and fill the buffer
-        //cis_imageProcess(cisDataCpy_f32, pCurrentBuffer);
+        cis_imageProcess(cisDataCpy_f32, pCurrentBuffer);
 
         // 3) Notify the send task that the buffer is ready
         xQueueSend(readyBufferQueue, &pCurrentBuffer, portMAX_DELAY);
