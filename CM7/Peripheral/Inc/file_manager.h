@@ -24,10 +24,6 @@
 #include "string.h"
 #include "stdlib.h"
 
-#define ROOT_PATH "0:/"
-#define CALIBRATION_FILE_PATH_FORMAT "0:/CALIB_%ddpi.BIN"
-#define CONFIG_FILE_PATH "0:/CONFIG.TXT"
-
 int file_factoryReset(void);
 void file_initConfig(volatile struct shared_config* config);
 int file_readConfig(const char* filePath, volatile struct shared_config* config);

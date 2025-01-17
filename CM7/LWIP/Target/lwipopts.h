@@ -132,22 +132,21 @@
 #define LWIP_DEBUG 0
 
 #ifdef DEBUG_LWIP_STATS
-#define LWIP_STATS                   1   // Activer les statistiques globales
-#define LWIP_STATS_DISPLAY           1   // Activer l'affichage des statistiques (si vous voulez les imprimer)
-#define LINK_STATS                   1   // Activer les statistiques liées aux interfaces réseau
-#define IP_STATS                     1   // Statistiques IP
-#define TCP_STATS                    1   // Statistiques TCP
-#define UDP_STATS                    1   // Statistiques UDP
-#define MEM_STATS                    1   // Statistiques de gestion de mémoire
-#define MEMP_STATS                   1   // Statistiques sur les pools mémoire
-#define SYS_STATS                    1   // Statistiques système (threads, etc.)
+#define LWIP_STATS                   1   // Enable global statistics
+#define LWIP_STATS_DISPLAY           1   // Enable statistics display (if you want to print them)
+#define LINK_STATS                   1   // Enable statistics related to network interfaces
+#define IP_STATS                     1   // Enable IP statistics
+#define TCP_STATS                    1   // Enable TCP statistics
+#define UDP_STATS                    1   // Enable UDP statistics
+#define MEM_STATS                    1   // Enable memory management statistics
+#define MEMP_STATS                   1   // Enable memory pool statistics
+#define SYS_STATS                    1   // Enable system statistics (threads, etc.)
 #endif
 
 #define LWIP_DBG_MIN_LEVEL LWIP_DBG_LEVEL_ALL //WARNING
-#define LWIP_DBG_TYPES_ON LWIP_DBG_OFF
+#define LWIP_DBG_TYPES_ON LWIP_DBG_ON
 
 #define FTPD_DEBUG LWIP_DBG_OFF
-
 #define ETHARP_DEBUG LWIP_DBG_OFF
 #define NETIF_DEBUG LWIP_DBG_OFF
 #define PBUF_DEBUG LWIP_DBG_OFF

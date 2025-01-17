@@ -1265,8 +1265,15 @@ static err_t ftpd_msgrecv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t 
 			LWIP_DEBUGF(FTPD_DEBUG, ("query: %s\n", text));
 
 			strncpy(cmd, text, 4);
-			for (pt = cmd; *pt != '\0' && pt < &cmd[4]; pt++) {
-			    if (isalpha((uint8_t)*pt)) {
+			for (pt = cmd; *pt != '\0' && pt < &cmd[4]; pt++)
+			{
+			    if (*pt == ' ')
+			    {
+			        *pt = '\0';
+			        break;
+			    }
+			    if (isalpha((uint8_t)*pt))
+			    {
 			        *pt = toupper((uint8_t)*pt);
 			    }
 			}

@@ -38,6 +38,7 @@
 #include "stm32_flash.h"
 
 #include "globals.h"
+#include "config.h"
 
 TaskHandle_t http_ThreadHandle = NULL;
 
@@ -108,6 +109,15 @@ typedef enum
 	FW_UPDATE_Stage_VERIFIED
 }  FW_UPDATE_Stage;
 
+/**
+ * @brief  Secure Engine Error definition
+ */
+typedef enum
+{
+	FU_ERROR = 0U,
+	FU_SUCCESS = !FU_ERROR
+} FU_ErrorStatus;
+
 typedef struct {
 
 	fwupdate_state_t state;
@@ -140,6 +150,14 @@ static fwupdate_t fwupdate;
 #define FWUPDATE_STATUS_INPROGRESS      1
 #define FWUPDATE_STATUS_DONE            2
 
+#define FW_UPDATE_Stage_NOT_STARTED 0
+#define FW_UPDATE_Stage_IN_PROGRESS 1
+#define FW_UPDATE_Stage_VERIFIED 2
+
+static FIL file;
+
+#define FW_UPDATE_RebootDelay_NEXT            ((uint32_t)1)
+
 #ifdef HTTP_SERVER_DEBUG
 static const char* fwupdate_state_str(fwupdate_state_t state)
 {
@@ -154,23 +172,6 @@ static const char* fwupdate_state_str(fwupdate_state_t state)
 }
 #endif
 
-/**
- * @brief  Secure Engine Error definition
- */
-typedef enum
-{
-	FU_ERROR = 0U,
-	FU_SUCCESS = !FU_ERROR
-} FU_ErrorStatus;
-
-#define FW_UPDATE_Stage_NOT_STARTED 0
-#define FW_UPDATE_Stage_IN_PROGRESS 1
-#define FW_UPDATE_Stage_VERIFIED 2
-
-static FIL file;
-
-#define FW_UPDATE_RebootDelay_NEXT            ((uint32_t)1)
-
 /*!
  * High-level patching engine image types.
  *
@@ -182,42 +183,105 @@ typedef enum
 	FW_UPDATE_ImageType_APP
 }  FW_UPDATE_ImageType;
 
-void FW_UPDATE_Finish()
+void delete_old_firmware(const char *latest_firmware)
 {
+    DIR dir;
+    FILINFO fno;
+    FRESULT res;
 
+    // Open the FW_PATH directory
+    res = f_opendir(&dir, FW_PATH);
+    if (res != FR_OK)
+    {
+        printf("Error opening firmware directory: %d\n", res);
+        return;
+    }
+
+    while (1)
+    {
+        // Read the next entry
+        res = f_readdir(&dir, &fno);
+        if (res != FR_OK || fno.fname[0] == '\0')
+        {
+            // Either a read error or end of directory
+            break;
+        }
+
+        // (Optional) If you want to explicitly ignore subdirectories,
+        // you can do it like this:
+        // if (fno.fattrib & AM_DIR)
+        // {
+        //     // It's a directory, ignore it
+        //     continue;
+        // }
+
+        // Compare the filename with the firmware to keep
+        if (strcmp(fno.fname, latest_firmware) != 0)
+        {
+            // Construct the full path: "FW_PATH/fno.fname"
+            char filepath[FILE_NAME_MAX_LENGTH];
+            size_t needed_length = strlen(FW_PATH) + 1 /* slash or backslash */
+                                   + strlen(fno.fname) + 1 /* '\0' */;
+
+            // Check if we exceed the buffer size
+            if (needed_length > sizeof(filepath))
+            {
+                printf("Path too long, unable to delete %s\n", fno.fname);
+                continue;
+            }
+
+            snprintf(filepath, sizeof(filepath), "%s/%s", FW_PATH, fno.fname);
+
+            // Delete the file
+            res = f_unlink(filepath);
+            if (res == FR_OK)
+            {
+                printf("File deleted: %s\n", filepath);
+            }
+            else
+            {
+                printf("Error deleting %s: %d\n", filepath, res);
+            }
+        }
+    }
+
+    // Close the directory
+    f_closedir(&dir);
 }
 
-void print_buf(const uint8_t* buf, int len)
-{
-	for (int i = 0; i < len; i++) {
-		uint8_t c = buf[i];
-		if (c == 0) {
-			char b[] = { 'n','u','l' };
-			HAL_UART_Transmit(&huart1, (uint8_t*) & b, sizeof(b), 100);
-		} else {
-			HAL_UART_Transmit(&huart1, &c, 1, 100);
-		}
-	}
-	uint8_t n = '\n';
-	HAL_UART_Transmit(&huart1, &n, 1, 100);
-}
-
-#define FILE_NAME_MAX_LENGTH 256  //Max filename length
-
-static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16_t buflen)
+static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16_t buflen)
 {
     int ret = FWUPDATE_STATUS_NONE;
-    char* buf_start = buf;
-    char* buf_end = buf + buflen; // Points to byte AFTER end of buffer!
+    char *buf_start = buf;
+    char *buf_end = buf + buflen; // Points to byte AFTER end of buffer!
     char file_name[FILE_NAME_MAX_LENGTH] = {0};  // Buffer to store the file name.
+    char full_file_path[FILE_NAME_MAX_LENGTH] = {0};
 
     int len = 0;
     char response[100];
 
+    DIR dir;
+    FRESULT fres = f_opendir(&dir, FW_PATH);
+    if (fres != FR_OK)
+    {
+        printf("@ fwupdate - WARNING: Firmware directory missing, creating it...\n");
+        fres = f_mkdir(FW_PATH);
+        if (fres != FR_OK)
+        {
+            printf("@ fwupdate - ERROR: Failed to create /firmware/ directory! (FR=%d)\n", fres);
+            return FWUPDATE_STATUS_ERROR;
+        }
+    }
+    else
+    {
+        f_closedir(&dir);
+    }
+
     while (buf && buf < buf_end)
     {
 #ifdef HTTP_SERVER_DEBUG
-        printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n", buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
+        printf("@ fwupdate buf_start=%p, buf=%p buf_end=%p state=%s\n",
+               buf_start, buf, buf_end, fwupdate_state_str(fwupdate.state));
 #endif
 
         switch (fwupdate.state)
@@ -228,7 +292,6 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                 {
                     ret = FWUPDATE_STATUS_ERROR; // Error until we go to in progress
                     printf("@ fwupdate -     Scanning HEADER\n");
-                    print_buf((uint8_t*)buf, buflen);
                     buf = strstr(buf, CONTENT_LENGTH_TAG);
                     if (buf)
                     {
@@ -251,9 +314,15 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                         buf = strstr(buf, "Content-Disposition:");
                         if (buf)
                         {
-                            int extracted = sscanf(buf, "Content-Disposition: form-data; name=\"firmware\"; filename=\"%255[^\"]\"", file_name);
+                            int extracted = sscanf(buf,
+                                                   "Content-Disposition: form-data; name=\"firmware\"; filename=\"%255[^\"]\"",
+                                                   file_name);
                             if (extracted == 1)
                             {
+                                // Insert a slash between FW_PATH and file_name:
+                                snprintf(full_file_path, sizeof(full_file_path),
+                                         "%s/%s", FW_PATH, file_name);
+
                                 fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
                                 ret = FWUPDATE_STATUS_INPROGRESS;
                             }
@@ -279,10 +348,10 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
             case FWUPDATE_STATE_DOWNLOAD_START:
             {
-                const char* tags[] = {DOWNLOAD_STREAM_TAG, DOWNLOAD_STREAM_TAG_2};
+                const char *tags[] = { DOWNLOAD_STREAM_TAG, DOWNLOAD_STREAM_TAG_2 };
                 ret = FWUPDATE_STATUS_ERROR;
 
-                FRESULT fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
+                FRESULT fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
                 if (fr != FR_OK)
                 {
                     fwupdate.code = fr;
@@ -291,9 +360,9 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                 }
                 f_close(&file);
 
-                for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); ++i)
+                for (int i = 0; i < (int)(sizeof(tags) / sizeof(tags[0])); ++i)
                 {
-                    char* found_tag = strstr(buf, tags[i]);
+                    char *found_tag = strstr(buf, tags[i]);
                     if (found_tag)
                     {
                         found_tag += strlen(tags[i]);  // Move past the tag
@@ -304,7 +373,8 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                         fwupdate.file_length = fwupdate.content_length - header_length;
 
 #ifdef HTTP_SERVER_DEBUG
-                        printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n", fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
+                        printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n",
+                               fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
 #endif
                         // Move to the state of downloading the file data
                         fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
@@ -323,19 +393,17 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
             case FWUPDATE_STATE_DOWNLOAD_STREAM:
             {
-                if (buf_end - buf > 0)
+                if ((buf_end - buf) > 0)
                 {
                     FRESULT fr;
                     UINT bytes_written;
-
                     ret = FWUPDATE_STATUS_INPROGRESS;
 
-                    uint32_t data_len = buf_end - buf;
+                    uint32_t data_len = (uint32_t)(buf_end - buf);
 
                     if (!fwupdate.has_been_initialized)
                     {
-                        // Open or create the file to write the data
-                        fr = f_open(&file, file_name, FA_WRITE | FA_CREATE_ALWAYS);
+                        fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
                         if (fr != FR_OK)
                         {
                             fwupdate.code = fr;
@@ -348,7 +416,7 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
                     // Write the data to the file
                     fr = f_write(&file, buf, data_len, &bytes_written);
-                    if (fr != FR_OK || bytes_written != data_len)
+                    if ((fr != FR_OK) || (bytes_written != data_len))
                     {
                         fwupdate.code = fr;
                         f_close(&file);
@@ -358,26 +426,28 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
 
                     // Update the accumulated length
                     fwupdate.accum_length += data_len;
+#ifdef HTTP_SERVER_DEBUG
                     printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
-
+#endif
                     // If we received all the expected data
                     if (fwupdate.accum_length >= fwupdate.file_length)
                     {
-                        const char* boundary = "\r\n-----------------------------";
+                        const char *boundary = "\r\n-----------------------------";
                         size_t boundary_len = strlen(boundary);
                         size_t boundary_length = 0;
-                        char* ptr = buf_end - 100;  // Examine the last 100 bytes
+                        char *ptr = buf_end - 100;  // Examine the last 100 bytes
 
-                        for (int i = 0; i < 100 - boundary_len; i++)
+                        for (int i = 0; i < (100 - (int)boundary_len); i++)
                         {
                             if (memcmp(ptr + i, boundary, boundary_len) == 0)
                             {
                                 printf("Boundary found at position %d relative to buf_end - 200.\n", i);
                                 // Make adjustments to length here
-                                boundary_length = (buf_end - (ptr + i));
+                                boundary_length = (size_t)(buf_end - (ptr + i));
                                 fwupdate.file_length -= boundary_length;
 
-                                printf("@ fwupdate adjusted for manual boundary, new file len=%d, boundary len=%u\n", (int)fwupdate.file_length, (unsigned int)boundary_length);
+                                printf("@ fwupdate adjusted for manual boundary, new file len=%d, boundary len=%u\n",
+                                       (int)fwupdate.file_length, (unsigned int)boundary_length);
                                 break;
                             }
                         }
@@ -385,33 +455,34 @@ static int fwupdate_multipart_state_machine(struct netconn* conn, char* buf, u16
                         if (boundary_length)
                         {
                             // Truncate the file to the correct length
-                            f_lseek(&file, fwupdate.file_length);  // Move the pointer to the new length
+                            f_lseek(&file, fwupdate.file_length);  // Move pointer to new length
                             f_truncate(&file);  // Truncate the file at this position
 
                             printf("File truncated to new length %d.\n", (int)fwupdate.file_length);
                         }
 
-                        // Close the file after complete reception
+                        delete_old_firmware(file_name);
                         f_close(&file);
                         fwupdate.has_been_initialized = 0;
                         fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
                     }
-
+#ifdef HTTP_SERVER_DEBUG
                     printf("@ fwupdate DATA len=%d status=%d\n", (int)data_len, fwupdate.state);
-
+#endif
                     buf = 0;
 
                     if (ret == FWUPDATE_STATUS_INPROGRESS)
                     {
-                        if (fwupdate.accum_length >= fwupdate.file_length
-                                || fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
+                        // If file was fully received
+                        if ((fwupdate.accum_length >= fwupdate.file_length)
+                             || (fwupdate.stage == FW_UPDATE_Stage_VERIFIED))
                         {
-                            // Indicate that the update is successfully completed
                             ret = FWUPDATE_STATUS_DONE;
-                            len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
+                            len = sprintf(response,
+                                          "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
                             netconn_write(conn, response, len, NETCONN_COPY);
 
-                            // Reset the state for a new download
+                            // Reset for a new download
                             fwupdate.state = FWUPDATE_STATE_HEADER;
                         }
                     }

@@ -22,8 +22,8 @@
 /*******************              General definitions               *******************/
 /**************************************************************************************/
 #define USE_BOTLOADER
-#define SHORT_VERSION	"3.5"
-#define VERSION "3.5.0"
+#define SHORT_VERSION	"3.6"
+#define VERSION "3.6.0"
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -36,6 +36,15 @@
 
 //#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_PRINT_COUNTER
+
+/**************************************************************************************/
+/*******************              Storage definitions               *******************/
+/**************************************************************************************/
+#define FILE_NAME_MAX_LENGTH 256  //Max filename length
+
+#define FW_PATH "0:/firmware"
+#define CALIBRATION_FILE_PATH_FORMAT "0:/CALIB_%ddpi.BIN"
+#define CONFIG_FILE_PATH "0:/CONFIG.TXT"
 
 /**************************************************************************************/
 /****************              Flash Address definitions               ****************/
