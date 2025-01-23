@@ -55,6 +55,7 @@ struct packet_IMU packet_IMU = {0};
 /**************************************************************************************/
 
 #ifdef CORE_CM7
+#ifndef BOOTLOADER
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
@@ -75,6 +76,7 @@ CIS_Config cisConfig = {0};
 
 #pragma GCC pop_options
 
+#endif
 #endif
 
 /* Private function prototypes -----------------------------------------------*/

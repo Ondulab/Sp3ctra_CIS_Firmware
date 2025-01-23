@@ -12,6 +12,8 @@
  *
  ******************************************************************************
  */
+#ifdef CORE_CM7
+
 #include "main.h"
 #include "config.h"
 #include "basetypes.h"
@@ -20,12 +22,15 @@
 
 #include "ff.h" // FATFS include
 #include "diskio.h" // DiskIO include
+#include "crc.h"
 
 #include "file_manager.h"
 
-static void file_parseLine(char* line, volatile struct shared_config* config);
-static void print_shared_config(struct shared_config config);
+/* Private define ------------------------------------------------------------*/
+#define WORKING_BUFFER_SIZE (2 * _MAX_SS)
+#define CHUNK_SIZE 4096
 
+/* Private variables ---------------------------------------------------------*/
 const struct shared_config DefaultConfig =
 {
     .ui_button_delay = DEFAULT_UI_BUTTON_DELAY,
@@ -42,11 +47,14 @@ const struct shared_config DefaultConfig =
     .cis_handedness = DEFAULT_CIS_HANDEDNESS
 };
 
-#define WORKING_BUFFER_SIZE (2 * _MAX_SS)
+FATFS fs;
 
-FATFS fs;   // Filesystem object
+/* Private function prototypes -----------------------------------------------*/
+static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_config* config);
+static fileManager_StatusTypeDef print_shared_config(struct shared_config config);
+static uint32_t file_computeCRC_buffer(CRC_HandleTypeDef *hcrc, const uint8_t *pData, uint32_t length);
 
-int file_readConfig(const char* filePath, volatile struct shared_config* config)
+fileManager_StatusTypeDef file_readConfig(const char* filePath, volatile struct shared_config* config)
 {
 	FIL file;
 	FRESULT fr;
@@ -55,7 +63,7 @@ int file_readConfig(const char* filePath, volatile struct shared_config* config)
 	fr = f_open(&file, filePath, FA_READ);
 	if (fr != FR_OK)
 	{
-		return -1;
+		return FILEMANAGER_ERROR;
 	}
 
 	while (f_gets(line, sizeof(line), &file))
@@ -64,10 +72,10 @@ int file_readConfig(const char* filePath, volatile struct shared_config* config)
 	}
 
 	f_close(&file);
-	return 0;
+	return FILEMANAGER_OK;
 }
 
-void file_parseLine(char* line, volatile struct shared_config* config)
+fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_config* config)
 {
 	char* token = strtok(line, "=");
 	while (token != NULL)
@@ -142,16 +150,18 @@ void file_parseLine(char* line, volatile struct shared_config* config)
 		}
 		token = strtok(NULL, "=");
 	}
+
+	return FILEMANAGER_OK;
 }
 
-int file_writeConfig(const char* filePath, const volatile struct shared_config* config)
+fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile struct shared_config* config)
 {
 	FIL file;
 	FRESULT fr;
 	fr = f_open(&file, filePath, FA_WRITE | FA_CREATE_ALWAYS);
 	if (fr != FR_OK)
 	{
-		return -1;
+		return FILEMANAGER_ERROR;
 	}
 
 	f_printf(&file, "UI_BUTTON_DELAY=%lu\n", config->ui_button_delay);
@@ -180,12 +190,12 @@ int file_writeConfig(const char* filePath, const volatile struct shared_config* 
 	f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
 
 	f_close(&file);
-	return 0;
+	return FILEMANAGER_OK;
 }
 
 #include <stdio.h>
 
-void print_shared_config(struct shared_config config)
+fileManager_StatusTypeDef print_shared_config(struct shared_config config)
 {
 	printf("=========== CONFIG ============\n");
     printf("Button Delay: %u ms\n", (unsigned int)config.ui_button_delay);
@@ -220,9 +230,11 @@ void print_shared_config(struct shared_config config)
 
     printf("CIS Handedness: %u\n", config.cis_handedness);
 	printf("===============================\n");
+
+	return FILEMANAGER_OK;
 }
 
-int file_factoryReset(void)
+fileManager_StatusTypeDef file_factoryReset(void)
 {
 	printf("- CONFIG FILE TO FACTORY RESET -\n");
 
@@ -236,13 +248,13 @@ int file_factoryReset(void)
 	if (fres != FR_OK)
 	{
 		printf("Failed to format the QSPI flash.\n");
-		return ERROR;
+		return FILEMANAGER_ERROR;
 	}
 
-	return SUCCESS;
+	return FILEMANAGER_OK;
 }
 
-void file_initConfig(volatile struct shared_config* config)
+fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
 {
 	printf("- CONFIG FILE INITIALIZATIONS -\n");
 
@@ -291,7 +303,7 @@ void file_initConfig(volatile struct shared_config* config)
 		else
 		{
 			printf("Failed to write configuration file\n");
-			Error_Handler();
+			return FILEMANAGER_ERROR;
 		}
 	}
 	else
@@ -299,9 +311,10 @@ void file_initConfig(volatile struct shared_config* config)
 		printf("Read configuration SUCCESS\n");
 		print_shared_config(*config);
 	}
+	return FILEMANAGER_OK;
 }
 
-int file_writeCisCals(const char* filePath, const struct cisCals* data)
+fileManager_StatusTypeDef file_writeCisCals(const char* filePath, const struct cisCals* data)
 {
     FIL file;
     UINT bw;
@@ -313,7 +326,7 @@ int file_writeCisCals(const char* filePath, const struct cisCals* data)
     {
         printf("Failed to create calibration file: %s\n", filePath);
         Error_Handler();
-        return -1;
+        return FILEMANAGER_ERROR;
     }
 
     // Write data to the file
@@ -322,15 +335,15 @@ int file_writeCisCals(const char* filePath, const struct cisCals* data)
     {
         printf("Failed to write calibration file\n");
         f_close(&file);
-        return -1;
+        return FILEMANAGER_ERROR;
     }
 
     // Close the file
     f_close(&file);
-    return 0;
+    return FILEMANAGER_OK;
 }
 
-int file_readCisCals(const char* filePath, struct cisCals* data)
+fileManager_StatusTypeDef file_readCisCals(const char* filePath, struct cisCals* data)
 {
     FIL file;
     UINT br;
@@ -340,7 +353,7 @@ int file_readCisCals(const char* filePath, struct cisCals* data)
     fr = f_open(&file, filePath, FA_READ);
     if (fr != FR_OK)
     {
-        return -1;
+        return FILEMANAGER_ERROR;
     }
 
     // Read data from the file
@@ -348,10 +361,164 @@ int file_readCisCals(const char* filePath, struct cisCals* data)
     if (fr != FR_OK || br != sizeof(cisCals))
     {
         f_close(&file);
-        return -1;
+        return FILEMANAGER_ERROR;
     }
 
     // Close the file
     f_close(&file);
-    return 0;
+    return FILEMANAGER_OK;
 }
+
+/**
+ * @brief Computes CRC over a memory buffer in streaming mode using STM32H7 hardware CRC.
+ *
+ * This function:
+ *  - Resets the CRC Data Register for a new calculation
+ *  - Processes data in small chunks (CHUNK_SIZE)
+ *  - Feeds each chunk to HAL_CRC_Accumulate()
+ *  - Returns the final CRC value
+ *
+ * @param hcrc      Pointer to the CRC_HandleTypeDef
+ * @param pData     Pointer to the data in memory
+ * @param length    Number of bytes to compute CRC over
+ * @return 32-bit CRC result as configured by hcrc.Init parameters, or 0 if error
+ */
+static uint32_t file_computeCRC_buffer(CRC_HandleTypeDef *hcrc, const uint8_t *pData, uint32_t length)
+{
+    // Reset the CRC Data Register for a new calculation
+    __HAL_CRC_DR_RESET(hcrc);
+
+    uint32_t totalProcessed = 0;
+    uint32_t crcVal = 0;
+
+    while (totalProcessed < length)
+    {
+        // Determine how many bytes in this chunk
+        uint32_t chunkLen = (length - totalProcessed < CHUNK_SIZE)
+                            ? (length - totalProcessed)
+                            : CHUNK_SIZE;
+
+        // Round up chunkLen to a multiple of 4
+        uint32_t remainder = chunkLen % 4U;
+        uint32_t wordAlignedSize = chunkLen + (remainder ? (4U - remainder) : 0U);
+
+        // Create a small temp buffer
+        uint8_t tempBuf[CHUNK_SIZE + 3]; // +3 to handle up to 3 bytes of padding
+        memcpy(tempBuf, pData + totalProcessed, chunkLen);
+
+        // Pad leftover bytes with 0x00
+        memset(tempBuf + chunkLen, 0, wordAlignedSize - chunkLen);
+
+        // Accumulate
+        // The return value after each call is the running CRC so far
+        crcVal = HAL_CRC_Accumulate(hcrc, (uint32_t *)tempBuf, wordAlignedSize / 4U);
+
+        totalProcessed += chunkLen;
+    }
+
+    // crcVal is the final CRC
+    return crcVal;
+}
+
+fileManager_StatusTypeDef file_reliableWrite(FIL *file, const uint8_t *buffer, uint32_t length, int maxRetries)
+{
+    FRESULT fres;
+    UINT bytesWritten;
+    UINT bytesRead;
+    DWORD currentPos;
+
+    // 1) Compute CRC of the source buffer in streaming mode
+    uint32_t originalCRC = file_computeCRC_buffer(&hcrc, buffer, length);
+
+    // 2) Remember current position
+    currentPos = f_tell(file);
+
+    // Attempt multiple times
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        // 3) Write the entire data block
+        fres = f_write(file, buffer, length, &bytesWritten);
+        if ((fres != FR_OK) || (bytesWritten != length))
+        {
+            printf("Error: f_write() attempt %d failed.\n", attempt);
+        }
+        else
+        {
+            // 4) Flush the file data
+            fres = f_sync(file);
+            if (fres != FR_OK)
+            {
+                printf("Error: f_sync() attempt %d failed.\n", attempt);
+            }
+            else
+            {
+                // 5) Move file pointer back to where we wrote
+                fres = f_lseek(file, currentPos);
+                if (fres != FR_OK)
+                {
+                    printf("Error: f_lseek() attempt %d failed.\n", attempt);
+                }
+                else
+                {
+                    // 6) Read back in chunks, accumulate CRC
+                    //    We will do a streaming CRC on the read data
+                    uint32_t totalRead = 0;
+                    uint32_t readCRC = 0;
+
+                    // Reset CRC hardware for new accumulation
+                    __HAL_CRC_DR_RESET(&hcrc);
+
+                    while (totalRead < length)
+                    {
+                        uint8_t verifyBuf[CHUNK_SIZE + 3];
+                        UINT chunkSize = (length - totalRead < CHUNK_SIZE)
+                                            ? (length - totalRead)
+                                            : CHUNK_SIZE;
+
+                        // Read chunk
+                        fres = f_read(file, verifyBuf, chunkSize, &bytesRead);
+                        if ((fres != FR_OK) || (bytesRead != chunkSize))
+                        {
+                            printf("Error: f_read() attempt %d failed.\n", attempt);
+                            break;
+                        }
+
+                        // Round up to multiple of 4
+                        uint32_t remainder = chunkSize % 4U;
+                        uint32_t wordAlignedSize = chunkSize + (remainder ? (4U - remainder) : 0U);
+
+                        // Pad leftover
+                        memset(verifyBuf + chunkSize, 0, wordAlignedSize - chunkSize);
+
+                        // Accumulate the chunk's CRC
+                        readCRC = HAL_CRC_Accumulate(&hcrc, (uint32_t *)verifyBuf, wordAlignedSize / 4U);
+
+                        totalRead += chunkSize;
+                    }
+
+                    if ((fres == FR_OK) && (totalRead == length))
+                    {
+                        // Compare CRC
+                        if (readCRC == originalCRC)
+                        {
+                            // 7) All good; move pointer after the written block
+                            f_lseek(file, currentPos + length);
+                            return FILEMANAGER_OK;
+                        }
+                        else
+                        {
+                            printf("CRC mismatch in attempt %d. Retrying.\n", attempt);
+                        }
+                    }
+                }
+            }
+        }
+
+        // On failure, reset file pointer to initial position before next attempt
+        f_lseek(file, currentPos);
+    }
+
+    printf("Error: file_reliableWrite_chunked() failed after %d attempts.\n", maxRetries);
+    return FILEMANAGER_ERROR;
+}
+#endif

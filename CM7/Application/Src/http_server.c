@@ -790,16 +790,16 @@ static void http_server(struct netconn *conn)
 						if (body && strstr(body, "START_FACTORY_RESET"))
 						{
 
-							if (file_factoryReset() == SUCCESS)
-							{
-								response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nFactory reset done";
-								reboot = true;
-							}
-							else
+							if (file_factoryReset() != FILEMANAGER_OK)
 							{
 								response = "HTTP/1.1 500 Internal Server Error\r\n"
 										"Content-Type: text/plain\r\n\r\n"
 										"Error: Factory reset failed due to internal error";
+							}
+							else
+							{
+								response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nFactory reset done";
+								reboot = true;
 							}
 							netconn_write(conn, response, strlen(response), NETCONN_COPY);
 						}
@@ -859,6 +859,7 @@ static void http_server(struct netconn *conn)
 		{
 			/* Action requires us to close the connection now instead of
 	        blocking on the next netconn_recv. */
+			netconn_close(conn);
 			break;
 		}
 	} /* while netconn_recv */
@@ -867,7 +868,8 @@ static void http_server(struct netconn *conn)
 #endif
 
 	if (reboot)
-		{
+	{
+		netconn_close(conn);
 		printf("Rebooting in 1\n");
 		/* Wait 5 seconds. */
 		osDelay(1000);

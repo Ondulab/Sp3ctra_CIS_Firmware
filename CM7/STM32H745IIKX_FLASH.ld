@@ -45,7 +45,7 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  FLASH (rx)    			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
+  FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 1024K
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 32K

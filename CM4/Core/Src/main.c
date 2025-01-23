@@ -126,11 +126,27 @@ int main(void)
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
 
+    char shortVersion[8];
+    strcpy(shortVersion, FW_VERSION);
+
+    // Locate the first dot
+    char *p = strchr(shortVersion, '.');
+    if (p != NULL)
+    {
+        // From there, look for the second dot
+        p = strchr(p + 1, '.');
+        if (p != NULL)
+        {
+            // Truncate at the second dot
+            *p = '\0';
+        }
+    }
+
 #ifndef SKIP_SPLASH
 	for (uint8_t i = 0; i < 16; i++)
 	{
 		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, i, 0);
-		ssd1362_drawString(230, 56, (signed char *)VERSION, 4, 8);
+	    ssd1362_drawString(230, 56, (signed char *)shortVersion, 4, 8);
 		ssd1362_writeFullBuffer();
 
 		if (i == 0)

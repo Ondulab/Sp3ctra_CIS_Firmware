@@ -14,7 +14,7 @@ def extract_version(config_path):
         content = f.read()
 
     # Search for the version definition
-    match = re.search(r'#define\s+VERSION\s+"([\d\.]+)"', content)
+    match = re.search(r'#define\s+FW_VERSION\s+"([\d\.]+)"', content)
     if not match:
         raise ValueError("Software version not found in config.h")
 

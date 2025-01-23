@@ -146,6 +146,7 @@ int main(void)
 
   printf("CM7 BOOT\n");
 
+  // Start core CM4
   HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
 
 	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");

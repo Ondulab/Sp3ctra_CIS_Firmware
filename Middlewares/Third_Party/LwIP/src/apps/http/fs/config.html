@@ -415,7 +415,7 @@
 
             <!-- Firmware Update -->
             <div class="container">
-                <form id="firmwareForm" action="upload" method="post" enctype="multipart/form-data">
+                <form id="firmwareForm" action="/upload" method="post" enctype="multipart/form-data">
                     <span class="title">FIRMWARE UPDATE</span>
                     <div class="form-group firmware-input-group">
                         <label for="firmwareFile">Select Firmware</label>
@@ -883,7 +883,7 @@
                 xhr.onload = function() {
                     submitButton.classList.remove('button-loading');  // Remove loading class upon completion
                     if (xhr.status === 200) {
-                        alert('Firmware update completed!');
+                        alert('Firmware transfer complete!');
                         document.getElementById('uploadProgress').value = 0;
                     } else {
                         alert('Error during firmware updade: ' + xhr.status);

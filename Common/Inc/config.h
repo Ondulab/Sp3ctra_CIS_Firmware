@@ -22,8 +22,8 @@
 /*******************              General definitions               *******************/
 /**************************************************************************************/
 #define USE_BOTLOADER
-#define SHORT_VERSION	"3.6"
-#define VERSION "3.6.0"
+#define BL_VERSION	"1.0.1"
+#define FW_VERSION "3.7.0"
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -49,8 +49,6 @@
 /**************************************************************************************/
 /****************              Flash Address definitions               ****************/
 /**************************************************************************************/
-#define FLASH_PERSISTENT_DATA_ADDRESS 			((uint32_t)0x08020000)
-
 #define FLASH_BASE_ADDR                      	(uint32_t)(FLASH_BASE)
 #define FLASH_END_ADDR                       	(uint32_t)(0x081FFFFF)
 
@@ -75,6 +73,12 @@
 #define ADDR_FLASH_SECTOR_7_BANK2            	((uint32_t)0x081E0000) /* Base @ of Sector 7, 128 Kbytes */
 
 #define FLASH_LAST_SECTOR_ADDR   (FLASH_END_ADDR - FLASH_SECTOR_SIZE + 1)
+
+#define FW_CM4_START_ADDR 						(ADDR_FLASH_SECTOR_2_BANK1)
+#define FW_CM7_START_ADDR 						(ADDR_FLASH_SECTOR_0_BANK2)
+#define FW_CM4_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK1 - FW_CM7_START_ADDR)
+#define FW_CM7_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK2 - FW_CM4_START_ADDR)
+#define FLASH_PERSISTENT_DATA_ADDRESS 			(ADDR_FLASH_SECTOR_1_BANK1)
 
 /**************************************************************************************/
 /********************             	HID definitions                ********************/

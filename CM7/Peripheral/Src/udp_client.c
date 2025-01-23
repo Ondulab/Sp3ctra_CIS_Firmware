@@ -101,7 +101,7 @@ void udp_clientInit(void)
     packet_IMU.type = IMU_DATA_HEADER;
 
     packet_StartupInfo.packet_id = packetsCounter++;
-    sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", VERSION);
+    sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", FW_VERSION);
 
     udp_clientSendStartupInfoPacket();
 }
