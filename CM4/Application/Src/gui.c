@@ -319,8 +319,10 @@ void gui_displayPopUp()
 
 	if (shared_var.cis_freq < 100)
 		sprintf((char *)textData, "%d  Hz", (int)(shared_var.cis_freq));
-	else
+	else if (shared_var.cis_freq < 1000)
 		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
+	else
+		sprintf((char *)textData, "%dHz", (int)(shared_var.cis_freq));
 
 	ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
 }

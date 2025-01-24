@@ -36,7 +36,8 @@
 /* Private variables ---------------------------------------------------------*/
 bool update_requested = false;
 
-typedef struct {
+typedef struct
+{
     FW_UpdateState updateState;     //(4 bytes)
     uint8_t padding[24];            // for 32 bytes alignment
 } PersistentData;
@@ -93,7 +94,8 @@ uint32_t stm32Flash_getSector(uint32_t Address)
  */
 STM32Flash_StatusTypeDef STM32Flash_readPersistentData(FW_UpdateState* state)
 {
-    if (state == NULL) {
+    if (state == NULL)
+    {
         return STM32FLASH_ERROR; // Return error if the input pointer is invalid
     }
 
@@ -117,14 +119,16 @@ STM32Flash_StatusTypeDef STM32Flash_writePersistentData(FW_UpdateState updateSta
 
     const uint32_t flashAddress = FLASH_PERSISTENT_DATA_ADDRESS;
 
-    PersistentData dataToWrite = {
+    PersistentData dataToWrite =
+    {
         .updateState = updateState,
         .padding = {0}
     };
 
     // Unlock the Flash memory
     halStatus = HAL_FLASH_Unlock();
-    if (halStatus != HAL_OK) {
+    if (halStatus != HAL_OK)
+    {
         return STM32FLASH_ERROR;
     }
 
@@ -137,7 +141,8 @@ STM32Flash_StatusTypeDef STM32Flash_writePersistentData(FW_UpdateState updateSta
 
     // Erase the sector
     halStatus = HAL_FLASHEx_Erase(&eraseInitStruct, &sectorError);
-    if (halStatus != HAL_OK) {
+    if (halStatus != HAL_OK)
+    {
         HAL_FLASH_Lock();
         return STM32FLASH_ERROR;
     }
@@ -145,7 +150,8 @@ STM32Flash_StatusTypeDef STM32Flash_writePersistentData(FW_UpdateState updateSta
     // Write the data
     uint32_t* pData = (uint32_t*)&dataToWrite;
     halStatus = HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, flashAddress, (uint32_t)pData);
-    if (halStatus != HAL_OK) {
+    if (halStatus != HAL_OK)
+    {
         HAL_FLASH_Lock();
         return STM32FLASH_ERROR;
     }
@@ -218,12 +224,14 @@ STM32Flash_StatusTypeDef STM32Flash_erase_sector(uint32_t flashBank, uint32_t se
     eraseInitStruct.VoltageRange  = FLASH_VOLTAGE_RANGE_3;
 
     HAL_StatusTypeDef halStatus = HAL_FLASH_Unlock();
-    if (halStatus != HAL_OK) {
+    if (halStatus != HAL_OK)
+    {
         return STM32FLASH_ERROR;
     }
 
     halStatus = HAL_FLASHEx_Erase(&eraseInitStruct, &sectorError);
-    if (halStatus != HAL_OK) {
+    if (halStatus != HAL_OK)
+    {
         HAL_FLASH_Lock();
         return STM32FLASH_ERROR;
     }
@@ -232,46 +240,65 @@ STM32Flash_StatusTypeDef STM32Flash_erase_sector(uint32_t flashBank, uint32_t se
     return STM32FLASH_OK;
 }
 
+/**
+ * @brief  Computes the CRC32 checksum of a given data buffer.
+ *         This function processes data in 256-byte chunks (aligned to 4-byte words)
+ *         to compute the CRC using the STM32 hardware CRC unit.
+ *
+ * @param  data   Pointer to the data buffer.
+ * @param  length Length of the data buffer in bytes.
+ *
+ * @return Computed CRC32 value.
+ */
 static uint32_t STM32Flash_computeCRC(const uint8_t *data, uint32_t length)
 {
     // Reset CRC for fresh calculation
     __HAL_CRC_DR_RESET(&hcrc);
 
-    // We will feed data in blocks of e.g. 256 bytes
-    // Adjust as needed. Each block must be a multiple of 4 bytes,
-    // so if the block is not, we pad the tail.
     uint32_t totalProcessed = 0;
     uint32_t crcVal = 0;
 
     while (totalProcessed < length)
     {
-        // Let's pick a chunk size
+        // Define chunk size (must be aligned to 4 bytes)
         uint32_t chunkSize = 256U;
         if ((length - totalProcessed) < chunkSize)
         {
             chunkSize = (length - totalProcessed);
         }
 
-        // We'll need to round chunkSize up to a multiple of 4
+        // Round chunk size up to a multiple of 4 bytes
         uint32_t remainder = chunkSize % 4U;
         uint32_t wordAlignedSize = chunkSize + (remainder ? (4U - remainder) : 0U);
 
-        // Copy chunk to a temp buffer and pad if needed
-        uint8_t tempBuf[256 + 3]; // enough to handle remainder
+        // Copy chunk to a temporary buffer and pad if needed
+        uint8_t tempBuf[256 + 3]; // Buffer large enough to accommodate padding
         memcpy(tempBuf, data + totalProcessed, chunkSize);
         memset(tempBuf + chunkSize, 0, wordAlignedSize - chunkSize);
 
-        // Accumulate
-        // The return value after the last call is your final CRC
+        // Accumulate CRC
         crcVal = HAL_CRC_Accumulate(&hcrc, (uint32_t *)tempBuf, wordAlignedSize / 4U);
 
         totalProcessed += chunkSize;
     }
 
-    // crcVal now holds the final CRC after the last accumulate
+    // Return final computed CRC
     return crcVal;
 }
 
+/**
+ * @brief  Reliably writes data to STM32 flash memory with CRC verification.
+ *         This function writes data in 32-byte blocks, verifies each block
+ *         by reading it back, and compares CRC values to ensure integrity.
+ *         If verification fails, the function retries writing up to `maxRetries` times.
+ *
+ * @param  flashAddress  Target flash memory address for writing.
+ * @param  buffer        Pointer to the data buffer to write.
+ * @param  length        Length of the data in bytes.
+ * @param  maxRetries    Maximum number of retries in case of CRC mismatch.
+ *
+ * @return STM32FLASH_OK if the write operation is successful, STM32FLASH_ERROR otherwise.
+ */
 STM32Flash_StatusTypeDef STM32Flash_reliableWrite(uint32_t flashAddress, const uint8_t *buffer, uint32_t length, int maxRetries)
 {
     uint8_t verifyBlock[32] __attribute__((aligned(32)));
@@ -282,13 +309,13 @@ STM32Flash_StatusTypeDef STM32Flash_reliableWrite(uint32_t flashAddress, const u
     {
         uint32_t blockSize = (remaining >= 32) ? 32 : remaining;
 
-        // Calcul du CRC de référence directement sur buffer
+        // Compute the reference CRC directly on the buffer
         uint32_t originalCRC = STM32Flash_computeCRC(buffer + totalBytesWritten, blockSize);
 
         STM32Flash_StatusTypeDef writeSuccess = STM32FLASH_ERROR;
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            // Écriture en Flash directement depuis buffer
+            // Write data directly to flash
             STM32Flash_StatusTypeDef status = STM32Flash_write32B(buffer + totalBytesWritten, flashAddress);
             if (status != STM32FLASH_OK)
             {
@@ -296,7 +323,7 @@ STM32Flash_StatusTypeDef STM32Flash_reliableWrite(uint32_t flashAddress, const u
                 continue;
             }
 
-            // Lire directement depuis la Flash et comparer CRC
+            // Read back directly from flash and compare CRC
             memcpy(verifyBlock, (uint8_t *)flashAddress, 32);
             uint32_t readCRC = STM32Flash_computeCRC(verifyBlock, 32);
 
