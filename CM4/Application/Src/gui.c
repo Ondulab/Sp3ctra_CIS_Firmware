@@ -20,10 +20,10 @@
 #include "basetypes.h"
 
 #include "globals.h"
-#include "config.h"
+#include "gui_config.h"
 
 #include "ssd1362.h"
-#include "tim.h"
+
 #include "leds.h"
 
 #include "gui.h"

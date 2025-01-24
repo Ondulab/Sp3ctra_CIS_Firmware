@@ -14,7 +14,9 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include "http_server.h"
+#include "globals.h"
+#include "config.h"
+#include "boot_config.h"
 
 #include "lwip/opt.h"
 #include "lwip/arch.h"
@@ -24,7 +26,6 @@
 #include "string.h"
 #include "stdio.h"
 #include "stdbool.h"
-#include "cmsis_os.h"
 
 #include "ff.h" // FATFS include
 #include "diskio.h" // DiskIO include
@@ -32,13 +33,9 @@
 #include "file_manager.h"
 #include "cis.h"
 
-#include "usart.h"
-#include "crc.h"
-
 #include "stm32_flash.h"
 
-#include "globals.h"
-#include "config.h"
+#include "http_server.h"
 
 TaskHandle_t http_ThreadHandle = NULL;
 
