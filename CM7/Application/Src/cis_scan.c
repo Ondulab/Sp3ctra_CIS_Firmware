@@ -18,25 +18,19 @@
 #include "stdbool.h"
 #include "stdio.h"
 
+#include "FreeRTOS.h"
 #include "lwip.h"
+
+#include "mdma.h"
 
 #include "basetypes.h"
 #include "globals.h"
 #include "config.h"
 
-#include "tim.h"
 #include "cis.h"
 #include "cis_linearCal.h"
-#include "cis_polyCal.h"
 
 #include "udp_client.h"
-#include "lwip.h"
-#include "icm42688.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "FreeRTOS.h"
-
-#include "cmsis_os.h"
 
 #include "cis_scan.h"
 
@@ -64,14 +58,30 @@ static void cis_sendTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 
+void Start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t length)
+{
+    /* Configure source and destination addresses */
+	hmdma_mdma_channel0_sw_0.Instance->CSAR = (uint32_t)src;
+	hmdma_mdma_channel0_sw_0.Instance->CDAR = (uint32_t)dst;
+
+    /* Configure block transfer length */
+	hmdma_mdma_channel0_sw_0.Instance->CBNDTR = length;
+
+    /* Start the MDMA transfer */
+    if (HAL_MDMA_Start_IT(&hmdma_mdma_channel0_sw_0, (uint32_t)src, (uint32_t)dst, length, 1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
 /**
  * @brief Initializes CIS scanning system and related tasks.
  */
 void cis_scanInit(void)
 {
     // Create queues for free and ready buffers
-    freeBufferQueue = xQueueCreate(2, sizeof(struct packet_Image *));
-    readyBufferQueue = xQueueCreate(2, sizeof(struct packet_Image *));
+    freeBufferQueue = xQueueCreate(2, sizeof(struct packet_Scanline *));
+    readyBufferQueue = xQueueCreate(2, sizeof(struct packet_Scanline *));
 
     if (freeBufferQueue == NULL || readyBufferQueue == NULL)
     {
@@ -79,16 +89,16 @@ void cis_scanInit(void)
     }
 
     // Allocate buffer pointers
-    struct packet_Image *pBufA = &packet_Image[0];
-    struct packet_Image *pBufB = &packet_Image[UDP_MAX_NB_PACKET_PER_LINE];
+    struct packet_Scanline *pBufA = buffers_Scanline.scanline_buff1;
+    struct packet_Scanline *pBufB = buffers_Scanline.scanline_buff2;
     xQueueSend(freeBufferQueue, &pBufA, 0);
     xQueueSend(freeBufferQueue, &pBufB, 0);
 
     // Initialize CIS
     printf("----- CIS INITIALIZATIONS -----\n");
 
-    memset((uint32_t *)&packet_Image, 0, sizeof(packet_Image));
-    SCB_CleanDCache_by_Addr((uint32_t *)&packet_Image, sizeof(packet_Image));
+    memset((uint32_t *)&buffers_Scanline, 0, sizeof(buffers_Scanline));
+    SCB_CleanDCache_by_Addr((uint32_t *)&buffers_Scanline, sizeof(buffers_Scanline));
 
     udp_clientInit();
     cis_init();
@@ -153,7 +163,7 @@ static void cis_userCal(void)
  */
 static void cis_scanTask(void *argument)
 {
-    struct packet_Image *pCurrentBuffer = NULL;
+    struct packet_Scanline *pCurrentBuffer = NULL;
 
     printf("------ CIS THREAD STARTED ------\n");
 
@@ -167,6 +177,8 @@ static void cis_scanTask(void *argument)
         // 2) Process the image data and fill the buffer
         cis_imageProcess(cisDataCpy_f32, pCurrentBuffer);
 
+		Start_MDMA_Transfer((uint32_t *)pCurrentBuffer, (uint32_t *)scanline_CM4, sizeof(struct packet_Scanline) * UDP_MAX_NB_PACKET_PER_LINE);
+
         // 3) Notify the send task that the buffer is ready
         xQueueSend(readyBufferQueue, &pCurrentBuffer, portMAX_DELAY);
     }
@@ -178,7 +190,7 @@ static void cis_scanTask(void *argument)
  */
 static void cis_sendTask(void *argument)
 {
-    struct packet_Image *pSendBuffer = NULL;
+    struct packet_Scanline *pSendBuffer = NULL;
 
     printf("------ UDP THREAD STARTED ------\n");
 
@@ -188,7 +200,7 @@ static void cis_sendTask(void *argument)
         xQueueReceive(readyBufferQueue, &pSendBuffer, portMAX_DELAY);
 
         // 2) Clean the cache
-        SCB_CleanDCache_by_Addr((uint32_t *)pSendBuffer, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Image));
+        SCB_CleanDCache_by_Addr((uint32_t *)pSendBuffer, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
 
         // 3) Send the buffer
         udp_clientSendPackets(pSendBuffer);

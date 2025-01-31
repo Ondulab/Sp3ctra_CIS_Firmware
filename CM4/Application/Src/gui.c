@@ -59,7 +59,19 @@ int gui_mainLoop(void)
 {
     int32_t last_refresh_tick = HAL_GetTick(); // Initialization of the last refresh tick
     int32_t last_process_count = shared_var.cis_process_cnt; // Last recorded process counter
-    memset(&packet_Image, 0, sizeof(packet_Image));
+
+    for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
+    {
+        // Initialize first buffer (scanline_buff1)
+    	memset(buffers_Scanline.scanline_buff1[packet].imageData_R, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_R));
+    	memset(buffers_Scanline.scanline_buff1[packet].imageData_G, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_G));
+    	memset(buffers_Scanline.scanline_buff1[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_B));
+
+        // Initialize second buffer (scanline_buff2)
+        memset(buffers_Scanline.scanline_buff2[packet].imageData_R, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_R));
+        memset(buffers_Scanline.scanline_buff2[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_G));
+        memset(buffers_Scanline.scanline_buff2[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_B));
+    }
 
     gui_displayWaiting();
     gui_changeHand();
@@ -136,9 +148,9 @@ void gui_displayImage(void)
 			index = (packet - (uint32_t)packet) * (CIS_200DPI_PIXELS_NB / (UDP_MAX_NB_PACKET_PER_LINE / 2));
 		}
 
-		cis_rgb[0] = packet_Image[(uint32_t)packet].imageData_R[(uint32_t)index];
-		cis_rgb[1] = packet_Image[(uint32_t)packet].imageData_G[(uint32_t)index];
-		cis_rgb[2] = packet_Image[(uint32_t)packet].imageData_B[(uint32_t)index];
+		cis_rgb[0] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_R[(uint32_t)index];
+		cis_rgb[1] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_G[(uint32_t)index];
+		cis_rgb[2] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_B[(uint32_t)index];
 
 		// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
 		// are weights given to the R, G, and B components respectively,

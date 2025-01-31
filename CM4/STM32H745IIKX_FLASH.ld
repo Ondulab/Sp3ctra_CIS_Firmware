@@ -133,6 +133,13 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED AT> FLASH
   
+  .ram_d1_shared (NOLOAD) :
+  {
+    . = ALIGN(4);
+    KEEP(*(.ram_d1_shared));
+    . = ALIGN(4);
+  } >RAM_D1
+  
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 

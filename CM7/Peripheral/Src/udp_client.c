@@ -88,12 +88,19 @@ void udp_clientInit(void)
     }
 
     /* Initialize the packet_Image array based on cisConfig.pixels_nb */
-    for (int32_t packet = UDP_MAX_NB_PACKET_PER_LINE; --packet >= 0;)
+    for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
     {
-        packet_Image[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
-        packet_Image[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
-        packet_Image[packet].type = IMAGE_DATA_HEADER;
-        packet_Image[packet].fragment_id = packet;
+        // Initialize first buffer (scanline_buff1)
+        buffers_Scanline.scanline_buff1[packet].type = IMAGE_DATA_HEADER;
+        buffers_Scanline.scanline_buff1[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
+        buffers_Scanline.scanline_buff1[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+        buffers_Scanline.scanline_buff1[packet].fragment_id = packet;
+
+        // Initialize second buffer (scanline_buff2)
+        buffers_Scanline.scanline_buff2[packet].type = IMAGE_DATA_HEADER;
+        buffers_Scanline.scanline_buff2[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
+        buffers_Scanline.scanline_buff2[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+        buffers_Scanline.scanline_buff2[packet].fragment_id = packet;
     }
 
     packet_StartupInfo.type = STARTUP_INFO_HEADER;
@@ -163,14 +170,14 @@ void udp_clientSendStartupInfoPacket(void)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void udp_clientSendPackets(struct packet_Image *rgbBuffers)
+void udp_clientSendPackets(struct packet_Scanline *rgbBuffers)
 {
 	static int32_t packet = 0;
 
 	for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
 	{
 		rgbBuffers[packet].packet_id = packetsCounter++;
-		udp_clientSendData(&rgbBuffers[packet], sizeof(struct packet_Image));
+		udp_clientSendData(&rgbBuffers[packet], sizeof(struct packet_Scanline));
 	}
 
 	packet_IMU.packet_id = packetsCounter++;
@@ -203,6 +210,6 @@ void udp_clientSendPackets(struct packet_Image *rgbBuffers)
 		}
 	}
 
-	udp_clientSendData(&packet_Button, sizeof(packet_Button));
+	udp_clientSendData(&packet_Button, sizeof(struct packet_Button));
 }
 #pragma GCC pop_options

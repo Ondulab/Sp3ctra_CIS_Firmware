@@ -82,7 +82,9 @@ void cis_init(void)
 
     cis_configure(shared_config.cis_dpi);
 
+#ifdef USE_WDG
     MX_IWDG1_Init();
+#endif
 }
 
 /**
@@ -159,9 +161,13 @@ void cis_configure(uint16_t dpi)
     /* Update the number of UDP packets per line */
     cisConfig.udp_nb_packet_per_line = cisConfig.pixels_nb / UDP_LINE_FRAGMENT_SIZE;
 
-    for (int32_t packet = UDP_MAX_NB_PACKET_PER_LINE; --packet >= 0;)
+    for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
     {
-        packet_Image[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+        // Initialize first buffer (scanline_buff1)
+        buffers_Scanline.scanline_buff1[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+
+        // Initialize second buffer (scanline_buff2)
+        buffers_Scanline.scanline_buff2[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
     }
 
     /* Start capture with new configuration */
@@ -241,7 +247,9 @@ void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
     int32_t acc = 0;
     int32_t lane, i;
 
+#ifdef USE_WDG
     HAL_IWDG_Refresh(&hiwdg1);
+#endif
 
     if (overSampling > 1)
     {
@@ -379,7 +387,7 @@ void cis_imageProcess_2(int32_t *cis_buff)
  *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
  *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
  */
-void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Image *imageBuffers)
+void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBuffers)
 {
     int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
 

@@ -55,11 +55,11 @@ typedef enum
 
 typedef enum
 {
-	STARTUP_INFO_HEADER = 0,
-	IMAGE_DATA_HEADER,
-	IMU_DATA_HEADER,
-	BUTTON_DATA_HEADER,
-	LED_DATA_HEADER,
+    STARTUP_INFO_HEADER = 0x11,
+    IMAGE_DATA_HEADER = 0x12,
+    IMU_DATA_HEADER = 0x13,
+    BUTTON_DATA_HEADER= 0x14,
+    LED_DATA_HEADER = 0x15,
 }CIS_Packet_HeaderTypeDef;
 
 typedef enum
@@ -91,7 +91,7 @@ struct __attribute__((aligned(4))) packet_StartupInfo
 };
 
 // Structure for image data packets, including metadata for image fragmentation
-struct __attribute__((aligned(4))) packet_Image
+struct __attribute__((aligned(4))) packet_Scanline
 {
 	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
 	uint32_t packet_id;               				// Sequence number, useful for ordering packets
@@ -102,6 +102,12 @@ struct __attribute__((aligned(4))) packet_Image
 	uint8_t imageData_R[UDP_LINE_FRAGMENT_SIZE];   	// Pointer to the fragmented red image data
 	uint8_t imageData_G[UDP_LINE_FRAGMENT_SIZE];  	// Pointer to the fragmented green image data
 	uint8_t imageData_B[UDP_LINE_FRAGMENT_SIZE];	// Pointer to the fragmented blue image data
+};
+
+struct __attribute__((aligned(4))) buffers_Scanline
+{
+	struct packet_Scanline scanline_buff1[UDP_MAX_NB_PACKET_PER_LINE];
+	struct packet_Scanline scanline_buff2[UDP_MAX_NB_PACKET_PER_LINE];
 };
 
 struct __attribute__((aligned(4))) button_State
@@ -201,7 +207,7 @@ struct __attribute__((aligned(4))) shared_config
 
 extern volatile struct shared_var shared_var;
 extern volatile struct shared_config shared_config;
-extern struct packet_Image packet_Image[UDP_MAX_NB_PACKET_PER_LINE * 2];
+extern volatile struct packet_Scanline scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE];
 extern struct packet_IMU packet_IMU;
 extern int params_size;
 
@@ -266,12 +272,12 @@ struct RAWImage{
 	float32_t blueLine[CIS_MAX_PIXELS_NB];
 };
 
+extern struct buffers_Scanline buffers_Scanline;
 extern CIS_Config cisConfig;
 extern int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
-//extern struct RAWImage RAWImageCalibration[11];
 extern struct cisLeds_Calibration cisLeds_Calibration;
 extern q31_t cisDataCpy_q31[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));
 

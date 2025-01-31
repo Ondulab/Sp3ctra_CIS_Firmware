@@ -241,7 +241,6 @@ void delete_old_firmware(const char *latest_firmware)
             }
         }
     }
-
     // Close the directory
     f_closedir(&dir);
 }

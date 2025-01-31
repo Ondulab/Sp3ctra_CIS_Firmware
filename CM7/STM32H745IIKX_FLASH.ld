@@ -48,7 +48,7 @@ MEMORY
   FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 1024K
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 32K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
@@ -145,14 +145,15 @@ SECTIONS
     /* KEEP (*(.cisRGBCalibration)); */
     /* KEEP (*(.cisLedsCalibration)); */  
     . = ALIGN(4);
-  } >DTCM AT> FLASH
+  } >DTCM
   
   .axi :
   {
     . = ALIGN(4);
+    KEEP(*(.scanline_buff));
     KEEP (*(.cisData)); 
     . = ALIGN(4);
-  } >RAM_AXI AT> FLASH
+  } >RAM_AXI
   
   .shared :
   {
@@ -160,16 +161,23 @@ SECTIONS
     KEEP (*(.shared_var));  
     KEEP (*(.shared_config));
     . = ALIGN(4); 
-  } >RAM_SHARED AT> FLASH
+  } >RAM_SHARED
 
   .shared_cached :
   {
     . = ALIGN(4);
-    KEEP (*(.rgbBuffers));
+    /* KEEP (*(.rgbBuffers)); */
     KEEP (*(.imuData));    
     . = ALIGN(4);    
-  } >RAM_SHARED_CACHED AT> FLASH
-
+  } >RAM_SHARED_CACHED
+  
+  .ram_d1_shared (NOLOAD) :
+  {
+    . = ALIGN(4);
+    KEEP(*(.ram_d1_shared));
+    . = ALIGN(4);
+  } >RAM_D1
+  
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 

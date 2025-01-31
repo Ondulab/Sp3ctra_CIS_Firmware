@@ -23,6 +23,8 @@
 #include "crc.h"
 #include "dma.h"
 #include "fatfs.h"
+#include "iwdg.h"
+#include "mdma.h"
 #include "rng.h"
 #include "spi.h"
 #include "tim.h"
@@ -136,12 +138,14 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
+  MX_MDMA_Init();
   MX_USART1_UART_Init();
   MX_RNG_Init();
   MX_CRC_Init();
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_TIM6_Init();
+  MX_IWDG1_Init();
   /* USER CODE BEGIN 2 */
 
   printf("CM7 BOOT\n");

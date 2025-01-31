@@ -36,7 +36,7 @@ extern volatile uint32_t isConnected;
 /* Exported functions prototypes ---------------------------------------------*/
 void udp_clientInit(void);
 void udp_clientSendStartupInfoPacket(void);
-void udp_clientSendPackets(struct packet_Image *rgbBuffers);
+void udp_clientSendPackets(struct packet_Scanline *rgbBuffers);
 
 /* Private defines -----------------------------------------------------------*/
 

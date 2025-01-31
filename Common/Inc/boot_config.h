@@ -16,12 +16,10 @@
 #ifndef __BOOT_CONFIG_H__
 #define __BOOT_CONFIG_H__
 
-//#include "stm32h7xx_hal.h"
-
 /**************************************************************************************/
 /*******************              General definitions               *******************/
 /**************************************************************************************/
-#define BL_VERSION	"1.2.0"
+#define BL_VERSION	"1.2.1"
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -65,39 +63,6 @@
 #define FW_CM4_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK1 - FW_CM4_START_ADDR)
 #define FW_CM7_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK2 - FW_CM7_START_ADDR)
 #define FLASH_PERSISTENT_DATA_ADDRESS 			(ADDR_FLASH_SECTOR_1_BANK1)
-
-/**************************************************************************************/
-/********************             	HID definitions                ********************/
-/**************************************************************************************/
-#if 0
-#define DEFAULT_UI_BUTTON_DELAY 				(100)
-#define DEFAULT_CIS_HANDEDNESS 1
-
-#define BANNER_BACKGROUND_COLOR					(3)
-
-#define DISPLAY_WIDTH							SSD1362_WIDTH
-#define DISPLAY_HEIGHT							SSD1362_HEIGHT
-
-#define DISPLAY_HEAD_HEIGHT						(9)
-
-#define DISPLAY_AERAS1_HEIGHT					(47)
-#define DISPLAY_AERAS2_HEIGHT					(16)
-#define DISPLAY_INTER_AERAS_HEIGHT				(1)
-
-#define DISPLAY_HEAD_Y1POS						(0)
-#define DISPLAY_HEAD_Y2POS						(DISPLAY_HEAD_HEIGHT)
-
-#define DISPLAY_AERA1_Y1POS						(0)//(DISPLAY_HEAD_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
-#define DISPLAY_AERA1_Y2POS						(DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT)
-
-#define DISPLAY_AERA2_Y1POS						(DISPLAY_AERA1_Y2POS + DISPLAY_INTER_AERAS_HEIGHT)
-#define DISPLAY_AERA2_Y2POS						(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
-
-#define WINDOW_IMU_AVERAGE_SIZE 				(5)  // Window size for the moving average
-
-#define	NUMBER_OF_BUTTONS						(3)
-#define	NUMBER_OF_LEDS							(3)
-#endif
 
 #endif // __BOOT_CONFIG_H__
 

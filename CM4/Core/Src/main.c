@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "mdma.h"
 #include "tim.h"
 #include "gpio.h"
 #include "fmc.h"
@@ -100,6 +101,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_DMA_Init();
   MX_GPIO_Init();
+  MX_MDMA_Init();
   MX_FMC_Init();
   MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
