@@ -171,12 +171,12 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   
-  .ram_d1_shared (NOLOAD) :
+  .ram_d3_shared (NOLOAD) :
   {
     . = ALIGN(4);
-    KEEP(*(.ram_d1_shared));
+    KEEP(*(.ram_d3_shared));
     . = ALIGN(4);
-  } >RAM_D1
+  } >RAM_D3
   
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);

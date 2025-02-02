@@ -17,13 +17,12 @@
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "basetypes.h"
 
+#include "basetypes.h"
 #include "globals.h"
 #include "gui_config.h"
 
 #include "ssd1362.h"
-
 #include "leds.h"
 
 #include "gui.h"
@@ -41,8 +40,8 @@ struct IMU_average
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-
 struct IMU_average IMU_average = {0};
+volatile uint32_t transferComplete = 0;
 
 /* Variable containing black and white frame from CIS*/
 
@@ -55,6 +54,14 @@ static void gui_interractiveMenu(void);
 static void gui_startCalibration(void);
 static void gui_changeHand(void);
 
+/**
+ * @brief Main loop of the GUI.
+ *
+ * Initializes the scanlines and enters an infinite loop where the display is
+ * updated, button inputs are processed, and the IMU data is rendered.
+ *
+ * @return int Always returns 0.
+ */
 int gui_mainLoop(void)
 {
     int32_t last_refresh_tick = HAL_GetTick(); // Initialization of the last refresh tick
@@ -62,15 +69,9 @@ int gui_mainLoop(void)
 
     for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
     {
-        // Initialize first buffer (scanline_buff1)
-    	memset(buffers_Scanline.scanline_buff1[packet].imageData_R, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_R));
-    	memset(buffers_Scanline.scanline_buff1[packet].imageData_G, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_G));
-    	memset(buffers_Scanline.scanline_buff1[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_B));
-
-        // Initialize second buffer (scanline_buff2)
-        memset(buffers_Scanline.scanline_buff2[packet].imageData_R, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_R));
-        memset(buffers_Scanline.scanline_buff2[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_G));
-        memset(buffers_Scanline.scanline_buff2[packet].imageData_B, 0, sizeof(buffers_Scanline.scanline_buff1[packet].imageData_B));
+        memset((void *) scanline_CM4[packet].imageData_R, 0, sizeof(scanline_CM4[packet].imageData_R));
+        memset((void *) scanline_CM4[packet].imageData_G, 0, sizeof(scanline_CM4[packet].imageData_G));
+        memset((void *) scanline_CM4[packet].imageData_B, 0, sizeof(scanline_CM4[packet].imageData_B));
     }
 
     gui_displayWaiting();
@@ -104,15 +105,6 @@ int gui_mainLoop(void)
             last_process_count = current_process_count; // Update the last process counter
         }
 
-#if 0
-        static char str[12];
-        static int32_t counter = 0;
-        counter++;
-
-        sprintf(str, "%lu", counter);
-        ssd1362_drawString(0, 0, (int8_t *)str, 15, 8);
-#endif
-
         gui_interractiveMenu();
         gui_displayIMU();
     	ssd1362_writeUpdates();
@@ -121,6 +113,14 @@ int gui_mainLoop(void)
 
 /* Private functions ---------------------------------------------------------*/
 
+/**
+ * @brief Renders the CIS image on the display.
+ *
+ * Processes the RGB data from the scanline buffers, converts the values into a
+ * grayscale or pseudo-color representation, and draws the corresponding pixels.
+ *
+ * @note This function returns immediately if the transfer is not complete.
+ */
 void gui_displayImage(void)
 {
 	uint8_t cis_rgb[3] = {0};
@@ -131,6 +131,13 @@ void gui_displayImage(void)
 	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
 	int32_t pixel_intensity = 0;
 	float64_t angle = 0;
+
+	if (!transferComplete)
+	{
+		return;
+	}
+
+	transferComplete = false;
 
 	ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
 
@@ -148,9 +155,9 @@ void gui_displayImage(void)
 			index = (packet - (uint32_t)packet) * (CIS_200DPI_PIXELS_NB / (UDP_MAX_NB_PACKET_PER_LINE / 2));
 		}
 
-		cis_rgb[0] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_R[(uint32_t)index];
-		cis_rgb[1] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_G[(uint32_t)index];
-		cis_rgb[2] = buffers_Scanline.scanline_buff1[(uint32_t)packet].imageData_B[(uint32_t)index];
+		cis_rgb[0] = scanline_CM4[(uint32_t)packet].imageData_R[(uint32_t)index];
+		cis_rgb[1] = scanline_CM4[(uint32_t)packet].imageData_G[(uint32_t)index];
+		cis_rgb[2] = scanline_CM4[(uint32_t)packet].imageData_B[(uint32_t)index];
 
 		// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
 		// are weights given to the R, G, and B components respectively,
@@ -182,7 +189,13 @@ void gui_displayImage(void)
 	}
 }
 
-// Function to update the moving average
+/**
+ * @brief Updates the moving average for the IMU sensor data.
+ *
+ * This function accumulates new accelerometer and gyroscope data from the current
+ * IMU packet, updates the rolling sum for each axis, and computes the average over
+ * a predefined window size.
+ */
 void update_IMU_average(void)
 {
 	static float32_t acc_values[3][WINDOW_IMU_AVERAGE_SIZE] = {{0}};
@@ -214,6 +227,12 @@ void update_IMU_average(void)
 	imuIndex[2] = (imuIndex[2] + 1) % WINDOW_IMU_AVERAGE_SIZE;
 }
 
+/**
+ * @brief Displays the IMU data on the screen.
+ *
+ * Uses the averaged IMU data to render graphs and visual indicators of the sensor
+ * values (accelerometer and gyroscope) on the designated area of the display.
+ */
 void gui_displayIMU(void)
 {
 	// IMU DISPLAY
@@ -309,6 +328,11 @@ void gui_displayIMU(void)
 	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
 }
 
+/**
+ * @brief Displays a popup window with current configuration parameters.
+ *
+ * Shows the DPI, oversampling rate, and current processing frequency in a popup box.
+ */
 void gui_displayPopUp()
 {
 	uint8_t textData[256] = {0};
@@ -339,40 +363,24 @@ void gui_displayPopUp()
 	ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
 }
 
-void gui_displayWaiting2(void)
-{
-	static uint32_t lastUpdateTime = 0; // Time of the last display update
-	static const uint32_t updateInterval = 1000; // Update display every 1 second
-	static int dotCount = 0;
-	static char waitMessage[20];
-
-	while (shared_var.cis_process_rdy != TRUE)
-	{
-		uint32_t currentTime = HAL_GetTick(); // Get current system tick
-
-		// Update display every second
-		if (currentTime - lastUpdateTime >= updateInterval)
-		{
-			lastUpdateTime = currentTime;
-			ssd1362_clearBuffer();
-			snprintf(waitMessage, sizeof(waitMessage), "PLEASE WAIT%.*s", dotCount + 1, "...");
-			ssd1362_drawString(76, 25, (int8_t *)waitMessage, 8, 10);
-			//ssd1362_writeUpdates();
-			ssd1362_writeFullBuffer();
-			dotCount = (dotCount + 1) % 3; // Cycle through 1, 2, 3 dots
-		}
-	}
-	gui_changeHand();
-}
-
-// Function to generate a random float between two values
+/**
+ * @brief Generates a random float within the specified range.
+ *
+ * @param min The minimum value of the range.
+ * @param max The maximum value of the range.
+ * @return float A random floating-point value between min and max.
+ */
 float randomFloat(float min, float max)
 {
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
-#define NUM_LINE 5
-
+/**
+ * @brief Displays an animated waiting screen.
+ *
+ * Renders a dynamic wave animation on the screen to indicate that the system is
+ * currently waiting for a process to complete.
+ */
 void gui_displayWaiting(void)
 {
     static uint32_t lastUpdateTime = 0; // Time of the last display update
@@ -464,6 +472,12 @@ void gui_displayWaiting(void)
     }
 }
 
+/**
+ * @brief Initiates the CIS calibration procedure.
+ *
+ * Displays step-by-step instructions to guide the user through the calibration
+ * process, handling different calibration states until completion.
+ */
 void gui_startCalibration()
 {
 	//uint8_t textData[256] = {0};
@@ -545,11 +559,22 @@ void gui_startCalibration()
 	ssd1362_writeFullBuffer();
 }
 
+/**
+ * @brief Adjusts the screen orientation based on the configured handedness.
+ *
+ * Calls the screen rotation function with the current handedness configuration.
+ */
 void gui_changeHand()
 {
 	ssd1362_screenRotation(shared_config.cis_handedness);
 }
 
+/**
+ * @brief Processes interactive button inputs and updates the UI.
+ *
+ * Monitors the state of each button, provides visual feedback through LEDs,
+ * and triggers actions (such as starting calibration) based on button events.
+ */
 void gui_interractiveMenu()
 {
 	static uint32_t button_current_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
@@ -616,4 +641,23 @@ void gui_interractiveMenu()
 			shared_var.button_update_requested[i] = TRUE;
 		}
 	}
+}
+
+/**
+ * @brief Interrupt handler for the hardware semaphore.
+ *
+ * Checks the semaphore flag, clears it, and sets the transferComplete flag to
+ * indicate that the MDMA transfer has finished.
+ */
+void HSEM2_IRQHandler(void)
+{
+    // Check if semaphore 1 triggered the IRQ
+    if (__HAL_HSEM_GET_FLAG(__HAL_HSEM_SEMID_TO_MASK(1)) != 0)
+    {
+        // Clear the HSEM interrupt flag
+        __HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(1));
+
+        // Signal that the MDMA transfer is complete
+        transferComplete = true;
+    }
 }

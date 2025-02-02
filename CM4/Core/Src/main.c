@@ -63,6 +63,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
+void HSEM4_Init(void);
 
 /* USER CODE END PFP */
 
@@ -105,6 +106,7 @@ int main(void)
   MX_FMC_Init();
   MX_TIM12_Init();
   /* USER CODE BEGIN 2 */
+  HSEM4_Init();
 
 #ifdef PRINTF_CM4
   MX_USART1_UART_Init();
@@ -215,6 +217,18 @@ void PeriphCommonClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HSEM4_Init(void)
+{
+    // Enable HSEM clock for CM4
+    __HAL_RCC_HSEM_CLK_ENABLE();
+
+    // Enable notification on semaphore 1 to receive IRQ on CM4
+    HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(1));
+
+    // Set IRQ priority and enable HSEM IRQ for CM4
+    HAL_NVIC_SetPriority(HSEM2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(HSEM2_IRQn);
+}
 
 /* USER CODE END 4 */
 

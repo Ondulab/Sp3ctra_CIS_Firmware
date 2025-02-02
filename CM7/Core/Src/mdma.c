@@ -30,6 +30,7 @@
 /*----------------------------------------------------------------------------*/
 
 /* USER CODE BEGIN 1 */
+void HAL_MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma);
 
 /* USER CODE END 1 */
 MDMA_HandleTypeDef hmdma_mdma_channel0_sw_0;
@@ -59,8 +60,8 @@ void MX_MDMA_Init(void)
   hmdma_mdma_channel0_sw_0.Init.DestDataSize = MDMA_DEST_DATASIZE_WORD;
   hmdma_mdma_channel0_sw_0.Init.DataAlignment = MDMA_DATAALIGN_PACKENABLE;
   hmdma_mdma_channel0_sw_0.Init.BufferTransferLength = 10560;
-  hmdma_mdma_channel0_sw_0.Init.SourceBurst = MDMA_SOURCE_BURST_32BEATS;
-  hmdma_mdma_channel0_sw_0.Init.DestBurst = MDMA_DEST_BURST_32BEATS;
+  hmdma_mdma_channel0_sw_0.Init.SourceBurst = MDMA_SOURCE_BURST_SINGLE;
+  hmdma_mdma_channel0_sw_0.Init.DestBurst = MDMA_DEST_BURST_SINGLE;
   hmdma_mdma_channel0_sw_0.Init.SourceBlockAddressOffset = 0;
   hmdma_mdma_channel0_sw_0.Init.DestBlockAddressOffset = 0;
   if (HAL_MDMA_Init(&hmdma_mdma_channel0_sw_0) != HAL_OK)
@@ -68,8 +69,31 @@ void MX_MDMA_Init(void)
     Error_Handler();
   }
 
+  /* MDMA interrupt initialization */
+  /* MDMA_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(MDMA_IRQn, 7, 0);
+  HAL_NVIC_EnableIRQ(MDMA_IRQn);
+
 }
 /* USER CODE BEGIN 2 */
+void MDMA_Init(void)
+{
+	HAL_MDMA_RegisterCallback(&hmdma_mdma_channel0_sw_0, HAL_MDMA_XFER_CPLT_CB_ID, HAL_MDMA_XferCpltCallback);
+}
+
+/**
+ * @brief MDMA transfer complete callback.
+ * @param hmdma Pointer to the MDMA handle.
+ */
+void HAL_MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma)
+{
+    if (hmdma == &hmdma_mdma_channel0_sw_0)
+    {
+        // Release semaphore 1 and generate an IRQ for CM4
+        HAL_HSEM_FastTake(1);
+        HAL_HSEM_Release(1, 0);
+    }
+}
 
 /* USER CODE END 2 */
 

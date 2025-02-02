@@ -56,7 +56,6 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern MDMA_HandleTypeDef hmdma_mdma_channel0_sw_0;
 extern TIM_HandleTypeDef htim12;
 /* USER CODE BEGIN EV */
 

@@ -42,7 +42,7 @@ volatile struct shared_config shared_config = {0};
 __attribute__ ((section(".cisCals")))
 struct cisCals cisCals = {0};
 
-__attribute__((section(".ram_d1_shared"), aligned(4)))
+__attribute__((section(".ram_d3_shared"), aligned(4)))
 volatile struct packet_Scanline scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE];
 
 __attribute__ ((section(".imuData")))

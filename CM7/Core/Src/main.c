@@ -23,7 +23,6 @@
 #include "crc.h"
 #include "dma.h"
 #include "fatfs.h"
-#include "iwdg.h"
 #include "mdma.h"
 #include "rng.h"
 #include "spi.h"
@@ -51,11 +50,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#if 0
-#ifndef HSEM_ID_0
-#define HSEM_ID_0 (0U) /* HW semaphore 0*/
-#endif
-#endif
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -66,9 +61,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern struct netif gnetif;
 volatile unsigned long ulHighFrequencyTimerTicks = 0;
-int MX25test(void);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,6 +70,7 @@ void PeriphCommonClock_Config(void);
 static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+void HSEM7_Init(void);
 
 /* USER CODE END PFP */
 
@@ -145,8 +139,9 @@ int main(void)
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_TIM6_Init();
-  MX_IWDG1_Init();
   /* USER CODE BEGIN 2 */
+  HSEM7_Init();
+  MDMA_Init();
 
   printf("CM7 BOOT\n");
 
@@ -281,83 +276,13 @@ void PeriphCommonClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* Definitions for testing */
-#define TEST_ADDRESS      0x00000000  // Start address for testing
-#define TEST_SIZE         1024        // Test data size (1KB)
-#define TEST_ERASE_SIZE   MXIC_SNOR_ERASE_64K // Erase block size
-
-/* Data for write tests */
-uint8_t testWriteData[TEST_SIZE];
-uint8_t testReadData[TEST_SIZE];
-
-/* Test function prototypes */
-static int32_t QSPI_Test_WriteRead(uint32_t instance);
-static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size);
-
-int MX25test(void)
+void HSEM7_Init(void)
 {
-    /* QSPI peripheral initialization */
-    BSP_QSPI_Init_t qspiInit = {MXIC_SNOR_FREAD_144, MXIC_SNOR_STR}; // Specific interface mode and rate
-    if (BSP_QSPI_Init(0, qspiInit) != BSP_ERROR_NONE) {
-        printf("QSPI initialization error\n");
-        return -1;
-    }
+    // Enable HSEM clock
+    __HAL_RCC_HSEM_CLK_ENABLE();
 
-    /* Write and read test */
-    if (QSPI_Test_WriteRead(0) != BSP_ERROR_NONE) {
-        printf("QSPI write/read test error\n");
-        return -1;
-    }
-
-    /* Deinitialization */
-    if (BSP_QSPI_DeInit(0) != BSP_ERROR_NONE) {
-        printf("QSPI deinitialization error\n");
-        return -1;
-    }
-
-    printf("QSPI test completed successfully.\n");
-    return 0;
-}
-
-static int32_t QSPI_Test_WriteRead(uint32_t instance)
-{
-    /* Block erase */
-    if (BSP_QSPI_EraseBlock(instance, TEST_ADDRESS, TEST_ERASE_SIZE) != BSP_ERROR_NONE) {
-        printf("Block erase error\n");
-        return BSP_ERROR_COMPONENT_FAILURE;
-    }
-
-    /* Fill test data */
-    Fill_Test_Pattern(testWriteData, TEST_SIZE);
-
-    /* Write test data */
-    if (BSP_QSPI_Write(instance, testWriteData, TEST_ADDRESS, TEST_SIZE) != BSP_ERROR_NONE) {
-        printf("QSPI write error\n");
-        return BSP_ERROR_COMPONENT_FAILURE;
-    }
-
-    /* Read data */
-    if (BSP_QSPI_Read(instance, testReadData, TEST_ADDRESS, TEST_SIZE) != BSP_ERROR_NONE) {
-        printf("QSPI read error\n");
-        return BSP_ERROR_COMPONENT_FAILURE;
-    }
-
-    /* Verify read data */
-    for (uint32_t i = 0; i < TEST_SIZE; i++) {
-        if (testReadData[i] != testWriteData[i]) {
-            printf("Data verification error at index %lu\n", i);
-            return BSP_ERROR_COMPONENT_FAILURE;
-        }
-    }
-
-    return BSP_ERROR_NONE;
-}
-
-static void Fill_Test_Pattern(uint8_t *buffer, uint32_t size)
-{
-	for (uint32_t i = 0; i < size; i++) {
-		buffer[i] = i % 256;  // Pattern simple : 0, 1, 2, ..., 255, 0, 1, ...
-	}
+    // Configure HSEM notification for CM4 on semaphore 1
+    HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(1));
 }
 
 /**

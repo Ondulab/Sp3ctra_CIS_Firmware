@@ -14,7 +14,6 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
-#include <http_server.h>
 #include "stdbool.h"
 #include "stdio.h"
 
@@ -29,7 +28,6 @@
 
 #include "cis.h"
 #include "cis_linearCal.h"
-
 #include "udp_client.h"
 
 #include "cis_scan.h"
@@ -52,26 +50,23 @@ static QueueHandle_t readyBufferQueue;
 /* Variable containing black and white frame from CIS */
 
 /* Private function prototypes -----------------------------------------------*/
+static void cis_start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t length);
 static void cis_userCal(void);
 static void cis_scanTask(void *argument);
 static void cis_sendTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 
-void Start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t length)
+/**
+ * @brief Start an MDMA transfer with interrupt.
+ * @param src Pointer to the source address.
+ * @param dst Pointer to the destination address.
+ * @param length Transfer length in bytes.
+ */
+static void cis_start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t length)
 {
-    /* Configure source and destination addresses */
-	hmdma_mdma_channel0_sw_0.Instance->CSAR = (uint32_t)src;
-	hmdma_mdma_channel0_sw_0.Instance->CDAR = (uint32_t)dst;
-
-    /* Configure block transfer length */
-	hmdma_mdma_channel0_sw_0.Instance->CBNDTR = length;
-
     /* Start the MDMA transfer */
-    if (HAL_MDMA_Start_IT(&hmdma_mdma_channel0_sw_0, (uint32_t)src, (uint32_t)dst, length, 1) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel0_sw_0, (uint32_t)src, (uint32_t)dst, length, 1);
 }
 
 /**
@@ -177,8 +172,6 @@ static void cis_scanTask(void *argument)
         // 2) Process the image data and fill the buffer
         cis_imageProcess(cisDataCpy_f32, pCurrentBuffer);
 
-		Start_MDMA_Transfer((uint32_t *)pCurrentBuffer, (uint32_t *)scanline_CM4, sizeof(struct packet_Scanline) * UDP_MAX_NB_PACKET_PER_LINE);
-
         // 3) Notify the send task that the buffer is ready
         xQueueSend(readyBufferQueue, &pCurrentBuffer, portMAX_DELAY);
     }
@@ -202,10 +195,13 @@ static void cis_sendTask(void *argument)
         // 2) Clean the cache
         SCB_CleanDCache_by_Addr((uint32_t *)pSendBuffer, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
 
-        // 3) Send the buffer
+        // 3) Start MDMA transfer for CM4 display
+        cis_start_MDMA_Transfer((uint32_t *)pSendBuffer, (uint32_t *)scanline_CM4, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
+
+        // 4) Send the buffer
         udp_clientSendPackets(pSendBuffer);
 
-        // 4) Return the buffer to the "free" queue
+        // 5) Return the buffer to the "free" queue
         xQueueSend(freeBufferQueue, &pSendBuffer, portMAX_DELAY);
 
         shared_var.cis_process_cnt++;

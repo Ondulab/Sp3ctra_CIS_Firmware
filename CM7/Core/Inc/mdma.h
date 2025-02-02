@@ -43,6 +43,7 @@ extern MDMA_HandleTypeDef hmdma_mdma_channel0_sw_0;
 void MX_MDMA_Init(void);
 
 /* USER CODE BEGIN Prototypes */
+void MDMA_Init(void);
 
 /* USER CODE END Prototypes */
 

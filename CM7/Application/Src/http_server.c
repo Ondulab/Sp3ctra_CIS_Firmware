@@ -217,8 +217,7 @@ void delete_old_firmware(const char *latest_firmware)
         {
             // Construct the full path: "FW_PATH/fno.fname"
             char filepath[FILE_NAME_MAX_LENGTH];
-            size_t needed_length = strlen(FW_PATH) + 1 /* slash or backslash */
-                                   + strlen(fno.fname) + 1 /* '\0' */;
+            size_t needed_length = strlen(FW_PATH) + 1 /* slash or backslash */ + strlen(fno.fname) + 1 /* '\0' */;
 
             // Check if we exceed the buffer size
             if (needed_length > sizeof(filepath))
@@ -227,7 +226,12 @@ void delete_old_firmware(const char *latest_firmware)
                 continue;
             }
 
-            snprintf(filepath, sizeof(filepath), "%s/%s", FW_PATH, fno.fname);
+            // Assume FW_PATH is defined and fno.fname is provided by FATFS.
+            // We calculate the available space for fno.fname.
+            size_t available_space = sizeof(filepath) - strlen(FW_PATH) - 1; // -1 for the '/'
+
+            // Using %.*s to limit the number of characters copied from fno.fname.
+            snprintf(filepath, sizeof(filepath), "%s/%.*s", FW_PATH, (int)available_space, fno.fname);
 
             // Delete the file
             res = f_unlink(filepath);
@@ -316,8 +320,11 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                             if (extracted == 1)
                             {
                                 // Insert a slash between FW_PATH and file_name:
-                                snprintf(full_file_path, sizeof(full_file_path),
-                                         "%s/%s", FW_PATH, file_name);
+                            	// Calculate the available space for file_name after FW_PATH and the '/' separator.
+                            	size_t available_space = sizeof(full_file_path) - strlen(FW_PATH) - 1; // -1 for '/'
+
+                            	// Print into full_file_path while ensuring we don't exceed available_space for file_name.
+                            	snprintf(full_file_path, sizeof(full_file_path), "%s/%.*s", FW_PATH, (int)available_space, file_name);
 
                                 fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
                                 ret = FWUPDATE_STATUS_INPROGRESS;
