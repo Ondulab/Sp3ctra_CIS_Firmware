@@ -167,8 +167,8 @@ struct __attribute__((aligned(4))) cisRgbBuffers
 
 struct __attribute__((aligned(4))) cisCals
 {
-	float32_t offsetData[CIS_MAX_ADC_BUFF_SIZE * 3];
-	float32_t gainsData[CIS_MAX_ADC_BUFF_SIZE * 3];
+	int32_t offsetData[CIS_MAX_ADC_BUFF_SIZE * 3];
+	int32_t gainsData[CIS_MAX_ADC_BUFF_SIZE * 3];
 };
 
 struct __attribute__((aligned(4))) shared_var
@@ -275,8 +275,7 @@ struct RAWImage{
 extern struct buffers_Scanline buffers_Scanline;
 extern CIS_Config cisConfig;
 extern int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
-//extern float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3];
-extern int32_t cisDataCpy_int[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern int32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
 extern struct cisLeds_Calibration cisLeds_Calibration;

@@ -38,13 +38,11 @@ typedef enum
 
 void cis_init(void);
 void cis_configure(uint16_t dpi);
-void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling);
+void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t* cis_buff);
-void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBuffers);
-void cis_imageProcess_int(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
-void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb);
-void cis_imageProcessRGB_Calibration_int(int32_t *cisCalData, uint16_t iterationNb);
+void cis_imageProcess(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
+void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb);
 void cis_startCapture(void);
 void cis_stopCapture(void);
 void cis_ledsOn(void);

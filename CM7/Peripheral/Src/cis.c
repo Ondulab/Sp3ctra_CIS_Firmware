@@ -140,7 +140,7 @@ void cis_configure(uint16_t dpi)
     /* Initialize buffers */
     memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
     //memset(cisDataCpy_f32, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
-    memset(cisDataCpy_int, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
+    memset(cisDataCpy, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
 
     /* Calculate the cycle duration in microseconds */
     float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
@@ -176,9 +176,15 @@ void cis_configure(uint16_t dpi)
 }
 
 /**
- * @brief  Manages Image process.
- * @param cis image buffer ptr
+ * @brief  Manages raw image acquisition with oversampling.
+ * @param  cisDataAccum: Pointer to accumulation buffer.
+ * @param  overSampling: Oversampling factor.
  * @retval None
+ *
+ * Detailed explanation:
+ * - For each oversampling iteration, the half and full DMA buffers are read.
+ * - If a timeout occurs, the capture process is reset.
+ * - Finally, if oversampling > 1, each pixel value is divided by the number of iterations.
  *
  * ---------------------------------------------------
  *	INPUT :
@@ -242,11 +248,11 @@ void cis_configure(uint16_t dpi)
  **/
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-
-void cis_getRAWImage_int(int32_t* cisDataAccum, uint8_t overSampling)
+void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling)
 {
     int32_t acc = 0;
     int32_t lane, i;
+
     if (overSampling > 1)
     {
         memset(cisDataAccum, 0, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
@@ -254,10 +260,11 @@ void cis_getRAWImage_int(int32_t* cisDataAccum, uint8_t overSampling)
 
     while (acc < overSampling)
     {
-        // Read and copy the half-filled DMA buffers
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+        /* Read and copy the half-filled DMA buffers */
+        for (lane = CIS_ADC_OUT_LANES; --lane >= 0; )
         {
             uint32_t startTick = HAL_GetTick();
+
             while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
             {
                 if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
@@ -268,25 +275,28 @@ void cis_getRAWImage_int(int32_t* cisDataAccum, uint8_t overSampling)
                 }
             }
 
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
+            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane],
+                (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
+
+            for (i = (cisConfig.adc_buff_size / 2); --i >= 0; )
             {
                 if (overSampling > 1)
                 {
-                	cisDataAccum[cisConfig.adc_buff_size * lane + i] += (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
+                    cisDataAccum[cisConfig.adc_buff_size * lane + i] += (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
                 }
                 else
                 {
-                	cisDataAccum[cisConfig.adc_buff_size * lane + i] = (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
+                    cisDataAccum[cisConfig.adc_buff_size * lane + i] = (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
                 }
             }
             cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
         }
 
-        // Read and copy the full DMA buffers
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
+        /* Read and copy the full DMA buffers */
+        for (lane = CIS_ADC_OUT_LANES; --lane >= 0; )
         {
             uint32_t startTick = HAL_GetTick();
+
             while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
             {
                 if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
@@ -297,16 +307,20 @@ void cis_getRAWImage_int(int32_t* cisDataAccum, uint8_t overSampling)
                 }
             }
 
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
+            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)],
+                (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
+
+            for (i = (cisConfig.adc_buff_size / 2); --i >= 0; )
             {
                 if (overSampling > 1)
                 {
-                	cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] += (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
+                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] +=
+                        (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
                 }
                 else
                 {
-                	cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] = (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
+                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] =
+                        (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
                 }
             }
             cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
@@ -314,104 +328,22 @@ void cis_getRAWImage_int(int32_t* cisDataAccum, uint8_t overSampling)
         acc++;
     }
 
-    // 3) Division par overSampling (si > 1)
-    //    pour retomber sur l’équivalent “moyenne” en unité ADC
+    /* If oversampling > 1, compute the average */
     if (overSampling > 1)
     {
         for (int pix = 0; pix < (cisConfig.adc_buff_size * 3); pix++)
         {
-            // Division entière : cisDataAccum[pix] /= overSampling
-            // ou multiplication par l’inverse en Q16.16
             cisDataAccum[pix] /= overSampling;
         }
     }
 }
 
-void cis_getRAWImage(float32_t* cisDataCpy_f32, uint8_t overSampling)
-{
-    int32_t acc = 0;
-    int32_t lane, i;
-
-#ifdef USE_WDG
-    HAL_IWDG_Refresh(&hiwdg1);
-#endif
-
-    if (overSampling > 1)
-    {
-        arm_fill_f32(0, cisDataCpy_f32, cisConfig.adc_buff_size * 3); // Clear the buffer
-    }
-
-    while (acc < overSampling)
-    {
-        // Read and copy the half-filled DMA buffers
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-        {
-            uint32_t startTick = HAL_GetTick();
-            while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
-            {
-                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
-                {
-                    printf("Timeout: Half buffer state not reached for lane %d\n", (int)lane);
-                    cis_resetStart();
-                    return;
-                }
-            }
-
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
-            {
-                if (overSampling > 1)
-                {
-                    cisDataCpy_f32[cisConfig.adc_buff_size * lane + i] += (float32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
-                }
-                else
-                {
-                    cisDataCpy_f32[cisConfig.adc_buff_size * lane + i] = (float32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
-                }
-            }
-
-            cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-        }
-
-        // Read and copy the full DMA buffers
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0;)
-        {
-            uint32_t startTick = HAL_GetTick();
-            while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
-            {
-                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
-                {
-                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)lane);
-                    cis_resetStart();
-                    return;
-                }
-            }
-
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)], (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0;)
-            {
-                if (overSampling > 1)
-                {
-                    cisDataCpy_f32[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] += (float32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
-                }
-                else
-                {
-                    cisDataCpy_f32[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] = (float32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
-                }
-            }
-
-            cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-        }
-
-        acc++;
-    }
-
-    if (overSampling > 1)
-    {
-        arm_scale_f32(cisDataCpy_f32, 1.0f / (float32_t)overSampling, cisDataCpy_f32, cisConfig.adc_buff_size * 3);
-    }
-}
-
+/**
+ * @brief  Convert RAW image to a float array.
+ * @param  cisDataCpy_f32: Pointer to destination float array.
+ * @param  RAWImage: Pointer to a RAWImage structure.
+ * @retval None
+ */
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
 {
     // Copy segments to the complete buffer of the red line
@@ -434,7 +366,7 @@ void cis_imageProcess_2(int32_t *cis_buff)
     static struct RAWImage RAWImage = {0};
     static float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 
-    cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
+    //cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
     cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
     cis_applyCalibration(&RAWImage, &cisRGB_Calibration);
     cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
@@ -442,9 +374,15 @@ void cis_imageProcess_2(int32_t *cis_buff)
 
 
 /**
- * @brief  Manages Image process.
- * @param cis image buffer ptr
+ * @brief  Process image and output an RGB buffer.
+ * @param  cisDataCpy: Pointer to processed data buffer.
+ * @param  imageBuffers: Pointer to an array of scanline packets.
  * @retval None
+ *
+ * Detailed explanation (INPUT/OUTPUT schema remains unchanged):
+ *   - The function acquires raw image data.
+ *   - Applies linear calibration.
+ *   - Then partitions the data into UDP packet buffers.
  *
  * ---------------------------------------------------
  *	INPUT :
@@ -472,13 +410,13 @@ void cis_imageProcess_2(int32_t *cis_buff)
  *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
  *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
  */
-void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBuffers)
+void cis_imageProcess(int32_t* cisDataCpy, struct packet_Scanline *imageBuffers)
 {
     int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
 
-	cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
+	cis_getRAWImage(cisDataCpy, shared_config.cis_oversampling);
 
-	cis_applyLinearCalibration(cisDataCpy_f32, 255);
+	cis_applyLinearCalibration(cisDataCpy, 255);
 
     for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
     {
@@ -493,9 +431,9 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBu
             {
             	offsetIndex = i - endIdx;
 
-                imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[i + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
             }
         }
         else
@@ -509,9 +447,9 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBu
 
                 ii = startIdx - 1 - i + (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) + startIdx;
 
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_f32[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
+                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
             }
         }
 
@@ -520,110 +458,50 @@ void cis_imageProcess(float32_t* cisDataCpy_f32, struct packet_Scanline *imageBu
     }
 }
 
-void cis_imageProcess_int(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers)
-{
-    int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
-
-	cis_getRAWImage_int(cisDataCpy_int, shared_config.cis_oversampling);
-
-	cis_applyLinearCalibration_int(cisDataCpy_int, 255);
-
-    for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
-    {
-        lane = packet / (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES);
-
-        if (shared_config.cis_handedness)
-        {
-            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane) - 1;
-            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-
-            for (i = startIdx; i >= endIdx; --i)
-            {
-            	offsetIndex = i - endIdx;
-
-                imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_int[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_int[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_int[i + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
-            }
-        }
-        else
-        {
-            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-
-            for (i = startIdx; i < endIdx; i++)
-            {
-            	offsetIndex = i - startIdx;
-
-                ii = startIdx - 1 - i + (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) + startIdx;
-
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy_int[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy_int[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy_int[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
-            }
-        }
-
-        imageBuffers[packet].fragment_id = packet;
-        imageBuffers[packet].line_id = shared_var.cis_process_cnt;
-    }
-}
-
-#if 0
 /**
- * @brief  cis_ImageProcessRGB_Calibration
- * @param  cis calibration buffer ptr
+ * @brief  Perform image processing for RGB calibration.
+ *         Acquires multiple images, sums them and then averages.
+ * @param  cisCalData: Pointer to the calibration buffer (Q16.16 format).
+ * @param  iterationNb: Number of iterations for averaging.
  * @retval None
  */
-void cis_imageProcessRGB_Calibration(float32_t *cisCalData, uint16_t iterationNb)
+void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 {
-    static int32_t iteration;
+    uint32_t totalElements = cisConfig.adc_buff_size * 3;
+    uint32_t i;
+    uint16_t iteration;
+
     shared_var.cis_cal_progressbar = 0;
 
-    arm_fill_f32(0, cisCalData, cisConfig.adc_buff_size * 3); // Clear buffer
-    arm_fill_f32(0, cisDataCpy_f32, cisConfig.adc_buff_size * 3); // Clear buffer
+    /* Clear the calibration buffer */
+    for (i = 0; i < totalElements; i++)
+    {
+        cisCalData[i] = 0;
+    }
+
+    /* Clear the acquisition buffer as well */
+    for (i = 0; i < totalElements; i++)
+    {
+        cisDataCpy[i] = 0;
+    }
 
     for (iteration = 0; iteration < iterationNb; iteration++)
     {
-        cis_getRAWImage(cisDataCpy_f32, 1);
-        arm_add_f32(cisCalData, cisDataCpy_f32, cisCalData, cisConfig.adc_buff_size * 3);
-        shared_var.cis_cal_progressbar = iteration * 100 / (iterationNb);
+        /* Acquire a raw image with oversampling = 1 */
+        cis_getRAWImage(cisDataCpy, 1);
+
+        /* Sum the acquired buffer */
+        for (i = 0; i < totalElements; i++)
+        {
+            cisCalData[i] += cisDataCpy[i];
+        }
+
+        /* Update the progress bar */
+        shared_var.cis_cal_progressbar = (iteration * 100U) / iterationNb;
     }
 
-    arm_scale_f32(cisCalData, 1.0f / (float32_t)iterationNb, cisCalData, cisConfig.adc_buff_size * 3);
-}
-#endif
-
-/**
- * @brief  cis_ImageProcessRGB_Calibration_int
- *         Acquiert plusieurs images pour calibration en mode entier (Q16.16),
- *         effectue la somme puis divise par le nombre d'itérations.
- * @param  cisCalData  : pointeur sur le buffer de calibration (int32_t, format Q16.16)
- * @param  iterationNb : nombre d'itérations pour la moyenne
- * @retval None
- */
-void cis_imageProcessRGB_Calibration_int(int32_t *cisCalData, uint16_t iterationNb)
-{
-    static int32_t iteration;
-    shared_var.cis_cal_progressbar = 0;
-
-    /* Remplissage à zéro des buffers (la valeur 0 en Q16.16 est 0) */
-    arm_fill_q31(0, cisCalData, cisConfig.adc_buff_size * 3);      // Vide le buffer de calibration
-    arm_fill_q31(0, cisDataCpy_int,  cisConfig.adc_buff_size * 3);    // Vide le buffer d'acquisition
-
-    for (iteration = 0; iteration < iterationNb; iteration++)
-    {
-        /* Acquiert une image brute en mode entier (oversampling = 1) */
-        cis_getRAWImage_int(cisDataCpy_int, 1);
-
-        /* Additionne le buffer acquis au buffer de calibration */
-        arm_add_q31(cisCalData, cisDataCpy_int, cisCalData, cisConfig.adc_buff_size * 3);
-
-        /* Mise à jour de la barre de progression */
-        shared_var.cis_cal_progressbar = (iteration * 100) / iterationNb;
-    }
-
-    /* Division de chaque élément par le nombre d'itérations pour obtenir la moyenne */
-    for (uint32_t i = 0; i < (uint32_t)(cisConfig.adc_buff_size * 3); i++)
+    /* Average the calibration data */
+    for (i = 0; i < totalElements; i++)
     {
         cisCalData[i] /= iterationNb;
     }

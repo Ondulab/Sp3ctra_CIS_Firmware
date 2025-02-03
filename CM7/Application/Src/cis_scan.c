@@ -133,7 +133,7 @@ static void cis_userCal(void)
 #ifdef POLYNOMIAL_CALIBRATION
         cis_StartCalibration(20); // WIP
 #else
-        cis_startLinearCalibration_int(5, 255);
+        cis_startLinearCalibration(500, 255);
 #endif
 
 #ifdef PRINT_CIS_CALIBRATION
@@ -171,7 +171,7 @@ static void cis_scanTask(void *argument)
 
         // 2) Process the image data and fill the buffer
         //cis_imageProcess(cisDataCpy_f32, pCurrentBuffer);
-        cis_imageProcess_int(cisDataCpy_int, pCurrentBuffer);
+        cis_imageProcess(cisDataCpy, pCurrentBuffer);
 
         // 3) Notify the send task that the buffer is ready
         xQueueSend(readyBufferQueue, &pCurrentBuffer, portMAX_DELAY);
