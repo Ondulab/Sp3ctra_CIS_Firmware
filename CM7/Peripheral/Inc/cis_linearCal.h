@@ -21,8 +21,11 @@
 /* Private define ------------------------------------------------------------*/
 
 void cis_linearCalibrationInit(void);
-void cis_applyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue);
-void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth);
-void cis_printForCharacterization(float32_t* cisDataCpy_f32);
+//void cis_applyLinearCalibration(float32_t* cisDataCpy_f32, uint32_t maxClipValue);
+//void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth);
+//void cis_printForCharacterization(float32_t* cisDataCpy_f32);
+
+void cis_startLinearCalibration_int(uint16_t iterationNb, uint32_t bitDepth);
+void cis_applyLinearCalibration_int(int32_t* cisDataCpy_int, uint32_t maxClipValue);
 
 #endif /* __CIS_LINEARCAL_H__ */

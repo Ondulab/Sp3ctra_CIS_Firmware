@@ -76,7 +76,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* Variable containing ADC conversions data */
-
+#if 0
 /* Private function prototypes -----------------------------------------------*/
 void cis_leastSquares(double* x, double* y, uint32_t n, double* a, double* b, double* c);
 static void cis_setLedsPower(int32_t power);
@@ -506,3 +506,4 @@ void cis_convertRAWImageToRGBImage(struct RAWImage* RAWImage, int32_t* RGBimage)
 		RGBimage[i] = (b << 16) | (g << 8) | r;
 	}*/
 }
+#endif

@@ -166,7 +166,7 @@ int main(void)
 		if (i == 10)
 		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
 
-		HAL_Delay(100);
+		HAL_Delay(50);
 	}
 #endif
 

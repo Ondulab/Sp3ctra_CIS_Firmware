@@ -60,8 +60,11 @@ struct packet_IMU packet_IMU = {0};
 //#pragma GCC push_options
 //#pragma GCC optimize ("O0")
 
+//__attribute__ ((section(".cisDataCpy")))
+//float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
+
 __attribute__ ((section(".cisDataCpy")))
-float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
+int32_t cisDataCpy_int[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 
 __attribute__((section(".scanline_buff"), aligned(4)))
 struct buffers_Scanline buffers_Scanline = {0};
