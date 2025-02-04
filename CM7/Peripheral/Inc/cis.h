@@ -25,8 +25,7 @@
 typedef enum
 {
 	CIS_BUFFER_OFFSET_NONE = 0,
-	CIS_BUFFER_OFFSET_HALF,
-	CIS_BUFFER_OFFSET_FULL,
+	CIS_BUFFER_COMPLETE,
 }CIS_BUFF_StateTypeDef;
 
 typedef enum
@@ -38,7 +37,6 @@ typedef enum
 
 void cis_init(void);
 void cis_configure(uint16_t dpi);
-void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t* cis_buff);
 void cis_imageProcess(uint32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);

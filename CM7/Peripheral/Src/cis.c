@@ -176,167 +176,6 @@ void cis_configure(uint16_t dpi)
 }
 
 /**
- * @brief  Manages raw image acquisition with oversampling.
- * @param  cisDataAccum: Pointer to accumulation buffer.
- * @param  overSampling: Oversampling factor.
- * @retval None
- *
- * Detailed explanation:
- * - For each oversampling iteration, the half and full DMA buffers are read.
- * - If a timeout occurs, the capture process is reset.
- * - Finally, if oversampling > 1, each pixel value is divided by the number of iterations.
- *
- * ---------------------------------------------------
- *	INPUT :
- *	DMA buffer in 32bits increment
- *	o = start offset
- *	e = over scan
- *	                                        X1                                   X2                                   X3
- *		 ___________________________________V ___________________________________V ___________________________________V
- *		|                DMA1               ||                DMA2               ||                DMA3               |
- * 		|       HALF      |       FULL      ||       HALF      |       FULL      ||       HALF      |       FULL      |
- * 		|     R     |     G     |     B     ||     R     |     G     |     B     ||     R     |     G     |     B     |
- * 		|o |      |e|o |      |e|o |      |e||o |      |e|o |      |e|o |      |e||o |      |e|o |      |e|o |      |e|
- * 		   ^           ^  ^        ^            ^           ^  ^        ^            ^           ^  ^        ^
- * 		   R1          G1 C1       B1           R2          G2 C2       B2           R3          G3 C3       B3
- *
- *   	R1 = CIS_START_OFFSET
- *      R2 = CIS_START_OFFSET + cis_adc_buff_size
- *     	R3 = CIS_START_OFFSET + cis_adc_buff_size * 2
- *
- *      G1 = cis_lane_size + CIS_START_OFFSET
- *      G2 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size
- *      G3 = cis_lane_size + CIS_START_OFFSET + cis_adc_buff_size * 2
- *
- *      B1 = cis_lane_size * 2 + CIS_START_OFFSET
- *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
- *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
- *
- *	DMA data conversion :
- *
- *	16bits RED :	 _______________
- *	ADC DATA => 	|   R	|	|	|
- *	16 to 8  => 	| R	|	|	|	|	>> 8
- *	                ^
- *					Rx
- *
- *	16bits GREEN : 	 _______________
- *	ADC DATA => 	|   G	|	|	|
- *	16 to 8  => 	| G	|	|	|	|	>> 8
- *	offset   => 	| 	| G	|	|	|	<< 8
- *	                ^
- *					Gx
- *
- *	16bits BLUE : 	 _______________
- *	ADC DATA => 	|   B	|	|	|
- *	16 to 8  => 	| B	|	|	|	|	>> 8
- *	offset   => 	| 	| 	| B	|	|	<< 16
- *					^
- *					Bx
- *
- * 	---------------------------------------------------
- *	OUTPUT :
- *	Data buffer in 8bits increment
- *
- *              |                LANE1                  ||                LANE2                  ||                LANE3                  |
- *	 	HALF => |RG--|RG--|RG--|RG--|R---|R---|R---|R---||RG--|RG--|RG--|RG--|R---|R---|R---|R---||RG--|RG--|RG--|RG--|R---|R---|R---|R---|
- * 		FULL => |--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-||--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-||--B-|--B-|--B-|--B-|-GB-|-GB-|-GB-|-GB-|
- * 		OUT  => |RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-||RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-||RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|RGB-|
- * 		        ^                                        ^                                        ^
- *              M1                                       M2                                       M3
- *
- **/
-#pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
-void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling)
-{
-    int32_t acc = 0;
-    int32_t lane, i;
-
-    if (overSampling > 1)
-    {
-        memset(cisDataAccum, 0, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
-    }
-
-    while (acc < overSampling)
-    {
-        /* Read and copy the half-filled DMA buffers */
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0; )
-        {
-            uint32_t startTick = HAL_GetTick();
-
-            while (cisHalfBufferState[lane] != CIS_BUFFER_OFFSET_HALF)
-            {
-                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
-                {
-                    printf("Timeout: Half buffer state not reached for lane %d\n", (int)lane);
-                    cis_resetStart();
-                    return;
-                }
-            }
-
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[cisConfig.adc_buff_size * lane],
-                (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0; )
-            {
-                if (overSampling > 1)
-                {
-                    cisDataAccum[cisConfig.adc_buff_size * lane + i] += (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
-                }
-                else
-                {
-                    cisDataAccum[cisConfig.adc_buff_size * lane + i] = (int32_t)(cisData[cisConfig.adc_buff_size * lane + i]);
-                }
-            }
-            cisHalfBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-        }
-
-        /* Read and copy the full DMA buffers */
-        for (lane = CIS_ADC_OUT_LANES; --lane >= 0; )
-        {
-            uint32_t startTick = HAL_GetTick();
-
-            while (cisFullBufferState[lane] != CIS_BUFFER_OFFSET_FULL)
-            {
-                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
-                {
-                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)lane);
-                    cis_resetStart();
-                    return;
-                }
-            }
-
-            SCB_InvalidateDCache_by_Addr((uint32_t *)&cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2)],
-                (cisConfig.adc_buff_size * sizeof(uint16_t)) / 2);
-
-            for (i = (cisConfig.adc_buff_size / 2); --i >= 0; )
-            {
-                if (overSampling > 1)
-                {
-                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] += (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
-                }
-                else
-                {
-                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] = (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
-                }
-            }
-            cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
-        }
-        acc++;
-    }
-
-    /* If oversampling > 1, compute the average */
-    if (overSampling > 1)
-    {
-        for (int pix = 0; pix < (cisConfig.adc_buff_size * 3); pix++)
-        {
-            cisDataAccum[pix] /= overSampling;
-        }
-    }
-}
-
-/**
  * @brief  Convert RAW image to a float array.
  * @param  cisDataCpy_f32: Pointer to destination float array.
  * @param  RAWImage: Pointer to a RAWImage structure.
@@ -408,69 +247,150 @@ void cis_imageProcess_2(int32_t *cis_buff)
  *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
  *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
  */
-void cis_imageProcess(uint32_t* cisDataCpy, struct packet_Scanline *imageBuffers)
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
 {
-    int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
+    int32_t iteration;
+    int32_t lane, i, packet;
+    uint32_t startTick;
+    int numPackets = cisConfig.udp_nb_packet_per_line;
+    const int pixelPerPacket = cisConfig.pixels_nb / numPackets;
+    const int lanePackets = numPackets / CIS_ADC_OUT_LANES;
 
-    while (cisFullBufferState[0] != CIS_BUFFER_OFFSET_FULL);
-    cisFullBufferState[0] = CIS_BUFFER_OFFSET_NONE;
-
-    while (cisFullBufferState[1] != CIS_BUFFER_OFFSET_FULL);
-    cisFullBufferState[1] = CIS_BUFFER_OFFSET_NONE;
-
-    while (cisFullBufferState[2] != CIS_BUFFER_OFFSET_FULL);
-    cisFullBufferState[2] = CIS_BUFFER_OFFSET_NONE;
-
-	//cis_getRAWImage(cisDataCpy, shared_config.cis_oversampling);
-    SCB_InvalidateDCache_by_Addr(cisDataCpy, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
-
-	cis_applyLinearCalibration(cisDataCpy, 255);
-
-    for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
+    // Outer loop (oversampling) in decrementing order
+    for (iteration = shared_config.cis_oversampling; iteration-- > 0; )
     {
-        lane = packet / (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES);
+        int curIter = shared_config.cis_oversampling - iteration;  // curIter: 1 for the first oversample
+
+        // Wait for all lanes to be ready (loop in decrementing order)
+        startTick = HAL_GetTick();
+        for (i = CIS_ADC_OUT_LANES; i-- > 0; )
+        {
+            while (cisFullBufferState[i] != CIS_BUFFER_COMPLETE)
+            {
+                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
+                {
+                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)i + 1);
+                    cis_resetStart();
+                    return;
+                }
+            }
+            cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        }
+
+        // Invalidate D-Cache on the acquired buffer and apply calibration
+        SCB_InvalidateDCache_by_Addr(cisDataCpy, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
+        cis_applyLinearCalibration(cisDataCpy, 255);
 
         if (shared_config.cis_handedness)
         {
-            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane) - 1;
-            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-
-            for (i = startIdx; i >= endIdx; --i)
+            // For handedness true, the outer packet loop est déjà décrémentée
+            for (packet = numPackets - 1; packet >= 0; packet--)
             {
-            	offsetIndex = i - endIdx;
+                lane = packet / lanePackets;
+                int localPacketIndex = packet - (lane * lanePackets);
+                int startIdx = pixelPerPacket * (localPacketIndex + 1) - 1;
+                int endIdx = pixelPerPacket * localPacketIndex;
 
-                imageBuffers[packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy[i + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
+                uint32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
+                uint32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
+                uint32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
+
+                // Inner loop en décrémentation (i de startIdx à endIdx)
+                for (i = startIdx; i >= endIdx; i--)
+                {
+                    int offsetIndex = i - endIdx;
+                    uint8_t sample_R = (uint8_t)redBase[i];
+                    uint8_t sample_G = (uint8_t)greenBase[i];
+                    uint8_t sample_B = (uint8_t)blueBase[i];
+
+                    if (curIter == 1)
+                    {
+                        imageBuffers[packet].imageData_R[offsetIndex] = sample_R;
+                        imageBuffers[packet].imageData_G[offsetIndex] = sample_G;
+                        imageBuffers[packet].imageData_B[offsetIndex] = sample_B;
+                    }
+                    else
+                    {
+                        imageBuffers[packet].imageData_R[offsetIndex] += (sample_R - imageBuffers[packet].imageData_R[offsetIndex]) / curIter;
+                        imageBuffers[packet].imageData_G[offsetIndex] += (sample_G - imageBuffers[packet].imageData_G[offsetIndex]) / curIter;
+                        imageBuffers[packet].imageData_B[offsetIndex] += (sample_B - imageBuffers[packet].imageData_B[offsetIndex]) / curIter;
+                    }
+                }
+
+                if (curIter == shared_config.cis_oversampling)
+                {
+                    imageBuffers[packet].fragment_id = packet;
+                    imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+                }
             }
         }
         else
         {
-            startIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-            endIdx = (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) * (packet + 1 - (cisConfig.udp_nb_packet_per_line / CIS_ADC_OUT_LANES) * lane);
-
-            for (i = startIdx; i < endIdx; i++)
+            // For non handedness, convert the outer packet loop to a decrementing loop
+            for (packet = numPackets; packet-- > 0; )
             {
-            	offsetIndex = i - startIdx;
+                int origPacket = numPackets - 1 - packet;  // Convert to original ascending index
+                lane = origPacket / lanePackets;
+                int localPacketIndex = origPacket - (lane * lanePackets);
+                int startIdx = pixelPerPacket * localPacketIndex;
+                int endIdx = pixelPerPacket * (localPacketIndex + 1);
+                int destPacket = numPackets - 1 - origPacket;
 
-                ii = startIdx - 1 - i + (cisConfig.pixels_nb / cisConfig.udp_nb_packet_per_line) + startIdx;
+                uint32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
+                uint32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
+                uint32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
 
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_R[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.red_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_G[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.green_lane_offset + (lane * cisConfig.adc_buff_size)];
-                imageBuffers[cisConfig.udp_nb_packet_per_line - 1 - packet].imageData_B[offsetIndex] = (uint8_t)cisDataCpy[ii + cisConfig.blue_lane_offset + (lane * cisConfig.adc_buff_size)];
+                // Inner loop en décrémentation : i va de endIdx-1 à startIdx
+                for (i = endIdx; i-- > startIdx; )
+                {
+                    int offsetIndex = (endIdx - 1) - i;
+                    uint8_t sample_R = (uint8_t)redBase[i];
+                    uint8_t sample_G = (uint8_t)greenBase[i];
+                    uint8_t sample_B = (uint8_t)blueBase[i];
+
+                    if (curIter == 1)
+                    {
+                        imageBuffers[destPacket].imageData_R[offsetIndex] = sample_R;
+                        imageBuffers[destPacket].imageData_G[offsetIndex] = sample_G;
+                        imageBuffers[destPacket].imageData_B[offsetIndex] = sample_B;
+                    }
+                    else
+                    {
+                        imageBuffers[destPacket].imageData_R[offsetIndex] += (sample_R - imageBuffers[destPacket].imageData_R[offsetIndex]) / curIter;
+                        imageBuffers[destPacket].imageData_G[offsetIndex] += (sample_G - imageBuffers[destPacket].imageData_G[offsetIndex]) / curIter;
+                        imageBuffers[destPacket].imageData_B[offsetIndex] += (sample_B - imageBuffers[destPacket].imageData_B[offsetIndex]) / curIter;
+                    }
+                }
+
+                if (curIter == shared_config.cis_oversampling)
+                {
+                    imageBuffers[destPacket].fragment_id = origPacket;
+                    imageBuffers[destPacket].line_id = shared_var.cis_process_cnt;
+                }
             }
         }
 
-        imageBuffers[packet].fragment_id = packet;
-        imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+        // Launch MDMA transfers concurrently for the three channels
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0,
+            (uint32_t)&cisData[0],
+            (uint32_t)&cisDataCpy[0],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0,
+            (uint32_t)&cisData[cisConfig.adc_buff_size],
+            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0,
+            (uint32_t)&cisData[cisConfig.adc_buff_size * 2],
+            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
     }
-
-    memset(cisDataCpy, 0, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)&cisData[0], (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size * 2], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-
 }
+#pragma GCC pop_options
 
 /**
  * @brief  Perform image processing for RGB calibration.
@@ -502,7 +422,7 @@ void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
     for (iteration = 0; iteration < iterationNb; iteration++)
     {
         /* Acquire a raw image with oversampling = 1 */
-        cis_getRAWImage(cisDataCpy, 1);
+        //cis_getRAWImage(cisDataCpy, 1); todo change mecanism
 
         /* Sum the acquired buffer */
         for (i = 0; i < totalElements; i++)
@@ -691,7 +611,6 @@ void cis_stopCapture()
         cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 }
-#pragma GCC pop_options
 
 /**
  * @brief  Init CIS clock Frequency
@@ -873,61 +792,19 @@ void cis_initAdc(void)
 	}
 }
 
-/**
- * @brief  Conversion DMA half-transfer callback in non-blocking mode
- * @param  hadc: ADC handle
- * @retval None
- */
-void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
-{
-	if (hadc->Instance == ADC1)
-	{
-		cisHalfBufferState[0] = CIS_BUFFER_OFFSET_HALF;
-	}
-	if (hadc->Instance == ADC2)
-	{
-		cisHalfBufferState[1] = CIS_BUFFER_OFFSET_HALF;
-	}
-	if (hadc->Instance == ADC3)
-	{
-		cisHalfBufferState[2] = CIS_BUFFER_OFFSET_HALF;
-	}
-}
-
-/**
- * @brief  Conversion complete callback in non-blocking mode
- * @param  hadc: ADC handle
- * @retval None
- */
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
-	if (hadc->Instance == ADC1)
-	{
-		cisFullBufferState[0] = CIS_BUFFER_OFFSET_FULL;
-	}
-	if (hadc->Instance == ADC2)
-	{
-		cisFullBufferState[1] = CIS_BUFFER_OFFSET_FULL;
-	}
-	if (hadc->Instance == ADC3)
-	{
-		cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
-	}
-}
-
 void MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma)
 {
 
     if (hmdma == &hmdma_mdma_channel1_dma1_stream0_tc_0) //ADC1
     {
-    	cisFullBufferState[0] = CIS_BUFFER_OFFSET_FULL;
+    	cisFullBufferState[0] = CIS_BUFFER_COMPLETE;
     }
     if (hmdma == &hmdma_mdma_channel2_dma1_stream1_tc_0) //ADC2
     {
-    	cisFullBufferState[1] = CIS_BUFFER_OFFSET_FULL;
+    	cisFullBufferState[1] = CIS_BUFFER_COMPLETE;
     }
     if (hmdma == &hmdma_mdma_channel3_dma2_stream0_tc_0) //ADC3
     {
-    	cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
+    	cisFullBufferState[2] = CIS_BUFFER_COMPLETE;
     }
 }

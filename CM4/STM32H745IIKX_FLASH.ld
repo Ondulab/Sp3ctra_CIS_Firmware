@@ -44,10 +44,11 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-  FLASH (rx)      		: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
-  RAM_D1 (xrw)    		: ORIGIN = 0x10000000, LENGTH = 128K
+  FLASH (rx)      			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
+  RAM_D1 (xrw)    			: ORIGIN = 0x10000000, LENGTH = 64K
+  RAM_D1_SHARED (rw)    	: ORIGIN = 0x38000000, LENGTH = 64K/*0x10000000 + LENGTH(RAM_D1), LENGTH = 128K - LENGTH(RAM_D1)*/
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 32K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
   RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
 }
 
@@ -134,12 +135,12 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED AT> FLASH
   
-  .ram_d3_shared (NOLOAD) :
+  .ram_d1_shared (NOLOAD) :
   {
     . = ALIGN(4);
-    KEEP(*(.ram_d3_shared));
+    KEEP(*(.ram_d1_shared));
     . = ALIGN(4);
-  } >RAM_D3
+  } >RAM_D1_SHARED
   
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
