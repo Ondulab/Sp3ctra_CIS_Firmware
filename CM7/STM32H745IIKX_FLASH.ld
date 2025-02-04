@@ -51,7 +51,7 @@ MEMORY
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)    			: ORIGIN = 0x30000000, LENGTH = 64K
-  RAM_D1_SHARED (rw)    	: ORIGIN = 0x38000000, LENGTH = 64K/*0x38000000, LENGTH = 64K/*0x30000000 + LENGTH(RAM_D1), LENGTH = 128K - LENGTH(RAM_D1)*/
+  RAM_D1_SHARED (rw)    	: ORIGIN = 0x30000000 + LENGTH(RAM_D1), LENGTH = 128K - LENGTH(RAM_D1)
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
   RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
   ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
@@ -165,15 +165,14 @@ SECTIONS
   .shared_cached :
   {
     . = ALIGN(4);
-    /* KEEP (*(.rgbBuffers)); */
     KEEP (*(.imuData));    
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   
-  .ram_d1_shared (NOLOAD) :
+  .ram_d1_shared :
   {
     . = ALIGN(4);
-    KEEP(*(.ram_d1_shared));
+    KEEP(*(.scanline_CM4));
     . = ALIGN(4);
   } >RAM_D1_SHARED
   

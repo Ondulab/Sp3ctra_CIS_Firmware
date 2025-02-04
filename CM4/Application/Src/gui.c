@@ -134,7 +134,7 @@ void gui_displayImage(void)
 
 	if (!transferComplete)
 	{
-		//return;
+		return;
 	}
 
 	transferComplete = false;
