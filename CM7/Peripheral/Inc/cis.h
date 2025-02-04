@@ -41,12 +41,13 @@ void cis_configure(uint16_t dpi);
 void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t* cis_buff);
-void cis_imageProcess(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
+void cis_imageProcess(uint32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
 void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb);
 void cis_startCapture(void);
 void cis_stopCapture(void);
 void cis_ledsOn(void);
 void cis_ledsOff(void);
 void cis_ledPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm);
+void MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma);
 
 #endif /* __CIS_H__ */

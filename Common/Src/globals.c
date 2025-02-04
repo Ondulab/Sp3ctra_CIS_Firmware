@@ -39,9 +39,6 @@ volatile struct shared_var shared_var = {0};
 __attribute__ ((section(".shared_config")))
 volatile struct shared_config shared_config = {0};
 
-__attribute__ ((section(".cisCals")))
-struct cisCals cisCals = {0};
-
 __attribute__((section(".ram_d3_shared"), aligned(4)))
 volatile struct packet_Scanline scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE];
 
@@ -60,14 +57,17 @@ struct packet_IMU packet_IMU = {0};
 //#pragma GCC push_options
 //#pragma GCC optimize ("O0")
 
+__attribute__ ((section(".cisCals")))
+struct cisCals cisCals = {0};
+
 __attribute__ ((section(".cisDataCpy")))
-int32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
+uint32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 
 __attribute__((section(".scanline_buff"), aligned(4)))
 struct buffers_Scanline buffers_Scanline = {0};
 
 __attribute__ ((section(".cisData")))
-int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32))) = {0};
+uint16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];// __attribute__ ((aligned (32))) = {0};
 
 __attribute__ ((section(".cisRGBCalibration")))
 struct cisRGB_Calibration cisRGB_Calibration = {0};

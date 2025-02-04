@@ -142,8 +142,6 @@ SECTIONS
     . = ALIGN(4);
     KEEP (*(.cisDataCpy));
     KEEP (*(.cisCals));  
-    /* KEEP (*(.cisRGBCalibration)); */
-    /* KEEP (*(.cisLedsCalibration)); */  
     . = ALIGN(4);
   } >DTCM
   

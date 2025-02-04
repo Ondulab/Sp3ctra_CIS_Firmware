@@ -214,7 +214,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
+void cis_applyLinearCalibration(uint32_t * restrict cisDataCpy, uint32_t maxClipValue)
 {
     for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {

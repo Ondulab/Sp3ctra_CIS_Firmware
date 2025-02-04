@@ -31,6 +31,7 @@
 #include "tim.h"
 #include "adc.h"
 #include "dma.h"
+#include "mdma.h"
 #include "iwdg.h"
 
 #include "cis_scan.h"
@@ -139,8 +140,7 @@ void cis_configure(uint16_t dpi)
 
     /* Initialize buffers */
     memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
-    //memset(cisDataCpy_f32, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
-    memset(cisDataCpy, 0, cisConfig.adc_buff_size * 3 * sizeof(float32_t));
+    memset(cisDataCpy, 0, cisConfig.adc_buff_size * 3 * sizeof(uint32_t));
 
     /* Calculate the cycle duration in microseconds */
     float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
@@ -314,13 +314,11 @@ void cis_getRAWImage(int32_t *cisDataAccum, uint8_t overSampling)
             {
                 if (overSampling > 1)
                 {
-                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] +=
-                        (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
+                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] += (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
                 }
                 else
                 {
-                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] =
-                        (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
+                    cisDataAccum[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i] = (int32_t)(cisData[(cisConfig.adc_buff_size * lane) + (cisConfig.adc_buff_size / 2) + i]);
                 }
             }
             cisFullBufferState[lane] = CIS_BUFFER_OFFSET_NONE;
@@ -410,11 +408,21 @@ void cis_imageProcess_2(int32_t *cis_buff)
  *      B2 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size
  *      B3 = cis_lane_size * 2 + CIS_START_OFFSET + cis_adc_buff_size * 2
  */
-void cis_imageProcess(int32_t* cisDataCpy, struct packet_Scanline *imageBuffers)
+void cis_imageProcess(uint32_t* cisDataCpy, struct packet_Scanline *imageBuffers)
 {
     int32_t lane, i, ii, packet, offsetIndex, startIdx, endIdx;
 
-	cis_getRAWImage(cisDataCpy, shared_config.cis_oversampling);
+    while (cisFullBufferState[0] != CIS_BUFFER_OFFSET_FULL);
+    cisFullBufferState[0] = CIS_BUFFER_OFFSET_NONE;
+
+    while (cisFullBufferState[1] != CIS_BUFFER_OFFSET_FULL);
+    cisFullBufferState[1] = CIS_BUFFER_OFFSET_NONE;
+
+    while (cisFullBufferState[2] != CIS_BUFFER_OFFSET_FULL);
+    cisFullBufferState[2] = CIS_BUFFER_OFFSET_NONE;
+
+	//cis_getRAWImage(cisDataCpy, shared_config.cis_oversampling);
+    SCB_InvalidateDCache_by_Addr(cisDataCpy, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
 
 	cis_applyLinearCalibration(cisDataCpy, 255);
 
@@ -456,6 +464,12 @@ void cis_imageProcess(int32_t* cisDataCpy, struct packet_Scanline *imageBuffers)
         imageBuffers[packet].fragment_id = packet;
         imageBuffers[packet].line_id = shared_var.cis_process_cnt;
     }
+
+    memset(cisDataCpy, 0, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)&cisData[0], (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size * 2], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+
 }
 
 /**
@@ -585,6 +599,10 @@ void cis_startCapture()
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);
+
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)&cisData[0], (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size * 2], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
 
     /* Start ADC Main Timer #######################################*/
     __HAL_TIM_SET_COUNTER(&htim1, 0);
@@ -895,4 +913,21 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	{
 		cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
 	}
+}
+
+void MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma)
+{
+
+    if (hmdma == &hmdma_mdma_channel1_dma1_stream0_tc_0) //ADC1
+    {
+    	cisFullBufferState[0] = CIS_BUFFER_OFFSET_FULL;
+    }
+    if (hmdma == &hmdma_mdma_channel2_dma1_stream1_tc_0) //ADC2
+    {
+    	cisFullBufferState[1] = CIS_BUFFER_OFFSET_FULL;
+    }
+    if (hmdma == &hmdma_mdma_channel3_dma2_stream0_tc_0) //ADC3
+    {
+    	cisFullBufferState[2] = CIS_BUFFER_OFFSET_FULL;
+    }
 }

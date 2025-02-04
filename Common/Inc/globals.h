@@ -274,12 +274,11 @@ struct RAWImage{
 
 extern struct buffers_Scanline buffers_Scanline;
 extern CIS_Config cisConfig;
-extern int16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
-extern int32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern uint16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern uint32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3];
 extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
 extern struct cisLeds_Calibration cisLeds_Calibration;
-extern q31_t cisDataCpy_q31[CIS_MAX_ADC_BUFF_SIZE * 3] __attribute__ ((aligned (32)));
 
 /* Exported constants --------------------------------------------------------*/
 
