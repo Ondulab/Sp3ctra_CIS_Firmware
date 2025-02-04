@@ -124,8 +124,6 @@ static void cis_userCal(void)
 {
     if (shared_var.cis_cal_state != CIS_CAL_END)
     {
-        printf("----- CALIBRATION STARTED ------\n");
-
         while (shared_var.cis_cal_state != CIS_CAL_START)
         {
         	 osDelay(1);
@@ -160,7 +158,7 @@ static void cis_scanTask(void *argument)
 {
     struct packet_Scanline *pCurrentBuffer = NULL;
 
-    printf("------ CIS THREAD STARTED ------\n");
+    printf("------ CIS THREAD STARTED -----\n");
 
     while (1)
     {
@@ -186,7 +184,7 @@ static void cis_sendTask(void *argument)
 {
     struct packet_Scanline *pSendBuffer = NULL;
 
-    printf("------ UDP THREAD STARTED ------\n");
+    printf("------ UDP THREAD STARTED -----\n");
 
     while (1)
     {

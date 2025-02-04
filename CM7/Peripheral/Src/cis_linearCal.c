@@ -81,22 +81,24 @@ void cis_linearCalibrationInit(void)
     FRESULT fres;
     char calibrationFilePath[64];
 
-    /* Construction du chemin selon le DPI */
+	printf("------- CIS CALIBRATION -------\n");
+
+    /* Build the calibration file path according to DPI */
     sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
 
-    /* Ouverture du fichier de calibration en lecture */
+    /* Open the calibration file in read mode */
     fres = f_open(&file, calibrationFilePath, FA_READ);
     if (fres == FR_OK)
     {
-        printf("Lecture de la calibration INT pour %d DPI SUCCÈS\n", shared_config.cis_dpi);
-        /* On lit la calibration entière – fonction à implémenter selon votre projet */
-        file_readCisCals(calibrationFilePath, /* pointeur sur votre structure de calibration entière */ &cisCals);
+    	printf("CIS calibration SUCCESS\n");
+        /* Read the entire calibration – implement this function as needed */
+        file_readCisCals(calibrationFilePath, /* pointer to your full calibration structure */ &cisCals);
         f_close(&file);
         shared_var.cis_cal_state = CIS_CAL_END;
     }
     else
     {
-        printf("Fichier de calibration INT non trouvé pour %d DPI, calibration demandée.\n", shared_config.cis_dpi);
+        printf("INT calibration file not found for %d DPI, calibration requested.\n", shared_config.cis_dpi);
         shared_var.cis_cal_state = CIS_CAL_REQUESTED;
     }
 }
@@ -113,10 +115,8 @@ void cis_linearCalibrationInit(void)
  */
 void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
 {
-    printf("-------------------------------\n");
-    printf("----- CALIBRATION STARTED -----\n");
-    printf("----------- %d DPI -----------\n", shared_config.cis_dpi);
-    printf("-------------------------------\n");
+    printf("===== CALIBRATION STARTED =====\n");
+    printf("Calibration for %d DPI\n", shared_config.cis_dpi);
 
     struct cisCalsTypes blackCal;
     struct cisCalsTypes whiteCal;
@@ -147,7 +147,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     cis_ledPowerAdj(100, 100, 100);
     osDelay(500);
 
-    printf("------- COMPUTE AVERAGES ------\n");
+    printf("Compute average\n");
 
     // Step 3: Compute inactive averages
     cis_ComputeCalsInactivesAvrg(&blackCal, CIS_RED);
@@ -160,7 +160,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     shared_var.cis_cal_state = CIS_CAL_EXTRACT_INNACTIVE_REF;
     osDelay(200);
 
-    printf("------ COMPUTE EXTREMUMS ------\n");
+    printf("Compute extremums\n");
 
     // Step 4: Compute extremums
     cis_computeCalsExtremums(&blackCal, CIS_RED);
@@ -173,7 +173,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     shared_var.cis_cal_state = CIS_CAL_EXTRACT_EXTREMUMS;
     osDelay(200);
 
-    printf("------- EXTRACT OFFSETS -------\n");
+    printf("Extract offsets\n");
 
     // Step 5: Compute offsets (copy black calibration data)
     cis_computeCalsOffsets(&whiteCal, &blackCal, CIS_RED);
@@ -189,7 +189,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     cis_computeCalsGains(bitDepth, &whiteCal, &blackCal, CIS_BLUE);
     SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
     shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
-    printf("-------- COMPUTE GAINS --------\n");
+    printf("Compute gains\n");
 
     // Step 7: Save calibration data
     sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
@@ -198,7 +198,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     cis_stopCapture();
     cis_startCapture();
     shared_var.cis_cal_state = CIS_CAL_END;
-    printf("-------------------------------\n");
+    printf("===============================\n");
 }
 
 
