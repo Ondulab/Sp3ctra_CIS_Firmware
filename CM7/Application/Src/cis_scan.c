@@ -102,7 +102,7 @@ void cis_scanInit(void)
     shared_var.cis_process_rdy = TRUE;
 
     // Create scanning and sending tasks
-    if (xTaskCreate(cis_scanTask, "cis_scanTask", 32768, NULL, osPriorityHigh, NULL) != pdPASS)
+    if (xTaskCreate(cis_scanTask, "cis_scanTask", 4096, NULL, osPriorityHigh, NULL) != pdPASS)
     {
         printf("Failed to create cis_scanTask.\n");
         Error_Handler();
@@ -131,7 +131,7 @@ static void cis_userCal(void)
 #ifdef POLYNOMIAL_CALIBRATION
         cis_StartCalibration(20); // WIP
 #else
-        cis_startLinearCalibration(500, 255);
+        cis_startLinearCalibration(cisDataCpy, 500, 255);
 #endif
 
 #ifdef PRINT_CIS_CALIBRATION

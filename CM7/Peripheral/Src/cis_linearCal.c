@@ -43,7 +43,7 @@ struct cisColorsParams {
 
 __attribute__ ((packed))
 struct cisCalsTypes {
-	int32_t data[CIS_MAX_ADC_BUFF_SIZE * 3];
+	uint32_t data[CIS_MAX_ADC_BUFF_SIZE * 3];
 	struct cisColorsParams red;
 	struct cisColorsParams green;
 	struct cisColorsParams blue;
@@ -55,16 +55,91 @@ struct cisCalsTypes {
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
+__attribute__((section(".calAcc")))
+struct cisCalsTypes blackCal;
+
+__attribute__((section(".calAcc")))
+struct cisCalsTypes whiteCal;
 
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+static void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult);
+static void cis_max(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex);
+static void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex);
 static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Color_TypeDef color);
 static void cis_computeCalsExtremums(struct cisCalsTypes *currCals, CIS_Color_TypeDef color);
 static void cis_computeCalsOffsets(struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color);
 static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color);
 
 /* Private user code ---------------------------------------------------------*/
+
+void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult)
+{
+    int64_t sum = 0;
+
+    for (uint32_t i = 0; i < blockSize; i++)
+    {
+        sum += pSrc[i];
+    }
+
+    /* Attention : blockSize ne doit pas être zéro */
+    *pResult = (int32_t)(sum / blockSize);
+}
+
+void cis_max(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
+{
+    uint32_t i;
+    int32_t maxVal;
+    uint32_t maxIdx;
+
+    /* On suppose blockSize >= 1 */
+    maxVal = pSrc[0];
+    maxIdx = 0;
+
+    for (i = 1; i < blockSize; i++)
+    {
+        if (pSrc[i] > maxVal)
+        {
+            maxVal = pSrc[i];
+            maxIdx = i;
+        }
+    }
+
+    *pResult = maxVal;
+
+    if (pIndex != NULL)
+    {
+        *pIndex = maxIdx;
+    }
+}
+
+void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
+{
+    uint32_t i;
+    int32_t minVal;
+    uint32_t minIdx;
+
+    /* On suppose blockSize >= 1 */
+    minVal = pSrc[0];
+    minIdx = 0;
+
+    for (i = 1; i < blockSize; i++)
+    {
+        if (pSrc[i] < minVal)
+        {
+            minVal = pSrc[i];
+            minIdx = i;
+        }
+    }
+
+    *pResult = minVal;
+
+    if (pIndex != NULL)
+    {
+        *pIndex = minIdx;
+    }
+}
 
 /**
  * @brief       Initialize the linear calibration (integer version).
@@ -113,13 +188,11 @@ void cis_linearCalibrationInit(void)
  * @param       bitDepth      Bit depth (used for gain calculation).
  * @retval      None
  */
-void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
+void cis_startLinearCalibration(uint32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth)
 {
     printf("===== CALIBRATION STARTED =====\n");
     printf("Calibration for %d DPI\n", shared_config.cis_dpi);
 
-    struct cisCalsTypes blackCal;
-    struct cisCalsTypes whiteCal;
     char calibrationFilePath[64];
 
     memset(&blackCal, 0, sizeof(blackCal));
@@ -132,7 +205,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     shared_var.cis_cal_state = CIS_CAL_PLACE_ON_WHITE;
     osDelay(200);
 
-    cis_imageProcessRGB_Calibration(whiteCal.data, iterationNb);
+    cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data, iterationNb);
     SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
     osDelay(200);
 
@@ -142,7 +215,7 @@ void cis_startLinearCalibration(uint16_t iterationNb, uint32_t bitDepth)
     cis_ledPowerAdj(1, 1, 1);
     osDelay(20);
 
-    cis_imageProcessRGB_Calibration(blackCal.data, iterationNb);
+    cis_imageProcessRGB_Calibration(cisDataCpy, blackCal.data, iterationNb);
     SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
     cis_ledPowerAdj(100, 100, 100);
     osDelay(500);
@@ -290,7 +363,7 @@ static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Colo
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
         laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        arm_mean_q31(&currCals->data[laneOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[lane]);
+        cis_mean(&currCals->data[laneOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[lane]);
     }
 }
 
@@ -344,8 +417,8 @@ static void cis_computeCalsExtremums(struct cisCalsTypes *currCals, CIS_Color_Ty
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
         laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        arm_max_q31(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMax, NULL);
-        arm_min_q31(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMin, NULL);
+        cis_max(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMax, NULL);
+        cis_min(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMin, NULL);
 
         if (tmpMax > currColor->maxPix)
         {

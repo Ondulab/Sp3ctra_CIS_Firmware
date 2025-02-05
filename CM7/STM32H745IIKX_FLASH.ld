@@ -50,10 +50,10 @@ MEMORY
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
-  RAM_D1 (r)    			: ORIGIN = 0x30000000, LENGTH = 64K
-  RAM_D1_SHARED (rw)    	: ORIGIN = 0x30000000 + LENGTH(RAM_D1), LENGTH = 128K - LENGTH(RAM_D1)
+  RAM_D1 (rw)    			: ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
-  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D3 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 50K
+  RAM_D3_SHARED (rw)    	: ORIGIN = 0x10000000 + LENGTH(RAM_D3), LENGTH = 64K - LENGTH(RAM_D3)
   ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
@@ -169,12 +169,19 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   
-  .ram_d1_shared :
+  .ram_d3_shared :
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
     . = ALIGN(4);
-  } >RAM_D1_SHARED
+  } >RAM_D3_SHARED
+  
+  .ram_d1 :
+  {
+    . = ALIGN(4);
+    KEEP(*(.calAcc));
+    . = ALIGN(4);
+  } >RAM_D1
   
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);

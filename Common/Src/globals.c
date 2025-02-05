@@ -63,10 +63,10 @@ struct cisCals cisCals = {0};
 __attribute__ ((section(".cisDataCpy")))
 uint32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 
-__attribute__((section(".scanline_buff"), aligned(4)))
+__attribute__((section(".scanline_buff")))
 struct buffers_Scanline buffers_Scanline = {0};
 
-__attribute__ ((section(".cisData"), aligned(4)))
+__attribute__ ((section(".cisData")))
 uint16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
 
 __attribute__ ((section(".cisRGBCalibration")))

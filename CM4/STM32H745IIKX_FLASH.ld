@@ -36,7 +36,7 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM_D1) + LENGTH(RAM_D1); /* 0x10048000;    /* end of RAM */
+_estack = ORIGIN(RAM_D3) + LENGTH(RAM_D3); /* 0x10048000;    /* end of RAM */
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x400;      /* required amount of heap  */
 _Min_Stack_Size = 0x800; /* required amount of stack */
@@ -45,11 +45,10 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 MEMORY
 {
   FLASH (rx)      			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
-  RAM_D1 (xrw)    			: ORIGIN = 0x10000000, LENGTH = 64K
-  RAM_D1_SHARED (rw)    	: ORIGIN = 0x10000000 + LENGTH(RAM_D1), LENGTH = 128K - LENGTH(RAM_D1)
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
-  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D3 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 50K
+  RAM_D3_SHARED (rw)    	: ORIGIN = 0x10000000 + LENGTH(RAM_D3), LENGTH = 64K - LENGTH(RAM_D3)
 }
 
 /* Define output sections */
@@ -135,19 +134,12 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED AT> FLASH
   
-  .ram_d1_shared :
+  .ram_d3_shared :
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
     . = ALIGN(4);
-  } >RAM_D1_SHARED
-  
-  .ram_d3 :
-  {
-    . = ALIGN(4);
-    KEEP(*(.calAcc));
-    . = ALIGN(4);
-  } >RAM_D3
+  } >RAM_D3_SHARED
   
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -164,7 +156,7 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM_D1 AT> FLASH
+  } >RAM_D3 AT> FLASH
 
   /* Uninitialized data section */
   . = ALIGN(4);
@@ -180,7 +172,7 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >RAM_D1
+  } >RAM_D3
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
@@ -191,7 +183,7 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >RAM_D1
+  } >RAM_D3
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

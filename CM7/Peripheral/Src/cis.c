@@ -50,8 +50,7 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-static volatile CIS_BUFF_StateTypeDef  cisHalfBufferState[CIS_ADC_OUT_LANES] = {0};
-static volatile CIS_BUFF_StateTypeDef  cisFullBufferState[CIS_ADC_OUT_LANES] = {0};
+static volatile CIS_BUFF_StateTypeDef  cisBufferState[CIS_ADC_OUT_LANES] = {0};
 
 /* Variable containing ADC conversions data */
 
@@ -254,9 +253,9 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
     int32_t iteration;
     int32_t lane, i, packet;
     uint32_t startTick;
-    int numPackets = cisConfig.udp_nb_packet_per_line;
-    const int pixelPerPacket = cisConfig.pixels_nb / numPackets;
-    const int lanePackets = numPackets / CIS_ADC_OUT_LANES;
+    int32_t numPackets = cisConfig.udp_nb_packet_per_line;
+    const int32_t pixelPerPacket = cisConfig.pixels_nb / numPackets;
+    const int32_t lanePackets = numPackets / CIS_ADC_OUT_LANES;
 
     // Outer loop (oversampling) in decrementing order
     for (iteration = shared_config.cis_oversampling; iteration-- > 0; )
@@ -267,7 +266,7 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
         startTick = HAL_GetTick();
         for (i = CIS_ADC_OUT_LANES; i-- > 0; )
         {
-            while (cisFullBufferState[i] != CIS_BUFFER_COMPLETE)
+            while (cisBufferState[i] != CIS_BUFFER_COMPLETE)
             {
                 if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
                 {
@@ -276,11 +275,9 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
                     return;
                 }
             }
-            cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+            cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         }
 
-        // Invalidate D-Cache on the acquired buffer and apply calibration
-        SCB_InvalidateDCache_by_Addr(cisDataCpy, sizeof(int32_t) * (cisConfig.adc_buff_size * 3));
         cis_applyLinearCalibration(cisDataCpy, 255);
 
         if (shared_config.cis_handedness)
@@ -399,32 +396,42 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
  * @param  iterationNb: Number of iterations for averaging.
  * @retval None
  */
-void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
+void cis_imageProcessRGB_Calibration(uint32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb)
 {
     uint32_t totalElements = cisConfig.adc_buff_size * 3;
     uint32_t i;
     uint16_t iteration;
+    uint32_t startTick;
 
     shared_var.cis_cal_progressbar = 0;
 
-    /* Clear the calibration buffer */
+    /* Clear the calibration and copy buffers */
     for (i = 0; i < totalElements; i++)
     {
         cisCalData[i] = 0;
-    }
-
-    /* Clear the acquisition buffer as well */
-    for (i = 0; i < totalElements; i++)
-    {
         cisDataCpy[i] = 0;
     }
 
     for (iteration = 0; iteration < iterationNb; iteration++)
     {
-        /* Acquire a raw image with oversampling = 1 */
-        //cis_getRAWImage(cisDataCpy, 1); todo change mecanism
+        /* Wait for all lanes to be ready (loop in decrementing order) */
+        startTick = HAL_GetTick();
+        for (i = CIS_ADC_OUT_LANES; i-- > 0; )
+        {
+            while (cisBufferState[i] != CIS_BUFFER_COMPLETE)
+            {
+                if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
+                {
+                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)i + 1);
+                    cis_resetStart();
+                    return;
+                }
+            }
+            /* Reset the state for the next capture */
+            cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        }
 
-        /* Sum the acquired buffer */
+        /* Sum the acquired buffer into the calibration data */
         for (i = 0; i < totalElements; i++)
         {
             cisCalData[i] += cisDataCpy[i];
@@ -432,6 +439,23 @@ void cis_imageProcessRGB_Calibration(int32_t *cisCalData, uint16_t iterationNb)
 
         /* Update the progress bar */
         shared_var.cis_cal_progressbar = (iteration * 100U) / iterationNb;
+
+        /* Launch MDMA transfers concurrently for the three channels */
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0,
+            (uint32_t)&cisData[0],
+            (uint32_t)&cisDataCpy[0],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0,
+            (uint32_t)&cisData[cisConfig.adc_buff_size],
+            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0,
+            (uint32_t)&cisData[cisConfig.adc_buff_size * 2],
+            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2],
+            cisConfig.adc_buff_size * sizeof(int16_t),
+            1);
     }
 
     /* Average the calibration data */
@@ -452,8 +476,7 @@ void cis_resetStart(void)
     // Reset buffer states
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
-        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
-        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+    	cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 
     // Restart the capture process
@@ -512,8 +535,7 @@ void cis_startCapture()
     /* Reset buffer states */
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
-        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
-        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
@@ -607,8 +629,7 @@ void cis_stopCapture()
 
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
-        cisHalfBufferState[i] = CIS_BUFFER_OFFSET_NONE;
-        cisFullBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+    	cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 }
 
@@ -797,14 +818,14 @@ void MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma)
 
     if (hmdma == &hmdma_mdma_channel1_dma1_stream0_tc_0) //ADC1
     {
-    	cisFullBufferState[0] = CIS_BUFFER_COMPLETE;
+    	cisBufferState[0] = CIS_BUFFER_COMPLETE;
     }
     if (hmdma == &hmdma_mdma_channel2_dma1_stream1_tc_0) //ADC2
     {
-    	cisFullBufferState[1] = CIS_BUFFER_COMPLETE;
+    	cisBufferState[1] = CIS_BUFFER_COMPLETE;
     }
     if (hmdma == &hmdma_mdma_channel3_dma2_stream0_tc_0) //ADC3
     {
-    	cisFullBufferState[2] = CIS_BUFFER_COMPLETE;
+    	cisBufferState[2] = CIS_BUFFER_COMPLETE;
     }
 }
