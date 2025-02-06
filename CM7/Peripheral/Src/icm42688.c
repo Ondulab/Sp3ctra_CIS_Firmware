@@ -105,11 +105,8 @@ float icm42688_temp()
 }
 
 /* starts communication with the ICM42688 */
-int icm42688_init()
+ICM42688_StatusTypeDef icm42688_init()
 {
-	printf("----- IMU INITIALIZATIONS -----\n");
-										      //
-
 	icm42688_FIFO.enFifoAccel = false;
 	icm42688_FIFO.enFifoGyro = false;
 	icm42688_FIFO.enFifoTemp = false;
@@ -134,210 +131,271 @@ int icm42688_init()
 	icm42688_FIFO.tSize = 0;
 
 	// reset the ICM42688
-	icm42688_reset();
+	if (icm42688_reset() != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// check the WHO AM I byte
-	if(icm42688_whoAmI() != WHO_AM_I)
+	if (icm42688_whoAmI() != WHO_AM_I)
 	{
 		printf("failed to reset IMU\n");
-		Error_Handler();
-		return -3;
+		return ICM42688_ERROR;
 	}
 
 	// turn on accel and gyro in Low Noise (LN) Mode
-	if(icm42688_writeRegister(UB0_REG_PWR_MGMT0, 0x0F) < 0)
+	if (icm42688_writeRegister(UB0_REG_PWR_MGMT0, 0x0F) != ICM42688_OK)
 	{
 		printf("failed to turn on IMU\n");
-		Error_Handler();
-		return -4;
+		return ICM42688_ERROR;
 	}
 
 	// 16G is default -- do this to set up accel resolution scaling
-	int ret = icm42688_setAccelFS(gpm16);
-	if (ret < 0)
+	if (icm42688_setAccelFS(gpm16) != ICM42688_OK)
 	{
 		printf("failed to set ACC FS IMU\n");
-		Error_Handler();
-		return ret;
+		return ICM42688_ERROR;
 	}
 
 	// 2000DPS is default -- do this to set up gyro resolution scaling
-	ret = icm42688_setGyroFS(dps500);
-	if (ret < 0)
+	if (icm42688_setGyroFS(dps500) != ICM42688_OK)
 	{
 		printf("failed to set GYRO FS IMU\n");
-		Error_Handler();
-		return ret;
+		return ICM42688_ERROR;
 	}
 
 	// disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-	if (icm42688_setFilters(false, false) < 0)
+	if (icm42688_setFilters(false, false) != ICM42688_OK)
 	{
 		printf("failed to set filters IMU\n");
-		Error_Handler();
-		return -7;
+		return ICM42688_ERROR;
 	}
 
 	osDelay(100);
 
 	// estimate gyro bias
-	if (icm42688_calibrateGyro() < 0) {
+	if (icm42688_calibrateGyro() != ICM42688_OK)
+	{
 		printf("failed to calibrate GYRO IMU\n");
-		Error_Handler();
-		return -8;
+		return ICM42688_ERROR;
 	}
 
 	// estimate acc bias
-	if (icm42688_calibrateAccel() < 0) {
+	if (icm42688_calibrateAccel() != ICM42688_OK)
+	{
 		printf("failed to calibrate ACC IMU\n");
-		Error_Handler();
-		return -9;
+		return ICM42688_ERROR;
 	}
 
 	IMU_State = IMU_INIT_OK;
 	// successful init, return 1
-	printf("IMU initialization SUCCESS\n");
-	return 1;
+	//printf("IMU initialization SUCCESS\n");
+	return ICM42688_OK;
 }
 
 /* sets the accelerometer full scale range to values other than default */
-int icm42688_setAccelFS(AccelFS fssel)
+ICM42688_StatusTypeDef icm42688_setAccelFS(AccelFS fssel)
 {
 	icm42688_setBank(0);
 
 	// read current register value
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &reg) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_OK;
+	}
 
 	// only change FS_SEL in reg
 	reg = (fssel << 5) | (reg & 0x1F);
 
-	if (icm42688_writeRegister(UB0_REG_ACCEL_CONFIG0, reg) < 0) return -2;
+	if (icm42688_writeRegister(UB0_REG_ACCEL_CONFIG0, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	_accelScale = (float)(1 << (4 - fssel)) / 32768.0f;
 	_accelFS = fssel;
 
-	return 1;
+	return ICM42688_OK;
 }
 
 /* sets the gyro full scale range to values other than default */
-int icm42688_setGyroFS(GyroFS fssel)
+ICM42688_StatusTypeDef icm42688_setGyroFS(GyroFS fssel)
 {
 	icm42688_setBank(0);
 
 	// read current register value
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_GYRO_CONFIG0, 1, &reg) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_GYRO_CONFIG0, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// only change FS_SEL in reg
 	reg = (fssel << 5) | (reg & 0x1F);
 
-	if (icm42688_writeRegister(UB0_REG_GYRO_CONFIG0, reg) < 0) return -2;
+	if (icm42688_writeRegister(UB0_REG_GYRO_CONFIG0, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	_gyroScale = (2000.0f / (float)(1 << fssel)) / 32768.0f;
 	_gyroFS = fssel;
 
-	return 1;
+	return ICM42688_OK;
 }
 
-int icm42688_setAccelODR(ODR odr)
+ICM42688_StatusTypeDef icm42688_setAccelODR(ODR odr)
 {
 	icm42688_setBank(0);
 
 	// read current register value
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &reg) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// only change ODR in reg
 	reg = odr | (reg & 0xF0);
 
-	if (icm42688_writeRegister(UB0_REG_ACCEL_CONFIG0, reg) < 0) return -2;
+	if (icm42688_writeRegister(UB0_REG_ACCEL_CONFIG0, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
-	return 1;
+	return ICM42688_OK;
 }
 
-int icm42688_setGyroODR(ODR odr)
+ICM42688_StatusTypeDef icm42688_setGyroODR(ODR odr)
 {
 	icm42688_setBank(0);
 
 	// read current register value
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_GYRO_CONFIG0, 1, &reg) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_GYRO_CONFIG0, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// only change ODR in reg
 	reg = odr | (reg & 0xF0);
 
-	if (icm42688_writeRegister(UB0_REG_GYRO_CONFIG0, reg) < 0) return -2;
+	if (icm42688_writeRegister(UB0_REG_GYRO_CONFIG0, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
-	return 1;
+	return ICM42688_OK;
 }
 
-int icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilters)
+ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilters)
 {
-	if (icm42688_setBank(1) < 0) return -1;
-
-	if (gyroFilters == true) {
-		if (icm42688_writeRegister(UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_ENABLE | GYRO_AAF_ENABLE) < 0) {
-			return -2;
-		}
-	}
-	else {
-		if (icm42688_writeRegister(UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_DISABLE | GYRO_AAF_DISABLE) < 0) {
-			return -3;
-		}
+	if (icm42688_setBank(1) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
 	}
 
-	if (icm42688_setBank(2) < 0) return -4;
+	if (gyroFilters == true)
+	{
+		if (icm42688_writeRegister(UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_ENABLE | GYRO_AAF_ENABLE) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
+		}
+	}
+	else
+	{
+		if (icm42688_writeRegister(UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_DISABLE | GYRO_AAF_DISABLE) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
+		}
+	}
 
-	if (accFilters == true) {
-		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_ENABLE) < 0) {
-			return -5;
+	if (icm42688_setBank(2) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
+
+	if (accFilters == true)
+	{
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_ENABLE) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
 		}
 	}
-	else {
-		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_DISABLE) < 0) {
-			return -6;
+	else
+	{
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_DISABLE) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
 		}
 	}
-	if (icm42688_setBank(0) < 0) return -7;
-	return 1;
+	if (icm42688_setBank(0) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
+	return ICM42688_OK;
 }
 
-int icm42688_enableDataReadyInterrupt()
+ICM42688_StatusTypeDef icm42688_enableDataReadyInterrupt()
 {
 	// push-pull, pulsed, active HIGH interrupts
-	if (icm42688_writeRegister(UB0_REG_INT_CONFIG, 0x18 | 0x03) < 0) return -1;
+	if (icm42688_writeRegister(UB0_REG_INT_CONFIG, 0x18 | 0x03) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// need to clear bit 4 to allow proper INT1 and INT2 operation
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_INT_CONFIG1, 1, &reg) < 0) return -2;
+	if (icm42688_readRegisters(UB0_REG_INT_CONFIG1, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 	reg &= ~0x10;
-	if (icm42688_writeRegister(UB0_REG_INT_CONFIG1, reg) < 0) return -3;
+	if (icm42688_writeRegister(UB0_REG_INT_CONFIG1, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// route UI data ready interrupt to INT1
-	if (icm42688_writeRegister(UB0_REG_INT_SOURCE0, 0x18) < 0) return -4;
+	if (icm42688_writeRegister(UB0_REG_INT_SOURCE0, 0x18) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
-	return 1;
+	return ICM42688_OK;
 }
 
-int icm42688_disableDataReadyInterrupt()
+ICM42688_StatusTypeDef icm42688_disableDataReadyInterrupt()
 {
 	// set pin 4 to return to reset value
 	uint8_t reg;
-	if (icm42688_readRegisters(UB0_REG_INT_CONFIG1, 1, &reg) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_INT_CONFIG1, 1, &reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 	reg |= 0x10;
-	if (icm42688_writeRegister(UB0_REG_INT_CONFIG1, reg) < 0) return -2;
+	if (icm42688_writeRegister(UB0_REG_INT_CONFIG1, reg) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// return reg to reset value
-	if (icm42688_writeRegister(UB0_REG_INT_SOURCE0, 0x10) < 0) return -3;
+	if (icm42688_writeRegister(UB0_REG_INT_SOURCE0, 0x10) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
-	return 1;
+	return ICM42688_OK;
 }
 
 /* reads the most current data from ICM42688 and stores in buffer */
-int icm42688_getAGT()
+ICM42688_StatusTypeDef icm42688_getAGT()
 {
-	if (icm42688_readRegisters(UB0_REG_TEMP_DATA1, 14, _buffer) < 0) return -1;
+	if (icm42688_readRegisters(UB0_REG_TEMP_DATA1, 14, _buffer) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// combine bytes into 16 bit values
 	int16_t rawMeas[7]; // temp, accel xyz, gyro xyz
@@ -356,21 +414,22 @@ int icm42688_getAGT()
 	_gyr[1] = (rawMeas[5] * _gyroScale) - _gyrB[1];
 	_gyr[2] = (rawMeas[6] * _gyroScale) - _gyrB[2];
 
-	return 1;
+	return ICM42688_OK;
 }
 
 /* configures and enables the FIFO buffer  */
-int icm42688_FIFO_enableFifo(uint8_t accel,uint8_t gyro,uint8_t temp)
+ICM42688_StatusTypeDef icm42688_FIFO_enableFifo(uint8_t accel,uint8_t gyro,uint8_t temp)
 {
-	if(icm42688_writeRegister(FIFO_EN,(accel*FIFO_ACCEL)|(gyro*FIFO_GYRO)|(temp*FIFO_TEMP_EN)) < 0)
+	if(icm42688_writeRegister(FIFO_EN,(accel*FIFO_ACCEL)|(gyro*FIFO_GYRO)|(temp*FIFO_TEMP_EN)) != ICM42688_OK)
 	{
-		return -2;
+		return ICM42688_ERROR;
 	}
 	icm42688_FIFO.enFifoAccel = accel;
 	icm42688_FIFO.enFifoGyro = gyro;
 	icm42688_FIFO.enFifoTemp = temp;
 	icm42688_FIFO.fifoFrameSize = accel*6 + gyro*6 + temp*2;
-	return 1;
+
+	return ICM42688_OK;
 }
 
 /* reads data from the ICM42688 FIFO and stores in buffer */
@@ -379,12 +438,15 @@ int icm42688_FIFO_readFifo()
 	icm42688_readRegisters(UB0_REG_FIFO_COUNTH, 2, _buffer);
 	icm42688_FIFO.fifoSize = (((uint16_t) (_buffer[0]&0x0F)) <<8) + (((uint16_t) _buffer[1]));
 	// read and parse the buffer
-	for (int32_t i=0; i < icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize; i++) {
+	for (int32_t i=0; i < icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize; i++)
+	{
 		// grab the data from the ICM42688
-		if (icm42688_readRegisters(UB0_REG_FIFO_DATA, icm42688_FIFO.fifoFrameSize, _buffer) < 0) {
-			return -1;
+		if (icm42688_readRegisters(UB0_REG_FIFO_DATA, icm42688_FIFO.fifoFrameSize, _buffer) != ICM42688_OK)
+		{
+			return ICM42688_OK;
 		}
-		if (icm42688_FIFO.enFifoAccel) {
+		if (icm42688_FIFO.enFifoAccel)
+		{
 			// combine into 16 bit values
 			int16_t rawMeas[3];
 			rawMeas[0] = (((int16_t)_buffer[0]) << 8) | _buffer[1];
@@ -396,14 +458,16 @@ int icm42688_FIFO_readFifo()
 			icm42688_FIFO.azFifo[i] = ((rawMeas[2] * _accelScale) - _accB[2]) * _accS[2];
 			icm42688_FIFO.aSize = icm42688_FIFO.fifoSize / icm42688_FIFO.fifoFrameSize;
 		}
-		if (icm42688_FIFO.enFifoTemp) {
+		if (icm42688_FIFO.enFifoTemp)
+		{
 			// combine into 16 bit values
 			int16_t rawMeas = (((int16_t)_buffer[0 + icm42688_FIFO.enFifoAccel*6]) << 8) | _buffer[1 + icm42688_FIFO.enFifoAccel*6];
 			// transform and convert to float values
 			icm42688_FIFO.tFifo[i] = ((float)rawMeas / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
 			icm42688_FIFO.tSize = icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize;
 		}
-		if (icm42688_FIFO.enFifoGyro) {
+		if (icm42688_FIFO.enFifoGyro)
+		{
 			// combine into 16 bit values
 			int16_t rawMeas[3];
 			rawMeas[0] = (((int16_t)_buffer[0 + icm42688_FIFO.enFifoAccel*6 + icm42688_FIFO.enFifoTemp*2]) << 8) | _buffer[1 + icm42688_FIFO.enFifoAccel*6 + icm42688_FIFO.enFifoTemp*2];
@@ -416,7 +480,7 @@ int icm42688_FIFO_readFifo()
 			icm42688_FIFO.gSize = icm42688_FIFO.fifoSize/icm42688_FIFO.fifoFrameSize;
 		}
 	}
-	return 1;
+	return ICM42688_OK;
 }
 
 /* returns the accelerometer FIFO size and data in the x direction, m/s/s */
@@ -469,11 +533,14 @@ void icm42688_FIFO_getFifoTemperature_C(int32_t *size,float* data)
 }
 
 /* estimates the gyro biases */
-int icm42688_calibrateGyro()
+ICM42688_StatusTypeDef icm42688_calibrateGyro()
 {
 	// set at a lower range (more resolution) since IMU not moving
 	const GyroFS current_fssel = _gyroFS;
-	if (icm42688_setGyroFS(dps250) < 0) return -1;
+	if (icm42688_setGyroFS(dps250) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// take samples and find bias
 	_gyroBD[0] = 0;
@@ -494,8 +561,11 @@ int icm42688_calibrateGyro()
 	_gyrB[2] = _gyroBD[2] / NUM_CALIB_SAMPLES;
 
 	// recover the full scale setting
-	if (icm42688_setGyroFS(current_fssel) < 0) return -4;
-	return 1;
+	if (icm42688_setGyroFS(current_fssel) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
+	return ICM42688_OK;
 }
 
 /* returns the gyro bias in the X direction, dps */
@@ -537,11 +607,14 @@ void icm42688_setGyroBiasZ(float bias)
 /* finds bias and scale factor calibration for the accelerometer,
 this should be run for each axis in each direction (6 total) to find
 the min and max values along each */
-int icm42688_calibrateAccel()
+ICM42688_StatusTypeDef icm42688_calibrateAccel()
 {
 	// set at a lower range (more resolution) since IMU not moving
 	const AccelFS current_fssel = _accelFS;
-	if (icm42688_setAccelFS(gpm2) < 0) return -1;
+	if (icm42688_setAccelFS(gpm2) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// take samples and find min / max
 	_accBD[0] = 0;
@@ -587,8 +660,11 @@ int icm42688_calibrateAccel()
 	}
 
 	// recover the full scale setting
-	if (icm42688_setAccelFS(current_fssel) < 0) return -4;
-	return 1;
+	if (icm42688_setAccelFS(current_fssel) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
+	return ICM42688_OK;
 }
 
 /* returns the accelerometer bias in the X direction, m/s/s */
@@ -649,9 +725,8 @@ void icm42688_setAccelCalZ(float bias,float scaleFactor)
 }
 
 /* writes a byte to ICM42688 register given a register address and data */
-int icm42688_writeRegister(uint8_t subAddress, uint8_t data)
+ICM42688_StatusTypeDef icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 {
-	int rv = 0;
 	static uint8_t tx[2];
 
 	tx[0] = subAddress;
@@ -659,24 +734,31 @@ int icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 
 	/* write data to device */
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	rv += HAL_SPI_Transmit(&hspi2, tx, 2, 1000);
+
+	if (HAL_SPI_Transmit(&hspi2, tx, 2, 1000) != HAL_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	/* read back the register */
-	icm42688_readRegisters(subAddress, 1, _buffer);
+	if (icm42688_readRegisters(subAddress, 1, _buffer) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 	/* check the read back register against the written register */
 	if(_buffer[0] == data)
 	{
-		return 1;
+		return ICM42688_OK;
 	}
-	else{
-		return -1;
+	else
+	{
+		return ICM42688_ERROR;
 	}
 }
 
 /* reads registers from ICM42688 given a starting register address, number of bytes, and a pointer to store data */
-int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest)
+ICM42688_StatusTypeDef icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest)
 {
-	int rv = 0;
 	static uint8_t tx[20] = {0};
 	static uint8_t rx[20] = {0};
 
@@ -685,48 +767,57 @@ int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest)
 	tx[0] = subAddress;
 
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	rv += HAL_SPI_TransmitReceive(&hspi2, tx, rx, count + 1, 1000);
+
+	if (HAL_SPI_TransmitReceive(&hspi2, tx, rx, count + 1, 1000) != HAL_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	for (int i = 0; i < count; i++)
 	{
 		dest[i] = rx[i + 1];
 	}
 
-	return rv;
+	return ICM42688_OK;
 }
 
-int icm42688_setBank(uint8_t bank)
+ICM42688_StatusTypeDef icm42688_setBank(uint8_t bank)
 {
 	// if we are already on this bank, bail
-	if (_bank == bank) return 1;
+	if (_bank == bank)
+		return ICM42688_OK;
 
 	_bank = bank;
 
 	return icm42688_writeRegister(REG_BANK_SEL, bank);
 }
 
-void icm42688_reset()
+ICM42688_StatusTypeDef icm42688_reset()
 {
 	icm42688_setBank(0);
 
-	icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01);
+	if (icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01) != ICM42688_OK)
+	{
+		return ICM42688_ERROR;
+	}
 
 	// wait for ICM42688 to come back up
 	osDelay(10);
+	return ICM42688_OK;
 }
 
 /* gets the ICM42688 WHO_AM_I register value */
-uint8_t icm42688_whoAmI()
+ICM42688_StatusTypeDef icm42688_whoAmI()
 {
 	icm42688_setBank(0);
 
 	// read the WHO AM I register
-	if (icm42688_readRegisters(UB0_REG_WHO_AM_I, 1, _buffer) < 0)
+	if (icm42688_readRegisters(UB0_REG_WHO_AM_I, 1, _buffer) != ICM42688_OK)
 	{
-		return -1;
+		return ICM42688_ERROR;
 	}
 	// return the register value
-	return _buffer[0];
+	return ICM42688_OK;
 }
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)

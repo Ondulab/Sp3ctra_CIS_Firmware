@@ -14,8 +14,8 @@
  */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __UDP_CLIENT_H__
-#define __UDP_CLIENT_H__
+#ifndef __TCP_CLIENT_H__
+#define __TCP_CLIENT_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,13 +26,18 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 
 /* Exported types ------------------------------------------------------------*/
+/* Custom return type for TCP client -----------------------------*/
+typedef enum {
+	TCPCLIENT_OK = 0,
+	TCPCLIENT_ERROR = 1
+} TCPCLIENT_StatusTypeDef;
 
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
-void tcp_clientInit(void);
+TCPCLIENT_StatusTypeDef tcp_clientInit(void);
 
 /* Private defines -----------------------------------------------------------*/
 
@@ -40,4 +45,4 @@ void tcp_clientInit(void);
 }
 #endif
 
-#endif /*__UDP_CLIENT_H__*/
+#endif /*__TCP_CLIENT_H__*/

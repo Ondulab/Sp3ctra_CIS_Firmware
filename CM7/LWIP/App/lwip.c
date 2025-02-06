@@ -77,9 +77,6 @@ void MX_LWIP_Init(void)
   GATEWAY_ADDRESS[3] = 0;
 
 /* USER CODE BEGIN IP_ADDRESSES */
-
-    printf("---- LWIP INITIALIZATIONS -----\n");
-  										    //
     IP_ADDRESS[0] = shared_config.network_ip[0];
     IP_ADDRESS[1] = shared_config.network_ip[1];
     IP_ADDRESS[2] = shared_config.network_ip[2];
@@ -143,9 +140,11 @@ static void ethernet_link_status_updated(struct netif *netif)
   if (netif_is_up(netif))
   {
 /* USER CODE BEGIN 5 */
-      /* Lien Ethernet actif */
-      printf("Ethernet link is UP\n");
-      isConnected = 1;
+    /* Lien Ethernet actif */
+    printf("Ethernet link is UP\n");
+    isConnected = 1;
+
+  	udp_clientSendStartupInfoPacket();
 
 /* USER CODE END 5 */
   }

@@ -29,14 +29,21 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 extern volatile uint32_t isConnected;
 
+/* Custom return type for UDP client -----------------------------*/
+typedef enum {
+	UDPCLIENT_OK = 0,
+	UDPCLIENT_ERROR = 1,
+	UDPCLIENT_NOT_CONNECTED = 2
+} UDPCLIENT_StatusTypeDef;
+
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
-void udp_clientInit(void);
-void udp_clientSendStartupInfoPacket(void);
-void udp_clientSendPackets(struct packet_Scanline *rgbBuffers);
+UDPCLIENT_StatusTypeDef udp_clientInit(void);
+UDPCLIENT_StatusTypeDef udp_clientSendStartupInfoPacket(void);
+UDPCLIENT_StatusTypeDef udp_clientSendPackets(struct packet_Scanline *rgbBuffers);
 
 /* Private defines -----------------------------------------------------------*/
 

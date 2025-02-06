@@ -72,7 +72,7 @@ static void cis_start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t lengt
 /**
  * @brief Initializes CIS scanning system and related tasks.
  */
-void cis_scanInit(void)
+CISSCAN_StatusTypeDef cis_scanInit(void)
 {
     // Create queues for free and ready buffers
     freeBufferQueue = xQueueCreate(2, sizeof(struct packet_Scanline *));
@@ -80,7 +80,7 @@ void cis_scanInit(void)
 
     if (freeBufferQueue == NULL || readyBufferQueue == NULL)
     {
-        Error_Handler();
+    	return CISSCAN_ERROR;
     }
 
     // Allocate buffer pointers
@@ -89,14 +89,13 @@ void cis_scanInit(void)
     xQueueSend(freeBufferQueue, &pBufA, 0);
     xQueueSend(freeBufferQueue, &pBufB, 0);
 
-    // Initialize CIS
-    printf("----- CIS INITIALIZATIONS -----\n");
-
     memset((uint32_t *)&buffers_Scanline, 0, sizeof(buffers_Scanline));
     SCB_CleanDCache_by_Addr((uint32_t *)&buffers_Scanline, sizeof(buffers_Scanline));
 
-    udp_clientInit();
-    cis_init();
+    if (cis_init() != CIS_OK)
+    {
+    	return CISSCAN_ERROR;
+    }
 
     shared_var.cis_process_cnt = 0;
     shared_var.cis_process_rdy = TRUE;
@@ -105,16 +104,17 @@ void cis_scanInit(void)
     if (xTaskCreate(cis_scanTask, "cis_scanTask", 4096, NULL, osPriorityHigh, NULL) != pdPASS)
     {
         printf("Failed to create cis_scanTask.\n");
-        Error_Handler();
+        return CISSCAN_ERROR;
     }
 
     if (xTaskCreate(cis_sendTask, "cis_sendTask", 4096, NULL, osPriorityRealtime, NULL) != pdPASS)
     {
         printf("Failed to create cis_sendTask.\n");
-        Error_Handler();
+        return CISSCAN_ERROR;
     }
 
-    printf("CIS initialization SUCCESS\n");
+    //printf("CIS initialization SUCCESS\n");
+    return CISSCAN_OK;
 }
 
 /**

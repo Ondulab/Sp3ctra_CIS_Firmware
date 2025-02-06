@@ -720,6 +720,7 @@ static void http_server(struct netconn *conn)
 					                netconn_write(conn, error_response, strlen(error_response), NETCONN_COPY);
 					                break;
 					            }
+					            osDelay(1);
 					        }
 
 					        if (shared_var.cis_cal_state == CIS_CAL_END)
@@ -973,15 +974,16 @@ static void http_thread(void *arg)
     netconn_delete(conn);
 }
 
-void http_serverInit()
+HTTPSERVER_StatusTypeDef http_serverInit()
 {
-	printf("----- HTTP INITIALIZATIONS ----\n");
 	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityLow, &http_ThreadHandle) == pdPASS)
 	{
-		printf("HTTP initialisation SUCCESS\n");
+		//printf("HTTP initialisation SUCCESS\n");
+		return HTTPSERVER_OK;
 	}
 	else
 	{
-		printf("Failed to create http task.\n");
+		//printf("Failed to create http task.\n");
+		return HTTPSERVER_ERROR;
 	}
 }

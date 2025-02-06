@@ -22,6 +22,12 @@
 #include "arm_math.h"
 #include "globals.h"
 
+/* Custom return type for CIS peripheral -----------------------------*/
+typedef enum {
+	CIS_OK = 0,
+	CIS_ERROR = 1
+} CIS_StatusTypeDef;
+
 typedef enum
 {
 	CIS_BUFFER_OFFSET_NONE = 0,
@@ -35,8 +41,8 @@ typedef enum
 	CIS_BLUE,
 }CIS_Color_TypeDef;
 
-void cis_init(void);
-void cis_configure(uint16_t dpi);
+CIS_StatusTypeDef cis_init(void);
+CIS_StatusTypeDef cis_configure(uint16_t dpi);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t* cis_buff);
 void cis_imageProcess(uint32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);

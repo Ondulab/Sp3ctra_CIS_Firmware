@@ -311,9 +311,8 @@ fileManager_StatusTypeDef file_factoryReset(void)
  */
 fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
 {
-    printf("- CONFIG FILE INITIALIZATIONS -\n");
-
     FRESULT fres; // Variable to store the result of FATFS operations
+    fileManager_StatusTypeDef rv = FILEMANAGER_ERROR;
 
     // Attempt to mount the file system
     fres = f_mount(&fs, "0:", 1); // 1 to mount immediately
@@ -330,6 +329,7 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         if (fres != FR_OK)
         {
             printf("Failed to format the QSPI flash.\n");
+            return rv = FILEMANAGER_ERROR;
         }
 
         // Try to mount the file system again after formatting
@@ -337,15 +337,18 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         if (fres != FR_OK)
         {
             printf("Failed to mount the filesystem even after formatting.\n");
+            return rv = FILEMANAGER_ERROR;
         }
         else
         {
             printf("FS mount SUCCESS after formatting.\n");
+            rv = FILEMANAGER_OK;
         }
     }
     else
     {
-        printf("FS mount SUCCESS\n");
+        //printf("FS mount SUCCESS\n");
+        rv = FILEMANAGER_OK;
     }
 
     // Attempt to read the configuration file
@@ -373,7 +376,7 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         print_shared_config(*config);
     }
 
-    return FILEMANAGER_OK;
+    return rv = FILEMANAGER_OK;
 }
 
 /**

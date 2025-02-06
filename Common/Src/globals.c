@@ -66,8 +66,14 @@ uint32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
 __attribute__((section(".scanline_buff")))
 struct buffers_Scanline buffers_Scanline = {0};
 
-__attribute__ ((section(".cisData")))
-uint16_t cisData[CIS_MAX_ADC_BUFF_SIZE * 3];
+__attribute__ ((section(".cisData_adc1")))
+uint16_t cisData_ADC1[CIS_MAX_ADC_BUFF_SIZE];
+
+__attribute__ ((section(".cisData_adc2")))
+uint16_t cisData_ADC2[CIS_MAX_ADC_BUFF_SIZE];
+
+__attribute__ ((section(".cisData_adc3")))
+uint16_t cisData_ADC3[CIS_MAX_ADC_BUFF_SIZE];
 
 __attribute__ ((section(".cisRGBCalibration")))
 struct cisRGB_Calibration cisRGB_Calibration = {0};

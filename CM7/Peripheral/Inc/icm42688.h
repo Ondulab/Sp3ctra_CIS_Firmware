@@ -24,6 +24,12 @@ extern "C" {
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 
+/* Custom return type for ICM operations -----------------------------*/
+typedef enum {
+	ICM42688_OK = 0,
+	ICM42688_ERROR = 1
+} ICM42688_StatusTypeDef;
+
 typedef enum
 {
 	IMU_INIT_NOK = 0,
@@ -101,14 +107,14 @@ typedef struct {
 #define ACCEL_AAF_DISABLE 	0x01
 
 // private functions
-int icm42688_writeRegister(uint8_t subAddress, uint8_t data);
-int icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
-int icm42688_setBank(uint8_t bank);
+ICM42688_StatusTypeDef icm42688_writeRegister(uint8_t subAddress, uint8_t data);
+ICM42688_StatusTypeDef icm42688_readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest);
+ICM42688_StatusTypeDef icm42688_setBank(uint8_t bank);
 
 /**
  * @brief      Software reset of the device
  */
-void icm42688_reset();
+ICM42688_StatusTypeDef icm42688_reset();
 
 /**
  * @brief      Read the WHO_AM_I register
@@ -156,7 +162,7 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-	int icm42688_init();
+	ICM42688_StatusTypeDef icm42688_init();
 
     /**
      * @brief      Sets the full scale range for the accelerometer
@@ -165,7 +171,7 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_setAccelFS(AccelFS fssel);
+	ICM42688_StatusTypeDef icm42688_setAccelFS(AccelFS fssel);
 
     /**
      * @brief      Sets the full scale range for the gyro
@@ -174,7 +180,7 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_setGyroFS(GyroFS fssel);
+	ICM42688_StatusTypeDef icm42688_setGyroFS(GyroFS fssel);
 
     /**
      * @brief      Set the ODR for accelerometer
@@ -183,7 +189,7 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_setAccelODR(ODR odr);
+	ICM42688_StatusTypeDef icm42688_setAccelODR(ODR odr);
 
     /**
      * @brief      Set the ODR for gyro
@@ -192,9 +198,9 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_setGyroODR(ODR odr);
+	ICM42688_StatusTypeDef icm42688_setGyroODR(ODR odr);
 
-    int icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilters);
+	ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilters);
 
     /**
      * @brief      Enables the data ready interrupt.
@@ -204,14 +210,14 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_enableDataReadyInterrupt();
+	ICM42688_StatusTypeDef icm42688_enableDataReadyInterrupt();
 
     /**
      * @brief      Masks the data ready interrupt
      *
      * @return     ret < 0 if error
      */
-    int icm42688_disableDataReadyInterrupt();
+	ICM42688_StatusTypeDef icm42688_disableDataReadyInterrupt();
 
     /**
      * @brief      Transfers data from ICM 42688-p to microcontroller.
@@ -219,7 +225,7 @@ typedef struct {
      *
      * @return     ret < 0 if error
      */
-    int icm42688_getAGT();
+	ICM42688_StatusTypeDef icm42688_getAGT();
 
     /**
      * @brief      Get accelerometer data, per axis
@@ -246,14 +252,14 @@ typedef struct {
      */
     float icm42688_temp();
 
-    int icm42688_calibrateGyro();
+    ICM42688_StatusTypeDef icm42688_calibrateGyro();
     float icm42688_getGyroBiasX();
     float icm42688_getGyroBiasY();
     float icm42688_getGyroBiasZ();
     void icm42688_setGyroBiasX(float bias);
     void icm42688_setGyroBiasY(float bias);
     void icm42688_setGyroBiasZ(float bias);
-    int icm42688_calibrateAccel();
+    ICM42688_StatusTypeDef icm42688_calibrateAccel();
     float icm42688_getAccelBiasX_mss();
     float icm42688_getAccelScaleFactorX();
     float icm42688_getAccelBiasY_mss();

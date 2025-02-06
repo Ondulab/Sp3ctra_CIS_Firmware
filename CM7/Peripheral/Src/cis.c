@@ -71,20 +71,23 @@ static void cis_initAdc(void);
  * @param  None
  * @retval None
  */
-void cis_init(void)
+CIS_StatusTypeDef cis_init(void)
 {
-    printf("------ CIS HARDWARE INIT ------\n");
-
     /* Enable 5V power DC/DC for display */
     HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
     cis_initAdc();
 
-    cis_configure(shared_config.cis_dpi);
+    if (cis_configure(shared_config.cis_dpi) != CIS_OK)
+    {
+    	return CIS_ERROR;
+    }
 
 #ifdef USE_WDG
     MX_IWDG1_Init();
 #endif
+
+    return CIS_OK;
 }
 
 /**
@@ -93,16 +96,12 @@ void cis_init(void)
  * @param  dpi: Desired resolution in DPI (200 or 400)
  * @retval None
  */
-void cis_configure(uint16_t dpi)
+CIS_StatusTypeDef cis_configure(uint16_t dpi)
 {
     float32_t leds_duration_us;
 
-    printf("------ CIS CONFIGURATION ------\n");
-
     /* Stop any ongoing capture before reconfiguring */
     cis_stopCapture();
-
-    cis_linearCalibrationInit();
 
     /* Initialize variables based on the desired DPI */
     if (dpi == 400)
@@ -138,7 +137,9 @@ void cis_configure(uint16_t dpi)
     cisConfig.blue_lane_offset = (cisConfig.lane_size * 2) + cisConfig.start_offset;
 
     /* Initialize buffers */
-    memset(cisData, 0, cisConfig.adc_buff_size * 3 * sizeof(uint16_t));
+    memset(cisData_ADC1, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
+    memset(cisData_ADC2, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
+    memset(cisData_ADC3, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
     memset(cisDataCpy, 0, cisConfig.adc_buff_size * 3 * sizeof(uint32_t));
 
     /* Calculate the cycle duration in microseconds */
@@ -172,6 +173,8 @@ void cis_configure(uint16_t dpi)
 
     /* Start capture with new configuration */
     cis_startCapture();
+
+    return CIS_OK;
 }
 
 /**
@@ -370,21 +373,9 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
         }
 
         // Launch MDMA transfers concurrently for the three channels
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0,
-            (uint32_t)&cisData[0],
-            (uint32_t)&cisDataCpy[0],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0,
-            (uint32_t)&cisData[cisConfig.adc_buff_size],
-            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0,
-            (uint32_t)&cisData[cisConfig.adc_buff_size * 2],
-            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
     }
 }
 #pragma GCC pop_options
@@ -441,21 +432,9 @@ void cis_imageProcessRGB_Calibration(uint32_t *cisDataCpy, uint32_t *cisCalData,
         shared_var.cis_cal_progressbar = (iteration * 100U) / iterationNb;
 
         /* Launch MDMA transfers concurrently for the three channels */
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0,
-            (uint32_t)&cisData[0],
-            (uint32_t)&cisDataCpy[0],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0,
-            (uint32_t)&cisData[cisConfig.adc_buff_size],
-            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0,
-            (uint32_t)&cisData[cisConfig.adc_buff_size * 2],
-            (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2],
-            cisConfig.adc_buff_size * sizeof(int16_t),
-            1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
     }
 
     /* Average the calibration data */
@@ -538,13 +517,13 @@ void cis_startCapture()
         cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
 
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)&cisData[0], cisConfig.adc_buff_size);
-    HAL_ADC_Start_DMA(&hadc2, (uint32_t *)&cisData[cisConfig.adc_buff_size], cisConfig.adc_buff_size);
-    HAL_ADC_Start_DMA(&hadc3, (uint32_t *)&cisData[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData_ADC1, cisConfig.adc_buff_size);
+    HAL_ADC_Start_DMA(&hadc2, (uint32_t *)cisData_ADC2, cisConfig.adc_buff_size);
+    HAL_ADC_Start_DMA(&hadc3, (uint32_t *)cisData_ADC3, cisConfig.adc_buff_size);
 
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)&cisData[0], (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)&cisData[cisConfig.adc_buff_size * 2], (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
 
     /* Start ADC Main Timer #######################################*/
     __HAL_TIM_SET_COUNTER(&htim1, 0);

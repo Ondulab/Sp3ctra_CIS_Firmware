@@ -20,7 +20,12 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* Private defines -----------------------------------------------------------*/
+/* Custom return type for CIS scan functions -----------------------------*/
+typedef enum {
+	CISSCAN_OK = 0,
+	CISSCAN_ERROR = 1
+} CISSCAN_StatusTypeDef;
 
-void cis_scanInit(void);
+CISSCAN_StatusTypeDef cis_scanInit(void);
 
 #endif /* CIS_SCAN_H */

@@ -60,7 +60,7 @@ void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc1.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc1.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
   hadc1.Init.OversamplingMode = DISABLE;
   hadc1.Init.Oversampling.Ratio = 1;
@@ -81,7 +81,7 @@ void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -123,7 +123,7 @@ void MX_ADC2_Init(void)
   hadc2.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
   hadc2.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc2.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
-  hadc2.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc2.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc2.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
   hadc2.Init.OversamplingMode = DISABLE;
   hadc2.Init.Oversampling.Ratio = 1;
@@ -136,7 +136,7 @@ void MX_ADC2_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -177,7 +177,7 @@ void MX_ADC3_Init(void)
   hadc3.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T1_CC1;
   hadc3.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc3.Init.ConversionDataManagement = ADC_CONVERSIONDATA_DMA_CIRCULAR;
-  hadc3.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  hadc3.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
   hadc3.Init.LeftBitShift = ADC_LEFTBITSHIFT_NONE;
   hadc3.Init.OversamplingMode = DISABLE;
   hadc3.Init.Oversampling.Ratio = 1;
@@ -190,7 +190,7 @@ void MX_ADC3_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -239,7 +239,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc1.Init.Mode = DMA_CIRCULAR;
     hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-    hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+    hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     hdma_adc1.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_adc1.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc1.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -251,7 +251,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     pSyncConfig.SyncSignalID = HAL_DMAMUX1_SYNC_EXTI0;
     pSyncConfig.SyncPolarity = HAL_DMAMUX_SYNC_NO_EVENT;
     pSyncConfig.SyncEnable = DISABLE;
-    pSyncConfig.EventEnable = ENABLE;
+    pSyncConfig.EventEnable = DISABLE;
     pSyncConfig.RequestNumber = 1;
     if (HAL_DMAEx_ConfigMuxSync(&hdma_adc1, &pSyncConfig) != HAL_OK)
     {
@@ -292,7 +292,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc2.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc2.Init.Mode = DMA_CIRCULAR;
     hdma_adc2.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-    hdma_adc2.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+    hdma_adc2.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     hdma_adc2.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_adc2.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc2.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -303,7 +303,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     pSyncConfig.SyncSignalID = HAL_DMAMUX1_SYNC_DMAMUX1_CH0_EVT;
     pSyncConfig.SyncPolarity = HAL_DMAMUX_SYNC_RISING;
-    pSyncConfig.SyncEnable = ENABLE;
+    pSyncConfig.SyncEnable = DISABLE;
     pSyncConfig.EventEnable = DISABLE;
     pSyncConfig.RequestNumber = 2;
     if (HAL_DMAEx_ConfigMuxSync(&hdma_adc2, &pSyncConfig) != HAL_OK)
@@ -342,7 +342,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc3.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc3.Init.Mode = DMA_CIRCULAR;
     hdma_adc3.Init.Priority = DMA_PRIORITY_VERY_HIGH;
-    hdma_adc3.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+    hdma_adc3.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     hdma_adc3.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_adc3.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_adc3.Init.PeriphBurst = DMA_PBURST_SINGLE;
@@ -353,7 +353,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
 
     pSyncConfig.SyncSignalID = HAL_DMAMUX1_SYNC_DMAMUX1_CH0_EVT;
     pSyncConfig.SyncPolarity = HAL_DMAMUX_SYNC_RISING;
-    pSyncConfig.SyncEnable = ENABLE;
+    pSyncConfig.SyncEnable = DISABLE;
     pSyncConfig.EventEnable = DISABLE;
     pSyncConfig.RequestNumber = 1;
     if (HAL_DMAEx_ConfigMuxSync(&hdma_adc3, &pSyncConfig) != HAL_OK)

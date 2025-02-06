@@ -1384,37 +1384,40 @@ static err_t ftpd_msgaccept(void *arg, struct tcp_pcb *pcb, err_t err)
 	return ERR_OK;
 }
 
-void ftpd_init(void)
+err_t ftpd_init(void)
 {
-    printf("----- FTP INITIALIZATIONS -----\n");
-
     struct tcp_pcb *pcb;
     err_t result;
 
     vfs_load_plugin(vfs_default_fs);
 
     pcb = tcp_new();
-    if (pcb == NULL) {
+    if (pcb == NULL)
+    {
         LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: Failed to create PCB\n"));
-        return;
+        return ERR_BUF;
     }
     LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: pcb: %lx\n", (unsigned long) pcb));
 
     result = tcp_bind(pcb, IP_ADDR_ANY, 21);
-    if (result != ERR_OK) {
+    if (result != ERR_OK)
+    {
         LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: tcp_bind failed with error %d\n", result));
         tcp_abort(pcb);
-        return;
+        return result;
     }
     LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: tcp_bind: %d\n", result));
 
     pcb = tcp_listen(pcb);
-    if (pcb == NULL) {
+    if (pcb == NULL)
+    {
         LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: Failed to listen on PCB\n"));
-        return;
+        return result;
     }
     LWIP_DEBUGF(FTPD_DEBUG, ("ftpd_init: listen-pcb: %lx\n", (unsigned long) pcb));
 
     tcp_accept(pcb, ftpd_msgaccept);
+
+    return ERR_OK;
 }
 

@@ -150,13 +150,11 @@ void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint3
  * @param       None
  * @retval      None
  */
-void cis_linearCalibrationInit(void)
+CISCALIBRATION_StatusTypeDef cis_linearCalibrationInit(void)
 {
     FIL file;
     FRESULT fres;
     char calibrationFilePath[64];
-
-	printf("------- CIS CALIBRATION -------\n");
 
     /* Build the calibration file path according to DPI */
     sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
@@ -165,7 +163,7 @@ void cis_linearCalibrationInit(void)
     fres = f_open(&file, calibrationFilePath, FA_READ);
     if (fres == FR_OK)
     {
-    	printf("CIS calibration SUCCESS\n");
+    	//printf("CIS load calibration SUCCESS\n");
         /* Read the entire calibration – implement this function as needed */
         file_readCisCals(calibrationFilePath, /* pointer to your full calibration structure */ &cisCals);
         f_close(&file);
@@ -176,6 +174,8 @@ void cis_linearCalibrationInit(void)
         printf("INT calibration file not found for %d DPI, calibration requested.\n", shared_config.cis_dpi);
         shared_var.cis_cal_state = CIS_CAL_REQUESTED;
     }
+
+    return CISCALIBRATION_OK;
 }
 
 /**

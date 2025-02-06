@@ -27,11 +27,13 @@
 /* USER CODE BEGIN Includes */
 #include "lwip.h"
 #include "cis_scan.h"
+#include "cis_linearCal.h"
 #include "icm42688.h"
 #include "file_manager.h"
 #include "ftpd.h"
 #include "http_server.h"
 #include "tcp_client.h"
+#include "udp_client.h"
 #include "tim.h"
 #include "stm32_flash.h"
 
@@ -100,7 +102,7 @@ __weak void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTask
 
     printf("Stack overflow for task : %s\n", pcTaskName);
 
-    //Error_Handler();
+    Error_Handler();
 }
 /* USER CODE END 4 */
 
@@ -145,7 +147,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityIdle, 0, 4096);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityHigh, 0, 16384);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -171,18 +173,39 @@ void StartDefaultTask(void const * argument)
 		file_factoryReset();
 	}
 
-	file_initConfig(&shared_config);
+    printf("- CONFIG FILE INITIALIZATIONS -\n");
+	if (file_initConfig(&shared_config) != FILEMANAGER_OK)
+	{
+		printf("File initialization ERROR\n");
+	}
 
-	icm42688_init();
+	printf("----- IMU INITIALIZATIONS -----\n");
+	if (icm42688_init() != ICM42688_OK)
+	{
+		printf("IMU initialization ERROR\n");
+	}
 
+    printf("---- LWIP INITIALIZATIONS -----\n");
 	MX_LWIP_Init();
 
-	ftpd_init();
+    printf("----- FTP INITIALIZATIONS -----\n");
+	if (ftpd_init() != ERR_OK)
+    {
+		printf("FTP initialization ERROR\n");
+    }
 
-	http_serverInit();
+	printf("----- HTTP INITIALIZATIONS ----\n");
+	if (http_serverInit() != HTTPSERVER_OK)
+	{
+		printf("HTTP initialization ERROR\n");
+	}
 
+	printf("- READ FIRMWARE UPDATE STATUS -\n");
 	FW_UpdateState dataRead;
-	STM32Flash_readPersistentData(&dataRead);
+	if (STM32Flash_readPersistentData(&dataRead) != STM32FLASH_OK)
+	{
+		printf("Read update status ERROR\n");
+	}
 
 	if (dataRead != FW_UPDATE_NONE)
 	{
@@ -202,16 +225,37 @@ void StartDefaultTask(void const * argument)
 		NVIC_SystemReset();
 	}
 
-	tcp_clientInit();
+	printf("--- TCP LED INITIALIZATIONS ---\n");
+	if (tcp_clientInit() != TCPCLIENT_OK)
+	{
+		printf("TCP initialization ERROR\n");
+	}
 
-	cis_scanInit();
+	printf("---------- UDP INIT -----------\n");
+    if (udp_clientInit() != UDPCLIENT_OK)
+    {
+    	printf("UDP initialization ERROR\n");
+    }
+
+	printf("---- CIS LOAD CALIBRATION -----\n");
+    if (cis_linearCalibrationInit() != CISCALIBRATION_OK)
+    {
+    	printf("CIS load calibration ERROR\n");
+    }
+
+    printf("----- CIS INITIALIZATIONS -----\n");
+	if (cis_scanInit() != CISSCAN_OK)
+	{
+		printf("CIS initialization ERROR\n");
+	}
 
 #ifndef DEBUG_LWIP_STATS
-	/* Infinite loop */
+	osDelay(200);
     printf("------ INIT TASK COMPLETE -----\n");
     vTaskDelete(NULL); //delete task
 #endif
 
+	/* Infinite loop */
 	for(;;)
 	{
 		stats_display(); //must comment vTaskDelete to use it

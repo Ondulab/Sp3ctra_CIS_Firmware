@@ -39,7 +39,9 @@ extern "C"
 {
 #endif
 
-void ftpd_init(void);
+#include "err.h"
+
+err_t ftpd_init(void);
 
 #ifdef __cplusplus
 } /* extern "C" */

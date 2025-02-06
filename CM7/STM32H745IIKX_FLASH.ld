@@ -47,13 +47,13 @@ MEMORY
 {
   FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 1024K
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
-  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 64
+  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
-  RAM_D1 (rw)    			: ORIGIN = 0x30000000, LENGTH = 128K
-  RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
-  RAM_D3 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 50K
-  RAM_D3_SHARED (rw)    	: ORIGIN = 0x10000000 + LENGTH(RAM_D3), LENGTH = 64K - LENGTH(RAM_D3)
+  RAM_D1A (r)    			: ORIGIN = 0x30000000, LENGTH = 40K
+  RAM_D1B (rw)    			: ORIGIN = 0x30000000 + LENGTH(RAM_D1A), LENGTH = 128K - LENGTH(RAM_D1A)
+  RAM_D23 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
+  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
   ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
@@ -150,7 +150,8 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP(*(.scanline_buff));
-    KEEP (*(.cisData)); 
+    KEEP (*(.cisData_adc3)); 
+    KEEP(*(.calAcc));
     . = ALIGN(4);
   } >RAM_AXI
   
@@ -169,19 +170,20 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   
-  .ram_d3_shared :
+  .ram_d4_shared :
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
+    KEEP (*(.cisData_adc2)); 
     . = ALIGN(4);
-  } >RAM_D3_SHARED
+  } >RAM_D4
   
   .ram_d1 :
   {
     . = ALIGN(4);
-    KEEP(*(.calAcc));
+    KEEP (*(.cisData_adc1)); 
     . = ALIGN(4);
-  } >RAM_D1
+  } >RAM_D1B
   
   /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -222,8 +224,8 @@ SECTIONS
   _sram_dtcm_start = ORIGIN(DTCM);
   _sram_dtcm_end = ORIGIN(DTCM) + LENGTH(DTCM);
   
-  _sram_d2_start = ORIGIN(RAM_D2);
-  _sram_d2_end = ORIGIN(RAM_D2) + LENGTH(RAM_D2);
+  _sram_d2_start = ORIGIN(RAM_D23);
+  _sram_d2_end = ORIGIN(RAM_D23) + LENGTH(RAM_D23);
 
   /* User_heap_stack section, used to check that there is enough "RAM_AXI" Ram  type memory left */
   ._user_heap_stack :
@@ -246,7 +248,7 @@ SECTIONS
     
     . = ABSOLUTE(0x30040200);
     *(.Rx_PoolSection)  
-  } >RAM_D2
+  } >RAM_D23
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

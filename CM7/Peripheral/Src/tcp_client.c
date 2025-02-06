@@ -159,18 +159,18 @@ static void tcp_client_task(void *arg)
  * connections and control LEDs based on received data. If the task creation
  * fails, an error message is printed.
  */
-void tcp_clientInit(void)
+TCPCLIENT_StatusTypeDef tcp_clientInit(void)
 {
-	printf("--- TCP LED INITIALIZATIONS ---\n");
-
 	// Create the TCP client task for LED control with a stack size of 1024 and normal priority
 	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 512, NULL, osPriorityLow, NULL) == pdPASS)
 	{
-		printf("TCP initialisation SUCCESS\n");
+		//printf("TCP initialisation SUCCESS\n");
+		return TCPCLIENT_OK;
 	}
 	else
 	{
 		// Error handling in case the task could not be created
-		printf("Failed to create HTTP task.\n");
+		//printf("Failed to create HTTP task.\n");
+		return TCPCLIENT_ERROR;
 	}
 }
