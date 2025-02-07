@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : udp_client.h
+ * @file           : udpClient_.h
  ******************************************************************************
  * @attention
  *
@@ -28,6 +28,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 extern volatile uint32_t isConnected;
+extern volatile uint8_t startupPacketSent;
 
 /* Custom return type for UDP client -----------------------------*/
 typedef enum {
@@ -37,13 +38,13 @@ typedef enum {
 } UDPCLIENT_StatusTypeDef;
 
 /* Exported constants --------------------------------------------------------*/
+extern osSemaphoreId udpReadySemaphoreHandle;
 
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
-UDPCLIENT_StatusTypeDef udp_clientInit(void);
-UDPCLIENT_StatusTypeDef udp_clientSendStartupInfoPacket(void);
-UDPCLIENT_StatusTypeDef udp_clientSendPackets(struct packet_Scanline *rgbBuffers);
+UDPCLIENT_StatusTypeDef udpClient_init(void);
+UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers);
 
 /* Private defines -----------------------------------------------------------*/
 

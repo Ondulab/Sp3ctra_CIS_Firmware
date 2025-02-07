@@ -89,9 +89,6 @@ CISSCAN_StatusTypeDef cis_scanInit(void)
     xQueueSend(freeBufferQueue, &pBufA, 0);
     xQueueSend(freeBufferQueue, &pBufB, 0);
 
-    memset((uint32_t *)&buffers_Scanline, 0, sizeof(buffers_Scanline));
-    SCB_CleanDCache_by_Addr((uint32_t *)&buffers_Scanline, sizeof(buffers_Scanline));
-
     if (cis_init() != CIS_OK)
     {
     	return CISSCAN_ERROR;
@@ -158,8 +155,6 @@ static void cis_scanTask(void *argument)
 {
     struct packet_Scanline *pCurrentBuffer = NULL;
 
-    printf("------ CIS THREAD STARTED -----\n");
-
     while (1)
     {
         cis_userCal();
@@ -183,8 +178,6 @@ static void cis_sendTask(void *argument)
 {
     struct packet_Scanline *pSendBuffer = NULL;
 
-    printf("------ UDP THREAD STARTED -----\n");
-
     while (1)
     {
         // 1) Wait for a "ready" buffer
@@ -197,7 +190,7 @@ static void cis_sendTask(void *argument)
         cis_start_MDMA_Transfer((uint32_t *)pSendBuffer, (uint32_t *)scanline_CM4, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
 
         // 4) Send the buffer
-        udp_clientSendPackets(pSendBuffer);
+        udpClient_sendPackets(pSendBuffer);
 
         // 5) Return the buffer to the "free" queue
         xQueueSend(freeBufferQueue, &pSendBuffer, portMAX_DELAY);

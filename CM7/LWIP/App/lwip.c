@@ -143,9 +143,7 @@ static void ethernet_link_status_updated(struct netif *netif)
     /* Lien Ethernet actif */
     printf("Ethernet link is UP\n");
     isConnected = 1;
-
-  	udp_clientSendStartupInfoPacket();
-
+    osSemaphoreRelease(udpReadySemaphoreHandle);  // Signal that the stack is ready
 /* USER CODE END 5 */
   }
   else /* netif is down */
@@ -154,7 +152,7 @@ static void ethernet_link_status_updated(struct netif *netif)
       /* Lien Ethernet inactif */
       printf("Ethernet link is DOWN\n");
       isConnected = 0;
-
+      startupPacketSent = 0;
 /* USER CODE END 6 */
   }
 }

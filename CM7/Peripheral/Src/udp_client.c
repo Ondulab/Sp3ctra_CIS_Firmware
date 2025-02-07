@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file           : udp_client.c
+ * @file           : udpClient_.c
  ******************************************************************************
  * @attention
  *
@@ -47,6 +47,10 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
+/* Declaration of the global semaphore handle */
+osSemaphoreDef(udpReadySemaphore);
+osSemaphoreId udpReadySemaphoreHandle;
+
 struct netconn *conn;
 __IO uint32_t message_count = 0;
 
@@ -56,18 +60,49 @@ static struct packet_Button packet_Button = {0};
 static uint32_t packetsCounter = 0;
 
 volatile uint32_t isConnected = 0;
+volatile uint8_t startupPacketSent = 0;
 
 /* Private function prototypes -----------------------------------------------*/
-static UDPCLIENT_StatusTypeDef udp_clientSendData(void *data, uint16_t length);
+static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void);
+static UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length);
+static UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void);
+static void udpStartupTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 
 /**
+ * @brief Initializes the semaphore used to signal network availability.
+ */
+static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void)
+{
+    // Create the semaphore "udpReadySemaphore" with an initial count of 1.
+    udpReadySemaphoreHandle = osSemaphoreCreate(osSemaphore(udpReadySemaphore), 1);
+
+    // Check if the semaphore was successfully created.
+    if (udpReadySemaphoreHandle == NULL)
+    {
+        // Log an error message if the semaphore creation failed.
+        printf("Failed to create UDP ready semaphore.\n");
+        return UDPCLIENT_ERROR;
+    }
+
+    // Immediately acquire the semaphore in a non-blocking manner (timeout = 0)
+    // to set its initial count to 0, effectively "resetting" it.
+    osSemaphoreWait(udpReadySemaphoreHandle, 0);
+    printf("Semaphore initialized to 0.\n");
+
+    // Return a status indicating the semaphore was initialized successfully.
+    return UDPCLIENT_OK;
+}
+
+/**
  * @brief Initialize the UDP client.
  */
-UDPCLIENT_StatusTypeDef udp_clientInit(void)
+UDPCLIENT_StatusTypeDef udpClient_init(void)
 {
 	ip_addr_t destIPaddr;
+
+	udpClient_initUdpSemaphore();
 
 	/* Create a new UDP connection */
 	conn = netconn_new(NETCONN_UDP);
@@ -86,6 +121,8 @@ UDPCLIENT_StatusTypeDef udp_clientInit(void)
 		printf("Failed to initialize UDP\n");
 		return UDPCLIENT_ERROR;
 	}
+
+    memset((uint32_t *)&buffers_Scanline, 0, sizeof(buffers_Scanline));
 
 	/* Initialize the packet_Image array based on cisConfig.pixels_nb */
 	for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
@@ -107,8 +144,10 @@ UDPCLIENT_StatusTypeDef udp_clientInit(void)
 	packet_Button.type = BUTTON_DATA_HEADER;
 	packet_IMU.type = IMU_DATA_HEADER;
 
-	packet_StartupInfo.packet_id = packetsCounter++;
 	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", FW_VERSION);
+
+    osThreadDef(udpStartupTask, udpStartupTask, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
+    osThreadCreate(osThread(udpStartupTask), NULL);
 
 	return UDPCLIENT_OK;
 }
@@ -118,7 +157,7 @@ UDPCLIENT_StatusTypeDef udp_clientInit(void)
  * @param data Pointer to the data to send.
  * @param length Length of the data in bytes.
  */
-UDPCLIENT_StatusTypeDef udp_clientSendData(void *data, uint16_t length)
+UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length)
 {
 	if (isConnected == 0)
 	{
@@ -149,6 +188,7 @@ UDPCLIENT_StatusTypeDef udp_clientSendData(void *data, uint16_t length)
 	if (err != ERR_OK)
 	{
 		printf("Failed to send UDP data: %d\n", err);
+		netbuf_delete(buf);
 		return UDPCLIENT_ERROR;
 	}
 
@@ -161,15 +201,49 @@ UDPCLIENT_StatusTypeDef udp_clientSendData(void *data, uint16_t length)
 /**
  * @brief Send startup information packet.
  */
-UDPCLIENT_StatusTypeDef udp_clientSendStartupInfoPacket(void)
+UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void)
 {
-	if (udp_clientSendData(&packet_StartupInfo, sizeof(packet_StartupInfo)) != UDPCLIENT_OK)
+	packet_StartupInfo.packet_id = packetsCounter = 1;
+	if (udpClient_sendData(&packet_StartupInfo, sizeof(struct packet_StartupInfo)) != UDPCLIENT_OK)
 	{
 		return UDPCLIENT_ERROR;
 	}
 	return UDPCLIENT_OK;
 }
 
+/**
+ * @brief Task that waits for the network to be ready and sends the startup packet.
+ */
+void udpStartupTask(void const * argument)
+{
+    // Infinite loop: this task continuously runs.
+    for (;;)
+    {
+        // Wait indefinitely (or with a very long timeout) for the semaphore.
+        // This semaphore indicates that the network link might be up.
+        if (osSemaphoreWait(udpReadySemaphoreHandle, osWaitForever) == osOK)
+        {
+            // Semaphore acquired, so check if the network is connected and the startup packet has not been sent.
+            if (isConnected == 1 && startupPacketSent == 0)
+            {
+                // Attempt to send the startup information packet.
+                if (udpClient_sendStartupInfoPacket() == UDPCLIENT_OK)
+                {
+                    // Mark that the startup packet has been successfully sent.
+                    startupPacketSent = 1;
+                    printf("Startup packet sent.\n");
+                }
+                else
+                {
+                    // Log an error message if sending the startup packet fails.
+                    printf("Failed to send startup packet.\n");
+                }
+            }
+        }
+        // Delay for 100 ticks before the next iteration to prevent busy-waiting.
+        osDelay(100);
+    }
+}
 
 /**
  * @brief Send multiple packets, including IMU and button states.
@@ -177,18 +251,22 @@ UDPCLIENT_StatusTypeDef udp_clientSendStartupInfoPacket(void)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-UDPCLIENT_StatusTypeDef udp_clientSendPackets(struct packet_Scanline *rgbBuffers)
+UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers)
 {
-	static int32_t packet = 0;
+    static int32_t packet = 0;
+    if (isConnected == 0)
+    {
+        return UDPCLIENT_NOT_CONNECTED;
+    }
 
-	for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
-	{
-		rgbBuffers[packet].packet_id = packetsCounter++;
-		if (udp_clientSendData(&rgbBuffers[packet], sizeof(struct packet_Scanline)) != UDPCLIENT_OK)
-		{
-			return UDPCLIENT_ERROR;
-		}
-	}
+    for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
+    {
+        rgbBuffers[packet].packet_id = packetsCounter++;
+        if (udpClient_sendData(&rgbBuffers[packet], sizeof(struct packet_Scanline)) != UDPCLIENT_OK)
+        {
+            return UDPCLIENT_ERROR;
+        }
+    }
 
 	packet_IMU.packet_id = packetsCounter++;
 
@@ -202,7 +280,7 @@ UDPCLIENT_StatusTypeDef udp_clientSendPackets(struct packet_Scanline *rgbBuffers
 
 	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
 
-	if (udp_clientSendData((void *)&packet_IMU, sizeof(struct packet_IMU)) != UDPCLIENT_OK)
+	if (udpClient_sendData((void *)&packet_IMU, sizeof(struct packet_IMU)) != UDPCLIENT_OK)
 	{
 		return UDPCLIENT_ERROR;
 	}
@@ -223,7 +301,7 @@ UDPCLIENT_StatusTypeDef udp_clientSendPackets(struct packet_Scanline *rgbBuffers
 		}
 	}
 
-	if (udp_clientSendData(&packet_Button, sizeof(struct packet_Button)) != UDPCLIENT_OK)
+	if (udpClient_sendData(&packet_Button, sizeof(struct packet_Button)) != UDPCLIENT_OK)
 	{
 		return UDPCLIENT_ERROR;
 	}

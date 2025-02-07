@@ -150,7 +150,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP(*(.scanline_buff));
-    KEEP (*(.cisData_adc3)); 
+    KEEP (*(.cisData_adc2)); 
     KEEP(*(.calAcc));
     . = ALIGN(4);
   } >RAM_AXI
@@ -174,7 +174,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
-    KEEP (*(.cisData_adc2)); 
+    /*KEEP (*(.cisData_adc2));*/ 
     . = ALIGN(4);
   } >RAM_D4
   
@@ -182,6 +182,7 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP (*(.cisData_adc1)); 
+    KEEP (*(.cisData_adc3));
     . = ALIGN(4);
   } >RAM_D1B
   

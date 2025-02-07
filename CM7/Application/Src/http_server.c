@@ -885,8 +885,6 @@ static void http_server(struct netconn *conn)
 // Function to initialize and manage the HTTP server thread
 static void http_thread(void *arg)
 {
-    printf("----- HTTP THREAD STARTED -----\n");
-
     struct netconn *conn, *newconn;
     err_t err, accept_err;
 

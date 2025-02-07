@@ -37,7 +37,7 @@ typedef enum {
 /* Exported macro ------------------------------------------------------------*/
 
 /* Exported functions prototypes ---------------------------------------------*/
-TCPCLIENT_StatusTypeDef tcp_clientInit(void);
+TCPCLIENT_StatusTypeDef tcpClient_init(void);
 
 /* Private defines -----------------------------------------------------------*/
 

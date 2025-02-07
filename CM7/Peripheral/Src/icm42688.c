@@ -137,7 +137,7 @@ ICM42688_StatusTypeDef icm42688_init()
 	}
 
 	// check the WHO AM I byte
-	if (icm42688_whoAmI() != WHO_AM_I)
+	if (icm42688_whoAmI() != ICM42688_OK)
 	{
 		printf("failed to reset IMU\n");
 		return ICM42688_ERROR;
@@ -796,10 +796,7 @@ ICM42688_StatusTypeDef icm42688_reset()
 {
 	icm42688_setBank(0);
 
-	if (icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01) != ICM42688_OK)
-	{
-		return ICM42688_ERROR;
-	}
+	icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01);
 
 	// wait for ICM42688 to come back up
 	osDelay(10);
@@ -816,7 +813,12 @@ ICM42688_StatusTypeDef icm42688_whoAmI()
 	{
 		return ICM42688_ERROR;
 	}
-	// return the register value
+
+	if (_buffer[0] != WHO_AM_I)
+	{
+		return ICM42688_ERROR;
+	}
+
 	return ICM42688_OK;
 }
 

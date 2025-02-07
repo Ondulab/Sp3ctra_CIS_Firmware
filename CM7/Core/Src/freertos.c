@@ -147,7 +147,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityHigh, 0, 16384);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityHigh, 0, 4096);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -226,13 +226,13 @@ void StartDefaultTask(void const * argument)
 	}
 
 	printf("--- TCP LED INITIALIZATIONS ---\n");
-	if (tcp_clientInit() != TCPCLIENT_OK)
+	if (tcpClient_init() != TCPCLIENT_OK)
 	{
 		printf("TCP initialization ERROR\n");
 	}
 
 	printf("---------- UDP INIT -----------\n");
-    if (udp_clientInit() != UDPCLIENT_OK)
+    if (udpClient_init() != UDPCLIENT_OK)
     {
     	printf("UDP initialization ERROR\n");
     }

@@ -65,10 +65,8 @@ void print_received_data(uint8_t* data, uint16_t len)
  *
  * command line test : echo -n -e "\x04\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x64\x00\xE8\x03\x64\x00\x00\x00\xE8\x03\x64\x00\x0F\x00" | nc 192.168.0.10 5000
  */
-static void tcp_client_task(void *arg)
+static void tcpClient_task(void *arg)
 {
-	printf("----- TCP THREAD STARTED ------\n");
-
 	struct netconn *conn, *newconn;  // Connection and new connection pointers
 	err_t err;                       // Variable for error handling
 	struct netbuf *buf;              // Buffer to hold received data
@@ -159,10 +157,10 @@ static void tcp_client_task(void *arg)
  * connections and control LEDs based on received data. If the task creation
  * fails, an error message is printed.
  */
-TCPCLIENT_StatusTypeDef tcp_clientInit(void)
+TCPCLIENT_StatusTypeDef tcpClient_init(void)
 {
 	// Create the TCP client task for LED control with a stack size of 1024 and normal priority
-	if (xTaskCreate(tcp_client_task, "TCP_LED_Control", 512, NULL, osPriorityLow, NULL) == pdPASS)
+	if (xTaskCreate(tcpClient_task, "TCP_LED_Control", 512, NULL, osPriorityLow, NULL) == pdPASS)
 	{
 		//printf("TCP initialisation SUCCESS\n");
 		return TCPCLIENT_OK;
