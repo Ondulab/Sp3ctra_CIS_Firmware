@@ -347,7 +347,6 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
 
                 int32_t destPacket = numPackets - 1 - packet;
 
-        	    // Boucle interne pour inverser l'ordre des pixels
         	    for (i = endIdx; i-- > startIdx; )
         	    {
         	        int32_t offsetIndex = (endIdx - 1) - i;

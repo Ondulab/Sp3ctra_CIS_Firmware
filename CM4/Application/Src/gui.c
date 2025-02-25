@@ -337,28 +337,28 @@ void gui_displayPopUp()
 {
 	uint8_t textData[256] = {0};
 
-	ssd1362_fillRect(10, 5, 61, 35, 15, false);
-	ssd1362_drawRect(9, 4, 62, 36, 0, false);
+	ssd1362_fillRect(10, 5, 67, 35, 15, false);
+	ssd1362_drawRect(9, 4, 68, 36, 0, false);
 
-    sprintf((char *)textData, "%dDPI", (int)shared_config.cis_dpi);
+    sprintf((char *)textData, "%d DPI", (int)shared_config.cis_dpi);
 	ssd1362_drawString(12, 07, (int8_t *)textData, 0, 8);
 
 	if (shared_config.cis_oversampling < 10)
 	{
-		sprintf((char *)textData, "OVS  %d", (int)shared_config.cis_oversampling);
+		sprintf((char *)textData, "OVS   %d", (int)shared_config.cis_oversampling);
 	}
 	else
 	{
-		sprintf((char *)textData, "OVS %d", (int)shared_config.cis_oversampling);
+		sprintf((char *)textData, "OVS  %d", (int)shared_config.cis_oversampling);
 	}
 	ssd1362_drawString(12, 17, (int8_t *)textData, 0, 8);
 
 	if (shared_var.cis_freq < 100)
-		sprintf((char *)textData, "%d  Hz", (int)(shared_var.cis_freq));
+		sprintf((char *)textData, "%d   Hz", (int)(shared_var.cis_freq));
 	else if (shared_var.cis_freq < 1000)
-		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
+		sprintf((char *)textData, "%d  Hz", (int)(shared_var.cis_freq));
 	else
-		sprintf((char *)textData, "%dHz", (int)(shared_var.cis_freq));
+		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
 
 	ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
 }
