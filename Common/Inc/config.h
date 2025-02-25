@@ -58,10 +58,10 @@
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
 // Network configurations
-#define DEFAULT_NETWORK_IP 						{192, 168, 100, 10}
+#define DEFAULT_NETWORK_IP 						{192, 168, 0, 10}
 #define DEFAULT_NETWORK_NETMASK 				{255, 255, 255, 0}
 #define DEFAULT_NETWORK_GW 						{0, 0, 0, 0}
-#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 100, 255}
+#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 0, 255}
 #define DEFAULT_NETWORK_UDP_PORT 				(55151)
 #define DEFAULT_NETWORK_TCP_PORT 				(5000)
 

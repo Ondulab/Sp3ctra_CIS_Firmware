@@ -114,7 +114,6 @@ UDPCLIENT_StatusTypeDef udpClient_init(void)
 		netconn_bind(conn, NULL, 0);//        DEFAULT_NETWORK_UDP_PORT);
 		netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 
-		//printf("UDP initialization SUCCESS\n");
 	}
 	else
 	{
@@ -146,8 +145,8 @@ UDPCLIENT_StatusTypeDef udpClient_init(void)
 
 	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", FW_VERSION);
 
-    osThreadDef(udpStartupTask, udpStartupTask, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
-    osThreadCreate(osThread(udpStartupTask), NULL);
+    //osThreadDef(udpStartupTask, udpStartupTask, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
+    //osThreadCreate(osThread(udpStartupTask), NULL);
 
 	return UDPCLIENT_OK;
 }

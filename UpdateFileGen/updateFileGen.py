@@ -72,8 +72,8 @@ def create_update_file(config_path, output_dir):
     Creates a binary update file containing CM7, CM4, and a compressed archive of additional data.
     """
     # Relative paths of required files
-    cm7_path = "../CM7/Release/CISYNTH_CIS_Firmware_CM7.bin"
-    cm4_path = "../CM4/Release/CISYNTH_CIS_Firmware_CM4.bin"
+    cm7_path = "../CM7/Release/CM7.bin"
+    cm4_path = "../CM4/Release/CM4.bin"
     external_dir = "./External_MAX8"
     compressed_archive = "./External_MAX8.tar.gz"
 
