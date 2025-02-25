@@ -319,12 +319,19 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                                    file_name);
                             if (extracted == 1)
                             {
-                                // Insert a slash between FW_PATH and file_name:
-                            	// Calculate the available space for file_name after FW_PATH and the '/' separator.
-                            	size_t available_space = sizeof(full_file_path) - strlen(FW_PATH) - 1; // -1 for '/'
+                                // Calculate the available space for file_name after FW_PATH and '/'
+                                size_t available_space = sizeof(full_file_path) - strlen(FW_PATH) - 2; // -1 for '/' and -1 for null terminator
 
-                            	// Print into full_file_path while ensuring we don't exceed available_space for file_name.
-                            	snprintf(full_file_path, sizeof(full_file_path), "%s/%.*s", FW_PATH, (int)available_space, file_name);
+                                if (available_space > 0)
+                                {
+                                    snprintf(full_file_path, sizeof(full_file_path), "%s/%.*s", FW_PATH, (int) available_space, file_name);
+                                }
+                                else
+                                {
+                                    // Handle error: not enough space to append file_name.
+                                    printf("@ fwupdate - Not enough space to append file_name\n");
+                                    ret = FWUPDATE_STATUS_ERROR;
+                                }
 
                                 fwupdate.state = FWUPDATE_STATE_DOWNLOAD_START;
                                 ret = FWUPDATE_STATUS_INPROGRESS;
@@ -646,7 +653,7 @@ static void http_server(struct netconn *conn)
 							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
 							netconn_write(conn, response, len, NETCONN_COPY);
 
-							cis_configure(shared_config.cis_dpi);
+							cis_configure();
 						}
 						else
 						{

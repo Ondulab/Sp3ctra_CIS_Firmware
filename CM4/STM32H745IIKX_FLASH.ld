@@ -6,7 +6,8 @@
 **  Author      : STM32CubeIDE
 **
 **  Abstract    : Linker script for STM32H7 series
-**                1024Kbytes FLASH and 288Kbytes RAM
+**			      		2048Kbytes FLASH
+**                		512Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.

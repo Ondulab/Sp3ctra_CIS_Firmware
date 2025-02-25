@@ -141,17 +141,18 @@ SECTIONS
   .dtcm :
   {
     . = ALIGN(4);
-    KEEP (*(.cisDataCpy));
     KEEP (*(.cisCals));  
+    KEEP (*(.cisDataCpy));
     . = ALIGN(4);
   } >DTCM
   
   .axi :
   {
     . = ALIGN(4);
-    KEEP(*(.scanline_buff));
-    KEEP (*(.cisData_adc2)); 
-    KEEP(*(.calAcc));
+    KEEP (*(.cisData_adc2));
+    KEEP(*(.calAccBlack));
+    KEEP(*(.calAccWhite));
+    KEEP(*(.scanline_buff)); 
     . = ALIGN(4);
   } >RAM_AXI
   
@@ -174,7 +175,6 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
-    /*KEEP (*(.cisData_adc2));*/ 
     . = ALIGN(4);
   } >RAM_D4
   

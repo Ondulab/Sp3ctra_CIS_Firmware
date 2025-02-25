@@ -28,8 +28,8 @@ typedef enum {
 /* Private define ------------------------------------------------------------*/
 
 CISCALIBRATION_StatusTypeDef cis_linearCalibrationInit(void);
-void cis_applyLinearCalibration(uint32_t * restrict cisDataCpy, uint32_t maxClipValue);
-void cis_startLinearCalibration(uint32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth);
+void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipValue);
+void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth);
 void cis_printForCharacterization(float32_t* cisDataCpy_f32);
 
 #endif /* __CIS_LINEARCAL_H__ */

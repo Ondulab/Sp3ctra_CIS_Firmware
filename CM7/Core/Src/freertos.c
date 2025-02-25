@@ -237,12 +237,6 @@ void StartDefaultTask(void const * argument)
     	printf("UDP initialization ERROR\n");
     }
 
-	printf("---- CIS LOAD CALIBRATION -----\n");
-    if (cis_linearCalibrationInit() != CISCALIBRATION_OK)
-    {
-    	printf("CIS load calibration ERROR\n");
-    }
-
     printf("----- CIS INITIALIZATIONS -----\n");
 	if (cis_scanInit() != CISSCAN_OK)
 	{

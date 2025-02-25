@@ -55,10 +55,10 @@ struct cisCalsTypes {
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-__attribute__((section(".calAcc")))
+__attribute__((section(".calAccBlack")))
 struct cisCalsTypes blackCal;
 
-__attribute__((section(".calAcc")))
+__attribute__((section(".calAccWhite")))
 struct cisCalsTypes whiteCal;
 
 /* Variable containing ADC conversions data */
@@ -188,7 +188,7 @@ CISCALIBRATION_StatusTypeDef cis_linearCalibrationInit(void)
  * @param       bitDepth      Bit depth (used for gain calculation).
  * @retval      None
  */
-void cis_startLinearCalibration(uint32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth)
+void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth)
 {
     printf("===== CALIBRATION STARTED =====\n");
     printf("Calibration for %d DPI\n", shared_config.cis_dpi);
@@ -287,7 +287,7 @@ void cis_startLinearCalibration(uint32_t *cisDataCpy, uint16_t iterationNb, uint
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_applyLinearCalibration(uint32_t * restrict cisDataCpy, uint32_t maxClipValue)
+void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
 {
     for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {

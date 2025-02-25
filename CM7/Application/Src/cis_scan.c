@@ -80,6 +80,7 @@ CISSCAN_StatusTypeDef cis_scanInit(void)
 
     if (freeBufferQueue == NULL || readyBufferQueue == NULL)
     {
+    	printf("Failed to createqueue\n");
     	return CISSCAN_ERROR;
     }
 
@@ -110,7 +111,6 @@ CISSCAN_StatusTypeDef cis_scanInit(void)
         return CISSCAN_ERROR;
     }
 
-    //printf("CIS initialization SUCCESS\n");
     return CISSCAN_OK;
 }
 

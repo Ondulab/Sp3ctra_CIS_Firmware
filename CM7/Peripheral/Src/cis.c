@@ -73,12 +73,12 @@ static void cis_initAdc(void);
  */
 CIS_StatusTypeDef cis_init(void)
 {
-    /* Enable 5V power DC/DC for display */
+    /* Enable 5V power DC/DC for cis */
     HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
 
     cis_initAdc();
 
-    if (cis_configure(shared_config.cis_dpi) != CIS_OK)
+    if (cis_configure() != CIS_OK)
     {
     	return CIS_ERROR;
     }
@@ -96,15 +96,21 @@ CIS_StatusTypeDef cis_init(void)
  * @param  dpi: Desired resolution in DPI (200 or 400)
  * @retval None
  */
-CIS_StatusTypeDef cis_configure(uint16_t dpi)
+CIS_StatusTypeDef cis_configure(void)
 {
     float32_t leds_duration_us;
 
     /* Stop any ongoing capture before reconfiguring */
     cis_stopCapture();
 
+    if (cis_linearCalibrationInit() != CISCALIBRATION_OK)
+    {
+    	printf("CIS load calibration ERROR\n");
+    	return CIS_ERROR;
+    }
+
     /* Initialize variables based on the desired DPI */
-    if (dpi == 400)
+    if (shared_config.cis_dpi == 400)
     {
         /* Variables for 400 DPI */
         cisConfig.pixels_per_lane = CIS_400DPI_PIXELS_PER_LANE;
@@ -207,7 +213,7 @@ void cis_imageProcess_2(int32_t *cis_buff)
 
     //cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
     cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-    cis_applyCalibration(&RAWImage, &cisRGB_Calibration);
+    //cis_applyCalibration(&RAWImage, &cisRGB_Calibration);
     cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
 }
 
@@ -251,19 +257,18 @@ void cis_imageProcess_2(int32_t *cis_buff)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
+void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
 {
-    int32_t iteration;
-    int32_t lane, i, packet;
+    int32_t lane, i, packet, iteration;
     uint32_t startTick;
-    int32_t numPackets = cisConfig.udp_nb_packet_per_line;
+    uint32_t numPackets = cisConfig.udp_nb_packet_per_line;
     const int32_t pixelPerPacket = cisConfig.pixels_nb / numPackets;
     const int32_t lanePackets = numPackets / CIS_ADC_OUT_LANES;
 
     // Outer loop (oversampling) in decrementing order
     for (iteration = shared_config.cis_oversampling; iteration-- > 0; )
     {
-        int curIter = shared_config.cis_oversampling - iteration;  // curIter: 1 for the first oversample
+    	int32_t curIter = shared_config.cis_oversampling - iteration;  // curIter: 1 for the first oversample
 
         // Wait for all lanes to be ready (loop in decrementing order)
         startTick = HAL_GetTick();
@@ -273,11 +278,13 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
             {
                 if ((HAL_GetTick() - startTick) > CIS_CAPTURE_TIMEOUT)
                 {
-                    printf("Timeout: Full buffer state not reached for lane %d\n", (int)i + 1);
+                    //printf("Timeout: Full buffer state not reached for lane %d\n", (int)i + 1);
                     cis_resetStart();
                     return;
+                	//break;
                 }
             }
+
             cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         }
 
@@ -285,22 +292,21 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
 
         if (shared_config.cis_handedness)
         {
-            // For handedness true, the outer packet loop est déjà décrémentée
             for (packet = numPackets - 1; packet >= 0; packet--)
             {
                 lane = packet / lanePackets;
-                int localPacketIndex = packet - (lane * lanePackets);
-                int startIdx = pixelPerPacket * (localPacketIndex + 1) - 1;
-                int endIdx = pixelPerPacket * localPacketIndex;
+                int32_t localPacketIndex = packet - (lane * lanePackets);
+                int32_t startIdx = pixelPerPacket * (localPacketIndex + 1) - 1;
+                int32_t endIdx = pixelPerPacket * localPacketIndex;
 
-                uint32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
-                uint32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
-                uint32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
+                int32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
+                int32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
+                int32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
 
-                // Inner loop en décrémentation (i de startIdx à endIdx)
+                // Inner loop
                 for (i = startIdx; i >= endIdx; i--)
                 {
-                    int offsetIndex = i - endIdx;
+                    int32_t offsetIndex = i - endIdx;
                     uint8_t sample_R = (uint8_t)redBase[i];
                     uint8_t sample_G = (uint8_t)greenBase[i];
                     uint8_t sample_B = (uint8_t)blueBase[i];
@@ -328,48 +334,47 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
         }
         else
         {
-            // For non handedness, convert the outer packet loop to a decrementing loop
-            for (packet = numPackets; packet-- > 0; )
-            {
-                int origPacket = numPackets - 1 - packet;  // Convert to original ascending index
-                lane = origPacket / lanePackets;
-                int localPacketIndex = origPacket - (lane * lanePackets);
-                int startIdx = pixelPerPacket * localPacketIndex;
-                int endIdx = pixelPerPacket * (localPacketIndex + 1);
-                int destPacket = numPackets - 1 - origPacket;
+        	for (packet = 0; packet < numPackets; packet++)
+        	{
+        	    lane = packet / lanePackets;
+        	    int32_t localPacketIndex = packet - (lane * lanePackets);
+        	    int32_t startIdx = pixelPerPacket * localPacketIndex;
+        	    int32_t endIdx = pixelPerPacket * (localPacketIndex + 1);
 
-                uint32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
-                uint32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
-                uint32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
+        	    int32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
+        	    int32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
+        	    int32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
 
-                // Inner loop en décrémentation : i va de endIdx-1 à startIdx
-                for (i = endIdx; i-- > startIdx; )
-                {
-                    int offsetIndex = (endIdx - 1) - i;
-                    uint8_t sample_R = (uint8_t)redBase[i];
-                    uint8_t sample_G = (uint8_t)greenBase[i];
-                    uint8_t sample_B = (uint8_t)blueBase[i];
+                int32_t destPacket = numPackets - 1 - packet;
 
-                    if (curIter == 1)
-                    {
-                        imageBuffers[destPacket].imageData_R[offsetIndex] = sample_R;
-                        imageBuffers[destPacket].imageData_G[offsetIndex] = sample_G;
-                        imageBuffers[destPacket].imageData_B[offsetIndex] = sample_B;
-                    }
-                    else
-                    {
-                        imageBuffers[destPacket].imageData_R[offsetIndex] += (sample_R - imageBuffers[destPacket].imageData_R[offsetIndex]) / curIter;
-                        imageBuffers[destPacket].imageData_G[offsetIndex] += (sample_G - imageBuffers[destPacket].imageData_G[offsetIndex]) / curIter;
-                        imageBuffers[destPacket].imageData_B[offsetIndex] += (sample_B - imageBuffers[destPacket].imageData_B[offsetIndex]) / curIter;
-                    }
-                }
+        	    // Boucle interne pour inverser l'ordre des pixels
+        	    for (i = endIdx; i-- > startIdx; )
+        	    {
+        	        int32_t offsetIndex = (endIdx - 1) - i;
+        	        uint8_t sample_R = (uint8_t)redBase[i];
+        	        uint8_t sample_G = (uint8_t)greenBase[i];
+        	        uint8_t sample_B = (uint8_t)blueBase[i];
 
-                if (curIter == shared_config.cis_oversampling)
-                {
-                    imageBuffers[destPacket].fragment_id = origPacket;
-                    imageBuffers[destPacket].line_id = shared_var.cis_process_cnt;
-                }
-            }
+        	        if (curIter == 1)
+        	        {
+        	            imageBuffers[destPacket].imageData_R[offsetIndex] = sample_R;
+        	            imageBuffers[destPacket].imageData_G[offsetIndex] = sample_G;
+        	            imageBuffers[destPacket].imageData_B[offsetIndex] = sample_B;
+        	        }
+        	        else
+        	        {
+        	            imageBuffers[destPacket].imageData_R[offsetIndex] += (sample_R - imageBuffers[destPacket].imageData_R[offsetIndex]) / curIter;
+        	            imageBuffers[destPacket].imageData_G[offsetIndex] += (sample_G - imageBuffers[destPacket].imageData_G[offsetIndex]) / curIter;
+        	            imageBuffers[destPacket].imageData_B[offsetIndex] += (sample_B - imageBuffers[destPacket].imageData_B[offsetIndex]) / curIter;
+        	        }
+        	    }
+
+        	    if (curIter == shared_config.cis_oversampling)
+        	    {
+        	        imageBuffers[packet].fragment_id = packet;
+        	        imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+        	    }
+        	}
         }
 
         // Launch MDMA transfers concurrently for the three channels
@@ -387,7 +392,7 @@ void cis_imageProcess(uint32_t *cisDataCpy, struct packet_Scanline *imageBuffers
  * @param  iterationNb: Number of iterations for averaging.
  * @retval None
  */
-void cis_imageProcessRGB_Calibration(uint32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb)
+void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb)
 {
     uint32_t totalElements = cisConfig.adc_buff_size * 3;
     uint32_t i;

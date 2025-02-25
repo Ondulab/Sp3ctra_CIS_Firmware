@@ -114,7 +114,7 @@
 #define CIS_MAX_ADC_BUFF_SIZE 	 	 		 	((CIS_MAX_LANE_SIZE) * (CIS_ADC_OUT_LANES))
 
 
-#define CIS_ADC_MAX_VALUE						(16384)
+#define CIS_ADC_MAX_VALUE						(4096)
 
 #define CIS_LEDS_MAX_PWM						(101)
 #define CIS_LEDS_MAX_POMER						(CIS_LEDS_MAX_PWM)

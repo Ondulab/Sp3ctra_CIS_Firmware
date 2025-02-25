@@ -42,11 +42,11 @@ typedef enum
 }CIS_Color_TypeDef;
 
 CIS_StatusTypeDef cis_init(void);
-CIS_StatusTypeDef cis_configure(uint16_t dpi);
+CIS_StatusTypeDef cis_configure(void);
 void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage);
 void cis_imageProcess_2(int32_t* cis_buff);
-void cis_imageProcess(uint32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
-void cis_imageProcessRGB_Calibration(uint32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb);
+void cis_imageProcess(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
+void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb);
 void cis_startCapture(void);
 void cis_stopCapture(void);
 void cis_ledsOn(void);
