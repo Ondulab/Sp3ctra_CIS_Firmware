@@ -58,7 +58,7 @@
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
 #define MEM_ALIGNMENT 4
 /*----- Default Value for MEM_SIZE: 1600 ---*/
-#define MEM_SIZE 131048
+//#define MEM_SIZE 131048
 /*----- Default Value for MEMP_SANITY_CHECK: 0 ---*/
 #define MEMP_SANITY_CHECK 1
 /*----- Default Value for F7/H7 devices: 0x30044000 -----*/
@@ -76,9 +76,9 @@
 /*----- Default Value for TCP_MSS: 536 ---*/
 #define TCP_MSS 1460
 /*----- Default Value for TCP_SND_BUF: 2920 ---*/
-#define TCP_SND_BUF 5840
+//#define TCP_SND_BUF 5840
 /*----- Default Value for TCP_SND_QUEUELEN: 17 ---*/
-#define TCP_SND_QUEUELEN 16
+//#define TCP_SND_QUEUELEN 16
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
@@ -129,7 +129,7 @@
 /* USER CODE BEGIN 1 */
 #define HTTPD_USE_CUSTOM_FSDATA 	0
 
-#define LWIP_DEBUG 0
+#define LWIP_DEBUG 1
 
 #ifdef DEBUG_LWIP_STATS
 #define LWIP_STATS                   1   // Enable global statistics
@@ -149,7 +149,7 @@
 #define FTPD_DEBUG LWIP_DBG_OFF
 #define ETHARP_DEBUG LWIP_DBG_OFF
 #define NETIF_DEBUG LWIP_DBG_OFF
-#define PBUF_DEBUG LWIP_DBG_OFF
+#define PBUF_DEBUG LWIP_DBG_ON
 #define API_LIB_DEBUG LWIP_DBG_OFF
 #define API_MSG_DEBUG LWIP_DBG_OFF
 #define SOCKETS_DEBUG LWIP_DBG_OFF
@@ -162,7 +162,7 @@
 #define MEMP_DEBUG LWIP_DBG_OFF
 #define SYS_DEBUG LWIP_DBG_OFF
 #define TIMERS_DEBUG LWIP_DBG_OFF
-#define TCP_DEBUG LWIP_DBG_OFF
+#define TCP_DEBUG LWIP_DBG_ON
 #define TCP_INPUT_DEBUG LWIP_DBG_OFF
 #define TCP_OUTPUT_DEBUG LWIP_DBG_OFF
 #define TCP_RST_DEBUG LWIP_DBG_OFF
@@ -178,7 +178,15 @@
 #define DNS_DEBUG LWIP_DBG_OFF
 #define IP6_DEBUG LWIP_DBG_OFF
 #define HTTPD_DEBUG LWIP_DBG_OFF
+#define MEM_DEBUG               LWIP_DBG_ON
+#define MEMP_DEBUG              LWIP_DBG_ON
 
+#define TCP_MSS         1460
+#define TCP_WND         (16 * 1460)     // 23360
+#define TCP_SND_BUF     (16 * 1460)     // 23360
+#define TCP_SND_QUEUELEN (2 * TCP_SND_BUF / TCP_MSS) // 32
+#define MEMP_NUM_TCP_SEG        32   // Au moins aussi grand que TCP_SND_QUEUELEN
+#define MEM_SIZE  (128 * 1024)
 /* USER CODE END 1 */
 
 #ifdef __cplusplus

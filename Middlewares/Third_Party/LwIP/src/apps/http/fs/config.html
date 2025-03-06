@@ -415,7 +415,6 @@
 
             <!-- Firmware Update -->
             <div class="container">
-                <form id="firmwareForm" action="/upload" method="post" enctype="multipart/form-data">
                     <span class="title">FIRMWARE UPDATE</span>
                     <div class="form-group firmware-input-group">
                         <label for="firmwareFile">Select Firmware</label>
@@ -425,9 +424,8 @@
                         <progress id="uploadProgress" value="0" max="100"></progress>
                     </div>
                     <div class="button-container">
-                        <button type="submit">Upload Firmware</button>
+                        <button type="button" onclick="customUpload()">Upload Firmware</button>
                     </div>
-                </form>
             </div>
 
             <!-- Advanced Settings -->
@@ -859,46 +857,59 @@
                     xhr.send(data);
                 });
             }
-
-            document.getElementById('firmwareForm').addEventListener('submit', function(e) {
-                e.preventDefault();  // Prevent the default form submission
             
-                var formData = new FormData(this);
-                var xhr = new XMLHttpRequest();
-                var submitButton = document.querySelector('#firmwareForm button[type="submit"]');  // Assuming there is one submit button within this form
-                submitButton.classList.add('button-loading');  // Add loading class to the button to show processing
-            
-                // Configure the request
-                xhr.open('POST', this.action, true);
-            
-                // Listen to the progress event
-                xhr.upload.onprogress = function(e) {
-                    if (e.lengthComputable) {
-                        var percentComplete = (e.loaded / e.total) * 100;
-                        document.getElementById('uploadProgress').value = percentComplete;
-                    }
-                };
-            
-                // Listen to the load event
-                xhr.onload = function() {
-                    submitButton.classList.remove('button-loading');  // Remove loading class upon completion
-                    if (xhr.status === 200) {
-                        alert('Firmware transfer complete!');
-                        document.getElementById('uploadProgress').value = 0;
-                    } else {
-                        alert('Error during firmware updade: ' + xhr.status);
-                    }
-                };
-            
-                // Handle network errors
-                xhr.onerror = function() {
-                    submitButton.classList.remove('button-loading');  // Remove loading class on network error
-                    alert('Network error occurred during the firmware update.');
-                };
-            
-                // Send the form data
-                xhr.send(formData);
-            });
+            function customUpload()
+			{
+			    // Retrieve the selected file
+			    const fileInput = document.getElementById("firmwareFile");
+			    if (!fileInput.files[0])
+			    {
+			        alert("Please select a firmware file first.");
+			        return;
+			    }
+			    const firmwareFile = fileInput.files[0];
+			
+			    // Configure the XHR request
+			    const xhr = new XMLHttpRequest();
+			    xhr.open("POST", "/upload", true);
+			
+			    // Set headers
+			    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+			    xhr.setRequestHeader("Connection", "keep-alive"); // Add it here
+			
+			    // Track upload progress
+			    xhr.upload.onprogress = function(e)
+			    {
+			        if (e.lengthComputable)
+			        {
+			            let percentComplete = (e.loaded / e.total) * 100;
+			            document.getElementById("uploadProgress").value = percentComplete;
+			        }
+			    };
+			
+			    // Handle the upload completion
+			    xhr.onload = function()
+			    {
+			        if (xhr.status === 200)
+			        {
+			            alert("Firmware upload complete!");
+			            document.getElementById("uploadProgress").value = 0;
+			        }
+			        else
+			        {
+			            alert("Error during firmware upload: " + xhr.status);
+			        }
+			    };
+			
+			    // Handle network errors
+			    xhr.onerror = function()
+			    {
+			        alert("Network error occurred during firmware update.");
+			    };
+			
+			    // Send the raw firmware file
+			    xhr.send(firmwareFile);
+			}
 
             function factoryReset() {
                 return new Promise((resolve, reject) => {

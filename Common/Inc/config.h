@@ -29,8 +29,8 @@
 //#define PRINTF_CM4
 //#define SKIP_SPLASH
 
-//#define DEBUG_LWIP_STATS
-//#define HTTP_SERVER_DEBUG
+#define DEBUG_LWIP_STATS
+#define HTTP_SERVER_DEBUG
 
 //#define CIS_DESACTIVATE_CALIBRATION
 //#define CIS_PRINT_COUNTER
@@ -58,10 +58,10 @@
 /******************              Ethernet definitions               *******************/
 /**************************************************************************************/
 // Network configurations
-#define DEFAULT_NETWORK_IP 						{192, 168, 0, 10}
+#define DEFAULT_NETWORK_IP 						{192, 168, 100, 1}
 #define DEFAULT_NETWORK_NETMASK 				{255, 255, 255, 0}
 #define DEFAULT_NETWORK_GW 						{0, 0, 0, 0}
-#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 0, 255}
+#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 100, 255}
 #define DEFAULT_NETWORK_UDP_PORT 				(55151)
 #define DEFAULT_NETWORK_TCP_PORT 				(5000)
 
@@ -73,10 +73,10 @@
 // CIS configurations
 #define DEFAULT_CIS_PRINT_CALIBRATION 0
 #define DEFAULT_CIS_RAW 0
-#define DEFAULT_CIS_DPI 200
+#define DEFAULT_CIS_DPI 400
 #define DEFAULT_CIS_MONOCHROME 0
 #define DEFAULT_CIS_MAX_LINE_FREQ 900
-#define DEFAULT_CIS_OVERSAMPLING 8
+#define DEFAULT_CIS_OVERSAMPLING 2
 
 //#define DEFAULT_CIS_CLK_FREQ					(2500000)
 //#define   DEFAULT_CIS_CLK_FREQ				(3125000)

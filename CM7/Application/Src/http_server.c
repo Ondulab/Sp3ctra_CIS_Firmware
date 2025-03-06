@@ -249,6 +249,135 @@ void delete_old_firmware(const char *latest_firmware)
     f_closedir(&dir);
 }
 
+#define HEADER_BUF_SIZE 2048
+
+static int fwupdate_octetstream_state_machine(struct netconn *conn, char *buf, u16_t buflen)
+{
+    // Buffer statique pour accumuler l'en‐tête sur plusieurs appels
+    static char header_accum[HEADER_BUF_SIZE];
+    static int header_accum_len = 0;
+
+    // Variables statiques pour conserver l'état une fois le header reçu
+    static int header_parsed = 0;   // 0 : header pas encore entièrement reçu, 1 : header traité
+    static int header_length = 0;   // Taille de l'en‐tête complet (jusqu'à "\r\n\r\n")
+    static int content_length = 0;  // Valeur de Content-Length (taille du fichier)
+    static int file_data_length = 0;// Taille réelle du fichier (ici = Content-Length)
+    static int accum_length = 0;    // Nombre d'octets déjà écrits dans le fichier
+    static char file_name[FILE_NAME_MAX_LENGTH] = {0};
+    static char full_file_path[FILE_NAME_MAX_LENGTH] = {0};
+    int ret = FWUPDATE_STATUS_NONE;
+
+    if (!header_parsed)
+    {
+        // Accumulez les données reçues dans header_accum
+        if (header_accum_len + buflen > HEADER_BUF_SIZE)
+        {
+            // Buffer insuffisant
+            return FWUPDATE_STATUS_ERROR;
+        }
+        memcpy(header_accum + header_accum_len, buf, buflen);
+        header_accum_len += buflen;
+
+        // Recherche de la fin de l'en‐tête
+        char *header_end = strstr(header_accum, "\r\n\r\n");
+        if (header_end == NULL)
+        {
+            // En‐tête pas encore complet, attendre plus de données
+            return FWUPDATE_STATUS_INPROGRESS;
+        }
+        // L'en‐tête est complet : on détermine sa longueur
+        header_length = (int)(header_end - header_accum) + 4;
+
+        // Extraction du Content-Length
+        char *cl_ptr = strstr(header_accum, "Content-Length:");
+        if (cl_ptr == NULL)
+        {
+            return FWUPDATE_STATUS_ERROR;
+        }
+        cl_ptr += strlen("Content-Length:");
+        content_length = atoi(cl_ptr);
+        // Dans ce mode, le client doit envoyer uniquement le fichier en brut.
+        file_data_length = content_length;
+
+        // Utilisation d'un nom de fichier fixe (vous pouvez aussi le passer en paramètre)
+        strcpy(file_name, "firmware.bin");
+        snprintf(full_file_path, sizeof(full_file_path), "%s/%s", FW_PATH, file_name);
+
+        // Supprime les anciens firmwares (tout fichier différent de file_name)
+        delete_old_firmware(file_name);
+
+        // Ouvre le fichier en écriture
+        FRESULT fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
+        if (fr != FR_OK)
+        {
+            return FWUPDATE_STATUS_ERROR;
+        }
+
+        accum_length = 0;
+        header_parsed = 1;
+
+        // Traite la partie utile (après l'en‐tête) présente dans header_accum
+        int leftover = header_accum_len - header_length;
+        if (leftover > 0)
+        {
+            UINT bytes_written = 0;
+            int to_write = leftover;
+            if (to_write > file_data_length)
+                to_write = file_data_length;
+            fr = f_write(&file, header_accum + header_length, (UINT)to_write, &bytes_written);
+            if (fr != FR_OK || bytes_written != (UINT)to_write)
+            {
+                f_close(&file);
+                header_parsed = 0;
+                header_accum_len = 0;
+                return FWUPDATE_STATUS_ERROR;
+            }
+            accum_length += to_write;
+        }
+        // On réinitialise le buffer d'en‐tête pour que les données suivantes soient traitées normalement
+        header_accum_len = 0;
+
+        if (accum_length >= file_data_length)
+        {
+            f_close(&file);
+            header_parsed = 0;
+            ret = FWUPDATE_STATUS_DONE;
+        }
+        else
+        {
+            ret = FWUPDATE_STATUS_INPROGRESS;
+        }
+    }
+    else
+    {
+        // Header déjà traité, on reçoit uniquement des données du fichier
+        int remaining = file_data_length - accum_length;
+        int to_write = buflen;
+        if (to_write > remaining)
+            to_write = remaining;
+        UINT bytes_written = 0;
+        FRESULT fr = f_write(&file, buf, (UINT)to_write, &bytes_written);
+        if (fr != FR_OK || bytes_written != (UINT)to_write)
+        {
+            f_close(&file);
+            header_parsed = 0;
+            return FWUPDATE_STATUS_ERROR;
+        }
+        accum_length += to_write;
+        if (accum_length >= file_data_length)
+        {
+            f_close(&file);
+            header_parsed = 0;
+            ret = FWUPDATE_STATUS_DONE;
+        }
+        else
+        {
+            ret = FWUPDATE_STATUS_INPROGRESS;
+        }
+    }
+    return ret;
+}
+
 static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16_t buflen)
 {
     int ret = FWUPDATE_STATUS_NONE;
@@ -257,7 +386,6 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
     char file_name[FILE_NAME_MAX_LENGTH] = {0};  // Buffer to store the file name.
     char full_file_path[FILE_NAME_MAX_LENGTH] = {0};
 
-    int len = 0;
     char response[100];
 
     DIR dir;
@@ -358,45 +486,38 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
 
             case FWUPDATE_STATE_DOWNLOAD_START:
             {
-                const char *tags[] = { DOWNLOAD_STREAM_TAG, DOWNLOAD_STREAM_TAG_2 };
-                ret = FWUPDATE_STATUS_ERROR;
-
-                FRESULT fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
-                if (fr != FR_OK)
+                // Locate the end of HTTP headers
+                char *header_end = strstr(buf, "\r\n\r\n");
+                if (header_end != NULL)
                 {
-                    fwupdate.code = fr;
-                    ret = FWUPDATE_STATUS_ERROR;
-                    break;
-                }
-                f_close(&file);
-
-                for (int i = 0; i < (int)(sizeof(tags) / sizeof(tags[0])); ++i)
-                {
-                    char *found_tag = strstr(buf, tags[i]);
-                    if (found_tag)
-                    {
-                        found_tag += strlen(tags[i]);  // Move past the tag
-                        buf = found_tag;  // Now buf points to the start of the file content
-
-                        // Calculate the length of the headers
-                        size_t header_length = buf - buf_start;
-                        fwupdate.file_length = fwupdate.content_length - header_length;
-
+                    header_end += 4;  // Skip past "\r\n\r\n"
+                    size_t header_length = header_end - buf_start;
+                    // Calculate the expected file data length based on Content-Length
+                    fwupdate.file_length = fwupdate.content_length - header_length;
 #ifdef HTTP_SERVER_DEBUG
-                        printf("@ fwupdate content len=%d, file len=%d, header len=%lu\n",
-                               fwupdate.content_length, fwupdate.file_length, (unsigned long)header_length);
+                    printf("@ fwupdate: Content-Length = %d, header length = %lu, file length = %d\n",
+                           fwupdate.content_length, (unsigned long)header_length, fwupdate.file_length);
 #endif
-                        // Move to the state of downloading the file data
-                        fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
-                        fwupdate.accum_length = 0;  // Reset the accumulator
-                        ret = FWUPDATE_STATUS_INPROGRESS;
+                    // Open the file for writing (initial creation)
+                    FRESULT fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
+                    if (fr != FR_OK)
+                    {
+                        fwupdate.code = fr;
+                        ret = FWUPDATE_STATUS_ERROR;
                         break;
                     }
+                    f_close(&file);
+                    // Move buffer pointer to the start of file content
+                    buf = header_end;
+                    // Transition to data download state
+                    fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
+                    fwupdate.accum_length = 0;
+                    ret = FWUPDATE_STATUS_INPROGRESS;
                 }
-
-                if (ret == FWUPDATE_STATUS_ERROR)
+                else
                 {
-                    printf("@ fwupdate - Error extracting file length\n");
+                    printf("@ fwupdate - End of headers not found.\n");
+                    ret = FWUPDATE_STATUS_ERROR;
                 }
                 break;
             }
@@ -405,15 +526,13 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
             {
                 if ((buf_end - buf) > 0)
                 {
-                    FRESULT fr;
-                    UINT bytes_written;
-                    ret = FWUPDATE_STATUS_INPROGRESS;
-
+                    UINT bytes_written = 0;
                     uint32_t data_len = (uint32_t)(buf_end - buf);
+                    ret = FWUPDATE_STATUS_INPROGRESS;
 
                     if (!fwupdate.has_been_initialized)
                     {
-                        fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
+                        FRESULT fr = f_open(&file, full_file_path, FA_WRITE | FA_CREATE_ALWAYS);
                         if (fr != FR_OK)
                         {
                             fwupdate.code = fr;
@@ -424,8 +543,8 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                         fwupdate.stage = FW_UPDATE_Stage_IN_PROGRESS;
                     }
 
-                    // Write the data to the file
-                    fr = f_write(&file, buf, data_len, &bytes_written);
+                    // Write the received data to the file
+                    FRESULT fr = f_write(&file, buf, data_len, &bytes_written);
                     if ((fr != FR_OK) || (bytes_written != data_len))
                     {
                         fwupdate.code = fr;
@@ -434,65 +553,51 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                         break;
                     }
 
-                    // Update the accumulated length
+                    // Update the accumulator with the number of bytes written
                     fwupdate.accum_length += data_len;
 #ifdef HTTP_SERVER_DEBUG
-                    printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
+                    printf("@ fwupdate: Accumulated %d bytes\n", (int)fwupdate.accum_length);
 #endif
-                    // If we received all the expected data
+
+                    // Check if we have received all expected file data
                     if (fwupdate.accum_length >= fwupdate.file_length)
                     {
-                        const char *boundary = "\r\n-----------------------------";
-                        size_t boundary_len = strlen(boundary);
-                        size_t boundary_length = 0;
-                        char *ptr = buf_end - 100;  // Examine the last 100 bytes
-
-                        for (int i = 0; i < (100 - (int)boundary_len); i++)
+                        // Optionally, check for a boundary marker at the end of the buffer
+                        const char *boundary_marker = "\r\n-----------------------------";
+                        char *boundary_ptr = strstr(buf, boundary_marker);
+                        if (boundary_ptr != NULL)
                         {
-                            if (memcmp(ptr + i, boundary, boundary_len) == 0)
-                            {
-                                printf("Boundary found at position %d relative to buf_end - 200.\n", i);
-                                // Make adjustments to length here
-                                boundary_length = (size_t)(buf_end - (ptr + i));
-                                fwupdate.file_length -= boundary_length;
+                            // Calculate extra bytes (boundary) present in the last buffer segment
+                            size_t extra_bytes = (buf_end - boundary_ptr);
+                            fwupdate.file_length -= extra_bytes;
+                            printf("@ fwupdate: Adjusted file length by removing %u boundary bytes, new file length = %d\n",
+                                   (unsigned int)extra_bytes, fwupdate.file_length);
 
-                                printf("@ fwupdate adjusted for manual boundary, new file len=%d, boundary len=%u\n",
-                                       (int)fwupdate.file_length, (unsigned int)boundary_length);
-                                break;
-                            }
-                        }
-
-                        if (boundary_length)
-                        {
                             // Truncate the file to the correct length
-                            f_lseek(&file, fwupdate.file_length);  // Move pointer to new length
-                            f_truncate(&file);  // Truncate the file at this position
-
-                            printf("File truncated to new length %d.\n", (int)fwupdate.file_length);
+                            f_lseek(&file, fwupdate.file_length);
+                            f_truncate(&file);
                         }
 
+                        // Finalize the update (par exemple, suppression des anciens firmwares)
                         delete_old_firmware(file_name);
                         f_close(&file);
                         fwupdate.has_been_initialized = 0;
                         fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
                     }
-#ifdef HTTP_SERVER_DEBUG
-                    printf("@ fwupdate DATA len=%d status=%d\n", (int)data_len, fwupdate.state);
-#endif
+
                     buf = 0;
 
                     if (ret == FWUPDATE_STATUS_INPROGRESS)
                     {
-                        // If file was fully received
-                        if ((fwupdate.accum_length >= fwupdate.file_length)
-                             || (fwupdate.stage == FW_UPDATE_Stage_VERIFIED))
+                        // Si le transfert est terminé ou validé, envoyer la réponse HTTP
+                        if ((fwupdate.accum_length >= fwupdate.file_length) ||
+                            (fwupdate.stage == FW_UPDATE_Stage_VERIFIED))
                         {
                             ret = FWUPDATE_STATUS_DONE;
-                            len = sprintf(response,
-                                          "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
+                            int len = sprintf(response,
+                                              "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
                             netconn_write(conn, response, len, NETCONN_COPY);
-
-                            // Reset for a new download
+                            // Réinitialiser l'état pour une nouvelle mise à jour
                             fwupdate.state = FWUPDATE_STATE_HEADER;
                         }
                     }
@@ -815,38 +920,43 @@ static void http_server(struct netconn *conn)
 							netconn_write(conn, response, strlen(response), NETCONN_COPY);
 						}
 					}
-
 					/* firmware update */
-					int ret = fwupdate_multipart_state_machine(conn, buf, buflen);
-					if (ret == FWUPDATE_STATUS_NONE)
+					else if (strncmp((char const *)buf, "POST /upload", 12) == 0)
 					{
-						/* ignore */
-					}
-					else if (ret == FWUPDATE_STATUS_INPROGRESS)
-					{
-						/* Don't close the connection! */
-						close = false;
-					}
-					else
-					{
-						/* Some result, we should close the connection now. */
-						close = true;
+					    int fw_ret = fwupdate_octetstream_state_machine(conn, buf, buflen);
+#ifdef HTTP_SERVER_DEBUG
+            printf("# fw_ret = %d, accum_length = %d\n", fw_ret, fwupdate.accum_length);
+#endif
+					    // On suppose ici que fwupdate_octetstream_state_machine utilise des variables statiques pour accumuler les données.
+					    if (fw_ret == FWUPDATE_STATUS_NONE)
+					    {
+					        /* Rien à faire */
+					    }
+					    else if (fw_ret == FWUPDATE_STATUS_INPROGRESS)
+					    {
+					        // Ne pas fermer la connexion tant que le transfert n'est pas complet
+					        close = false;
+					    }
+					    else if (fw_ret == FWUPDATE_STATUS_DONE)
+					    {
+					        close = true;
+					        char response[100];
+					        int len = sprintf(response,
+					                          "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nUpdate Successful.\r\n");
+					        netconn_write(conn, response, len, NETCONN_COPY);
 
-						if (ret == FWUPDATE_STATUS_DONE)
-						{
-							/* reboot after we close the connection. */
-						    STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_RECEIVED);
-						    if (status == STM32FLASH_OK)
-						    {
-						        printf("Firmware update received\n");
-						    }
-						    else
-						    {
-						        printf("Failed to write firmware update status in STM32 flash\n");
-						    }
-
-							reboot = true;
-						}
+					        // Finalisation, puis éventuellement redémarrage
+					        STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_RECEIVED);
+					        if (status == STM32FLASH_OK)
+					        {
+					            printf("Firmware update received\n");
+					        }
+					        else
+					        {
+					            printf("Failed to write firmware update status in STM32 flash\n");
+					        }
+					        reboot = true;
+					    }
 					}
 				}
 				/* Process all data that may be present in the netbuf */
@@ -866,17 +976,21 @@ static void http_server(struct netconn *conn)
 			printf("# netconn_recv error: %d %d\n", recv_err, netconn_err(conn));
 #endif
 		}
+	    if (fwupdate.accum_length >= fwupdate.file_length)
+	    {
+	        break;
+	    }
 		if (close)
 		{
+#ifdef HTTP_SERVER_DEBUG
+	printf("===== http_server_serve close\n");
+#endif
 			/* Action requires us to close the connection now instead of
 	        blocking on the next netconn_recv. */
 			netconn_close(conn);
 			break;
 		}
 	} /* while netconn_recv */
-#ifdef HTTP_SERVER_DEBUG
-	printf("===== http_server_serve close\n");
-#endif
 
 	if (reboot)
 	{
