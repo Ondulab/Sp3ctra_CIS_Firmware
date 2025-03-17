@@ -138,7 +138,7 @@ SECTIONS
   } >FLASH
   
   /* user sections... */
-  .dtcm :
+  .dtcm (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.cisCals));  
@@ -146,7 +146,7 @@ SECTIONS
     . = ALIGN(4);
   } >DTCM
   
-  .axi :
+  .axi (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.cisData_adc2));
@@ -156,7 +156,7 @@ SECTIONS
     . = ALIGN(4);
   } >RAM_AXI
   
-  .shared :
+  .shared (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.shared_var));  
@@ -164,21 +164,21 @@ SECTIONS
     . = ALIGN(4); 
   } >RAM_SHARED
 
-  .shared_cached :
+  .shared_cached (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.imuData));    
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
   
-  .ram_d4_shared :
+  .ram_d4_shared (NOLOAD):
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
     . = ALIGN(4);
   } >RAM_D4
   
-  .ram_d1 :
+  .ram_d1 (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.cisData_adc1)); 
