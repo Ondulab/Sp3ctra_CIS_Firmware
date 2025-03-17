@@ -119,7 +119,7 @@ SECTIONS
   
   /* user sections... */
   
-  .shared :
+  .shared (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.shared_var));  
@@ -127,7 +127,7 @@ SECTIONS
     . = ALIGN(4); 
   } >RAM_SHARED AT> FLASH
 
-  .shared_cached :
+  .shared_cached (NOLOAD):
   {
     . = ALIGN(4);
     KEEP (*(.rgbBuffers));
@@ -135,7 +135,7 @@ SECTIONS
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED AT> FLASH
   
-  .ram_d4_shared :
+  .ram_d4_shared (NOLOAD):
   {
     . = ALIGN(4);
     KEEP(*(.scanline_CM4));
