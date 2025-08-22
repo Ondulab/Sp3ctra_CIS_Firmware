@@ -14,6 +14,7 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdbool.h>
 #include <stdlib.h>
 #include "string.h"
 #include "main.h"
@@ -32,6 +33,24 @@ static uint8_t _buffer[15] = {};
 
 static volatile uint8_t _bufferDMA[16] = {};
 static volatile IMU_StateTypeDef  IMU_State = IMU_INIT_NOK;
+
+/* Diagnostic counters for timer and SPI callback invocations */
+volatile uint32_t icm_tim_count = 0;
+volatile uint32_t icm_spi_cb_count = 0;
+
+#ifdef DEBUG_ICM42688
+static void icm42688_diag_task(void const *argument)
+{
+    (void) argument;
+    for (;;)
+    {
+        printf("DIAG: TIM=%lu SPI_CB=%lu\n", icm_tim_count, icm_spi_cb_count);
+        osDelay(1000);
+    }
+}
+osThreadDef(icm42688_diag_task, icm42688_diag_task, osPriorityLow, 1, 512);
+static osThreadId icm_diag_tid = NULL;
+#endif
 
 static uint8_t _bank = 0; ///< current user bank
 
@@ -58,6 +77,15 @@ static volatile float _gyroBD[3] = {};
 static float _gyrB[3] = {};
 
 static ICM42688_FIFO icm42688_FIFO;
+
+#ifdef DEBUG_ICM42688
+// Debug buffer to safely store IMU data
+static volatile float _dbg_acc[3];
+static volatile float _dbg_gyr[3];
+static volatile float _dbg_t;
+// Flag to indicate new data is available
+static volatile bool _newDataAvailable = false;
+#endif
 
 /**
  * @brief      Get accelerometer data, per axis
@@ -151,26 +179,71 @@ ICM42688_StatusTypeDef icm42688_init()
 		return ICM42688_ERROR;
 	}
 
-	// Use configurable accelerometer sensitivity for handheld usage
-	if (icm42688_setAccelFS(DEFAULT_ACCEL_SENSITIVITY) != ICM42688_OK)
+	// Set accelerometer to ±4G for better resolution in hand gesture detection
+	if (icm42688_setAccelFS(gpm4) != ICM42688_OK)
 	{
 		printf("failed to set ACC FS IMU\n");
 		return ICM42688_ERROR;
 	}
 
-	// Use configurable gyroscope sensitivity for handheld usage
-	if (icm42688_setGyroFS(DEFAULT_GYRO_SENSITIVITY) != ICM42688_OK)
+	// Set gyroscope to ±500DPS (optimal for hand gestures)
+	if (icm42688_setGyroFS(dps500) != ICM42688_OK)
 	{
 		printf("failed to set GYRO FS IMU\n");
 		return ICM42688_ERROR;
 	}
 
-	// disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-	if (icm42688_setFilters(false, false) != ICM42688_OK)
+	// Set ODR to 200Hz for both sensors (optimal for gesture analysis)
+	if (icm42688_setAccelODR(odr200) != ICM42688_OK)
+	{
+		printf("failed to set ACC ODR IMU\n");
+		return ICM42688_ERROR;
+	}
+
+	if (icm42688_setGyroODR(odr200) != ICM42688_OK)
+	{
+		printf("failed to set GYRO ODR IMU\n");
+		return ICM42688_ERROR;
+	}
+
+	// Enable inner filters for cleaner signals (optimized for gesture analysis)
+	if (icm42688_setFilters(true, true) != ICM42688_OK)
 	{
 		printf("failed to set filters IMU\n");
 		return ICM42688_ERROR;
 	}
+
+#ifdef DEBUG_ICM42688
+    {
+        uint8_t val = 0;
+        // read back critical config registers for verification
+        if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &val) == ICM42688_OK)
+        {
+            printf("ICM42688 DBG: ACCEL_CONFIG0=0x%02X\n", val);
+        }
+        if (icm42688_readRegisters(UB0_REG_GYRO_CONFIG0, 1, &val) == ICM42688_OK)
+        {
+            printf("ICM42688 DBG: GYRO_CONFIG0=0x%02X\n", val);
+        }
+        // read static filter config in banks 1 and 2
+        if (icm42688_setBank(1) == ICM42688_OK)
+        {
+            if (icm42688_readRegisters(UB1_REG_GYRO_CONFIG_STATIC2, 1, &val) == ICM42688_OK)
+            {
+                printf("ICM42688 DBG: GYRO_CONFIG_STATIC2=0x%02X\n", val);
+            }
+        }
+        if (icm42688_setBank(2) == ICM42688_OK)
+        {
+            if (icm42688_readRegisters(UB2_REG_ACCEL_CONFIG_STATIC2, 1, &val) == ICM42688_OK)
+            {
+                printf("ICM42688 DBG: ACCEL_CONFIG_STATIC2=0x%02X\n", val);
+            }
+        }
+        // return to bank 0
+        icm42688_setBank(0);
+    }
+#endif
 
 	osDelay(100);
 
@@ -188,9 +261,17 @@ ICM42688_StatusTypeDef icm42688_init()
 		return ICM42688_ERROR;
 	}
 
-	IMU_State = IMU_INIT_OK;
 	// successful init, return 1
-	//printf("IMU initialization SUCCESS\n");
+	IMU_State = IMU_INIT_OK;
+
+#ifdef DEBUG_ICM42688
+    /* create diagnostic task to print counters periodically (non-blocking) */
+    if (icm_diag_tid == NULL)
+    {
+        icm_diag_tid = osThreadCreate(osThread(icm42688_diag_task), NULL);
+    }
+#endif
+	printf("IMU initialization SUCCESS\n");
 	return ICM42688_OK;
 }
 
@@ -203,7 +284,7 @@ ICM42688_StatusTypeDef icm42688_setAccelFS(AccelFS fssel)
 	uint8_t reg;
 	if (icm42688_readRegisters(UB0_REG_ACCEL_CONFIG0, 1, &reg) != ICM42688_OK)
 	{
-		return ICM42688_OK;
+		return ICM42688_ERROR;
 	}
 
 	// only change FS_SEL in reg
@@ -319,18 +400,45 @@ ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilte
 
 	if (accFilters == true)
 	{
-		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_ENABLE) != ICM42688_OK)
+		// Configure AAF for 213Hz bandwidth (optimal for 200Hz ODR gesture detection)
+		// From datasheet table: 213Hz -> DELT=5, DELTSQR=25, BITSHIFT=10
+		
+		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT (5), bit 0 = ACCEL_AAF_DIS (0=enable)
+		uint8_t config_static2 = (5 << 1) | ACCEL_AAF_ENABLE;  // DELT=5, AAF enabled
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, config_static2) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
+		
+		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte (25 & 0xFF = 25)
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, 25) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
+		}
+		
+		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 3:0 = ACCEL_AAF_DELTSQR high nibble (25 >> 8 = 0), bits 7:4 = ACCEL_AAF_BITSHIFT (10)
+		uint8_t config_static4 = (10 << 4) | ((25 >> 8) & 0x0F);  // BITSHIFT=10, DELTSQR high=0
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC4, config_static4) != ICM42688_OK)
+		{
+			return ICM42688_ERROR;
+		}
+		
+#ifdef DEBUG_ICM42688
+		printf("ICM42688: AAF configured for 213Hz (DELT=5, DELTSQR=25, BITSHIFT=10)\n");
+#endif
 	}
 	else
 	{
+		// Disable AAF by setting ACCEL_AAF_DIS bit
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_DISABLE) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
+#ifdef DEBUG_ICM42688
+		printf("ICM42688: AAF disabled\n");
+#endif
 	}
+	
 	if (icm42688_setBank(0) != ICM42688_OK)
 	{
 		return ICM42688_ERROR;
@@ -548,7 +656,7 @@ ICM42688_StatusTypeDef icm42688_calibrateGyro()
 	_gyroBD[1] = 0;
 	_gyroBD[2] = 0;
 
-	for (int32_t i = 0; i < HANDHELD_CALIB_SAMPLES; i++)
+	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
 		_gyroBD[0] += icm42688_gyrX();
@@ -557,9 +665,9 @@ ICM42688_StatusTypeDef icm42688_calibrateGyro()
 		osDelay(1);
 	}
 
-	_gyrB[0] = _gyroBD[0] / HANDHELD_CALIB_SAMPLES;
-	_gyrB[1] = _gyroBD[1] / HANDHELD_CALIB_SAMPLES;
-	_gyrB[2] = _gyroBD[2] / HANDHELD_CALIB_SAMPLES;
+	_gyrB[0] = _gyroBD[0] / NUM_CALIB_SAMPLES;
+	_gyrB[1] = _gyroBD[1] / NUM_CALIB_SAMPLES;
+	_gyrB[2] = _gyroBD[2] / NUM_CALIB_SAMPLES;
 
 	// recover the full scale setting
 	if (icm42688_setGyroFS(current_fssel) != ICM42688_OK)
@@ -610,10 +718,15 @@ this should be run for each axis in each direction (6 total) to find
 the min and max values along each */
 ICM42688_StatusTypeDef icm42688_calibrateAccel()
 {
+	// Prevent concurrent DMA transfers during calibration
+	IMU_StateTypeDef saved_state = IMU_State;
+	IMU_State = IMU_INIT_NOK;
+	
 	// set at a lower range (more resolution) since IMU not moving
 	const AccelFS current_fssel = _accelFS;
 	if (icm42688_setAccelFS(gpm2) != ICM42688_OK)
 	{
+		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
 
@@ -622,49 +735,51 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	_accBD[1] = 0;
 	_accBD[2] = 0;
 
-	for (int32_t i = 0; i < HANDHELD_CALIB_SAMPLES; i++)
+	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
 		_accBD[0] += icm42688_accX();
 		_accBD[1] += icm42688_accY();
 		_accBD[2] += icm42688_accZ();
-		osDelay(10);
+		
+		// Wait for ~5ms between samples to preserve temporal spacing
+		// Safe to use osDelay during initialization since IMU_State = IMU_INIT_NOK prevents DMA conflicts
+		if (i < NUM_CALIB_SAMPLES - 1) // Don't wait after last sample
+		{
+			osDelay(5); // 5ms delay between samples for stable readings
+		}
 	}
-	_accBD[0] /= HANDHELD_CALIB_SAMPLES;
-	_accBD[1] /= HANDHELD_CALIB_SAMPLES;
-	_accBD[2] /= HANDHELD_CALIB_SAMPLES;
+	_accBD[0] /= NUM_CALIB_SAMPLES;
+	_accBD[1] /= NUM_CALIB_SAMPLES;
+	_accBD[2] /= NUM_CALIB_SAMPLES;
 
-
-	if (_accBD[0] > 0.9f)
-	{
-		_accB[0] = _accBD[0];
-	}
-	if (_accBD[1] > 0.9f)
-	{
-		_accB[1] = _accBD[1];
-	}
-	if (_accBD[2] > 0.9f)
-	{
-		_accB[2] = _accBD[2];
-	}
-	if (_accBD[0] < -0.9f)
-	{
-		_accB[0] = _accBD[0];
-	}
-	if (_accBD[1] < -0.9f)
-	{
-		_accB[1] = _accBD[1];
-	}
-	if (_accBD[2] < -0.9f)
-	{
-		_accB[2] = _accBD[2];
-	}
+	// For gesture detection: preserve gravity while removing small DC offsets
+	// Assume device is roughly horizontal during calibration (Z-axis pointing up)
+	// Only remove bias from X and Y axes, preserve gravity component in Z
+	_accB[0] = _accBD[0];  // Remove X bias (should be ~0g when horizontal)
+	_accB[1] = _accBD[1];  // Remove Y bias (should be ~0g when horizontal)
+	_accB[2] = _accBD[2] - 1.0f;  // Preserve gravity (~1g) in Z axis
 
 	// recover the full scale setting
 	if (icm42688_setAccelFS(current_fssel) != ICM42688_OK)
 	{
+		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
+	
+	// Let sensor settle after configuration changes
+	osDelay(20);
+	
+	// Reinitialize SPI interface to clear any potential HAL state corruption
+	HAL_SPI_DeInit(&hspi2);
+	MX_SPI2_Init();
+	
+	// Clean DMA buffer cache to ensure coherency
+	SCB_CleanDCache_by_Addr((uint32_t*)_bufferDMA, sizeof(_bufferDMA));
+	
+	// Restore IMU state to allow DMA transfers
+	IMU_State = saved_state;
+	
 	return ICM42688_OK;
 }
 
@@ -736,8 +851,10 @@ ICM42688_StatusTypeDef icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 	/* write data to device */
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 
-	if (HAL_SPI_Transmit(&hspi2, tx, 2, 1000) != HAL_OK)
+	HAL_StatusTypeDef hal_status = HAL_SPI_Transmit(&hspi2, tx, 2, 1000);
+	if (hal_status != HAL_OK)
 	{
+		printf("ICM42688: WRITE HAL_ERROR reg=0x%02X status=%d\n", subAddress, hal_status);
 		return ICM42688_ERROR;
 	}
 
@@ -746,13 +863,19 @@ ICM42688_StatusTypeDef icm42688_writeRegister(uint8_t subAddress, uint8_t data)
 	{
 		return ICM42688_ERROR;
 	}
-	/* check the read back register against the written register */
+	/* check the read back register against the written register and log result */
 	if(_buffer[0] == data)
 	{
+#ifdef DEBUG_ICM42688
+		printf("ICM42688: WRITE OK reg=0x%02X val=0x%02X\n", subAddress, data);
+#endif
 		return ICM42688_OK;
 	}
 	else
 	{
+#ifdef DEBUG_ICM42688
+		printf("ICM42688: WRITE FAIL reg=0x%02X wrote=0x%02X readback=0x%02X\n", subAddress, data, _buffer[0]);
+#endif
 		return ICM42688_ERROR;
 	}
 }
@@ -769,8 +892,10 @@ ICM42688_StatusTypeDef icm42688_readRegisters(uint8_t subAddress, uint8_t count,
 
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
 
-	if (HAL_SPI_TransmitReceive(&hspi2, tx, rx, count + 1, 1000) != HAL_OK)
+	HAL_StatusTypeDef hal_status = HAL_SPI_TransmitReceive(&hspi2, tx, rx, count + 1, 1000);
+	if (hal_status != HAL_OK)
 	{
+		printf("ICM42688: READ HAL_ERROR reg=0x%02X status=%d\n", subAddress & 0x7F, hal_status);
 		return ICM42688_ERROR;
 	}
 
@@ -795,13 +920,60 @@ ICM42688_StatusTypeDef icm42688_setBank(uint8_t bank)
 
 ICM42688_StatusTypeDef icm42688_reset()
 {
-	icm42688_setBank(0);
+	// First, let's check if we can communicate with the device at all
+	uint8_t test_val = 0;
+	
+	// Try to read WHO_AM_I without setting bank (should work from any bank)
+	if (icm42688_readRegisters(UB0_REG_WHO_AM_I, 1, &test_val) == ICM42688_OK)
+	{
 
-	icm42688_writeRegister(UB0_REG_DEVICE_CONFIG, 0x01);
-
-	// wait for ICM42688 to come back up
-	osDelay(10);
-	return ICM42688_OK;
+	}
+	else
+	{
+		return ICM42688_ERROR;
+	}
+	
+	// Ensure we're on bank 0
+	if (icm42688_setBank(0) != ICM42688_OK)
+	{
+		printf("ICM42688: Failed to set bank 0\n");
+		return ICM42688_ERROR;
+	}
+	
+	// According to datasheet: DEVICE_CONFIG bit 0 (SOFT_RESET_CONFIG)
+	// 0 = Normal (default), 1 = Enable reset
+	// After writing 1, the bit auto-clears and readback will be 0x00 (normal behavior)
+	
+	// Write 0x01 to trigger reset - don't check readback as it auto-clears
+	static uint8_t tx[2];
+	tx[0] = UB0_REG_DEVICE_CONFIG;
+	tx[1] = 0x01;
+	
+	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
+	
+	HAL_StatusTypeDef hal_status = HAL_SPI_Transmit(&hspi2, tx, 2, 1000);
+	if (hal_status != HAL_OK)
+	{
+		printf("ICM42688: Reset write HAL_ERROR status=%d\n", hal_status);
+		return ICM42688_ERROR;
+	}
+	
+	// Wait 1ms as specified in datasheet, then additional time for device to come back up
+	osDelay(2); // 1ms minimum + margin
+	
+	// Verify device is responsive after reset
+	for (int retry = 0; retry < 10; retry++)
+	{
+		if (icm42688_readRegisters(UB0_REG_WHO_AM_I, 1, &test_val) == ICM42688_OK && test_val == WHO_AM_I)
+		{
+			// Check that DEVICE_CONFIG is back to 0x00 (normal state)
+			return ICM42688_OK;
+		}
+		osDelay(1); // Wait 1ms between attempts
+	}
+	
+	printf("ICM42688: Device not responsive after reset\n");
+	return ICM42688_ERROR;
 }
 
 /* gets the ICM42688 WHO_AM_I register value */
@@ -827,9 +999,12 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
 	if(hspi->Instance == SPI2)
 	{
+        /* increment diagnostic SPI callback counter (non-blocking) */
+        icm_spi_cb_count++;
+
 		if ( IMU_State == IMU_INIT_OK)
 		{
-			SCB_InvalidateDCache_by_Addr ((uint32_t *)_bufferDMA, 4);
+			SCB_InvalidateDCache_by_Addr ((uint32_t *)_bufferDMA, 16);
 
 			/*
 		uint32_t tmp = 0;
@@ -847,21 +1022,53 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 				rawMeas[i] = ((int16_t)_bufferDMA[i * 2 + 1] << 8) | _bufferDMA[ i * 2 + 2];
 			}
 
-			_t = ((float)rawMeas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
+	_t = ((float)rawMeas[0] / TEMP_DATA_REG_SCALE) + TEMP_OFFSET;
 
-			_acc[0] = ((rawMeas[1] * _accelScale) - _accB[0]);
-			_acc[1] = ((rawMeas[2] * _accelScale) - _accB[1]);
-			_acc[2] = ((rawMeas[3] * _accelScale) - _accB[2]);
+	_acc[0] = ((rawMeas[1] * _accelScale) - _accB[0]) * _accS[0];
+	_acc[1] = ((rawMeas[2] * _accelScale) - _accB[1]) * _accS[1];
+	_acc[2] = ((rawMeas[3] * _accelScale) - _accB[2]) * _accS[2];
 
-			_gyr[0] = (rawMeas[4] * _gyroScale) - _gyrB[0];
-			_gyr[1] = (rawMeas[5] * _gyroScale) - _gyrB[1];
-			_gyr[2] = (rawMeas[6] * _gyroScale) - _gyrB[2];
+	_gyr[0] = (rawMeas[4] * _gyroScale) - _gyrB[0];
+	_gyr[1] = (rawMeas[5] * _gyroScale) - _gyrB[1];
+	_gyr[2] = (rawMeas[6] * _gyroScale) - _gyrB[2];
+
+	/* detect saturation/clipping in raw measurements and log when DEBUG enabled */
+#ifdef DEBUG_ICM42688
+	for (int i = 1; i <= 3; i++)
+	{
+		if (rawMeas[i] == 32767 || rawMeas[i] == -32768)
+		{
+			printf("ICM42688: ACC SAT axis=%d raw=%d\n", i - 1, rawMeas[i]);
+		}
+	}
+	for (int i = 4; i <= 6; i++)
+	{
+		if (rawMeas[i] == 32767 || rawMeas[i] == -32768)
+		{
+			printf("ICM42688: GYR SAT axis=%d raw=%d\n", i - 4, rawMeas[i]);
+		}
+	}
+#endif
+
+#ifdef DEBUG_ICM42688
+			_dbg_acc[0] = _acc[0];
+			_dbg_acc[1] = _acc[1];
+			_dbg_acc[2] = _acc[2];
+			_dbg_gyr[0] = _gyr[0];
+			_dbg_gyr[1] = _gyr[1];
+			_dbg_gyr[2] = _gyr[2];
+			_dbg_t = _t;
+			_newDataAvailable = true;
+#endif
 		}
 	}
 }
 
 void icm42688_TIM_Callback()
 {
+    /* increment diagnostic timer callback counter (non-blocking) */
+    icm_tim_count++;
+
 	static const uint8_t tx[16] = {UB0_REG_TEMP_DATA1 | 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 	if ( IMU_State == IMU_INIT_OK)
@@ -869,3 +1076,26 @@ void icm42688_TIM_Callback()
 		HAL_SPI_TransmitReceive_DMA(&hspi2, tx, (uint8_t *)_bufferDMA, 15);
 	}
 }
+
+#ifdef DEBUG_ICM42688
+void icm42688_handle_debug_print()
+{
+    if (_newDataAvailable) {
+        // Local copy to avoid race conditions
+        float acc[3], gyr[3], t;
+        
+        // Simple critical section to copy data
+        __disable_irq();
+        acc[0] = _dbg_acc[0]; acc[1] = _dbg_acc[1]; acc[2] = _dbg_acc[2];
+        gyr[0] = _dbg_gyr[0]; gyr[1] = _dbg_gyr[1]; gyr[2] = _dbg_gyr[2];
+        t = _dbg_t;
+        _newDataAvailable = false;
+        __enable_irq();
+
+        printf("IMU: Acc[X:%+1.3fg Y:%+1.3fg Z:%+1.3fg] Gyr[X:%+3.1fdps Y:%+3.1fdps Z:%+3.1fdps] T:%.1f°C\n",
+               acc[0], acc[1], acc[2],
+               gyr[0], gyr[1], gyr[2],
+               t);
+    }
+}
+#endif

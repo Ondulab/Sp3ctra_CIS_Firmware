@@ -607,10 +607,10 @@ static void http_server(struct netconn *conn)
 						fs_close(&file);
 					}
 
-					/* Send an image file for requests to '/img/CISYNTH.png' */
-					else if (strncmp((char const *)buf, "GET /img/CISYNTH.png", 20) == 0)
+					/* Send an image file for requests to '/img/Sp3ctra.png' */
+					else if (strncmp((char const *)buf, "GET /img/Sp3ctra.png", 20) == 0)
 					{
-						fs_open(&file, "/img/CISYNTH.png");
+						fs_open(&file, "/img/Sp3ctra.png");
 						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 						fs_close(&file);
 					}

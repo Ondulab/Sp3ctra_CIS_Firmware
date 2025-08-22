@@ -31,8 +31,8 @@
 #include "stdio.h"
 #include "string.h"
 
-#include "ssd1362.h"
 #include "pictures.h"
+#include "ssd1362.h"
 #include "gui.h"
 #include "leds.h"
 
@@ -114,15 +114,7 @@ int main(void)
 
     printf("CM4 BOOT\n");
 
-	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-	printf("@@@       @=  @*       @   @@   @  @@@  @@       @   @@@  @@@\n");
-	printf("@@        @=  @*       @   @@   @   @@  @@           @@@  *@@\n");
-	printf("@@   @@@@@@=  @=  @@@@@@   @@   @   @@  @@@@   @@@   @@@  @@@\n");
-	printf("@@   @@@@@@=  @@    @@@@   @@   @    @  @@@@   @@@        @@@\n");
-	printf("@@   @@@@@@=  @@@@.    @@      @@  .    @@@@   @@@        @@@\n");
-	printf("@@   @@-  @=  @@@@@@   @@@@  @@@@  @    @@@@   @@@   @@@  @@@\n");
-	printf("@@@       @=  @@@      @@@@  @@@@  @@   @@@@   @@@   @@@  @@@\n");
-	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@  @@@\n");
+    Sp3ctra_ascii_preview();
 	printf("\n");
 
 	// Initialize oled display and print logo
@@ -149,8 +141,8 @@ int main(void)
 #ifndef SKIP_SPLASH
 	for (uint8_t i = 0; i < 16; i++)
 	{
-		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, i, 0);
-	    ssd1362_drawString(230, 56, (signed char *)shortVersion, 4, 8);
+		ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, i, 0);
+	    ssd1362_drawString(230, 6, (signed char *)shortVersion, 1, 8);
 		ssd1362_writeFullBuffer();
 
 		if (i == 0)
