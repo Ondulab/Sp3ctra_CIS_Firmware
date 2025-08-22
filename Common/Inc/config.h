@@ -27,7 +27,6 @@
 /********************              Debug definitions               ********************/
 /**************************************************************************************/
 //#define PRINTF_CM4
-//#define SKIP_SPLASH
 
 //#define DEBUG_LWIP_STATS
 //#define HTTP_SERVER_DEBUG
