@@ -25,6 +25,7 @@
 /* Private includes ----------------------------------------------------------*/
 #include "icm42688.h"
 #include "spi.h"
+#include "config.h"
 
 // buffer for reading from sensor
 static uint8_t _buffer[15] = {};
@@ -150,15 +151,15 @@ ICM42688_StatusTypeDef icm42688_init()
 		return ICM42688_ERROR;
 	}
 
-	// 16G is default -- do this to set up accel resolution scaling
-	if (icm42688_setAccelFS(gpm16) != ICM42688_OK)
+	// Use configurable accelerometer sensitivity for handheld usage
+	if (icm42688_setAccelFS(DEFAULT_ACCEL_SENSITIVITY) != ICM42688_OK)
 	{
 		printf("failed to set ACC FS IMU\n");
 		return ICM42688_ERROR;
 	}
 
-	// 2000DPS is default -- do this to set up gyro resolution scaling
-	if (icm42688_setGyroFS(dps500) != ICM42688_OK)
+	// Use configurable gyroscope sensitivity for handheld usage
+	if (icm42688_setGyroFS(DEFAULT_GYRO_SENSITIVITY) != ICM42688_OK)
 	{
 		printf("failed to set GYRO FS IMU\n");
 		return ICM42688_ERROR;
@@ -547,7 +548,7 @@ ICM42688_StatusTypeDef icm42688_calibrateGyro()
 	_gyroBD[1] = 0;
 	_gyroBD[2] = 0;
 
-	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
+	for (int32_t i = 0; i < HANDHELD_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
 		_gyroBD[0] += icm42688_gyrX();
@@ -556,9 +557,9 @@ ICM42688_StatusTypeDef icm42688_calibrateGyro()
 		osDelay(1);
 	}
 
-	_gyrB[0] = _gyroBD[0] / NUM_CALIB_SAMPLES;
-	_gyrB[1] = _gyroBD[1] / NUM_CALIB_SAMPLES;
-	_gyrB[2] = _gyroBD[2] / NUM_CALIB_SAMPLES;
+	_gyrB[0] = _gyroBD[0] / HANDHELD_CALIB_SAMPLES;
+	_gyrB[1] = _gyroBD[1] / HANDHELD_CALIB_SAMPLES;
+	_gyrB[2] = _gyroBD[2] / HANDHELD_CALIB_SAMPLES;
 
 	// recover the full scale setting
 	if (icm42688_setGyroFS(current_fssel) != ICM42688_OK)
@@ -621,7 +622,7 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	_accBD[1] = 0;
 	_accBD[2] = 0;
 
-	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
+	for (int32_t i = 0; i < HANDHELD_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
 		_accBD[0] += icm42688_accX();
@@ -629,9 +630,9 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 		_accBD[2] += icm42688_accZ();
 		osDelay(10);
 	}
-	_accBD[0] /= NUM_CALIB_SAMPLES;
-	_accBD[1] /= NUM_CALIB_SAMPLES;
-	_accBD[2] /= NUM_CALIB_SAMPLES;
+	_accBD[0] /= HANDHELD_CALIB_SAMPLES;
+	_accBD[1] /= HANDHELD_CALIB_SAMPLES;
+	_accBD[2] /= HANDHELD_CALIB_SAMPLES;
 
 
 	if (_accBD[0] > 0.9f)
