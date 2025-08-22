@@ -1,4 +1,4 @@
-Configuration	CISYNTH_CIS_Firmware
+Configuration	Sp3ctra_CIS_Firmware
 STM32CubeMX 	6.10.0
 Date	03/16/2024
 MCU	STM32H745IIKx
@@ -249,8 +249,8 @@ R12	PE11	GPIO_Output	LED2
 SOFTWARE PROJECT
 
 Project Settings : 
-Project Name : CISYNTH_CIS_Firmware
-Project Folder : /Users/zhonx/Documents/Workspaces/Workspace_SSS/CISYNTH_CIS_Firmware
+Project Name : Sp3ctra_CIS_Firmware
+Project Folder : /Users/zhonx/Documents/Workspaces/Workspace_SSS/Sp3ctra_CIS_Firmware
 Toolchain / IDE : STM32CubeIDE
 Firmware Package Name and Version : STM32Cube FW_H7 V1.11.1
 
@@ -264,9 +264,4 @@ Set all free pins as analog (to optimize the power consumption) : Yes
 
 
 Toolchains Settings : 
-Compiler Optimizations : 
-
-
-
-
-
+Compiler Optimizations :

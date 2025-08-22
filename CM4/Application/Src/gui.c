@@ -25,6 +25,7 @@
 #include "globals.h"
 #include "gui_config.h"
 
+#include "pictures.h"
 #include "ssd1362.h"
 #include "leds.h"
 
@@ -481,6 +482,8 @@ void gui_displayWaiting(void)
             contrastFreq += contrastInc;
             if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
             if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+
+    		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, 0, 0);
 
             ssd1362_writeFullBuffer();
         }

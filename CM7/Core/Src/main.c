@@ -36,6 +36,7 @@
 #include "stdio.h"
 #include "string.h"
 
+#include "pictures.h"
 #include "icm42688.h"
 #include "file_manager.h"
 
@@ -148,16 +149,7 @@ int main(void)
   // Start core CM4
   HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
 
-	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-	printf("@@@       @=  @*       @   @@   @  @@@  @@       @   @@@  @@@\n");
-	printf("@@        @=  @*       @   @@   @   @@  @@           @@@  *@@\n");
-	printf("@@   @@@@@@=  @=  @@@@@@   @@   @   @@  @@@@   @@@   @@@  @@@\n");
-	printf("@@   @@@@@@=  @@    @@@@   @@   @    @  @@@@   @@@        @@@\n");
-	printf("@@   @@@@@@=  @@@@.    @@      @@  .    @@@@   @@@        @@@\n");
-	printf("@@   @@-  @=  @@@@@@   @@@@  @@@@  @    @@@@   @@@   @@@  @@@\n");
-	printf("@@@       @=  @@@      @@@@  @@@@  @@   @@@@   @@@   @@@  @@@\n");
-	printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@  @@@@@@@@@@@@@@@@  @@@\n");
-	printf("\n");
+  	Sp3ctra_ascii_preview();
 
 	shared_var.cis_process_rdy = FALSE;
 

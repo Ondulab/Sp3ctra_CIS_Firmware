@@ -34,7 +34,7 @@ typedef enum
 {
 	IMU_INIT_NOK = 0,
 	IMU_INIT_OK,
-}IMU_StateTypeDef;
+} IMU_StateTypeDef;
 
 typedef enum {
       dps2000 = 0x00,
@@ -79,7 +79,7 @@ typedef struct {
 
 ///\brief Constants
 #define WHO_AM_I			0xDB
-#define NUM_CALIB_SAMPLES 	100 //1000
+#define NUM_CALIB_SAMPLES 	200 // increased for more stable calibration
 
 ///\brief Conversion formula to get temperature in Celsius (Sec 4.13)
 #define TEMP_DATA_REG_SCALE 132.48f
@@ -121,7 +121,7 @@ ICM42688_StatusTypeDef icm42688_reset();
  *
  * @return     Value of WHO_AM_I register
  */
-uint8_t icm42688_whoAmI();
+ICM42688_StatusTypeDef icm42688_whoAmI();
 
 typedef struct {
     uint8_t enFifoAccel;
@@ -270,5 +270,9 @@ typedef struct {
     void icm42688_setAccelCalY(float bias,float scaleFactor);
     void icm42688_setAccelCalZ(float bias,float scaleFactor);
     void icm42688_TIM_Callback();
+
+#ifdef DEBUG_ICM42688
+void icm42688_handle_debug_print();
+#endif
 
 #endif // icm42688_H

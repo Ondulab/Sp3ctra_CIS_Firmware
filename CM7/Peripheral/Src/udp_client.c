@@ -143,7 +143,7 @@ UDPCLIENT_StatusTypeDef udpClient_init(void)
 	packet_Button.type = BUTTON_DATA_HEADER;
 	packet_IMU.type = IMU_DATA_HEADER;
 
-	sprintf((char *)packet_StartupInfo.version_info, "CISYNTH v%s RESO-NANCE", FW_VERSION);
+	sprintf((char *)packet_StartupInfo.version_info, "Sp3ctra v%s RESO-NANCE", FW_VERSION);
 
     //osThreadDef(udpStartupTask, udpStartupTask, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
     //osThreadCreate(osThread(udpStartupTask), NULL);

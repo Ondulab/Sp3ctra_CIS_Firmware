@@ -259,7 +259,7 @@ void StartDefaultTask(void const * argument)
 		printf("CIS initialization ERROR\n");
 	}
 
-#ifndef DEBUG_LWIP_STATS
+#if !defined(DEBUG_LWIP_STATS) && !defined(DEBUG_ICM42688)
 	osDelay(200);
     printf("------ INIT TASK COMPLETE -----\n");
     vTaskDelete(NULL); //delete task
@@ -268,8 +268,12 @@ void StartDefaultTask(void const * argument)
 	/* Infinite loop */
 	for(;;)
 	{
+#ifdef DEBUG_ICM42688
+    icm42688_handle_debug_print();
+#else
 		stats_display(); //must comment vTaskDelete to use it
-		osDelay(1000);
+#endif
+		osDelay(1);
 	}
   /* USER CODE END StartDefaultTask */
 }

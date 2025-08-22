@@ -118,8 +118,8 @@ Contributions to this project are welcome. Please submit your pull requests or r
 For more information on the Spectral Sound Scanner and other innovative projects, visit our website at [Réso-nance Numérique](https://reso-nance.org/).
 
 Sources :
-[Firmware](https://github.com/Ondulab/CISYNTH_CIS_Firmware), 
-[Bootloader](https://github.com/Ondulab/CISYNTH_CIS_Bootloader), 
+[Firmware](https://github.com/Ondulab/Sp3ctra_CIS_Firmware),
+[Bootloader](https://github.com/Ondulab/CISYNTH_CIS_Bootloader),
 [Electronics](https://github.com/Ondulab/CISYNTH_CIS_Electronics), 
 [Mechanics](https://github.com/Ondulab/CISYNTH_CIS_Mechanics), 
 [Max Patchs](https://github.com/Ondulab/CISYNTH_Max_External).
