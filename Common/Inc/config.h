@@ -149,4 +149,15 @@
 
 #define IMU_CLKIN_FREQ							(32000)
 
+// Gyroscope sensitivity configuration for handheld usage
+// Available options: dps2000, dps1000, dps500, dps250, dps125, dps62_5, dps31_25, dps15_625
+#define DEFAULT_GYRO_SENSITIVITY				dps250  // Lower sensitivity for better precision in handheld use
+
+// Accelerometer sensitivity configuration for handheld usage  
+// Available options: gpm16, gpm8, gpm4, gpm2
+#define DEFAULT_ACCEL_SENSITIVITY				gpm4    // Moderate sensitivity for handheld movement detection
+
+// Calibration sample count for handheld usage (reduced for faster startup)
+#define HANDHELD_CALIB_SAMPLES					50      // Reduced from 100 for faster calibration
+
 #endif // __CONFIG_H__
