@@ -17,7 +17,10 @@
 #include "stdbool.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "stdint.h"
+#include "math.h"
 
+#include "main.h"
 #include "basetypes.h"
 #include "globals.h"
 #include "gui_config.h"
@@ -30,17 +33,21 @@
 /* Private define ------------------------------------------------------------*/
 
 /* Private typedef -----------------------------------------------------------*/
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 // Structure to store IMU data and moving average
 struct IMU_average
 {
 	float32_t acc[3];  // Moving average of accelerometer
 	float32_t gyro[3]; // Moving average of gyroscope
 };
+#endif
 
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 struct IMU_average IMU_average = {0};
+#endif
 volatile uint32_t transferComplete = 0;
 
 /* Variable containing black and white frame from CIS*/
@@ -48,7 +55,9 @@ volatile uint32_t transferComplete = 0;
 /* Private function prototypes -----------------------------------------------*/
 static void gui_displayPopUp();
 static void gui_displayImage(void);
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 static void gui_displayIMU(void);
+#endif
 static void gui_displayWaiting();
 static void gui_interractiveMenu(void);
 static void gui_startCalibration(void);
@@ -106,7 +115,9 @@ int gui_mainLoop(void)
         }
 
         gui_interractiveMenu();
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
         gui_displayIMU();
+#endif
     	ssd1362_writeUpdates();
     }
 }
@@ -139,7 +150,7 @@ void gui_displayImage(void)
 
 	transferComplete = false;
 
-	ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, 0, false);
+	ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, GUI_COLOR(0), false);
 
 	// CIS DISPLAY
 	for (i = 0; i < (DISPLAY_WIDTH); i++)
@@ -181,14 +192,15 @@ void gui_displayImage(void)
 			pixel_intensity = 15 - pixel_intensity;
 
 			// Draw a pixel above the center of the line for symmetry
-			ssd1362_drawPixel(i, line_Ypos + y, pixel_intensity, false);
+			ssd1362_drawPixel(i, line_Ypos + y, GUI_COLOR(pixel_intensity), false);
 
 			// Draw a pixel below the center of the line for symmetry
-			ssd1362_drawPixel(i, line_Ypos - y, pixel_intensity, false);
+			ssd1362_drawPixel(i, line_Ypos - y, GUI_COLOR(pixel_intensity), false);
 		}
 	}
 }
 
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 /**
  * @brief Updates the moving average for the IMU sensor data.
  *
@@ -246,8 +258,8 @@ void gui_displayIMU(void)
 	ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, 22, DISPLAY_AERA2_Y2POS, 5, false);
 	ssd1362_fillRect(DISPLAY_WIDTH - 1, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH - 1 - 22, DISPLAY_AERA2_Y2POS, 5, false);
 
-	//ACC Y
-	int32_t accY = (int32_t)(IMU_average.acc[0] * 50);
+	//ACC Y (adjusted for ±4g range and calibrated values)
+	int32_t accY = (int32_t)(IMU_average.acc[0] * 25);  // Reduced from 50 to 25 for ±4g range
 	if (accY > (DISPLAY_AERAS2_HEIGHT / 2))
 		accY = (DISPLAY_AERAS2_HEIGHT / 2);
 	if (accY < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
@@ -269,8 +281,9 @@ void gui_displayIMU(void)
 
 	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 4, x1 + w2, DISPLAY_AERA2_Y2POS - 4, 13, false);
 
-	//ACC X and ACC Z
-	int32_t accZ = (int32_t)(IMU_average.acc[2] * 200);
+	//ACC X and ACC Z (adjusted for ±4g range and calibrated values with Z≈1g)
+	// For Z: expect ~0.995g, so scale to show this properly in display area
+	int32_t accZ = (int32_t)((IMU_average.acc[2] - 1.0f) * 100);  // Center around 1g, then scale
 	const int32_t accZ_RectWith = 25;
 
 	if (accZ > accZ_RectWith)
@@ -278,7 +291,8 @@ void gui_displayIMU(void)
 	if (accZ < (accZ_RectWith * -1))
 		accZ = accZ_RectWith * -1;
 
-	int32_t accX = (int32_t)(IMU_average.acc[1] * 200);
+	// For X: expect ~±0.002g, so increase scaling for better visibility
+	int32_t accX = (int32_t)(IMU_average.acc[1] * 100);  // Reduced from 200 to 100 for ±4g range
 	if (accX > 51)
 		accX = 51;
 	if (accX < -51)
@@ -327,6 +341,7 @@ void gui_displayIMU(void)
 	x1 = 235;
 	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
 }
+#endif // GUI_SHOW_IMU
 
 /**
  * @brief Displays a popup window with current configuration parameters.
