@@ -31,7 +31,6 @@
 #include "stdio.h"
 #include "string.h"
 
-#include "pictures.h"
 #include "ssd1362.h"
 #include "gui.h"
 #include "leds.h"
@@ -114,55 +113,13 @@ int main(void)
 
     printf("CM4 BOOT\n");
 
-    Sp3ctra_ascii_preview();
+   //Sp3ctra_ascii_preview();
 	printf("\n");
 
 	// Initialize oled display and print logo
 	ssd1362_init();
 	ssd1362_clearBuffer();
 	ssd1362_writeFullBuffer();
-
-    char shortVersion[8];
-    strcpy(shortVersion, FW_VERSION);
-
-    // Locate the first dot
-    char *p = strchr(shortVersion, '.');
-    if (p != NULL)
-    {
-        // From there, look for the second dot
-        p = strchr(p + 1, '.');
-        if (p != NULL)
-        {
-            // Truncate at the second dot
-            *p = '\0';
-        }
-    }
-
-#ifndef SKIP_SPLASH
-	for (uint8_t i = 0; i < 16; i++)
-	{
-		ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, i, 0);
-	    ssd1362_drawString(230, 6, (signed char *)shortVersion, 1, 8);
-		ssd1362_writeFullBuffer();
-
-		if (i == 0)
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-		if (i == 2)
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-		if (i == 4)
-		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_RESET);
-		if (i == 6)
-		HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-		if (i == 8)
-		HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-		if (i == 10)
-		HAL_GPIO_WritePin(LED3_GPIO_Port, LED3_Pin, GPIO_PIN_SET);
-
-		HAL_Delay(50);
-	}
-#endif
-
-	//led_test();
 
     leds_timerInit();
 

@@ -65,21 +65,21 @@ def downsample(pixels: np.ndarray, scale: int = 2) -> np.ndarray:
 
 
 def main():
-    TEXT        = "Sp3ctra_"
+    TEXT        = "Sp3ctra_"   # <-- sans underscore
     W, H        = 250, 64
-    FONT_PATH   = "Inter/static/Inter_28pt-Medium.ttf"   # police Inter Medium
-    FONT_SIZEPT = 50
+    FONT_PATH   = "Inter/static/Inter_28pt-Bold.ttf"
+    FONT_SIZEPT = 56
     PNG_OUT     = "sp3ctra_inter_preview.png"
     H_OUT       = "sp3ctra_inter.h"
     SYMBOL_NAME = "Sp3ctra_img"
-    ASCII_SCALE = 4   # 1=taille réelle, 2=moitié, 4=quart
+    ASCII_SCALE = 4
 
     font = load_font_or_die(FONT_PATH, FONT_SIZEPT)
 
     img = Image.new("1", (W, H), 0)
     draw = ImageDraw.Draw(img)
 
-    # --- centrage pixel-perfect ---
+    # --- pixel-perfect centering on full text (including underscore) ---
     temp = Image.new("1", (W, H), 0)
     draw_temp = ImageDraw.Draw(temp)
     draw_temp.text((0, 0), TEXT, font=font, fill=1)
@@ -92,7 +92,34 @@ def main():
     else:
         x, y = W // 2, H // 2
 
-    draw.text((x, y), TEXT, font=font, fill=1)
+    # --- draw all but last character at (x, y) ---
+    if len(TEXT) == 0:
+        img.save(PNG_OUT)
+        return
+
+    base_text = TEXT[:-1]
+    last_char = TEXT[-1]
+
+    # Draw base_text
+    draw.text((x, y), base_text, font=font, fill=1)
+
+    # Measure advance of base_text to position the last char
+    base_bbox = draw.textbbox((x, y), base_text, font=font)
+    base_advance = base_bbox[2] - x  # width drawn so far
+
+    # Compute baseline and a reasonable upward shift for underscore
+    ascent, descent = font.getmetrics()
+    baseline_y = y + ascent
+
+    # Heuristic: lift the underscore by the font descent (puts it roughly on the baseline).
+    # You can fine-tune with EXTRA_TWEAK pixels if needed.
+    EXTRA_TWEAK = -7  # try small integers like +1, +2 or -1
+    lift_up = descent + EXTRA_TWEAK
+
+    # Draw last character shifted up
+    last_x = x + base_advance
+    last_y = y - lift_up
+    draw.text((last_x, last_y), last_char, font=font, fill=1)
 
     img.save(PNG_OUT)
 
@@ -112,7 +139,8 @@ def main():
 
     guard = "__SP3CTRA_PICTURES_H__"
     header_text = (
-        "/** Auto-generated bitmap for 'Sp3ctra_' with Inter Medium, 250x64, 1bpp.\n"
+        "/** Auto-generated bitmap for 'Sp3ctra' + custom underscore, "
+        "with Inter Medium, 250x64, 1bpp.\n"
         " *  Packing: 8-pixel vertical pages, bit0 = top.\n"
         " *  Pixel-perfect centering.\n"
         " *  Includes ASCII-art printf for console preview.\n"
@@ -130,7 +158,6 @@ def main():
 
     print(f"[OK] Preview saved to: {PNG_OUT}")
     print(f"[OK] Header saved to : {H_OUT}")
-
 
 if __name__ == "__main__":
     main()

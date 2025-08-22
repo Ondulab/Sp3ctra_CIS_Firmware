@@ -416,6 +416,23 @@ void gui_displayWaiting(void)
     // Dynamic modulation frequencies and increments
     static float modFreqLine[NUM_LINE] = {0};
     static float modIncLine[NUM_LINE] = {0};
+
+    char shortVersion[8];
+    strcpy(shortVersion, FW_VERSION);
+
+    // Locate the first dot
+    char *p = strchr(shortVersion, '.');
+    if (p != NULL)
+    {
+        // From there, look for the second dot
+        p = strchr(p + 1, '.');
+        if (p != NULL)
+        {
+            // Truncate at the second dot
+            *p = '\0';
+        }
+    }
+
     for (int i = 0; i < NUM_LINE; i++) {
         modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
         modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
@@ -453,7 +470,7 @@ void gui_displayWaiting(void)
                     int thickness = 1 + abs(modulation);
 
                     uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * contrastFreq)));
-                    contrast = contrast > 15 ? 15 : contrast;
+                    contrast = contrast > 5 ? 5 : contrast;
 
                     if (yPos < screenHeight)
                     {
@@ -483,7 +500,8 @@ void gui_displayWaiting(void)
             if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
             if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
 
-    		ssd1362_drawBmp(CISYNTH_img, 2, 0, 250, 64, 0, 0);
+    	    ssd1362_drawString(233, 1, (signed char *)shortVersion, 0xF, 8);
+    		ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
 
             ssd1362_writeFullBuffer();
         }
