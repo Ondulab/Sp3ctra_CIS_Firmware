@@ -238,7 +238,7 @@ void StartDefaultTask(void const * argument)
 		printf("Rebooting in 3\n");
 		/* Wait 3 seconds. */
 		osDelay(3000);
-		NVIC_SystemReset();
+		//System_SafeReset();
 	}
 
 	printf("--- TCP LED INITIALIZATIONS ---\n");

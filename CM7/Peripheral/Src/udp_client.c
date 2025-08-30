@@ -213,7 +213,7 @@ UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void)
 /**
  * @brief Task that waits for the network to be ready and sends the startup packet.
  */
-void udpStartupTask(void const * argument)
+void udpStartupTask(void const * argument) //todo change to initialization protocol
 {
     // Infinite loop: this task continuously runs.
     for (;;)

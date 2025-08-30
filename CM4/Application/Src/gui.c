@@ -26,6 +26,7 @@
 #include "globals.h"
 #include "gui_config.h"
 #include "config.h"
+#include "gpio.h"
 
 #include "pictures.h"
 #include "ssd1362.h"
@@ -65,6 +66,7 @@ static void gui_changeHand(void);
 static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback);
 static void gui_drawStartupOverlay(void);
 static void gui_drawScreensaverOverlay(void);
+static bool gui_checkButtonActivity(void);
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -112,8 +114,8 @@ int gui_mainLoop(void)
     {
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
-        // Check for significant motion and update screensaver state
-        if (gui_isSignificantMotion()) {
+        // Check for significant motion or button activity and update screensaver state
+        if (gui_isSignificantMotion() || gui_checkButtonActivity()) {
             last_significant_motion_tick = current_tick;
             screensaver_active = false;  // Wake up from screensaver
         }
@@ -564,8 +566,10 @@ static void gui_drawStartupOverlay(void)
     // Display logo
     ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
     
-    // Display version number
-    ssd1362_drawString(233, 1, (signed char *)shortVersion, 0xF, 8);
+    // Calculate position for right-aligned version number
+    int textWidth = strlen(shortVersion) * 8; // 8 pixels per character
+    int rightAlignedX = SSD1362_WIDTH - textWidth - 2; // Screen width - text width - margin
+    ssd1362_drawString(rightAlignedX, 1, (signed char *)shortVersion, 0xF, 8);
 }
 
 /**
@@ -615,6 +619,22 @@ static bool gui_isSignificantMotion(void)
     
     // Return true if motion exceeds thresholds
     return (acc_delta > MOTION_THRESHOLD_ACC || gyro_delta > MOTION_THRESHOLD_GYRO);
+}
+
+/**
+ * @brief Checks for button activity to wake up from screensaver.
+ *
+ * Detects if any button is currently pressed by reading GPIO pins directly.
+ * This allows the screensaver to exit immediately when a button is pressed.
+ *
+ * @return bool True if any button is pressed, false otherwise.
+ */
+static bool gui_checkButtonActivity(void)
+{
+    // Check all three buttons directly via GPIO
+    return (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET ||
+            HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == GPIO_PIN_RESET ||
+            HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin) == GPIO_PIN_RESET);
 }
 
 /**

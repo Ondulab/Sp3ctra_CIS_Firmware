@@ -40,6 +40,8 @@
 #include "icm42688.h"
 #include "file_manager.h"
 
+#include "iwdg.h"
+
 #include "MXIC.h"
 
 /* USER CODE END Includes */
@@ -275,6 +277,45 @@ void HSEM7_Init(void)
 
     // Configure HSEM notification for CM4 on semaphore 1
     HAL_HSEM_ActivateNotification(__HAL_HSEM_SEMID_TO_MASK(1));
+}
+
+/**
+ * @brief  Performs a safe system reset with proper cache cleanup
+ * @note   This function ensures proper cleanup of caches and synchronization
+ *         before performing system reset on STM32H745 dual-core
+ * @retval None (function does not return)
+ */
+void System_SafeReset(void)
+{
+    printf("Performing safe system reset...\n");
+    
+    // Disable all interrupts
+    __disable_irq();
+    
+    // Clean and invalidate data cache
+    SCB_CleanDCache();
+    SCB_InvalidateDCache();
+    
+    // Invalidate instruction cache
+    SCB_InvalidateICache();
+    
+    // Data Synchronization Barrier
+    __DSB();
+    
+    // Instruction Synchronization Barrier
+    __ISB();
+    
+    // Add a small delay to ensure cache operations complete
+    for(volatile uint32_t i = 0; i < 1000; i++);
+    
+    // Perform system reset
+    NVIC_SystemReset();
+    
+    // Infinite loop in case reset fails
+    while(1)
+    {
+        // Should never reach here
+    }
 }
 
 /**
