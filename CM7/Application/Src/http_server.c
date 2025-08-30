@@ -136,6 +136,14 @@ typedef struct
     /* New: store the boundary from the HTTP header here (if multipart/form-data). */
     char boundary[128];
 
+    /* New: Buffer de fin pour détecter les boundaries */
+    uint8_t end_buffer[512];        // Buffer circulaire pour les derniers bytes
+    uint16_t end_buffer_pos;        // Position courante dans le buffer
+    uint16_t end_buffer_size;       // Taille actuelle des données
+    bool boundary_detected;         // Flag de détection de boundary
+    uint32_t boundary_start_pos;    // Position où commence la boundary dans le fichier
+    uint32_t total_bytes_written;   // Total des bytes écrits dans le fichier
+
 } fwupdate_t;
 
 static fwupdate_t fwupdate;
@@ -250,6 +258,174 @@ void delete_old_firmware(const char *latest_firmware)
     }
     // Close the directory
     f_closedir(&dir);
+}
+
+/**
+ * @brief Add bytes to the end buffer (circular buffer)
+ * @param data: pointer to data to add
+ * @param len: length of data to add
+ */
+static void append_to_end_buffer(const uint8_t *data, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++)
+    {
+        fwupdate.end_buffer[fwupdate.end_buffer_pos] = data[i];
+        fwupdate.end_buffer_pos = (fwupdate.end_buffer_pos + 1) % sizeof(fwupdate.end_buffer);
+        
+        if (fwupdate.end_buffer_size < sizeof(fwupdate.end_buffer))
+        {
+            fwupdate.end_buffer_size++;
+        }
+    }
+}
+
+/**
+ * @brief Search for boundary pattern in the end buffer
+ * @return true if boundary found, false otherwise
+ */
+static bool detect_boundary_in_buffer(void)
+{
+    if (fwupdate.boundary[0] == '\0' || fwupdate.boundary_detected)
+    {
+        return fwupdate.boundary_detected;
+    }
+
+    // Build the complete boundary pattern: "\r\n------<boundary>--"
+    char boundary_pattern[256];
+    snprintf(boundary_pattern, sizeof(boundary_pattern), "\r\n------%s--", fwupdate.boundary);
+    size_t pattern_len = strlen(boundary_pattern);
+
+    if (fwupdate.end_buffer_size < pattern_len)
+    {
+        return false; // Not enough data yet
+    }
+
+    // Search in the circular buffer
+    for (uint16_t start = 0; start <= (fwupdate.end_buffer_size - pattern_len); start++)
+    {
+        bool match = true;
+        for (size_t i = 0; i < pattern_len; i++)
+        {
+            uint16_t buf_idx = (fwupdate.end_buffer_pos - fwupdate.end_buffer_size + start + i) % sizeof(fwupdate.end_buffer);
+            if (fwupdate.end_buffer[buf_idx] != boundary_pattern[i])
+            {
+                match = false;
+                break;
+            }
+        }
+        
+        if (match)
+        {
+            fwupdate.boundary_detected = true;
+            // Calculate where the boundary starts in the total stream
+            fwupdate.boundary_start_pos = fwupdate.total_bytes_written + start - (fwupdate.end_buffer_size - pattern_len);
+            
+#ifdef HTTP_SERVER_DEBUG
+            printf("@ fwupdate - Boundary detected at position %u\n", (unsigned)fwupdate.boundary_start_pos);
+#endif
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * @brief Calculate how many bytes can be safely written to file
+ * @param new_data_len: length of new data received
+ * @return number of bytes that can be written safely
+ */
+static uint32_t calculate_safe_bytes(uint32_t new_data_len)
+{
+    if (fwupdate.boundary_detected)
+    {
+        // If boundary is detected, only write up to the boundary start
+        if (fwupdate.boundary_start_pos > fwupdate.total_bytes_written)
+        {
+            return fwupdate.boundary_start_pos - fwupdate.total_bytes_written;
+        }
+        else
+        {
+            return 0; // Already at or past boundary
+        }
+    }
+    else
+    {
+        // If no boundary detected yet, keep a safety margin
+        // Don't write the last 256 bytes to ensure we don't write a partial boundary
+        const uint32_t safety_margin = 256;
+        
+        if (fwupdate.end_buffer_size >= safety_margin)
+        {
+            return new_data_len - (fwupdate.end_buffer_size - safety_margin);
+        }
+        else
+        {
+            return 0; // Not enough data accumulated yet
+        }
+    }
+}
+
+/**
+ * @brief Write safe bytes to file from the end buffer
+ * @param bytes_to_write: number of bytes to write
+ * @return FRESULT status
+ */
+static FRESULT write_safe_bytes_to_file(uint32_t bytes_to_write)
+{
+    if (bytes_to_write == 0)
+    {
+        return FR_OK;
+    }
+
+    FRESULT fr;
+    UINT bytes_written;
+    
+    // Calculate start position in circular buffer
+    uint16_t start_pos = (fwupdate.end_buffer_pos - fwupdate.end_buffer_size) % sizeof(fwupdate.end_buffer);
+    
+    // Write data, handling circular buffer wrap-around
+    uint32_t remaining = bytes_to_write;
+    uint16_t current_pos = start_pos;
+    
+    while (remaining > 0)
+    {
+        // Calculate contiguous chunk size
+        uint32_t chunk_size = remaining;
+        if (current_pos + chunk_size > sizeof(fwupdate.end_buffer))
+        {
+            chunk_size = sizeof(fwupdate.end_buffer) - current_pos;
+        }
+        
+        // Write chunk to file
+        fr = f_write(&file, &fwupdate.end_buffer[current_pos], chunk_size, &bytes_written);
+        if (fr != FR_OK || bytes_written != chunk_size)
+        {
+            return fr;
+        }
+        
+        fwupdate.total_bytes_written += bytes_written;
+        remaining -= bytes_written;
+        current_pos = (current_pos + bytes_written) % sizeof(fwupdate.end_buffer);
+    }
+    
+    // Remove written bytes from buffer by adjusting size
+    fwupdate.end_buffer_size -= bytes_to_write;
+    
+    return FR_OK;
+}
+
+/**
+ * @brief Initialize the firmware update structure for new download
+ */
+static void init_fwupdate_buffers(void)
+{
+    memset(fwupdate.end_buffer, 0, sizeof(fwupdate.end_buffer));
+    fwupdate.end_buffer_pos = 0;
+    fwupdate.end_buffer_size = 0;
+    fwupdate.boundary_detected = false;
+    fwupdate.boundary_start_pos = 0;
+    fwupdate.total_bytes_written = 0;
 }
 
 static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16_t buflen)
@@ -429,6 +605,9 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                (unsigned)header_length);
 #endif
 
+                        /* Initialize the new buffer system */
+                        init_fwupdate_buffers();
+
                         fwupdate.state = FWUPDATE_STATE_DOWNLOAD_STREAM;
                         fwupdate.accum_length = 0;
                         ret = FWUPDATE_STATUS_INPROGRESS;
@@ -448,7 +627,6 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                 if ((buf_end - buf) > 0)
                 {
                     FRESULT fr;
-                    UINT bytes_written;
                     ret = FWUPDATE_STATUS_INPROGRESS;
 
                     uint32_t data_len = (uint32_t)(buf_end - buf);
@@ -466,67 +644,61 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                         fwupdate.stage = FW_UPDATE_Stage_IN_PROGRESS;
                     }
 
-                    /* Write the data to the file */
-                    fr = f_write(&file, buf, data_len, &bytes_written);
-                    if ((fr != FR_OK) || (bytes_written != data_len))
+                    /* NEW ARCHITECTURE: Add data to end buffer and detect boundary */
+                    append_to_end_buffer((uint8_t*)buf, data_len);
+                    
+                    /* Try to detect boundary in the accumulated data */
+                    detect_boundary_in_buffer();
+                    
+                    /* Calculate how many bytes we can safely write */
+                    uint32_t safe_bytes = calculate_safe_bytes(data_len);
+                    
+                    /* Write safe bytes to file */
+                    if (safe_bytes > 0)
                     {
-                        fwupdate.code = fr;
-                        f_close(&file);
-                        ret = FWUPDATE_STATUS_ERROR;
-                        break;
+                        fr = write_safe_bytes_to_file(safe_bytes);
+                        if (fr != FR_OK)
+                        {
+                            fwupdate.code = fr;
+                            f_close(&file);
+                            ret = FWUPDATE_STATUS_ERROR;
+                            break;
+                        }
                     }
 
                     fwupdate.accum_length += data_len;
+
 #ifdef HTTP_SERVER_DEBUG
-                    printf("@ fwupdate accumBytes=%d\n", (int)fwupdate.accum_length);
+                    printf("@ fwupdate accumBytes=%d, safeBytes=%u, boundaryDetected=%d\n", 
+                           (int)fwupdate.accum_length, (unsigned)safe_bytes, fwupdate.boundary_detected);
 #endif
 
-                    /* If we've received all the expected data, let's see if there's a trailing boundary to remove. */
-                    if (fwupdate.accum_length >= fwupdate.file_length)
+                    /* Check if we're done - either boundary detected or all data received */
+                    if (fwupdate.boundary_detected || (fwupdate.accum_length >= fwupdate.file_length))
                     {
-                        /* If we previously parsed a boundary, let's try to remove it from the end of the file. */
-                        if (fwupdate.boundary[0] != '\0')
+                        /* If boundary was detected, we already wrote the correct amount */
+                        /* If no boundary but all data received, write remaining safe data */
+                        if (!fwupdate.boundary_detected && fwupdate.end_buffer_size > 0)
                         {
-                            /* Typically the final boundary line looks like "\r\n--<boundary>--"
-                               We'll build that string and look for it in the last ~200 bytes. */
-                            char boundary_final[256];
-                            snprintf(boundary_final, sizeof(boundary_final), "\r\n--%s", fwupdate.boundary);
-                            /* If the spec includes a trailing "--", you could do: "\r\n--%s--" */
-
-                            size_t boundary_final_len = strlen(boundary_final);
-                            size_t boundary_length = 0;
-
-                            /* We'll examine up to the last 200 bytes in memory. Adjust as you wish. */
-                            const size_t search_size = 200;
-                            char *search_start = buf_end - ((buf_end - buf) < search_size ? (buf_end - buf) : search_size);
-
-                            for (char *p = search_start; p <= (buf_end - boundary_final_len); p++)
+                            /* Write any remaining data in buffer (no boundary found) */
+                            fr = write_safe_bytes_to_file(fwupdate.end_buffer_size);
+                            if (fr != FR_OK)
                             {
-                                /* Compare with boundary_final to see if we found it. */
-                                if (memcmp(p, boundary_final, boundary_final_len) == 0)
-                                {
-                                    /* Once found, we reduce the stored file length. */
-                                    boundary_length = (size_t)(buf_end - p);
-                                    fwupdate.file_length -= boundary_length;
-
-                                    printf("@ fwupdate - Adjusted for boundary, new file length = %d\n",
-                                           (int)fwupdate.file_length);
-
-                                    /* Now truncate the file to remove that boundary data. */
-                                    f_lseek(&file, fwupdate.file_length);
-                                    f_truncate(&file);
-
-                                    printf("File truncated to new length %d.\n", (int)fwupdate.file_length);
-                                    break;
-                                }
+                                fwupdate.code = fr;
+                                f_close(&file);
+                                ret = FWUPDATE_STATUS_ERROR;
+                                break;
                             }
                         }
 
-                        /* Clean up the file and remove older firmware if needed. */
+                        /* Clean up the file and remove older firmware if needed */
                         delete_old_firmware(file_name);
                         f_close(&file);
                         fwupdate.has_been_initialized = 0;
                         fwupdate.stage = FW_UPDATE_Stage_VERIFIED;
+
+                        printf("@ fwupdate - File completed, total bytes written: %u\n", 
+                               (unsigned)fwupdate.total_bytes_written);
                     }
 
                     buf = NULL;
@@ -534,8 +706,7 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                     if (ret == FWUPDATE_STATUS_INPROGRESS)
                     {
                         /* If the file was fully received */
-                        if ((fwupdate.accum_length >= fwupdate.file_length)
-                            || (fwupdate.stage == FW_UPDATE_Stage_VERIFIED))
+                        if (fwupdate.stage == FW_UPDATE_Stage_VERIFIED)
                         {
                             ret = FWUPDATE_STATUS_DONE;
                             len = sprintf(response,
