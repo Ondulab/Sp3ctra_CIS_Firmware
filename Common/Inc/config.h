@@ -45,7 +45,7 @@
 #define GUI_INVERT_DISPLAY 1  // Set to 1 to invert display colors (white background, dark content)
 
 // Screensaver configuration
-#define SCREENSAVER_TIMEOUT_MS          (6000)  // 60 seconds timeout for testing
+#define SCREENSAVER_TIMEOUT_MS          (60000)  // 60 seconds timeout for testing
 #define MOTION_THRESHOLD_ACC            (0.08f)  // Accelerometer motion threshold (g)
 #define MOTION_THRESHOLD_GYRO           (2.0f)   // Gyroscope motion threshold (dps)
 

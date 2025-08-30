@@ -57,7 +57,7 @@ extern volatile unsigned long ulHighFrequencyTimerTicks;
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void System_SafeReset(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

@@ -934,9 +934,9 @@ static void http_server(struct netconn *conn)
 	{
 		netconn_close(conn);
 		printf("Rebooting in 1\n");
-		/* Wait 5 seconds. */
+		/* Wait 1 second. */
 		osDelay(1000);
-		NVIC_SystemReset();
+		System_SafeReset();
 	}
 
 }
