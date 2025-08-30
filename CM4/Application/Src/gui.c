@@ -19,11 +19,13 @@
 #include "stdlib.h"
 #include "stdint.h"
 #include "math.h"
+#include "string.h"
 
 #include "main.h"
 #include "basetypes.h"
 #include "globals.h"
 #include "gui_config.h"
+#include "config.h"
 
 #include "pictures.h"
 #include "ssd1362.h"
@@ -43,6 +45,27 @@ struct IMU_average
 };
 #endif
 
+// Callback type for overlay content on wave animation
+typedef void (*gui_overlay_callback_t)(void);
+
+/* Private function prototypes -----------------------------------------------*/
+static void gui_displayPopUp();
+static void gui_displayImage(void);
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+static void gui_displayIMU(void);
+#endif
+static void gui_displayWaiting();
+static void gui_displayScreensaver(void);
+static bool gui_isSignificantMotion(void);
+static void gui_interractiveMenu(void);
+static void gui_startCalibration(void);
+static void gui_changeHand(void);
+
+// New modular animation functions
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback);
+static void gui_drawStartupOverlay(void);
+static void gui_drawScreensaverOverlay(void);
+
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
@@ -53,16 +76,6 @@ volatile uint32_t transferComplete = 0;
 
 /* Variable containing black and white frame from CIS*/
 
-/* Private function prototypes -----------------------------------------------*/
-static void gui_displayPopUp();
-static void gui_displayImage(void);
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
-static void gui_displayIMU(void);
-#endif
-static void gui_displayWaiting();
-static void gui_interractiveMenu(void);
-static void gui_startCalibration(void);
-static void gui_changeHand(void);
 
 /**
  * @brief Main loop of the GUI.
@@ -87,39 +100,63 @@ int gui_mainLoop(void)
     gui_displayWaiting();
     gui_changeHand();
 
+    // Screensaver variables
+    static uint32_t last_significant_motion_tick = 0;
+    static bool screensaver_active = false;
+    
+    // Initialize motion timer
+    last_significant_motion_tick = HAL_GetTick();
+
     /* Infinite loop */
     while (1)
     {
-        // Update the interface
-        gui_displayImage();
-        leds_check_update_state();
-
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
-        if ((current_tick - last_refresh_tick) >= 200)
-        {
-            int32_t current_process_count = shared_var.cis_process_cnt;
-            int32_t process_count_diff = current_process_count - last_process_count;
-
-            if (process_count_diff > 0) // Make sure there have been processes since the last refresh
-            {
-                int32_t tick_diff = current_tick - last_refresh_tick;
-
-                if (tick_diff > 0 && process_count_diff > 0)
-                {
-                    shared_var.cis_freq = (process_count_diff * 1000000) / (tick_diff * 1000);
-                }
-            }
-
-            last_refresh_tick = current_tick; // Update the last refresh tick
-            last_process_count = current_process_count; // Update the last process counter
+        // Check for significant motion and update screensaver state
+        if (gui_isSignificantMotion()) {
+            last_significant_motion_tick = current_tick;
+            screensaver_active = false;  // Wake up from screensaver
         }
 
-        gui_interractiveMenu();
+        // Check if we should activate screensaver
+        if (!screensaver_active && 
+            (current_tick - last_significant_motion_tick) >= SCREENSAVER_TIMEOUT_MS) {
+            screensaver_active = true;
+        }
+
+        // Display appropriate screen
+        if (screensaver_active) {
+            gui_displayScreensaver();
+        } else {
+            // Normal operation - update the interface
+            gui_displayImage();
+            leds_check_update_state();
+
+            if ((current_tick - last_refresh_tick) >= 200)
+            {
+                int32_t current_process_count = shared_var.cis_process_cnt;
+                int32_t process_count_diff = current_process_count - last_process_count;
+
+                if (process_count_diff > 0) // Make sure there have been processes since the last refresh
+                {
+                    int32_t tick_diff = current_tick - last_refresh_tick;
+
+                    if (tick_diff > 0 && process_count_diff > 0)
+                    {
+                        shared_var.cis_freq = (process_count_diff * 1000000) / (tick_diff * 1000);
+                    }
+                }
+
+                last_refresh_tick = current_tick; // Update the last refresh tick
+                last_process_count = current_process_count; // Update the last process counter
+            }
+
+            gui_interractiveMenu();
 #if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
-        gui_displayIMU();
+            gui_displayIMU();
 #endif
-    	ssd1362_writeUpdates();
+            ssd1362_writeUpdates();
+        }
     }
 }
 
@@ -392,20 +429,22 @@ float randomFloat(float min, float max)
 }
 
 /**
- * @brief Displays an animated waiting screen.
+ * @brief Renders the core wave animation with optional overlay content.
  *
- * Renders a dynamic wave animation on the screen to indicate that the system is
- * currently waiting for a process to complete.
+ * This function handles the wave animation rendering and calls the provided
+ * overlay callback to draw additional content on top of the animation.
+ *
+ * @param overlay_callback Function pointer to draw overlay content (can be NULL)
  */
-void gui_displayWaiting(void)
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback)
 {
-    static uint32_t lastUpdateTime = 0; // Time of the last display update
+    static uint32_t lastUpdateTime = 0;
     static const uint32_t updateInterval = 50; // Update every 50 ms
-    static int offset = 0; // Horizontal offset for the scrolling pattern
-    static int lightOffset = 0; // Offset for the faster moving light wave
-    static const uint16_t screenWidth = SSD1362_WIDTH; // Screen width (256 pixels)
-    static const uint16_t screenHeight = SSD1362_HEIGHT; // Screen height (64 pixels)
-    static const uint8_t waveHeight = 8; // Height of each wave
+    static int offset = 0;
+    static int lightOffset = 0;
+    static const uint16_t screenWidth = SSD1362_WIDTH;
+    static const uint16_t screenHeight = SSD1362_HEIGHT;
+    static const uint8_t waveHeight = 8;
 
     // Frequency and increment min/max values
     static const float modFreqMin[] = {0.03, 0.01, 0.03, 0.02, 0.04};
@@ -416,7 +455,96 @@ void gui_displayWaiting(void)
     // Dynamic modulation frequencies and increments
     static float modFreqLine[NUM_LINE] = {0};
     static float modIncLine[NUM_LINE] = {0};
+    static bool initialized = false;
 
+    if (!initialized) {
+        for (int i = 0; i < NUM_LINE; i++) {
+            modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
+        }
+        initialized = true;
+    }
+
+    static const float contrastFreqMin = 0.01;
+    static const float contrastFreqMax = 0.05;
+    static float contrastFreq = 0;
+    static const float contrastIncMin = -0.003;
+    static const float contrastIncMax = 0.003;
+    static float contrastInc = 0;
+    static bool contrast_initialized = false;
+
+    if (!contrast_initialized) {
+        contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        contrastInc = randomFloat(contrastIncMin, contrastIncMax);
+        contrast_initialized = true;
+    }
+
+    uint32_t currentTime = HAL_GetTick();
+
+    if (currentTime - lastUpdateTime >= updateInterval)
+    {
+        lastUpdateTime = currentTime;
+        ssd1362_clearBuffer();
+
+        // Render wave animation
+        for (int i = 0; i < NUM_LINE; i++)
+        {
+            int y = waveHeight * (i + 1) * 2 - 16;
+
+            for (int x = 0; x < screenWidth; x++)
+            {
+                int wave = (int)(waveHeight * sin((x + offset) * 0.1));
+                int yPos = y + wave;
+
+                int modulation = (int)(5 * sin((x + offset) * modFreqLine[i]));
+                int thickness = 1 + abs(modulation);
+
+                uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * contrastFreq)));
+                contrast = contrast > 5 ? 5 : contrast;
+
+                if (yPos < screenHeight)
+                {
+                    for (int t = -thickness; t <= thickness; t++)
+                    {
+                        if (yPos + t >= 0 && yPos + t < screenHeight)
+                        {
+                            ssd1362_drawPixel(x, yPos + t, contrast, false);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update animation parameters
+        offset = (offset + 1) % screenWidth;
+        lightOffset = (lightOffset - 5) % screenWidth;
+
+        for (int i = 0; i < NUM_LINE; i++)
+        {
+            modFreqLine[i] += modIncLine[i];
+            if (modFreqLine[i] > modFreqMax[i] || modFreqLine[i] < modFreqMin[i]) {
+                modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            }
+        }
+
+        contrastFreq += contrastInc;
+        if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+
+        // Draw overlay content if callback provided
+        if (overlay_callback != NULL) {
+            overlay_callback();
+        }
+
+        ssd1362_writeFullBuffer();
+    }
+}
+
+/**
+ * @brief Draws startup overlay content (logo + version number).
+ */
+static void gui_drawStartupOverlay(void)
+{
     char shortVersion[8];
     strcpy(shortVersion, FW_VERSION);
 
@@ -433,78 +561,85 @@ void gui_displayWaiting(void)
         }
     }
 
-    for (int i = 0; i < NUM_LINE; i++) {
-        modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
-        modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
+    // Display logo
+    ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
+    
+    // Display version number
+    ssd1362_drawString(233, 1, (signed char *)shortVersion, 0xF, 8);
+}
+
+/**
+ * @brief Draws screensaver overlay content (logo only, no version number).
+ */
+static void gui_drawScreensaverOverlay(void)
+{
+    // Display logo only
+    ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
+}
+
+/**
+ * @brief Detects significant motion from IMU data.
+ *
+ * Compares current IMU values with previous ones to determine if there's
+ * intentional movement above the noise threshold.
+ *
+ * @return bool True if significant motion is detected, false otherwise.
+ */
+static bool gui_isSignificantMotion(void)
+{
+    static float last_acc[3] = {0.0f, 0.0f, 0.0f};
+    static float last_gyro[3] = {0.0f, 0.0f, 0.0f};
+    static bool first_run = true;
+    
+    // Skip first run to initialize baseline values
+    if (first_run) {
+        memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
+        memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+        first_run = false;
+        return false;
     }
+    
+    // Calculate delta for accelerometer
+    float acc_delta = fabsf(packet_IMU.acc[0] - last_acc[0]) + 
+                      fabsf(packet_IMU.acc[1] - last_acc[1]) + 
+                      fabsf(packet_IMU.acc[2] - last_acc[2]);
+                      
+    // Calculate delta for gyroscope
+    float gyro_delta = fabsf(packet_IMU.gyro[0] - last_gyro[0]) + 
+                       fabsf(packet_IMU.gyro[1] - last_gyro[1]) + 
+                       fabsf(packet_IMU.gyro[2] - last_gyro[2]);
+    
+    // Update last values for next comparison
+    memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
+    memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+    
+    // Return true if motion exceeds thresholds
+    return (acc_delta > MOTION_THRESHOLD_ACC || gyro_delta > MOTION_THRESHOLD_GYRO);
+}
 
-    static const float contrastFreqMin = 0.01;
-    static const float contrastFreqMax = 0.05;
-    static float contrastFreq = 0;
-    contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+/**
+ * @brief Displays screensaver animation.
+ *
+ * Uses the modular wave animation system without version number overlay.
+ * Used when no significant motion is detected for the configured timeout period.
+ */
+static void gui_displayScreensaver(void)
+{
+    gui_renderWaveAnimation(gui_drawScreensaverOverlay);
+}
 
-    static const float contrastIncMin = -0.003;
-    static const float contrastIncMax = 0.003;
-    static float contrastInc = 0;
-    contrastInc = randomFloat(contrastIncMin, contrastIncMax);
-
+/**
+ * @brief Displays an animated waiting screen.
+ *
+ * Uses the modular wave animation system with version number overlay.
+ * Renders a dynamic wave animation on the screen to indicate that the system is
+ * currently waiting for a process to complete.
+ */
+void gui_displayWaiting(void)
+{
     while (shared_var.cis_process_rdy != TRUE)
     {
-        uint32_t currentTime = HAL_GetTick();
-
-        if (currentTime - lastUpdateTime >= updateInterval)
-        {
-            lastUpdateTime = currentTime;
-            ssd1362_clearBuffer();
-
-            for (int i = 0; i < NUM_LINE; i++)
-            {
-                int y = waveHeight * (i + 1) * 2 - 16;
-
-                for (int x = 0; x < screenWidth; x++)
-                {
-                    int wave = (int)(waveHeight * sin((x + offset) * 0.1));
-                    int yPos = y + wave;
-
-                    int modulation = (int)(5 * sin((x + offset) * modFreqLine[i]));
-                    int thickness = 1 + abs(modulation);
-
-                    uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * contrastFreq)));
-                    contrast = contrast > 5 ? 5 : contrast;
-
-                    if (yPos < screenHeight)
-                    {
-                        for (int t = -thickness; t <= thickness; t++)
-                        {
-                            if (yPos + t >= 0 && yPos + t < screenHeight)
-                            {
-                                ssd1362_drawPixel(x, yPos + t, contrast, false);
-                            }
-                        }
-                    }
-                }
-            }
-
-            offset = (offset + 1) % screenWidth;
-            lightOffset = (lightOffset - 5) % screenWidth;
-
-            for (int i = 0; i < NUM_LINE; i++)
-            {
-                modFreqLine[i] += modIncLine[i];
-                if (modFreqLine[i] > modFreqMax[i] || modFreqLine[i] < modFreqMin[i]) {
-                    modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
-                }
-            }
-
-            contrastFreq += contrastInc;
-            if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
-            if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
-
-    	    ssd1362_drawString(233, 1, (signed char *)shortVersion, 0xF, 8);
-    		ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
-
-            ssd1362_writeFullBuffer();
-        }
+        gui_renderWaveAnimation(gui_drawStartupOverlay);
     }
 }
 
