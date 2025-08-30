@@ -21,7 +21,7 @@
 /**************************************************************************************/
 /*******************              General definitions               *******************/
 /**************************************************************************************/
-#define FW_VERSION "3.9.0"
+#define FW_VERSION "3.10.0"
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -43,6 +43,11 @@
 /**************************************************************************************/
 #define GUI_SHOW_IMU 0  // Set to 0 to hide IMU panel and use full image area
 #define GUI_INVERT_DISPLAY 1  // Set to 1 to invert display colors (white background, dark content)
+
+// Screensaver configuration
+#define SCREENSAVER_TIMEOUT_MS          (6000)  // 60 seconds timeout for testing
+#define MOTION_THRESHOLD_ACC            (0.08f)  // Accelerometer motion threshold (g)
+#define MOTION_THRESHOLD_GYRO           (2.0f)   // Gyroscope motion threshold (dps)
 
 /**************************************************************************************/
 /*******************              Storage definitions               *******************/
