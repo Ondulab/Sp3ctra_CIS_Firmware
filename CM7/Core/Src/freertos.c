@@ -195,12 +195,6 @@ void StartDefaultTask(void const * argument)
 		printf("File initialization ERROR\n");
 	}
 
-	printf("----- IMU INITIALIZATIONS -----\n");
-	if (icm42688_init() != ICM42688_OK)
-	{
-		printf("IMU initialization ERROR\n");
-	}
-
     printf("---- LWIP INITIALIZATIONS -----\n");
 	MX_LWIP_Init();
 
@@ -209,12 +203,6 @@ void StartDefaultTask(void const * argument)
     {
 		printf("FTP initialization ERROR\n");
     }
-
-	printf("----- HTTP INITIALIZATIONS ----\n");
-	if (http_serverInit() != HTTPSERVER_OK)
-	{
-		printf("HTTP initialization ERROR\n");
-	}
 
 	printf("- READ FIRMWARE UPDATE STATUS -\n");
 	FW_UpdateState dataRead;
@@ -235,10 +223,20 @@ void StartDefaultTask(void const * argument)
 	        printf("Failed to write firmware update status in STM32 flash\n");
 	    }
 
-		printf("Rebooting in 3\n");
-		/* Wait 3 seconds. */
-		osDelay(3000);
-		//System_SafeReset();
+		printf("Rebooting\n");
+		System_SafeReset();
+	}
+
+	printf("----- IMU INITIALIZATIONS -----\n");
+	if (icm42688_init() != ICM42688_OK)
+	{
+		printf("IMU initialization ERROR\n");
+	}
+
+	printf("----- HTTP INITIALIZATIONS ----\n");
+	if (http_serverInit() != HTTPSERVER_OK)
+	{
+		printf("HTTP initialization ERROR\n");
 	}
 
 	printf("--- TCP LED INITIALIZATIONS ---\n");
