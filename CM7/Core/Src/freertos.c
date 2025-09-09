@@ -36,6 +36,7 @@
 #include "udp_client.h"
 #include "tim.h"
 #include "stm32_flash.h"
+#include "lwip.h"
 
 /* USER CODE END Includes */
 
@@ -251,11 +252,39 @@ void StartDefaultTask(void const * argument)
     	printf("UDP initialization ERROR\n");
     }
 
+    printf("--- WAITING FOR NETWORK CONNECTION ---\n");
+    uint32_t network_wait_count = 0;
+    while(isConnected == 0) 
+    {
+        osDelay(500);
+        network_wait_count++;
+        if (network_wait_count % 10 == 0) // Print every 5 seconds
+        {
+            printf("Still waiting for network connection... (%lu seconds)\n", network_wait_count / 2);
+        }
+        
+        // Safety timeout after 60 seconds
+        if (network_wait_count > 120)
+        {
+            printf("Network connection timeout - proceeding anyway\n");
+            break;
+        }
+    }
+    
+    if (isConnected == 1)
+    {
+        printf("Network connection established - proceeding with CIS initialization\n");
+    }
+
     printf("----- CIS INITIALIZATIONS -----\n");
 	if (cis_scanInit() != CISSCAN_OK)
 	{
 		printf("CIS initialization ERROR\n");
 	}
+
+    /* Mark system as fully initialized - enables automatic reset on network disconnection */
+    systemFullyInitialized = 1;
+    printf("System marked as fully initialized - automatic reset enabled\n");
 
 #if !defined(DEBUG_LWIP_STATS) && !defined(DEBUG_ICM42688)
 	osDelay(200);
