@@ -42,6 +42,9 @@
 
 /* USER CODE BEGIN 0 */
 
+/* External variable to track system initialization state */
+extern volatile uint8_t systemFullyInitialized;
+
 /* USER CODE END 0 */
 
 /* Global Variables ----------------------------------------------------------*/

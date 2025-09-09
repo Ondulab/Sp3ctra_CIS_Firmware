@@ -61,6 +61,9 @@ static uint32_t packetsCounter = 0;
 
 volatile uint32_t isConnected = 0;
 volatile uint8_t startupPacketSent = 0;
+volatile uint8_t udpConnectionEstablished = 0;
+
+static uint32_t retryAttempts = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void);
@@ -152,7 +155,7 @@ UDPCLIENT_StatusTypeDef udpClient_init(void)
 }
 
 /**
- * @brief Send data over UDP.
+ * @brief Send data over UDP with simple retry mechanism.
  * @param data Pointer to the data to send.
  * @param length Length of the data in bytes.
  */
@@ -163,38 +166,59 @@ UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length)
 		return UDPCLIENT_NOT_CONNECTED;
 	}
 
-	// Create a new netbuf
-	struct netbuf *buf = netbuf_new();
-	if (buf == NULL)
+	if (conn == NULL)
 	{
-		printf("Failed to allocate netbuf.\n");
+		printf("UDP connection not initialized\n");
 		return UDPCLIENT_ERROR;
 	}
 
-	// Allocate space in the netbuf
-	if (netbuf_alloc(buf, length) == NULL)
+	// Simple retry mechanism - try up to 3 times
+	for (int retry = 0; retry < 3; retry++)
 	{
-		printf("Failed to allocate buffer in netbuf.\n");
+		// Create a new netbuf
+		struct netbuf *buf = netbuf_new();
+		if (buf == NULL)
+		{
+			if (retry == 2) printf("Failed to allocate netbuf after %d retries\n", retry + 1);
+			osDelay(10); // Small delay before retry
+			continue;
+		}
+
+		// Allocate space in the netbuf
+		if (netbuf_alloc(buf, length) == NULL)
+		{
+			if (retry == 2) printf("Failed to allocate buffer in netbuf after %d retries\n", retry + 1);
+			netbuf_delete(buf);
+			osDelay(10);
+			continue;
+		}
+
+		// Copy data into the netbuf
+		netbuf_take(buf, data, length);
+
+		// Send the data
+		err_t err = netconn_send(conn, buf);
 		netbuf_delete(buf);
-		return UDPCLIENT_ERROR;
+
+		if (err == ERR_OK)
+		{
+			// Success
+			return UDPCLIENT_OK;
+		}
+		else
+		{
+			// Log error only on final retry
+			if (retry == 2)
+			{
+				printf("Failed to send UDP data after %d retries: %d\n", retry + 1, err);
+				return UDPCLIENT_ERROR;
+			}
+			// Small delay before retry
+			osDelay(10);
+		}
 	}
 
-	// Copy data into the netbuf
-	netbuf_take(buf, data, length);
-
-	// Send the data
-	err_t err = netconn_send(conn, buf);
-	if (err != ERR_OK)
-	{
-		printf("Failed to send UDP data: %d\n", err);
-		netbuf_delete(buf);
-		return UDPCLIENT_ERROR;
-	}
-
-	// Cleanup
-	netbuf_delete(buf);
-
-	return UDPCLIENT_OK;
+	return UDPCLIENT_ERROR;
 }
 
 /**
