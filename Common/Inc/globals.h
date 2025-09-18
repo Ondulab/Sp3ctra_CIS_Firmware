@@ -287,7 +287,6 @@ extern uint16_t cisData_ADC1[CIS_MAX_ADC_BUFF_SIZE];
 extern uint16_t cisData_ADC2[CIS_MAX_ADC_BUFF_SIZE];
 extern uint16_t cisData_ADC3[CIS_MAX_ADC_BUFF_SIZE];
 extern int32_t cisDataCpy[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
-//extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
 extern struct cisLeds_Calibration cisLeds_Calibration;
 
