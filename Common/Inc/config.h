@@ -40,7 +40,7 @@
 // CIS Drift Correction Configuration
 #define CIS_DRIFT_DEBUG_ENABLED                 (0)     // Debug drift correction (0=disabled, 1=enabled)
 #define CIS_DRIFT_DEBUG_INTERVAL                (100)   // Print debug info every N lines
-#define CIS_DETAILED_DEBUG_ENABLED              (1)     // Detailed debug with pixel values (0=disabled, 1=enabled)
+#define CIS_DETAILED_DEBUG_ENABLED              (0)     // Detailed debug with pixel values (0=disabled, 1=enabled)
 #define CIS_DETAILED_DEBUG_INTERVAL             (100)   // Print detailed debug every N lines
 
 /**************************************************************************************/
