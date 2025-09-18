@@ -61,11 +61,8 @@ struct cisCalsTypes blackCal;
 __attribute__((section(".calAccWhite")))
 struct cisCalsTypes whiteCal;
 
-/* Debug variables */
-static uint32_t drift_debug_enabled = 0;
-static uint32_t drift_debug_interval = 100;
-static uint32_t detailed_debug_enabled = 0;
-static uint32_t detailed_debug_interval = 100;
+/* Debug variables - now using config.h defines */
+// Debug configuration moved to Common/Inc/config.h
 
 /* Variable containing ADC conversions data */
 
@@ -91,6 +88,33 @@ void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult)
 
     /* Attention : blockSize ne doit pas être zéro */
     *pResult = (int32_t)(sum / blockSize);
+}
+
+void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
+{
+    uint32_t i;
+    int32_t minVal;
+    uint32_t minIdx;
+
+    /* On suppose blockSize >= 1 */
+    minVal = pSrc[0];
+    minIdx = 0;
+
+    for (i = 1; i < blockSize; i++)
+    {
+        if (pSrc[i] < minVal)
+        {
+            minVal = pSrc[i];
+            minIdx = i;
+        }
+    }
+
+    *pResult = minVal;
+
+    if (pIndex != NULL)
+    {
+        *pIndex = minIdx;
+    }
 }
 
 void cis_max(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
@@ -176,72 +200,6 @@ void cis_printInactivePixels(const int32_t * restrict cisDataCpy, uint32_t lane,
     printf("  Average (pixels 9-32): %ld (used for drift correction)\n", average_useful);
 }
 
-/**
- * @brief       Enable detailed debug output including inactive pixel values.
- * @param       print_interval   Print debug info every N lines (e.g., 100).
- * @retval      None
- *
- * Enables detailed debug printf output including all 38 inactive pixel values.
- */
-void cis_enableDetailedDebug(uint32_t print_interval)
-{
-    detailed_debug_enabled = 1;
-    detailed_debug_interval = print_interval;
-    printf("Detailed drift debug ENABLED (interval: %lu lines)\n", print_interval);
-}
-
-/**
- * @brief       Disable detailed debug output.
- * @param       None
- * @retval      None
- *
- * Disables detailed debug printf output.
- */
-void cis_disableDetailedDebug(void)
-{
-    detailed_debug_enabled = 0;
-    printf("Detailed drift debug DISABLED\n");
-}
-
-/**
- * @brief       Enable drift correction debug output.
- * @param       print_interval   Print debug info every N lines (e.g., 100).
- * @retval      None
- *
- * Enables debug printf output to monitor drift correction values in real-time.
- */
-void cis_enableDriftDebug(uint32_t print_interval)
-{
-    drift_debug_enabled = 1;
-    drift_debug_interval = print_interval;
-    printf("Drift correction debug ENABLED (interval: %lu lines)\n", print_interval);
-}
-
-/**
- * @brief       Disable drift correction debug output.
- * @param       None
- * @retval      None
- *
- * Disables debug printf output for drift correction.
- */
-void cis_disableDriftDebug(void)
-{
-    drift_debug_enabled = 0;
-    printf("Drift correction debug DISABLED\n");
-}
-
-/**
- * @brief       Initialize drift correction parameters with default values.
- * @param       None
- * @retval      None
- *
- * Sets default values for drift correction parameters.
- */
-void cis_initDriftCorrectionDefaults(void)
-{
-    cisCals.driftCorrectionEnabled = 1;  // Enable drift correction by default
-    cisCals.driftThreshold = 100;       // Maximum allowed drift of 50 ADC counts
-}
 
 /**
  * @brief       Compute global drift correction offsets based on current inactive pixels.
@@ -274,24 +232,24 @@ void cis_computeGlobalDriftCorrection(const int32_t * restrict cisDataCpy, int32
         }
     }
 
-    // Compute drift correction offsets
-    for (int32_t color = 0; color < 3; color++)
+    // Compute drift correction offsets using saved reference averages
+    for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
     {
-        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        for (int32_t color = 0; color < 3; color++)
         {
-            // Drift offset = current_inactive_avg - calibration_black_ref
+            // Drift offset = current_inactive_avg - saved_black_reference
             globalDriftOffset[color][lane] = currentInactiveAvg[color][lane] - cisCals.blackRefInactiveAvg[color][lane];
 
-            // Optional: Apply threshold limiting to prevent excessive corrections
-            if (cisCals.driftThreshold > 0)
+            // Apply threshold limiting to prevent excessive corrections
+            if (CIS_DRIFT_THRESHOLD > 0)
             {
-                if (globalDriftOffset[color][lane] > cisCals.driftThreshold)
+                if (globalDriftOffset[color][lane] > CIS_DRIFT_THRESHOLD)
                 {
-                    globalDriftOffset[color][lane] = cisCals.driftThreshold;
+                    globalDriftOffset[color][lane] = CIS_DRIFT_THRESHOLD;
                 }
-                else if (globalDriftOffset[color][lane] < -cisCals.driftThreshold)
+                else if (globalDriftOffset[color][lane] < -CIS_DRIFT_THRESHOLD)
                 {
-                    globalDriftOffset[color][lane] = -cisCals.driftThreshold;
+                    globalDriftOffset[color][lane] = -CIS_DRIFT_THRESHOLD;
                 }
             }
         }
@@ -311,28 +269,19 @@ void cis_computeGlobalDriftCorrection(const int32_t * restrict cisDataCpy, int32
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_applyLinearCalibrationWithDriftCorrection(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
+void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
 {
     int32_t globalDriftOffset[3][CIS_ADC_OUT_LANES];  // [color][lane]
 
-    cisCals.driftCorrectionEnabled = 1;
-
-    // Skip drift correction if disabled
-    if (!cisCals.driftCorrectionEnabled)
-    {
-        cis_applyLinearCalibration(cisDataCpy, maxClipValue);
-        return;
-    }
-
-    // Step 1: Compute global drift correction offsets
+    // Step 1: Compute global drift correction offsets (always enabled)
     cis_computeGlobalDriftCorrection(cisDataCpy, globalDriftOffset);
 
     // DEBUG: Print drift correction values if enabled
-    if (drift_debug_enabled)
+    if (CIS_DRIFT_DEBUG_ENABLED)
     {
         static uint32_t debug_counter = 0;
         debug_counter++;
-        if (debug_counter % drift_debug_interval == 0)
+        if (debug_counter % CIS_DRIFT_DEBUG_INTERVAL == 0)
         {
             printf("DRIFT DEBUG - Line %lu:\n", debug_counter);
             for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
@@ -348,11 +297,11 @@ void cis_applyLinearCalibrationWithDriftCorrection(int32_t * restrict cisDataCpy
     }
 
     // DETAILED DEBUG: Print all 38 inactive pixel values if enabled
-    if (detailed_debug_enabled)
+    if (CIS_DETAILED_DEBUG_ENABLED)
     {
         static uint32_t detailed_debug_counter = 0;
         detailed_debug_counter++;
-        if (detailed_debug_counter % detailed_debug_interval == 0)
+        if (detailed_debug_counter % CIS_DETAILED_DEBUG_INTERVAL == 0)
         {
             printf("=== DETAILED DEBUG - Line %lu ===\n", detailed_debug_counter);
             for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
@@ -398,33 +347,6 @@ void cis_applyLinearCalibrationWithDriftCorrection(int32_t * restrict cisDataCpy
     }
 }
 #pragma GCC pop_options
-
-void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
-{
-    uint32_t i;
-    int32_t minVal;
-    uint32_t minIdx;
-
-    /* On suppose blockSize >= 1 */
-    minVal = pSrc[0];
-    minIdx = 0;
-
-    for (i = 1; i < blockSize; i++)
-    {
-        if (pSrc[i] < minVal)
-        {
-            minVal = pSrc[i];
-            minIdx = i;
-        }
-    }
-
-    *pResult = minVal;
-
-    if (pIndex != NULL)
-    {
-        *pIndex = minIdx;
-    }
-}
 
 /**
  * @brief       Initialize the linear calibration (integer version).
@@ -549,24 +471,17 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
     printf("Compute gains\n");
 
-    // Step 7: Store inactive pixel references for drift correction
+    // Step 7: Store drift correction reference averages from black calibration
     printf("Store drift correction references\n");
     for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
     {
         cisCals.blackRefInactiveAvg[0][lane] = blackCal.red.inactiveAvrgPix[lane];    // Red
         cisCals.blackRefInactiveAvg[1][lane] = blackCal.green.inactiveAvrgPix[lane];  // Green
         cisCals.blackRefInactiveAvg[2][lane] = blackCal.blue.inactiveAvrgPix[lane];   // Blue
-
-        cisCals.whiteRefInactiveAvg[0][lane] = whiteCal.red.inactiveAvrgPix[lane];    // Red
-        cisCals.whiteRefInactiveAvg[1][lane] = whiteCal.green.inactiveAvrgPix[lane];  // Green
-        cisCals.whiteRefInactiveAvg[2][lane] = whiteCal.blue.inactiveAvrgPix[lane];   // Blue
     }
-
-    // Initialize drift correction parameters
-    cis_initDriftCorrectionDefaults();
     SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
 
-    // Step 8: Save calibration data
+    // Step 7: Save calibration data
     sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
     file_writeCisCals(calibrationFilePath, &cisCals);
 
@@ -576,50 +491,6 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     shared_var.cis_cal_state = CIS_CAL_END;
     printf("===============================\n");
 }
-
-
-/**
- * @brief       Apply linear calibration on the image buffer (integer version).
- *
- * The applied formula is:
- *      calibrated = clip( ((raw - offset) * gain) >> 16, 0, maxClipValue )
- *
- * @param       cisDataCpy    Pointer to the image buffer (int32_t in Q16.16 format).
- * @param       maxClipValue  Clipping value (e.g., 255).
- * @retval      None
- */
-#pragma GCC push_options
-#pragma GCC optimize ("unroll-loops")
-void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
-{
-    for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
-    {
-        uint32_t baseR = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.red_offset;
-        uint32_t baseG = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.green_offset;
-        uint32_t baseB = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.blue_offset;
-
-        for (uint32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
-        {
-            int32_t value, calibrated;
-
-            /* Process RED channel */
-            value = cisDataCpy[baseR + i] - cisCals.offsetData[baseR + i];
-            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseR + i]) >> 16);
-            cisDataCpy[baseR + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-
-            /* Process GREEN channel */
-            value = cisDataCpy[baseG + i] - cisCals.offsetData[baseG + i];
-            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseG + i]) >> 16);
-            cisDataCpy[baseG + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-
-            /* Process BLUE channel */
-            value = cisDataCpy[baseB + i] - cisCals.offsetData[baseB + i];
-            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseB + i]) >> 16);
-            cisDataCpy[baseB + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-        }
-    }
-}
-#pragma GCC pop_options
 
 /**
  * @brief       Compute the average value of inactive pixels for a given color.

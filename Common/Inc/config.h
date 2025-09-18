@@ -37,6 +37,12 @@
 
 //#define USE_WDG
 
+// CIS Drift Correction Configuration
+#define CIS_DRIFT_DEBUG_ENABLED                 (0)     // Debug drift correction (0=disabled, 1=enabled)
+#define CIS_DRIFT_DEBUG_INTERVAL                (100)   // Print debug info every N lines
+#define CIS_DETAILED_DEBUG_ENABLED              (1)     // Detailed debug with pixel values (0=disabled, 1=enabled)
+#define CIS_DETAILED_DEBUG_INTERVAL             (100)   // Print detailed debug every N lines
+
 /**************************************************************************************/
 /********************              GUI definitions                 ********************/
 /**************************************************************************************/
@@ -121,8 +127,8 @@
 #define CIS_LED_ON								(CIS_SP_WIDTH)
 
 // LED illumination durations in microseconds
-#define CIS_400DPI_LED_DURATION_US              (310)  // Duration in microseconds
-#define CIS_200DPI_LED_DURATION_US              (178)  // Duration in microseconds
+#define CIS_400DPI_LED_DURATION_US              (300)  // Duration in microseconds
+#define CIS_200DPI_LED_DURATION_US              (150)  // Duration in microseconds
 
 #define CIS_MAX_ADC_BUFF_SIZE 	 	 		    ((CIS_MAX_LANE_SIZE) * (COLOR_CHANNELS))
 #define CIS_MAX_USEFUL_DATA_SIZE 			    (((CIS_BLACK_PIXELS) + (CIS_400DPI_PIXELS_PER_LANE)) * (COLOR_CHANNELS))
@@ -131,6 +137,8 @@
 
 #define CIS_LEDS_MAX_PWM                        (101)
 #define CIS_LEDS_MAX_POMER		                (CIS_LEDS_MAX_PWM)
+
+#define CIS_DRIFT_THRESHOLD                     (100)   // Maximum allowed drift in ADC counts
 
 /**************************************************************************************/
 /***                            Packet Management Definitions                      ***/
