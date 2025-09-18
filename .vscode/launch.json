@@ -1,0 +1,132 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug CM7 (ST-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM7/Debug/Sp3ctra_CIS_Firmware_CM7.elf",
+            "servertype": "stlink",
+            "device": "STM32H745IIK6",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd",
+            "preLaunchTask": "Build CM7 Debug",
+            "postRestartCommands": [
+                "monitor reset halt",
+                "monitor flash write_image erase ${workspaceFolder}/CM7/Debug/Sp3ctra_CIS_Firmware_CM7.elf"
+            ],
+            "overrideLaunchCommands": [
+                "monitor reset halt",
+                "load"
+            ]
+        },
+        {
+            "name": "Debug CM4 (ST-Link)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM4/Debug/Sp3ctra_CIS_Firmware_CM4.elf",
+            "servertype": "stlink",
+            "device": "STM32H745IIK6",
+            "interface": "swd",
+            "serialNumber": "",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd",
+            "preLaunchTask": "Build CM4 Debug",
+            "postRestartCommands": [
+                "monitor reset halt",
+                "monitor flash write_image erase ${workspaceFolder}/CM4/Debug/Sp3ctra_CIS_Firmware_CM4.elf"
+            ],
+            "overrideLaunchCommands": [
+                "monitor reset halt",
+                "load"
+            ]
+        },
+        {
+            "name": "Attach CM7 (ST-Link)",
+            "type": "cortex-debug",
+            "request": "attach",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM7/Debug/Sp3ctra_CIS_Firmware_CM7.elf",
+            "servertype": "stlink",
+            "device": "STM32H745IIK6",
+            "interface": "swd",
+            "serialNumber": "",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd"
+        },
+        {
+            "name": "Attach CM4 (ST-Link)",
+            "type": "cortex-debug",
+            "request": "attach",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM4/Debug/Sp3ctra_CIS_Firmware_CM4.elf",
+            "servertype": "stlink",
+            "device": "STM32H745IIK6",
+            "interface": "swd",
+            "serialNumber": "",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd"
+        },
+        {
+            "name": "Debug CM7 (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM7/Debug/Sp3ctra_CIS_Firmware_CM7.elf",
+            "servertype": "openocd",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x_dual_bank.cfg"
+            ],
+            "searchDir": [
+                "/usr/local/share/openocd/scripts"
+            ],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd",
+            "preLaunchTask": "Build CM7 Debug",
+            "postRestartCommands": [
+                "monitor reset halt"
+            ]
+        },
+        {
+            "name": "Debug CM4 (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/CM4/Debug/Sp3ctra_CIS_Firmware_CM4.elf",
+            "servertype": "openocd",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32h7x_dual_bank.cfg"
+            ],
+            "searchDir": [
+                "/usr/local/share/openocd/scripts"
+            ],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none",
+            "svdFile": "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include/stm32h745xx.svd",
+            "preLaunchTask": "Build CM4 Debug",
+            "postRestartCommands": [
+                "monitor reset halt"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Both Cores (ST-Link)",
+            "configurations": [
+                "Debug CM7 (ST-Link)",
+                "Debug CM4 (ST-Link)"
+            ],
+            "stopAll": true,
+            "preLaunchTask": "Build Both Cores Debug"
+        }
+    ]
+}

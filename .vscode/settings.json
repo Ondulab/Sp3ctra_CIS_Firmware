@@ -1,0 +1,140 @@
+{
+    // Language and formatting settings
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
+    "editor.trimAutoWhitespace": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    
+    // C/C++ specific settings for embedded development
+    "C_Cpp.default.cStandard": "gnu11",
+    "C_Cpp.default.cppStandard": "gnu++17",
+    "C_Cpp.default.compilerPath": "/usr/bin/arm-none-eabi-gcc",
+    "C_Cpp.default.intelliSenseMode": "gcc-arm",
+    "C_Cpp.default.defines": [
+        "STM32H745xx",
+        "USE_HAL_DRIVER",
+        "ARM_MATH_CM7",
+        "CORE_CM7",
+        "DATA_IN_D2_SRAM",
+        "USE_PWR_DIRECT_SMPS_SUPPLY",
+        "STM32_THREAD_SAFE_STRATEGY=5"
+    ],
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32H7xx/Include",
+        "${workspaceFolder}/Drivers/CMSIS/Include",
+        "${workspaceFolder}/Drivers/STM32H7xx_HAL_Driver/Inc",
+        "${workspaceFolder}/Drivers/STM32H7xx_HAL_Driver/Inc/Legacy",
+        "${workspaceFolder}/CM7/Application/Inc",
+        "${workspaceFolder}/CM7/Core/Inc",
+        "${workspaceFolder}/CM7/Peripheral/Inc",
+        "${workspaceFolder}/CM7/DSP/Include",
+        "${workspaceFolder}/CM4/Application/Inc",
+        "${workspaceFolder}/CM4/Core/Inc",
+        "${workspaceFolder}/CM4/Peripheral/Inc",
+        "${workspaceFolder}/Common/Inc",
+        "${workspaceFolder}/Middlewares/Third_Party/FreeRTOS/Source/include",
+        "${workspaceFolder}/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F",
+        "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include",
+        "${workspaceFolder}/Middlewares/Third_Party/FatFs/src",
+        "${workspaceFolder}/CM7/LWIP/App",
+        "${workspaceFolder}/CM7/LWIP/Target",
+        "${workspaceFolder}/CM7/FATFS/App",
+        "${workspaceFolder}/CM7/FATFS/Target"
+    ],
+    "C_Cpp.default.browse.limitSymbolsToIncludedHeaders": true,
+    "C_Cpp.default.browse.databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+    
+    // File associations for embedded development
+    "files.associations": {
+        "*.h": "c",
+        "*.c": "c",
+        "*.hpp": "cpp",
+        "*.cpp": "cpp",
+        "*.ld": "linkerscript",
+        "*.ioc": "xml"
+    },
+    
+    // Exclude build artifacts and generated files
+    "files.exclude": {
+        "**/Debug/**": true,
+        "**/Release/**": true,
+        "**/.metadata": true,
+        "**/.settings": true,
+        "**/Drivers/CMSIS/**": false,
+        "**/Drivers/STM32H7xx_HAL_Driver/**": false,
+        "**/Middlewares/Third_Party/**": false
+    },
+    
+    // Search settings
+    "search.exclude": {
+        "**/Debug": true,
+        "**/Release": true,
+        "**/.metadata": true,
+        "**/.settings": true,
+        "**/Drivers/CMSIS/Device/ST/STM32H7xx/Source": true,
+        "**/Middlewares/Third_Party/FreeRTOS/Source": false,
+        "**/Middlewares/Third_Party/LwIP/src": false
+    },
+    
+    // Git settings
+    "git.ignoreLimitWarning": true,
+    
+    // Terminal settings for embedded development
+    "terminal.integrated.env.osx": {
+        "PATH": "/usr/local/bin:/opt/homebrew/bin:${env:PATH}"
+    },
+    "terminal.integrated.env.linux": {
+        "PATH": "/usr/local/bin:${env:PATH}"
+    },
+    
+    // Code formatting
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    
+    // Language-specific formatting
+    "[c]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "[cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "[json]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "[markdown]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.wordWrap": "on"
+    },
+    
+    // Embedded development specific
+    "cortex-debug.armToolchainPath": "/usr/bin",
+    "cortex-debug.openocdPath": "/usr/local/bin/openocd",
+    
+    // Problem matchers and error highlighting
+    "problems.decorations.enabled": true,
+    "C_Cpp.errorSquiggles": "Enabled",
+    "C_Cpp.dimInactiveRegions": true,
+    
+    // IntelliSense settings
+    "C_Cpp.intelliSenseEngine": "Default",
+    "C_Cpp.enhancedColorization": "Enabled",
+    "C_Cpp.autocomplete": "Default",
+    
+    // Workspace trust
+    "security.workspace.trust.untrustedFiles": "open",
+    
+    // Extension recommendations
+    "extensions.ignoreRecommendations": false
+}

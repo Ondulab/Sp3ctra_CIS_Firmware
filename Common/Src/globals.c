@@ -61,7 +61,7 @@ __attribute__ ((section(".cisCals")))
 struct cisCals cisCals = {0};
 
 __attribute__ ((section(".cisDataCpy")))
-int32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
+int32_t cisDataCpy[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES] = {0};
 
 __attribute__((section(".scanline_buff")))
 struct buffers_Scanline buffers_Scanline = {0};

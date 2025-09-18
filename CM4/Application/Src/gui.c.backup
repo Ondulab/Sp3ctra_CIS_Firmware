@@ -1,0 +1,987 @@
+/**
+ ******************************************************************************
+ * @file           : gui.c
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (C) 2018-present Reso-nance Numerique.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ *
+ ******************************************************************************
+ */
+
+/* Includes ------------------------------------------------------------------*/
+#include "stdbool.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "stdint.h"
+#include "math.h"
+#include "string.h"
+
+#include "main.h"
+#include "basetypes.h"
+#include "globals.h"
+#include "gui_config.h"
+#include "config.h"
+#include "gpio.h"
+
+#include "pictures.h"
+#include "ssd1362.h"
+#include "leds.h"
+
+#include "gui.h"
+
+/* Private define ------------------------------------------------------------*/
+
+/* Private typedef -----------------------------------------------------------*/
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+// Structure to store IMU data and moving average
+struct IMU_average
+{
+	float32_t acc[3];  // Moving average of accelerometer
+	float32_t gyro[3]; // Moving average of gyroscope
+};
+#endif
+
+// Callback type for overlay content on wave animation
+typedef void (*gui_overlay_callback_t)(void);
+
+/* Private function prototypes -----------------------------------------------*/
+static void gui_displayPopUp();
+static void gui_displayImage(void);
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+static void gui_displayIMU(void);
+#endif
+static void gui_displayWaiting();
+static void gui_displayScreensaver(void);
+static bool gui_isSignificantMotion(void);
+static void gui_interractiveMenu(void);
+static void gui_startCalibration(void);
+static void gui_changeHand(void);
+
+// New modular animation functions
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback);
+static void gui_drawStartupOverlay(void);
+static void gui_drawScreensaverOverlay(void);
+static bool gui_checkButtonActivity(void);
+
+/* Private macro -------------------------------------------------------------*/
+
+/* Private variables ---------------------------------------------------------*/
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+struct IMU_average IMU_average = {0};
+#endif
+volatile uint32_t transferComplete = 0;
+
+/* Variable containing black and white frame from CIS*/
+
+
+/**
+ * @brief Main loop of the GUI.
+ *
+ * Initializes the scanlines and enters an infinite loop where the display is
+ * updated, button inputs are processed, and the IMU data is rendered.
+ *
+ * @return int Always returns 0.
+ */
+int gui_mainLoop(void)
+{
+    int32_t last_refresh_tick = HAL_GetTick(); // Initialization of the last refresh tick
+    int32_t last_process_count = shared_var.cis_process_cnt; // Last recorded process counter
+
+    for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
+    {
+        memset((void *) scanline_CM4[packet].imageData_R, 0, sizeof(scanline_CM4[packet].imageData_R));
+        memset((void *) scanline_CM4[packet].imageData_G, 0, sizeof(scanline_CM4[packet].imageData_G));
+        memset((void *) scanline_CM4[packet].imageData_B, 0, sizeof(scanline_CM4[packet].imageData_B));
+    }
+
+    gui_displayWaiting();
+    gui_changeHand();
+
+    // Screensaver variables
+    static uint32_t last_significant_motion_tick = 0;
+    static bool screensaver_active = false;
+    
+    // Initialize motion timer
+    last_significant_motion_tick = HAL_GetTick();
+
+    /* Infinite loop */
+    while (1)
+    {
+        int32_t current_tick = HAL_GetTick(); // Get the current tick
+
+        // Check for significant motion or button activity and update screensaver state
+        if (gui_isSignificantMotion() || gui_checkButtonActivity()) {
+            last_significant_motion_tick = current_tick;
+            screensaver_active = false;  // Wake up from screensaver
+        }
+
+        // Check if we should activate screensaver
+        if (!screensaver_active && 
+            (current_tick - last_significant_motion_tick) >= SCREENSAVER_TIMEOUT_MS) {
+            screensaver_active = true;
+        }
+
+        // Display appropriate screen
+        if (screensaver_active) {
+            gui_displayScreensaver();
+        } else {
+            // Normal operation - update the interface
+            gui_displayImage();
+            leds_check_update_state();
+
+            if ((current_tick - last_refresh_tick) >= 200)
+            {
+                int32_t current_process_count = shared_var.cis_process_cnt;
+                int32_t process_count_diff = current_process_count - last_process_count;
+
+                if (process_count_diff > 0) // Make sure there have been processes since the last refresh
+                {
+                    int32_t tick_diff = current_tick - last_refresh_tick;
+
+                    if (tick_diff > 0 && process_count_diff > 0)
+                    {
+                        shared_var.cis_freq = (process_count_diff * 1000000) / (tick_diff * 1000);
+                    }
+                }
+
+                last_refresh_tick = current_tick; // Update the last refresh tick
+                last_process_count = current_process_count; // Update the last process counter
+            }
+
+            gui_interractiveMenu();
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+            gui_displayIMU();
+#endif
+            ssd1362_writeUpdates();
+        }
+    }
+}
+
+/* Private functions ---------------------------------------------------------*/
+
+/**
+ * @brief Renders the CIS image on the display.
+ *
+ * Processes the RGB data from the scanline buffers, converts the values into a
+ * grayscale or pseudo-color representation, and draws the corresponding pixels.
+ *
+ * @note This function returns immediately if the transfer is not complete.
+ */
+void gui_displayImage(void)
+{
+	uint8_t cis_rgb[3] = {0};
+	int32_t cis_color = 0;
+	int32_t i = 0;
+	int32_t y = 0;
+	float32_t packet, index;
+	int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
+	int32_t pixel_intensity = 0;
+	float64_t angle = 0;
+
+	if (!transferComplete)
+	{
+		return;
+	}
+
+	transferComplete = false;
+
+	ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, GUI_COLOR(0), false);
+
+	// CIS DISPLAY
+	for (i = 0; i < (DISPLAY_WIDTH); i++)
+	{
+		if (shared_config.cis_dpi > 200)
+		{
+			packet = (float32_t)(i * UDP_MAX_NB_PACKET_PER_LINE - 1.0)/(DISPLAY_WIDTH - 1.0);
+			index = (packet - (uint32_t)packet) * (CIS_400DPI_PIXELS_NB / UDP_MAX_NB_PACKET_PER_LINE);
+		}
+		else
+		{
+			packet = (float32_t)(i * (UDP_MAX_NB_PACKET_PER_LINE / 2) - 1.0)/(DISPLAY_WIDTH - 1.0);
+			index = (packet - (uint32_t)packet) * (CIS_200DPI_PIXELS_NB / (UDP_MAX_NB_PACKET_PER_LINE / 2));
+		}
+
+		cis_rgb[0] = scanline_CM4[(uint32_t)packet].imageData_R[(uint32_t)index];
+		cis_rgb[1] = scanline_CM4[(uint32_t)packet].imageData_G[(uint32_t)index];
+		cis_rgb[2] = scanline_CM4[(uint32_t)packet].imageData_B[(uint32_t)index];
+
+		// Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
+		// are weights given to the R, G, and B components respectively,
+		// according to the ITU-R BT.601 standard for converting color to grayscale.
+		// This standard assumes that human eyes are less sensitive to the blue component as compared to red and green.
+		// Note that cis_rgb[0], cis_rgb[1] and cis_rgb[2] are assumed to be the R, G, B values respectively.
+		// cis_color = (299 * (uint32_t)cis_rgb[0]) + 587 * ((uint32_t)cis_rgb[1]) + (114 * (uint32_t)cis_rgb[2]);
+		cis_color = cis_rgb[0] + cis_rgb[1] + cis_rgb[2];
+
+		cis_color = cis_color < 0 ? 0 : cis_color > 765 ? 765 : cis_color;
+
+		angle = cis_color * (PI / 2) / 765.00;
+
+		for (y = 0; y < (DISPLAY_AERAS1_HEIGHT / 2); y++)
+		{
+			if (angle < (PI / 2))
+				pixel_intensity = tan(angle) * (y + 1);
+
+			pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+			pixel_intensity = 15 - pixel_intensity;
+
+			// Draw a pixel above the center of the line for symmetry
+			ssd1362_drawPixel(i, line_Ypos + y, GUI_COLOR(pixel_intensity), false);
+
+			// Draw a pixel below the center of the line for symmetry
+			ssd1362_drawPixel(i, line_Ypos - y, GUI_COLOR(pixel_intensity), false);
+		}
+	}
+}
+
+#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
+/**
+ * @brief Updates the moving average for the IMU sensor data.
+ *
+ * This function accumulates new accelerometer and gyroscope data from the current
+ * IMU packet, updates the rolling sum for each axis, and computes the average over
+ * a predefined window size.
+ */
+void update_IMU_average(void)
+{
+	static float32_t acc_values[3][WINDOW_IMU_AVERAGE_SIZE] = {{0}};
+	static float32_t gyro_values[3][WINDOW_IMU_AVERAGE_SIZE] = {{0}};
+	static int32_t imuIndex[3] = {0}; // One index per axis
+	static float32_t acc_sum[3] = {0};
+	static float32_t gyro_sum[3] = {0};
+
+	for (int i = 0; i < 3; i++)
+	{
+		// Update the accelerometer
+		acc_sum[i] -= acc_values[i][imuIndex[i]];
+		acc_sum[i] += packet_IMU.acc[i];
+		acc_values[i][imuIndex[i]] = packet_IMU.acc[i];
+
+		// Update the gyroscope
+		gyro_sum[i] -= gyro_values[i][imuIndex[i]];
+		gyro_sum[i] += packet_IMU.gyro[i];
+		gyro_values[i][imuIndex[i]] = packet_IMU.gyro[i];
+
+		// Calculate the averages
+		IMU_average.acc[i] = acc_sum[i] / WINDOW_IMU_AVERAGE_SIZE;
+		IMU_average.gyro[i] = gyro_sum[i] / WINDOW_IMU_AVERAGE_SIZE;
+	}
+
+	// Update the index for the next cycle
+	imuIndex[0] = (imuIndex[0] + 1) % WINDOW_IMU_AVERAGE_SIZE;
+	imuIndex[1] = (imuIndex[1] + 1) % WINDOW_IMU_AVERAGE_SIZE;
+	imuIndex[2] = (imuIndex[2] + 1) % WINDOW_IMU_AVERAGE_SIZE;
+}
+
+/**
+ * @brief Displays the IMU data on the screen.
+ *
+ * Uses the averaged IMU data to render graphs and visual indicators of the sensor
+ * values (accelerometer and gyroscope) on the designated area of the display.
+ */
+void gui_displayIMU(void)
+{
+	// IMU DISPLAY
+	static int32_t x1 = 0;
+	static int32_t w2 = 0;
+
+	update_IMU_average();
+
+	ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 1, false);
+	ssd1362_fillRect(24, DISPLAY_AERA2_Y1POS + 4, 231, DISPLAY_AERA2_Y2POS - 4, 5, false);
+	ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, 22, DISPLAY_AERA2_Y2POS, 5, false);
+	ssd1362_fillRect(DISPLAY_WIDTH - 1, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH - 1 - 22, DISPLAY_AERA2_Y2POS, 5, false);
+
+	//ACC Y (adjusted for ±4g range and calibrated values)
+	int32_t accY = (int32_t)(IMU_average.acc[0] * 25);  // Reduced from 50 to 25 for ±4g range
+	if (accY > (DISPLAY_AERAS2_HEIGHT / 2))
+		accY = (DISPLAY_AERAS2_HEIGHT / 2);
+	if (accY < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
+		accY = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+
+	x1 = 2;
+	w2 = 18;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + accY, 0, false);
+
+	//GYRO Y
+	int32_t gyroY = (int32_t)(IMU_average.gyro[0]);
+	if (gyroY > 103)
+		gyroY = 103;
+	if (gyroY < -103)
+		gyroY = -103;
+
+	x1 = DISPLAY_WIDTH / 2;
+	w2 = gyroY;
+
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 4, x1 + w2, DISPLAY_AERA2_Y2POS - 4, 13, false);
+
+	//ACC X and ACC Z (adjusted for ±4g range and calibrated values with Z≈1g)
+	// For Z: expect ~0.995g, so scale to show this properly in display area
+	int32_t accZ = (int32_t)((IMU_average.acc[2] - 1.0f) * 100);  // Center around 1g, then scale
+	const int32_t accZ_RectWith = 25;
+
+	if (accZ > accZ_RectWith)
+		accZ = accZ_RectWith;
+	if (accZ < (accZ_RectWith * -1))
+		accZ = accZ_RectWith * -1;
+
+	// For X: expect ~±0.002g, so increase scaling for better visibility
+	int32_t accX = (int32_t)(IMU_average.acc[1] * 100);  // Reduced from 200 to 100 for ±4g range
+	if (accX > 51)
+		accX = 51;
+	if (accX < -51)
+		accX = -51;
+
+	x1 = DISPLAY_WIDTH / 2 - accX;
+	w2 = accZ_RectWith - accZ;
+
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 5, x1 + w2, DISPLAY_AERA2_Y2POS - 5, 0, false);
+	ssd1362_fillRect(x1 - w2, DISPLAY_AERA2_Y1POS + 5, x1, DISPLAY_AERA2_Y2POS - 5, 0, false);
+
+	//GYRO X
+	int32_t gyroX = (int32_t)(IMU_average.gyro[1] / 5);
+	x1 = 24;
+	w2 = 207;
+	if (gyroX < 0)
+	{
+		gyroX = abs((int)gyroX);
+		if ((gyroX) > 8)
+			gyroX = 8;
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7 + gyroX, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 8 - gyroX, false);
+	}
+	else if (gyroX > 0)
+	{
+		if ((gyroX) > 8)
+			gyroX = 8;
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7 + gyroX, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 8 - gyroX, false);
+	}
+	else
+	{
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7, false);
+		ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7, false);
+	}
+
+	int32_t gyroZ = (int32_t)(IMU_average.gyro[2] / 5);
+	if (gyroZ > (DISPLAY_AERAS2_HEIGHT / 2))
+		gyroZ = (DISPLAY_AERAS2_HEIGHT / 2);
+	if (gyroZ < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
+		gyroZ = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+
+	w2 = 9;
+	x1 = 235 + 9;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + gyroZ, 15, false);
+	x1 = 235;
+	ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
+}
+#endif // GUI_SHOW_IMU
+
+/**
+ * @brief Displays a popup window with current configuration parameters.
+ *
+ * Shows the DPI, oversampling rate, and current processing frequency in a popup box.
+ */
+void gui_displayPopUp()
+{
+	uint8_t textData[256] = {0};
+
+	ssd1362_fillRect(10, 5, 67, 35, 15, false);
+	ssd1362_drawRect(9, 4, 68, 36, 0, false);
+
+    sprintf((char *)textData, "%d DPI", (int)shared_config.cis_dpi);
+	ssd1362_drawString(12, 07, (int8_t *)textData, 0, 8);
+
+	if (shared_config.cis_oversampling < 10)
+	{
+		sprintf((char *)textData, "OVS   %d", (int)shared_config.cis_oversampling);
+	}
+	else
+	{
+		sprintf((char *)textData, "OVS  %d", (int)shared_config.cis_oversampling);
+	}
+	ssd1362_drawString(12, 17, (int8_t *)textData, 0, 8);
+
+	if (shared_var.cis_freq < 100)
+		sprintf((char *)textData, "%d   Hz", (int)(shared_var.cis_freq));
+	else if (shared_var.cis_freq < 1000)
+		sprintf((char *)textData, "%d  Hz", (int)(shared_var.cis_freq));
+	else
+		sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
+
+	ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
+}
+
+/**
+ * @brief Generates a random float within the specified range.
+ *
+ * @param min The minimum value of the range.
+ * @param max The maximum value of the range.
+ * @return float A random floating-point value between min and max.
+ */
+float randomFloat(float min, float max)
+{
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+/**
+ * @brief Renders the core wave animation with optional overlay content.
+ *
+ * This function handles the wave animation rendering and calls the provided
+ * overlay callback to draw additional content on top of the animation.
+ *
+ * @param overlay_callback Function pointer to draw overlay content (can be NULL)
+ */
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback)
+{
+    static uint32_t lastUpdateTime = 0;
+    static const uint32_t updateInterval = 50; // Update every 50 ms
+    static int offset = 0;
+    static int lightOffset = 0;
+    static const uint16_t screenWidth = SSD1362_WIDTH;
+    static const uint16_t screenHeight = SSD1362_HEIGHT;
+    static const uint8_t waveHeight = 8;
+
+    // Frequency and increment min/max values
+    static const float modFreqMin[] = {0.03, 0.01, 0.03, 0.02, 0.04};
+    static const float modFreqMax[] = {0.5, 0.3, 0.5, 0.35, 0.45};
+    static const float modIncMin[] = {-0.01, -0.01, -0.03, -0.02, -0.04};
+    static const float modIncMax[] = {0.15, 0.03, 0.05, 0.08, 0.12};
+
+    // Dynamic modulation frequencies and increments
+    static float modFreqLine[NUM_LINE] = {0};
+    static float modIncLine[NUM_LINE] = {0};
+    static bool initialized = false;
+
+    if (!initialized) {
+        for (int i = 0; i < NUM_LINE; i++) {
+            modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
+        }
+        initialized = true;
+    }
+
+    static const float contrastFreqMin = 0.01;
+    static const float contrastFreqMax = 0.05;
+    static float contrastFreq = 0;
+    static const float contrastIncMin = -0.003;
+    static const float contrastIncMax = 0.003;
+    static float contrastInc = 0;
+    static bool contrast_initialized = false;
+
+    if (!contrast_initialized) {
+        contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        contrastInc = randomFloat(contrastIncMin, contrastIncMax);
+        contrast_initialized = true;
+    }
+
+    uint32_t currentTime = HAL_GetTick();
+
+    if (currentTime - lastUpdateTime >= updateInterval)
+    {
+        lastUpdateTime = currentTime;
+        ssd1362_clearBuffer();
+
+        // Render wave animation
+        for (int i = 0; i < NUM_LINE; i++)
+        {
+            int y = waveHeight * (i + 1) * 2 - 16;
+
+            for (int x = 0; x < screenWidth; x++)
+            {
+                int wave = (int)(waveHeight * sin((x + offset) * 0.1));
+                int yPos = y + wave;
+
+                int modulation = (int)(5 * sin((x + offset) * modFreqLine[i]));
+                int thickness = 1 + abs(modulation);
+
+                uint8_t contrast = 5 + (uint8_t)(5 * (1 + sin((x + lightOffset * i) * contrastFreq)));
+                contrast = contrast > 5 ? 5 : contrast;
+
+                if (yPos < screenHeight)
+                {
+                    for (int t = -thickness; t <= thickness; t++)
+                    {
+                        if (yPos + t >= 0 && yPos + t < screenHeight)
+                        {
+                            ssd1362_drawPixel(x, yPos + t, contrast, false);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update animation parameters
+        offset = (offset + 1) % screenWidth;
+        lightOffset = (lightOffset - 5) % screenWidth;
+
+        for (int i = 0; i < NUM_LINE; i++)
+        {
+            modFreqLine[i] += modIncLine[i];
+            if (modFreqLine[i] > modFreqMax[i] || modFreqLine[i] < modFreqMin[i]) {
+                modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            }
+        }
+
+        contrastFreq += contrastInc;
+        if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+
+        // Draw overlay content if callback provided
+        if (overlay_callback != NULL) {
+            overlay_callback();
+        }
+
+        ssd1362_writeFullBuffer();
+    }
+}
+
+/**
+ * @brief Draws startup overlay content (logo + version number).
+ */
+static void gui_drawStartupOverlay(void)
+{
+    char shortVersion[8];
+    strcpy(shortVersion, FW_VERSION);
+
+    // Locate the first dot
+    char *p = strchr(shortVersion, '.');
+    if (p != NULL)
+    {
+        // From there, look for the second dot
+        p = strchr(p + 1, '.');
+        if (p != NULL)
+        {
+            // Truncate at the second dot
+            *p = '\0';
+        }
+    }
+
+    // Display logo
+    ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
+    
+    // Calculate position for right-aligned version number
+    int textWidth = strlen(shortVersion) * 8; // 8 pixels per character
+    int rightAlignedX = SSD1362_WIDTH - textWidth - 2; // Screen width - text width - margin
+    ssd1362_drawString(rightAlignedX, 1, (signed char *)shortVersion, 0xF, 8);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// --- Fast hash (stable), and frame source you control elsewhere ---
+static inline uint32_t wang_hash(uint32_t x)
+{
+    x = (x ^ 61u) ^ (x >> 16);
+    x = x + (x << 3);
+    x = x ^ (x >> 4);
+    x = x * 0x27d4eb2dU;
+    x = x ^ (x >> 15);
+    return x;
+}
+
+static inline uint8_t clamp4(int v)
+{
+    return (uint8_t)(v < 0 ? 0 : (v > 15 ? 15 : v));
+}
+
+// Triangle wave in [-128..+127] from an integer phase (wrap 0..255)
+static inline int8_t tri8(uint8_t t)
+{
+    // 0..127 up, 128..255 down
+    int v = (t < 128) ? t : (255 - t);
+    // scale to 0..127 then center -> [-128..+127] approx
+    return (int8_t)((v << 1) - 128);
+}
+
+/*
+    Stronger, animated noisy draw:
+    - bitmap: 1 bpp, same format as your current function (Data hor, Bit ver)
+    - base_color: 0..15
+    - amp: 0..15       (max random swing magnitude)
+    - bias: -15..+15   (negative = darker on average)
+    - density: 0..255  (apply strong deltas when (hash&0xFF) < density)
+    - temporal_strength: 0..255 (adds a global pulsation component)
+    - frame: increments every call to animate (e.g., from HAL_GetTick()/N or a counter)
+*/
+void ssd1362_drawBmpNoisyFx(const uint8_t *bitmap,
+                            uint16_t x,
+                            uint16_t y,
+                            uint16_t w,
+                            uint16_t h,
+                            uint8_t base_color,
+                            uint8_t amp,
+                            int8_t  bias,
+                            uint8_t density,
+                            uint8_t temporal_strength,
+                            uint32_t frame,
+                            bool display)
+{
+    // Precompute a temporal term in [-A..+A]
+    // Map tri8() [-128..127] to a signed amplitude scaled by temporal_strength and amp/2
+    int t = (int)tri8((uint8_t)(frame & 0xFF));
+    int temporal = (t * (int)temporal_strength) / 255;     // [-128..+127] scaled
+    temporal = (temporal * (int)amp) / 2 / 128;            // keep it subtle vs. random
+
+    for (uint16_t j = 0; j < h; j++)
+    {
+        const uint8_t *row = bitmap + (j / 8u) * w;
+
+        for (uint16_t i = 0; i < w; i++)
+        {
+            if (row[i] & (1u << (j & 7u)))
+            {
+                // Hash per-pixel with slow-changing frame component
+                uint32_t h32 = wang_hash((uint32_t)i * 73856093u
+                                       ^ (uint32_t)j * 19349663u
+                                       ^ (uint32_t)(frame * 83492791u));
+
+                // Random swing in [-amp..+amp]
+                int r = (int)((h32 >> 8) & 0xFFFF);
+                int rnd = (r % (amp + 1));            // 0..amp
+                if ((h32 >> 24) & 1u) { rnd = -rnd; } // sign
+
+                // Occasionally push harder (density gate)
+                // If the low byte is below density, add an extra kick (dark-biased for visibility)
+                if (((h32) & 0xFFu) < density)
+                {
+                    int kick = (amp * 3) / 2;         // 1.5x amp
+                    rnd -= kick;                      // darker kick
+                }
+
+                // Combine: base + bias + temporal + rnd, clamp to 4-bit
+                int c = (int)base_color + (int)bias + temporal + rnd;
+                uint8_t gray = clamp4(c);
+
+                ssd1362_drawPixel((int)x + (int)i, (int)y + (int)j, gray, display);
+            }
+        }
+    }
+}
+
+
+
+static void gui_drawScreensaverOverlay(void)
+{
+    static uint32_t frame = 0;
+
+    // Parameters to make it pop
+    const uint8_t base   = 14;   // un peu en-dessous du blanc pour laisser de la marge vers le haut et bas
+    const uint8_t amp    = 2;    // swing fort
+    const int8_t  bias   = -1;   // globalement un peu plus sombre (accentue le contraste)
+    const uint8_t dens   = 4;   // ~16% de “coups” forts (plus petit = plus fréquent)
+    const uint8_t tstr   = 80;  // pulsation temporelle sensible
+
+    ssd1362_drawBmpNoisyFx(Sp3ctra_img,
+                           2, 0, 250, 64,
+                           base, amp, bias,
+                           dens, tstr,
+                           frame++,
+                           false);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * @brief Detects significant motion from IMU data.
+ *
+ * Compares current IMU values with previous ones to determine if there's
+ * intentional movement above the noise threshold.
+ *
+ * @return bool True if significant motion is detected, false otherwise.
+ */
+static bool gui_isSignificantMotion(void)
+{
+    static float last_acc[3] = {0.0f, 0.0f, 0.0f};
+    static float last_gyro[3] = {0.0f, 0.0f, 0.0f};
+    static bool first_run = true;
+    
+    // Skip first run to initialize baseline values
+    if (first_run) {
+        memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
+        memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+        first_run = false;
+        return false;
+    }
+    
+    // Calculate delta for accelerometer
+    float acc_delta = fabsf(packet_IMU.acc[0] - last_acc[0]) + 
+                      fabsf(packet_IMU.acc[1] - last_acc[1]) + 
+                      fabsf(packet_IMU.acc[2] - last_acc[2]);
+                      
+    // Calculate delta for gyroscope
+    float gyro_delta = fabsf(packet_IMU.gyro[0] - last_gyro[0]) + 
+                       fabsf(packet_IMU.gyro[1] - last_gyro[1]) + 
+                       fabsf(packet_IMU.gyro[2] - last_gyro[2]);
+    
+    // Update last values for next comparison
+    memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
+    memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+    
+    // Return true if motion exceeds thresholds
+    return (acc_delta > MOTION_THRESHOLD_ACC || gyro_delta > MOTION_THRESHOLD_GYRO);
+}
+
+/**
+ * @brief Checks for button activity to wake up from screensaver.
+ *
+ * Detects if any button is currently pressed by reading GPIO pins directly.
+ * This allows the screensaver to exit immediately when a button is pressed.
+ *
+ * @return bool True if any button is pressed, false otherwise.
+ */
+static bool gui_checkButtonActivity(void)
+{
+    // Check all three buttons directly via GPIO
+    return (HAL_GPIO_ReadPin(SW1_GPIO_Port, SW1_Pin) == GPIO_PIN_RESET ||
+            HAL_GPIO_ReadPin(SW2_GPIO_Port, SW2_Pin) == GPIO_PIN_RESET ||
+            HAL_GPIO_ReadPin(SW3_GPIO_Port, SW3_Pin) == GPIO_PIN_RESET);
+}
+
+/**
+ * @brief Displays screensaver animation.
+ *
+ * Uses the modular wave animation system without version number overlay.
+ * Used when no significant motion is detected for the configured timeout period.
+ */
+static void gui_displayScreensaver(void)
+{
+    gui_renderWaveAnimation(gui_drawScreensaverOverlay);
+}
+
+/**
+ * @brief Displays an animated waiting screen.
+ *
+ * Uses the modular wave animation system with version number overlay.
+ * Renders a dynamic wave animation on the screen to indicate that the system is
+ * currently waiting for a process to complete.
+ */
+void gui_displayWaiting(void)
+{
+    while (shared_var.cis_process_rdy != TRUE)
+    {
+        gui_renderWaveAnimation(gui_drawStartupOverlay);
+    }
+}
+
+/**
+ * @brief Initiates the CIS calibration procedure.
+ *
+ * Displays step-by-step instructions to guide the user through the calibration
+ * process, handling different calibration states until completion.
+ */
+void gui_startCalibration()
+{
+	//uint8_t textData[256] = {0};
+	HAL_Delay(100);
+	shared_var.cis_cal_state = CIS_CAL_START;
+
+#ifdef POLYNOMIAL_CALIBRATION
+	HAL_Delay(200);
+	shared_var.cis_cal_state = CIS_CAL_END;
+	return;
+#endif
+
+	while (shared_var.cis_cal_state != CIS_CAL_END)
+	{
+		switch (shared_var.cis_cal_state)
+		{
+		case CIS_CAL_PLACE_ON_WHITE :
+			/*-------- 1 --------*/
+			ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
+			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - HL ", 0xF, 8);
+			ssd1362_writeFullBuffer();
+
+			while (shared_var.cis_cal_progressbar < 99)
+			{
+				ssd1362_progressBar(30, 30, shared_var.cis_cal_progressbar, 0xF);
+			}
+
+			ssd1362_progressBar(30, 30, 99, 0xF);
+			HAL_Delay(10);
+
+			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE);
+			break;
+		case CIS_CAL_PLACE_ON_BLACK :
+			/*-------- 2 --------*/
+			ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
+			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - LL ", 0xF, 8);
+			ssd1362_writeFullBuffer();
+
+			while (shared_var.cis_cal_progressbar < 99)
+			{
+				ssd1362_progressBar(30, 30, shared_var.cis_cal_progressbar, 0xF);
+			}
+
+			ssd1362_progressBar(30, 30, 99, 0xF);
+			HAL_Delay(100);
+			while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_BLACK);
+			break;
+		case CIS_CAL_EXTRACT_EXTREMUMS :
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
+			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" EXTRACT EXTREMUMS AND DELTAS ", 0xF, 8);
+			ssd1362_writeFullBuffer();
+
+			ssd1362_writeFullBuffer();
+			while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_EXTREMUMS);
+			break;
+		case CIS_CAL_EXTRACT_OFFSETS :
+			/*-------- 3 --------*/
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
+			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT DIFFERENTIAL OFFSETS", 0xF, 8);
+			ssd1362_writeFullBuffer();
+			while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_OFFSETS);
+			break;
+		case CIS_CAL_COMPUTE_GAINS :
+			/*-------- 4 --------*/
+			ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
+			ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" COMPUTE COMPENSATIION GAINS", 0xF, 8);
+			ssd1362_writeFullBuffer();
+			while (shared_var.cis_cal_state == CIS_CAL_COMPUTE_GAINS);
+			break;
+		default:
+			break;
+		}
+	}
+	ssd1362_clearBuffer();
+	ssd1362_writeFullBuffer();
+}
+
+/**
+ * @brief Adjusts the screen orientation based on the configured handedness.
+ *
+ * Calls the screen rotation function with the current handedness configuration.
+ */
+void gui_changeHand()
+{
+	ssd1362_screenRotation(shared_config.cis_handedness);
+}
+
+/**
+ * @brief Processes interactive button inputs and updates the UI.
+ *
+ * Monitors the state of each button, provides visual feedback through LEDs,
+ * and triggers actions (such as starting calibration) based on button events.
+ */
+void gui_interractiveMenu()
+{
+	static uint32_t button_current_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
+	static uint32_t button_initial_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
+	static uint8_t clear_button[NUMBER_OF_BUTTONS] = {0, 0, 0};
+
+	static uint8_t oldScanDir = 0;
+	static uint8_t oldOversampling = 0;
+	static uint16_t oldDPI = 0;
+	static uint32_t start_tick = 0;
+
+	if (shared_var.cis_cal_state == CIS_CAL_REQUESTED)
+	{
+		gui_startCalibration();
+	}
+
+	if (shared_config.cis_oversampling != oldOversampling)
+	{
+		start_tick = HAL_GetTick();
+		oldOversampling = shared_config.cis_oversampling;
+	}
+	if (shared_config.cis_dpi != oldDPI)
+	{
+		start_tick = HAL_GetTick();
+		oldDPI = shared_config.cis_dpi;
+	}
+	if ((HAL_GetTick() - start_tick) < 3000)
+	{
+		gui_displayPopUp();
+	}
+
+	if (shared_config.cis_handedness != oldScanDir)
+	{
+		gui_changeHand();
+		oldScanDir = shared_config.cis_handedness;
+	}
+
+	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
+	{
+		GPIO_TypeDef* button_port = (i == 0) ? SW1_GPIO_Port : (i == 1) ? SW2_GPIO_Port : SW3_GPIO_Port;
+		uint16_t button_pin = (i == 0) ? SW1_Pin : (i == 1) ? SW2_Pin : SW3_Pin;
+
+		if (HAL_GPIO_ReadPin(button_port, button_pin) == GPIO_PIN_RESET)
+		{
+			button_current_tick[i] = HAL_GetTick();
+			if (clear_button[i] == 1)
+			{
+				clear_button[i] = 0;
+				button_initial_tick[i] = button_current_tick[i];
+			}
+
+			leds_pressFeedback(i, SWITCH_PRESSED);
+			shared_var.buttonState[i].state = SWITCH_PRESSED;
+			shared_var.buttonState[i].pressed_time = button_current_tick[i] - button_initial_tick[i];
+			shared_var.button_update_requested[i] = TRUE;
+		}
+
+		if (HAL_GetTick() > (button_current_tick[i] + shared_config.ui_button_delay) && clear_button[i] != 1)
+		{
+			clear_button[i] = 1;
+
+			leds_pressFeedback(i, SWITCH_RELEASED);
+			shared_var.buttonState[i].state = SWITCH_RELEASED;
+			shared_var.button_update_requested[i] = TRUE;
+		}
+	}
+}
+
+/**
+ * @brief Interrupt handler for the hardware semaphore.
+ *
+ * Checks the semaphore flag, clears it, and sets the transferComplete flag to
+ * indicate that the MDMA transfer has finished.
+ */
+void HSEM2_IRQHandler(void)
+{
+    // Check if semaphore 1 triggered the IRQ
+    if (__HAL_HSEM_GET_FLAG(__HAL_HSEM_SEMID_TO_MASK(1)) != 0)
+    {
+        // Clear the HSEM interrupt flag
+        __HAL_HSEM_CLEAR_FLAG(__HAL_HSEM_SEMID_TO_MASK(1));
+
+        // Signal that the MDMA transfer is complete
+        transferComplete = true;
+    }
+}

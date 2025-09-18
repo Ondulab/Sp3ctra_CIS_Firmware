@@ -22,6 +22,7 @@
 #include "cmsis_os.h"
 #include "crc.h"
 #include "dma.h"
+#include "dma2d.h"
 #include "fatfs.h"
 #include "mdma.h"
 #include "rng.h"
@@ -142,9 +143,9 @@ int main(void)
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_TIM6_Init();
+  //MX_DMA2D_Init();
   /* USER CODE BEGIN 2 */
   HSEM7_Init();
-  MDMA_Init();
 
   printf("CM7 BOOT\n");
 
@@ -457,8 +458,7 @@ void Error_Handler(void)
 	}
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
