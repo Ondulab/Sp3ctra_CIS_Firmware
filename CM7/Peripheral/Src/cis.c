@@ -55,6 +55,7 @@ static volatile CIS_BUFF_StateTypeDef  cisBufferState[CIS_ADC_OUT_LANES] = {0};
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
+static CIS_StatusTypeDef cis_configure(void);
 static void cis_resetStart(void);
 static void cis_initTimClock();
 static void cis_initTimStartPulse();
@@ -62,6 +63,7 @@ static void cis_initTimLedRed();
 static void cis_initTimLedGreen();
 static void cis_initTimLedBlue();
 static void cis_initAdc(void);
+static HAL_StatusTypeDef cis_startMdma(void);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -73,9 +75,6 @@ static void cis_initAdc(void);
  */
 CIS_StatusTypeDef cis_init(void)
 {
-    /* Enable 5V power DC/DC for cis */
-    HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
-
     cis_initAdc();
 
     if (cis_configure() != CIS_OK)
@@ -83,9 +82,50 @@ CIS_StatusTypeDef cis_init(void)
     	return CIS_ERROR;
     }
 
+    MDMA_Init();
+
 #ifdef USE_WDG
     MX_IWDG1_Init();
 #endif
+
+    /* Start capture with new configuration */
+    cis_startCapture();
+
+    return CIS_OK;
+}
+
+/**
+ * @brief  CIS power management (ON/OFF)
+ *         Controls the 5V power supply for the CIS sensor.
+ * @param  powerOn: true = Power ON, false = Power OFF
+ * @retval CIS_StatusTypeDef
+ */
+CIS_StatusTypeDef cis_Power(bool powerOn)
+{
+    if (powerOn)
+    {
+        /* Enable 5V power DC/DC for CIS */
+        HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
+        
+        //osDelay(300);
+
+        cis_initTimClock();
+
+        /* Start CLK generation ##################################*/
+        HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+        printf("CIS Power ON\n");
+    }
+    else
+    {
+        /* Disable 5V power DC/DC for CIS */
+        HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_RESET);
+        
+        /* Stop CLK generation ###################################*/
+        HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+
+        printf("CIS Power OFF\n");
+    }
 
     return CIS_OK;
 }
@@ -96,12 +136,9 @@ CIS_StatusTypeDef cis_init(void)
  * @param  dpi: Desired resolution in DPI (200 or 400)
  * @retval None
  */
-CIS_StatusTypeDef cis_configure(void)
+static CIS_StatusTypeDef cis_configure(void)
 {
     float32_t leds_duration_us;
-
-    /* Stop any ongoing capture before reconfiguring */
-    cis_stopCapture();
 
     if (cis_linearCalibrationInit() != CISCALIBRATION_OK)
     {
@@ -113,7 +150,7 @@ CIS_StatusTypeDef cis_configure(void)
     if (shared_config.cis_dpi == 400)
     {
         /* Variables for 400 DPI */
-        cisConfig.pixels_per_lane = CIS_400DPI_PIXELS_PER_LANE;
+        cisConfig.pixels_per_color_per_lane = CIS_400DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to RESET for 400 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_RESET); // RESET : 400DPI
         leds_duration_us = CIS_400DPI_LED_DURATION_US;
@@ -121,7 +158,7 @@ CIS_StatusTypeDef cis_configure(void)
     else // Default to 200 DPI
     {
         /* Variables for 200 DPI */
-        cisConfig.pixels_per_lane = CIS_200DPI_PIXELS_PER_LANE;
+        cisConfig.pixels_per_color_per_lane = CIS_200DPI_PIXELS_PER_LANE;
         /* Set GPIO pin to SET for 200 DPI */
         HAL_GPIO_WritePin(CIS_RS_GPIO_Port, CIS_RS_Pin, GPIO_PIN_SET); // SET : 200DPI
         leds_duration_us = CIS_200DPI_LED_DURATION_US;
@@ -130,23 +167,30 @@ CIS_StatusTypeDef cis_configure(void)
     osDelay(50);
 
     /* Common configurations */
-    cisConfig.pixels_nb = cisConfig.pixels_per_lane * CIS_ADC_OUT_LANES;
-    cisConfig.pixel_area_stop = CIS_INACTIVE_WIDTH + cisConfig.pixels_per_lane;
-    cisConfig.start_offset = CIS_INACTIVE_WIDTH - CIS_SP_WIDTH + 2;
+    cisConfig.pixels_nb = cisConfig.pixels_per_color_per_lane * CIS_ADC_OUT_LANES;
+    cisConfig.pixel_area_stop = CIS_INACTIVE_WIDTH + cisConfig.pixels_per_color_per_lane;
+    cisConfig.start_offset = CIS_INACTIVE_WIDTH;
     cisConfig.lane_size = cisConfig.pixel_area_stop + CIS_OVER_SCAN;
 
-    cisConfig.adc_buff_size = cisConfig.lane_size * CIS_ADC_OUT_LANES;
+    cisConfig.adc_buff_size = cisConfig.lane_size * COLOR_CHANNELS;
 
     /* Update lane offsets */
     cisConfig.red_lane_offset = cisConfig.start_offset;
     cisConfig.green_lane_offset = cisConfig.lane_size + cisConfig.start_offset;
     cisConfig.blue_lane_offset = (cisConfig.lane_size * 2) + cisConfig.start_offset;
 
+    cisConfig.useful_data_size_per_color_per_lane = CIS_BLACK_LINE + cisConfig.pixels_per_color_per_lane;
+    cisConfig.useful_data_size_per_lane = cisConfig.useful_data_size_per_color_per_lane * COLOR_CHANNELS;
+
+    cisConfig.red_offset = CIS_BLACK_LINE;
+    cisConfig.green_offset = cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_LINE;
+    cisConfig.blue_offset = (cisConfig.useful_data_size_per_color_per_lane * 2) + CIS_BLACK_LINE;
+
     /* Initialize buffers */
     memset(cisData_ADC1, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
     memset(cisData_ADC2, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
     memset(cisData_ADC3, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
-    memset(cisDataCpy, 0, cisConfig.adc_buff_size * 3 * sizeof(uint32_t));
+    memset(cisDataCpy, 0, cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES * sizeof(uint32_t));
 
     /* Calculate the cycle duration in microseconds */
     float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
@@ -177,46 +221,27 @@ CIS_StatusTypeDef cis_configure(void)
         buffers_Scanline.scanline_buff2[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
     }
 
-    /* Start capture with new configuration */
-    cis_startCapture();
-
     return CIS_OK;
 }
 
 /**
- * @brief  Convert RAW image to a float array.
- * @param  cisDataCpy_f32: Pointer to destination float array.
- * @param  RAWImage: Pointer to a RAWImage structure.
+ * @brief  CIS reConfiguration
+ *         Configures the CIS on the fly, including DPI setting and variables dependent on DPI.
+ * @param  dpi: Desired resolution in DPI (200 or 400)
  * @retval None
  */
-void cis_convertRAWImageToFloatArray(float32_t* cisDataCpy_f32, struct RAWImage* RAWImage)
+CIS_StatusTypeDef cis_reConfigure(void)
 {
-    // Copy segments to the complete buffer of the red line
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset], RAWImage->redLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->redLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->redLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    /* Stop any ongoing capture before reconfiguring */
+    cis_stopCapture();
 
-    // Do the same for the green and blue lines
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset], RAWImage->greenLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->greenLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size + cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->greenLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    if (cis_configure() != CIS_OK)
+    {
+    	return CIS_ERROR;
+    }
 
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset], RAWImage->blueLine, cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset + cisConfig.adc_buff_size], &RAWImage->blueLine[cisConfig.pixels_per_lane], cisConfig.pixels_per_lane);
-    arm_copy_f32(&cisDataCpy_f32[cisConfig.lane_size * 2 + cisConfig.start_offset + cisConfig.adc_buff_size * 2], &RAWImage->blueLine[cisConfig.pixels_per_lane * 2], cisConfig.pixels_per_lane);
+    return CIS_OK;
 }
-
-void cis_imageProcess_2(int32_t *cis_buff)
-{
-    static struct RAWImage RAWImage = {0};
-    static float32_t cisDataCpy_f32[CIS_MAX_ADC_BUFF_SIZE * 3] = {0};
-
-    //cis_getRAWImage(cisDataCpy_f32, shared_config.cis_oversampling);
-    cis_convertRAWImageToFloatArray(cisDataCpy_f32, &RAWImage);
-    //cis_applyCalibration(&RAWImage, &cisRGB_Calibration);
-    cis_convertRAWImageToRGBImage(&RAWImage, cis_buff);
-}
-
 
 /**
  * @brief  Process image and output an RGB buffer.
@@ -299,9 +324,9 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
                 int32_t startIdx = pixelPerPacket * (localPacketIndex + 1) - 1;
                 int32_t endIdx = pixelPerPacket * localPacketIndex;
 
-                int32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
-                int32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
-                int32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
+                int32_t *redBase = cisDataCpy + cisConfig.red_offset + lane * cisConfig.useful_data_size_per_lane;
+                int32_t *greenBase = cisDataCpy + cisConfig.green_offset + lane * cisConfig.useful_data_size_per_lane;
+                int32_t *blueBase = cisDataCpy + cisConfig.blue_offset + lane * cisConfig.useful_data_size_per_lane;
 
                 // Inner loop
                 for (i = startIdx; i >= endIdx; i--)
@@ -341,9 +366,9 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
         	    int32_t startIdx = pixelPerPacket * localPacketIndex;
         	    int32_t endIdx = pixelPerPacket * (localPacketIndex + 1);
 
-        	    int32_t *redBase = cisDataCpy + cisConfig.red_lane_offset + lane * cisConfig.adc_buff_size;
-        	    int32_t *greenBase = cisDataCpy + cisConfig.green_lane_offset + lane * cisConfig.adc_buff_size;
-        	    int32_t *blueBase = cisDataCpy + cisConfig.blue_lane_offset + lane * cisConfig.adc_buff_size;
+        	    int32_t *redBase = cisDataCpy + cisConfig.red_offset + lane * cisConfig.useful_data_size_per_lane;
+        	    int32_t *greenBase = cisDataCpy + cisConfig.green_offset + lane * cisConfig.useful_data_size_per_lane;
+        	    int32_t *blueBase = cisDataCpy + cisConfig.blue_offset + lane * cisConfig.useful_data_size_per_lane;
 
                 int32_t destPacket = numPackets - 1 - packet;
 
@@ -376,10 +401,11 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
         	}
         }
 
-        // Launch MDMA transfers concurrently for the three channels
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        /* Launch optimized MDMA transfers with selective copying */
+        if (cis_startMdma() != HAL_OK)
+        {
+            Error_Handler();
+        }
     }
 }
 #pragma GCC pop_options
@@ -393,7 +419,7 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
  */
 void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb)
 {
-    uint32_t totalElements = cisConfig.adc_buff_size * 3;
+    uint32_t totalElements = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
     uint32_t i;
     uint16_t iteration;
     uint32_t startTick;
@@ -435,10 +461,11 @@ void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, 
         /* Update the progress bar */
         shared_var.cis_cal_progressbar = (iteration * 100U) / iterationNb;
 
-        /* Launch MDMA transfers concurrently for the three channels */
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-        HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
+        /* Launch optimized MDMA transfers for calibration */
+        if (cis_startMdma() != HAL_OK)
+        {
+            Error_Handler();
+        }
     }
 
     /* Average the calibration data */
@@ -478,25 +505,14 @@ void cis_startCapture()
     cis_initTimLedRed();
     cis_initTimLedGreen();
     cis_initTimLedBlue();
-    cis_initTimClock();
-
-    /* Reset CLKs ############################################*/
-    // Reset CLK counter
-    __HAL_TIM_SET_COUNTER(&htim1, 0);
 
     // Reset SP counter
-    __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
+    //__HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
 
     // Set RGB phase shift
-#ifndef CIS_MONOCHROME
     __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_ON);  // R
     __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 3) - CIS_LED_ON);  // G
     __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 2) - CIS_LED_ON);  // B
-#else
-    __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_ON);  // R
-    __HAL_TIM_SET_COUNTER(&htim5, (cisConfig.lane_size * 1) - CIS_LED_ON);  // G
-    __HAL_TIM_SET_COUNTER(&htim3, (cisConfig.lane_size * 1) - CIS_LED_ON);  // B
-#endif
 
     /* Start LEDs ############################################*/
     /* Start LED R generation ###############################*/
@@ -510,29 +526,26 @@ void cis_startCapture()
 
     /* Start SP generation ##################################*/
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+    __HAL_TIM_MOE_DISABLE(&htim8);
 
-    /* Start CLK generation ##################################*/
-    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
     /* Start DMA #############################################*/
-    /* Reset buffer states */
+    /* Initialize all buffer states as COMPLETE to skip the first read */
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
-        cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
+        cisBufferState[i] = CIS_BUFFER_COMPLETE;
     }
 
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)cisData_ADC1, cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)cisData_ADC2, cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)cisData_ADC3, cisConfig.adc_buff_size);
 
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0, (uint32_t)cisData_ADC1, (uint32_t)&cisDataCpy[0], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0, (uint32_t)cisData_ADC2, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-    HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0, (uint32_t)cisData_ADC3, (uint32_t)&cisDataCpy[cisConfig.adc_buff_size * 2], cisConfig.adc_buff_size * sizeof(int16_t), 1);
-
     /* Start ADC Main Timer #######################################*/
     __HAL_TIM_SET_COUNTER(&htim1, 0);
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+    __HAL_TIM_MOE_ENABLE(&htim8);
+
 
 #ifdef CIS_PRINT_COUNTER
 	printf("=========== COUNTERS ==========\n");
@@ -557,12 +570,6 @@ void cis_stopCapture()
 {
     /* Stop ADC Timer ######################################*/
     if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1) != HAL_OK)
-    {
-        Error_Handler();
-    }
-
-    /* Stop CLK generation ###################################*/
-    if(HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2) != HAL_OK)
     {
         Error_Handler();
     }
@@ -610,10 +617,12 @@ void cis_stopCapture()
     HAL_ADC_Stop_DMA(&hadc2);
     HAL_ADC_Stop_DMA(&hadc3);
 
+    /*
     for (int i = 0; i < CIS_ADC_OUT_LANES; i++)
     {
     	cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
     }
+    */
 }
 
 /**
@@ -794,6 +803,40 @@ void cis_initAdc(void)
 	{
 		Error_Handler();
 	}
+}
+
+/**
+ * @brief  Démarrage des transferts MDMA optimisés avec linked lists et block address offset
+ *         Copie seulement les données utiles (CIS_BLACK_LINE + pixels) en sautant SP_WIDTH et OVERSCAN
+ *         Utilise les vraies linked lists avec block address offsets
+ * @param  None
+ * @retval HAL_StatusTypeDef
+ */
+static HAL_StatusTypeDef cis_startMdma(void)
+{
+    HAL_StatusTypeDef status = HAL_OK;
+
+    status = HAL_MDMA_Start_IT(&hmdma_mdma_channel1_dma1_stream0_tc_0,
+                               nodeConfigs[0].SrcAddress,
+                               nodeConfigs[0].DstAddress,
+                               nodeConfigs[0].BlockDataLength,
+                               nodeConfigs[0].BlockCount);
+    if (status != HAL_OK) return status;
+
+    status = HAL_MDMA_Start_IT(&hmdma_mdma_channel2_dma1_stream1_tc_0,
+                               nodeConfigs[1].SrcAddress,
+                               nodeConfigs[1].DstAddress,
+                               nodeConfigs[1].BlockDataLength,
+                               nodeConfigs[1].BlockCount);
+    if (status != HAL_OK) return status;
+
+    status = HAL_MDMA_Start_IT(&hmdma_mdma_channel3_dma2_stream0_tc_0,
+                               nodeConfigs[2].SrcAddress,
+                               nodeConfigs[2].DstAddress,
+                               nodeConfigs[2].BlockDataLength,
+                               nodeConfigs[2].BlockCount);
+
+    return status;
 }
 
 void MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma)

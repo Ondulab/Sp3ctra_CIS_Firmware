@@ -755,10 +755,13 @@ static void http_server(struct netconn *conn)
 							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
 							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int) shared_config.cis_dpi);
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_dpi);
 							netconn_write(conn, response, len, NETCONN_COPY);
 
-							cis_configure();
+							cis_reConfigure();
+
+							printf("Rebooting\n");
+							System_SafeReset();
 						}
 						else
 						{

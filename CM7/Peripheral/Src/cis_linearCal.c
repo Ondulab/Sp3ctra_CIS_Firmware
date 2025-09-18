@@ -43,7 +43,7 @@ struct cisColorsParams {
 
 __attribute__ ((packed))
 struct cisCalsTypes {
-	uint32_t data[CIS_MAX_ADC_BUFF_SIZE * 3];
+	uint32_t data[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
 	struct cisColorsParams red;
 	struct cisColorsParams green;
 	struct cisColorsParams blue;
@@ -269,6 +269,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     file_writeCisCals(calibrationFilePath, &cisCals);
 
     cis_stopCapture();
+    osDelay(300);
     cis_startCapture();
     shared_var.cis_cal_state = CIS_CAL_END;
     printf("===============================\n");
@@ -291,11 +292,11 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
 {
     for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        uint32_t baseR = (cisConfig.adc_buff_size * lane) + cisConfig.red_lane_offset;
-        uint32_t baseG = (cisConfig.adc_buff_size * lane) + cisConfig.green_lane_offset;
-        uint32_t baseB = (cisConfig.adc_buff_size * lane) + cisConfig.blue_lane_offset;
+        uint32_t baseR = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.red_offset;
+        uint32_t baseG = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.green_offset;
+        uint32_t baseB = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.blue_offset;
 
-        for (uint32_t i = 0; i < cisConfig.pixels_per_lane; i++)
+        for (uint32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
         {
             int32_t value, calibrated;
 
@@ -324,7 +325,7 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
  * @param       color       Color channel (CIS_RED, CIS_GREEN, or CIS_BLUE).
  * @retval      None
  *
- * This function computes the mean value over the inactive region (of width CIS_INACTIVE_WIDTH)
+ * This function computes the mean value over the inactive region (of width CIS_BLACK_LINE)
  * for each ADC lane and stores the result in the respective inactiveAvrgPix element.
  */
 static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Color_TypeDef color)
@@ -338,19 +339,19 @@ static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Colo
         case CIS_RED:
         {
             currColor = &currCals->red;
-            offset = cisConfig.red_lane_offset - CIS_INACTIVE_WIDTH;
+            offset = cisConfig.red_offset - CIS_BLACK_LINE;
             break;
         }
         case CIS_GREEN:
         {
             currColor = &currCals->green;
-            offset = cisConfig.green_lane_offset - CIS_INACTIVE_WIDTH;
+            offset = cisConfig.green_offset - CIS_BLACK_LINE;
             break;
         }
         case CIS_BLUE:
         {
             currColor = &currCals->blue;
-            offset = cisConfig.blue_lane_offset - CIS_INACTIVE_WIDTH;
+            offset = cisConfig.blue_offset - CIS_BLACK_LINE;
             break;
         }
         default:
@@ -362,8 +363,8 @@ static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Colo
 
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        cis_mean(&currCals->data[laneOffset], CIS_INACTIVE_WIDTH, &currColor->inactiveAvrgPix[lane]);
+        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
+        cis_mean(&currCals->data[laneOffset], CIS_BLACK_LINE, &currColor->inactiveAvrgPix[lane]);
     }
 }
 
@@ -389,19 +390,19 @@ static void cis_computeCalsExtremums(struct cisCalsTypes *currCals, CIS_Color_Ty
         case CIS_RED:
         {
             currColor = &currCals->red;
-            offset = cisConfig.red_lane_offset;
+            offset = cisConfig.red_offset;
             break;
         }
         case CIS_GREEN:
         {
             currColor = &currCals->green;
-            offset = cisConfig.green_lane_offset;
+            offset = cisConfig.green_offset;
             break;
         }
         case CIS_BLUE:
         {
             currColor = &currCals->blue;
-            offset = cisConfig.blue_lane_offset;
+            offset = cisConfig.blue_offset;
             break;
         }
         default:
@@ -416,9 +417,9 @@ static void cis_computeCalsExtremums(struct cisCalsTypes *currCals, CIS_Color_Ty
 
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        cis_max(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMax, NULL);
-        cis_min(&currCals->data[laneOffset], cisConfig.pixels_per_lane, &tmpMin, NULL);
+        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
+        cis_max(&currCals->data[laneOffset], cisConfig.pixels_per_color_per_lane, &tmpMax, NULL);
+        cis_min(&currCals->data[laneOffset], cisConfig.pixels_per_color_per_lane, &tmpMin, NULL);
 
         if (tmpMax > currColor->maxPix)
         {
@@ -453,17 +454,17 @@ static void cis_computeCalsOffsets(struct cisCalsTypes *whiteCal, struct cisCals
     {
         case CIS_RED:
         {
-            offset = cisConfig.red_lane_offset;
+            offset = cisConfig.red_offset;
             break;
         }
         case CIS_GREEN:
         {
-            offset = cisConfig.green_lane_offset;
+            offset = cisConfig.green_offset;
             break;
         }
         case CIS_BLUE:
         {
-            offset = cisConfig.blue_lane_offset;
+            offset = cisConfig.blue_offset;
             break;
         }
         default:
@@ -475,8 +476,8 @@ static void cis_computeCalsOffsets(struct cisCalsTypes *whiteCal, struct cisCals
 
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        for (int32_t i = 0; i < cisConfig.pixels_per_lane; i++)
+        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
+        for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
         {
             /* Copy the measured value on the black surface */
             cisCals.offsetData[laneOffset + i] = blackCal->data[laneOffset + i];
@@ -506,17 +507,17 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
     {
         case CIS_RED:
         {
-            offset = cisConfig.red_lane_offset;
+            offset = cisConfig.red_offset;
             break;
         }
         case CIS_GREEN:
         {
-            offset = cisConfig.green_lane_offset;
+            offset = cisConfig.green_offset;
             break;
         }
         case CIS_BLUE:
         {
-            offset = cisConfig.blue_lane_offset;
+            offset = cisConfig.blue_offset;
             break;
         }
         default:
@@ -528,8 +529,8 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
 
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        laneOffset = (cisConfig.adc_buff_size * lane) + offset;
-        for (int32_t i = 0; i < cisConfig.pixels_per_lane; i++)
+        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
+        for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
         {
             int32_t diff = whiteCal->data[laneOffset + i] - blackCal->data[laneOffset + i];
             if (diff != 0)

@@ -1,0 +1,25 @@
+{
+    "recommendations": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "marus25.cortex-debug",
+        "dan-c-underwood.arm",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        "ms-vscode.makefile-tools",
+        "ms-vscode.hexeditor",
+        "ms-vscode.vscode-serial-monitor",
+        "formulahendry.code-runner",
+        "gruntfuggly.todo-tree",
+        "streetsidesoftware.code-spell-checker",
+        "ms-vscode.live-server",
+        "redhat.vscode-xml",
+        "ms-python.python",
+        "ms-python.flake8",
+        "ms-python.black-formatter"
+    ],
+    "unwantedRecommendations": [
+        "ms-vscode.vscode-typescript-next",
+        "ms-vscode.vscode-json"
+    ]
+}

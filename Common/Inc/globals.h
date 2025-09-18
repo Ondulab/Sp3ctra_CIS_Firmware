@@ -167,8 +167,8 @@ struct __attribute__((aligned(4))) cisRgbBuffers
 
 struct __attribute__((aligned(4))) cisCals
 {
-	int32_t offsetData[CIS_MAX_ADC_BUFF_SIZE * 3];
-	int32_t gainsData[CIS_MAX_ADC_BUFF_SIZE * 3];
+	int32_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+	int32_t gainsData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
 };
 
 struct __attribute__((aligned(4))) shared_var
@@ -219,7 +219,7 @@ extern int params_size;
 __attribute__((aligned(4)))
 typedef struct
 {
-    int32_t pixels_per_lane;
+    int32_t pixels_per_color_per_lane;
     int32_t pixels_nb;
     int32_t pixel_area_stop;
     int32_t start_offset;
@@ -229,6 +229,13 @@ typedef struct
     int32_t red_lane_offset;
     int32_t green_lane_offset;
     int32_t blue_lane_offset;
+
+    int32_t useful_data_size_per_color_per_lane;
+    int32_t useful_data_size_per_lane;
+
+    int32_t red_offset;
+    int32_t green_offset;
+    int32_t blue_offset;
 
     int32_t leds_off_index;
 
@@ -277,7 +284,7 @@ extern CIS_Config cisConfig;
 extern uint16_t cisData_ADC1[CIS_MAX_ADC_BUFF_SIZE];
 extern uint16_t cisData_ADC2[CIS_MAX_ADC_BUFF_SIZE];
 extern uint16_t cisData_ADC3[CIS_MAX_ADC_BUFF_SIZE];
-extern int32_t cisDataCpy[CIS_MAX_ADC_BUFF_SIZE * 3];
+extern int32_t cisDataCpy[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
 //extern struct cisRGB_Calibration cisRGB_Calibration;
 extern struct cisCals cisCals;
 extern struct cisLeds_Calibration cisLeds_Calibration;

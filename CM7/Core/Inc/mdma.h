@@ -40,7 +40,7 @@ extern MDMA_HandleTypeDef hmdma_mdma_channel3_dma2_stream0_tc_0;
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN Private defines */
-
+extern MDMA_LinkNodeConfTypeDef nodeConfigs[3];
 /* USER CODE END Private defines */
 
 void MX_MDMA_Init(void);

@@ -32,6 +32,10 @@
 /* USER CODE BEGIN 1 */
 void HAL_MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma);
 
+MDMA_LinkNodeConfTypeDef nodeConfigs[3];
+
+static int32_t source_offset = (CIS_SP_WIDTH + CIS_OVER_SCAN) * sizeof(uint16_t);
+
 /* USER CODE END 1 */
 MDMA_HandleTypeDef hmdma_mdma_channel0_sw_0;
 MDMA_HandleTypeDef hmdma_mdma_channel1_dma1_stream0_tc_0;
@@ -79,7 +83,7 @@ void MX_MDMA_Init(void)
   /* Configure MDMA request hmdma_mdma_channel1_dma1_stream0_tc_0 on MDMA_Channel1 */
   hmdma_mdma_channel1_dma1_stream0_tc_0.Instance = MDMA_Channel1;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.Request = MDMA_REQUEST_DMA1_Stream0_TC;
-  hmdma_mdma_channel1_dma1_stream0_tc_0.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  hmdma_mdma_channel1_dma1_stream0_tc_0.Init.TransferTriggerMode = MDMA_FULL_TRANSFER;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.Priority = MDMA_PRIORITY_VERY_HIGH;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.Endianness = MDMA_LITTLE_HALFWORD_ENDIANNESS_EXCHANGE;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.SourceInc = MDMA_SRC_INC_HALFWORD;
@@ -90,7 +94,7 @@ void MX_MDMA_Init(void)
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.BufferTransferLength = 3612;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.SourceBurst = MDMA_SOURCE_BURST_4BEATS;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.DestBurst = MDMA_DEST_BURST_4BEATS;
-  hmdma_mdma_channel1_dma1_stream0_tc_0.Init.SourceBlockAddressOffset = 0;
+  hmdma_mdma_channel1_dma1_stream0_tc_0.Init.SourceBlockAddressOffset = source_offset;
   hmdma_mdma_channel1_dma1_stream0_tc_0.Init.DestBlockAddressOffset = 0;
   if (HAL_MDMA_Init(&hmdma_mdma_channel1_dma1_stream0_tc_0) != HAL_OK)
   {
@@ -107,7 +111,7 @@ void MX_MDMA_Init(void)
   /* Configure MDMA request hmdma_mdma_channel2_dma1_stream1_tc_0 on MDMA_Channel2 */
   hmdma_mdma_channel2_dma1_stream1_tc_0.Instance = MDMA_Channel2;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.Request = MDMA_REQUEST_DMA1_Stream1_TC;
-  hmdma_mdma_channel2_dma1_stream1_tc_0.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  hmdma_mdma_channel2_dma1_stream1_tc_0.Init.TransferTriggerMode = MDMA_FULL_TRANSFER;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.Priority = MDMA_PRIORITY_VERY_HIGH;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.Endianness = MDMA_LITTLE_HALFWORD_ENDIANNESS_EXCHANGE;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.SourceInc = MDMA_SRC_INC_HALFWORD;
@@ -118,7 +122,7 @@ void MX_MDMA_Init(void)
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.BufferTransferLength = 3612;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.SourceBurst = MDMA_SOURCE_BURST_4BEATS;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.DestBurst = MDMA_DEST_BURST_4BEATS;
-  hmdma_mdma_channel2_dma1_stream1_tc_0.Init.SourceBlockAddressOffset = 0;
+  hmdma_mdma_channel2_dma1_stream1_tc_0.Init.SourceBlockAddressOffset = source_offset;
   hmdma_mdma_channel2_dma1_stream1_tc_0.Init.DestBlockAddressOffset = 0;
   if (HAL_MDMA_Init(&hmdma_mdma_channel2_dma1_stream1_tc_0) != HAL_OK)
   {
@@ -135,7 +139,7 @@ void MX_MDMA_Init(void)
   /* Configure MDMA request hmdma_mdma_channel3_dma2_stream0_tc_0 on MDMA_Channel3 */
   hmdma_mdma_channel3_dma2_stream0_tc_0.Instance = MDMA_Channel3;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.Request = MDMA_REQUEST_DMA2_Stream0_TC;
-  hmdma_mdma_channel3_dma2_stream0_tc_0.Init.TransferTriggerMode = MDMA_BUFFER_TRANSFER;
+  hmdma_mdma_channel3_dma2_stream0_tc_0.Init.TransferTriggerMode = MDMA_FULL_TRANSFER;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.Priority = MDMA_PRIORITY_VERY_HIGH;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.Endianness = MDMA_LITTLE_HALFWORD_ENDIANNESS_EXCHANGE;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.SourceInc = MDMA_SRC_INC_HALFWORD;
@@ -146,7 +150,7 @@ void MX_MDMA_Init(void)
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.BufferTransferLength = 3612;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.SourceBurst = MDMA_SOURCE_BURST_4BEATS;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.DestBurst = MDMA_DEST_BURST_4BEATS;
-  hmdma_mdma_channel3_dma2_stream0_tc_0.Init.SourceBlockAddressOffset = 0;
+  hmdma_mdma_channel3_dma2_stream0_tc_0.Init.SourceBlockAddressOffset = source_offset;
   hmdma_mdma_channel3_dma2_stream0_tc_0.Init.DestBlockAddressOffset = 0;
   if (HAL_MDMA_Init(&hmdma_mdma_channel3_dma2_stream0_tc_0) != HAL_OK)
   {
@@ -168,9 +172,31 @@ void MX_MDMA_Init(void)
 /* USER CODE BEGIN 2 */
 void MDMA_Init(void)
 {
+    //ADC1
+    nodeConfigs[0].SrcAddress = (uint32_t)&cisData_ADC1[CIS_SP_WIDTH];
+    nodeConfigs[0].DstAddress = (uint32_t)&cisDataCpy[0];
+    nodeConfigs[0].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
+    nodeConfigs[0].BlockCount = COLOR_CHANNELS;
+
+    //ADC2
+    nodeConfigs[1].SrcAddress = (uint32_t)&cisData_ADC2[CIS_SP_WIDTH];
+    nodeConfigs[1].DstAddress = (uint32_t)&cisDataCpy[cisConfig.useful_data_size_per_lane];
+    nodeConfigs[1].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
+    nodeConfigs[1].BlockCount = COLOR_CHANNELS;
+
+    //ADC3
+    nodeConfigs[2].SrcAddress = (uint32_t)&cisData_ADC3[CIS_SP_WIDTH];
+    nodeConfigs[2].DstAddress = (uint32_t)&cisDataCpy[cisConfig.useful_data_size_per_lane * 2];
+    nodeConfigs[2].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
+    nodeConfigs[2].BlockCount = COLOR_CHANNELS;
+
+    //SW transfert
 	HAL_MDMA_RegisterCallback(&hmdma_mdma_channel0_sw_0, HAL_MDMA_XFER_CPLT_CB_ID, HAL_MDMA_XferCpltCallback);
+	//ADC1
 	HAL_MDMA_RegisterCallback(&hmdma_mdma_channel1_dma1_stream0_tc_0, HAL_MDMA_XFER_CPLT_CB_ID, HAL_MDMA_XferCpltCallback);
+	//ADC2
 	HAL_MDMA_RegisterCallback(&hmdma_mdma_channel2_dma1_stream1_tc_0, HAL_MDMA_XFER_CPLT_CB_ID, HAL_MDMA_XferCpltCallback);
+	//ADC3
 	HAL_MDMA_RegisterCallback(&hmdma_mdma_channel3_dma2_stream0_tc_0, HAL_MDMA_XFER_CPLT_CB_ID, HAL_MDMA_XferCpltCallback);
 }
 

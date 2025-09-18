@@ -86,7 +86,6 @@
 #define DEFAULT_CIS_PRINT_CALIBRATION 0
 #define DEFAULT_CIS_RAW 0
 #define DEFAULT_CIS_DPI 400
-#define DEFAULT_CIS_MONOCHROME 0
 #define DEFAULT_CIS_MAX_LINE_FREQ 900
 #define DEFAULT_CIS_OVERSAMPLING 2
 
@@ -99,44 +98,51 @@
 #define CIS_CAPTURE_TIMEOUT 					(100)
 
 #define CIS_ADC_OUT_LANES						(3)
-
+#define COLOR_CHANNELS        			 		(3)
 #define CIS_SP_WIDTH							(2)
-#define CIS_INACTIVE_WIDTH						(38 + CIS_SP_WIDTH)
+#define CIS_BLACK_LINE							(38)
+#define CIS_INACTIVE_WIDTH						((CIS_BLACK_LINE)+ (CIS_SP_WIDTH))
 #define CIS_OVER_SCAN							(12)
 
-#define CIS_400DPI_PIXELS_PER_LANE				(1152)
-#define CIS_200DPI_PIXELS_PER_LANE				(576)
+#define CIS_400DPI_PIXELS_PER_LANE		(1152)
+#define CIS_200DPI_PIXELS_PER_LANE		(576)
 
 #define CIS_400DPI_PIXELS_NB					(3456)
 #define CIS_200DPI_PIXELS_NB					(1728)
 
-#define CIS_MAX_PIXELS_PER_LANE					(CIS_400DPI_PIXELS_PER_LANE)
+#define CIS_MAX_PIXELS_PER_LANE				(CIS_400DPI_PIXELS_PER_LANE)
 #define CIS_MAX_PIXELS_NB 		 				(CIS_400DPI_PIXELS_NB)
 
-#define CIS_MAX_PIXEL_AERA_STOP					((CIS_INACTIVE_WIDTH) + (CIS_MAX_PIXELS_PER_LANE))
+#define CIS_MAX_PIXEL_AERA_STOP				((CIS_INACTIVE_WIDTH) + (CIS_MAX_PIXELS_PER_LANE))
 
-#define CIS_MAX_LANE_SIZE 						(CIS_MAX_PIXEL_AERA_STOP + CIS_OVER_SCAN)
+#define CIS_MAX_LANE_SIZE 						((CIS_MAX_PIXEL_AERA_STOP) + (CIS_OVER_SCAN))
 
-#define CIS_LED_ON								(CIS_INACTIVE_WIDTH + 30)
+#define CIS_LED_ON								    (CIS_INACTIVE_WIDTH)// + 30)
 
 // LED illumination durations in microseconds
-#define CIS_400DPI_LED_DURATION_US     			(356)  // Duration in microseconds
-#define CIS_200DPI_LED_DURATION_US     			(178)  // Duration in microseconds
+#define CIS_400DPI_LED_DURATION_US    (356)  // Duration in microseconds
+#define CIS_200DPI_LED_DURATION_US    (178)  // Duration in microseconds
 
-#define CIS_MAX_ADC_BUFF_SIZE 	 	 		 	((CIS_MAX_LANE_SIZE) * (CIS_ADC_OUT_LANES))
+#define CIS_MAX_ADC_BUFF_SIZE 	 	 		((CIS_MAX_LANE_SIZE) * (COLOR_CHANNELS))
+#define CIS_MAX_USEFUL_DATA_SIZE 			(((CIS_BLACK_LINE) + (CIS_400DPI_PIXELS_PER_LANE)) * (COLOR_CHANNELS))
 
+/*
+// Sanity chech
+typedef char ASSERT_CIS_BUFF_SIZE_MULTIPLE_16[
+    (CIS_MAX_ADC_BUFF_SIZE % 16) == 0 ? 1 : -1
+];
+*/
+#define CIS_ADC_MAX_VALUE						  (4096)
 
-#define CIS_ADC_MAX_VALUE						(4096)
-
-#define CIS_LEDS_MAX_PWM						(101)
-#define CIS_LEDS_MAX_POMER						(CIS_LEDS_MAX_PWM)
+#define CIS_LEDS_MAX_PWM						  (101)
+#define CIS_LEDS_MAX_POMER					  (CIS_LEDS_MAX_PWM)
 
 /**************************************************************************************/
 /***                            Packet Management Definitions                      ***/
 /**************************************************************************************/
 
 // Number of UDP packets per line
-#define UDP_MAX_NB_PACKET_PER_LINE         		(12)
+#define UDP_MAX_NB_PACKET_PER_LINE    (12)
 
 // Ensure UDP_LINE_FRAGMENT_SIZE is an integer
 #if (CIS_MAX_PIXELS_NB % UDP_MAX_NB_PACKET_PER_LINE) != 0
@@ -144,24 +150,24 @@
 #endif
 
 // Size of each UDP line fragment (number of pixels per packet)
-#define UDP_LINE_FRAGMENT_SIZE         			(CIS_MAX_PIXELS_NB / UDP_MAX_NB_PACKET_PER_LINE)
+#define UDP_LINE_FRAGMENT_SIZE        (CIS_MAX_PIXELS_NB / UDP_MAX_NB_PACKET_PER_LINE)
 
 /**************************************************************************************/
 /********************              GYRO definitions                ********************/
 /**************************************************************************************/
 #define ICM42688P
 
-#define IMU_CLKIN_FREQ							(32000)
+#define IMU_CLKIN_FREQ							  (32000)
 
 // Gyroscope sensitivity configuration for handheld usage
 // Available options: dps2000, dps1000, dps500, dps250, dps125, dps62_5, dps31_25, dps15_625
-#define DEFAULT_GYRO_SENSITIVITY				dps250  // Lower sensitivity for better precision in handheld use
+#define DEFAULT_GYRO_SENSITIVITY		  dps250  // Lower sensitivity for better precision in handheld use
 
 // Accelerometer sensitivity configuration for handheld usage  
 // Available options: gpm16, gpm8, gpm4, gpm2
-#define DEFAULT_ACCEL_SENSITIVITY				gpm4    // Moderate sensitivity for handheld movement detection
+#define DEFAULT_ACCEL_SENSITIVITY		  gpm4    // Moderate sensitivity for handheld movement detection
 
 // Calibration sample count for handheld usage (reduced for faster startup)
-#define HANDHELD_CALIB_SAMPLES					50      // Reduced from 100 for faster calibration
+#define HANDHELD_CALIB_SAMPLES				50      // Reduced from 100 for faster calibration
 
 #endif // __CONFIG_H__

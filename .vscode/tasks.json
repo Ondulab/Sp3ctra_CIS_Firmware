@@ -1,0 +1,350 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build CM7 Debug",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM7/Debug",
+                "-j4"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": {
+                "owner": "gcc",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Build CM4 Debug",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM4/Debug",
+                "-j4"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": {
+                "owner": "gcc",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Build Both Cores Debug",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Build CM7 Debug",
+                "Build CM4 Debug"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "Clean CM7 Debug",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM7/Debug",
+                "clean"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Clean CM4 Debug",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM4/Debug",
+                "clean"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Clean Both Cores",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Clean CM7 Debug",
+                "Clean CM4 Debug"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "Build CM7 Release",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM7/Release",
+                "-j4"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": {
+                "owner": "gcc",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Build CM4 Release",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "CM4/Release",
+                "-j4"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": {
+                "owner": "gcc",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Build Both Cores Release",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "Build CM7 Release",
+                "Build CM4 Release"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "label": "Format Code (clang-format)",
+            "type": "shell",
+            "command": "find",
+            "args": [
+                ".",
+                "-name",
+                "*.c",
+                "-o",
+                "-name",
+                "*.h",
+                "-o",
+                "-name",
+                "*.cpp",
+                "-o",
+                "-name",
+                "*.hpp",
+                "|",
+                "grep",
+                "-v",
+                "Drivers/",
+                "|",
+                "grep",
+                "-v",
+                "Middlewares/Third_Party/",
+                "|",
+                "xargs",
+                "clang-format",
+                "-i",
+                "--style=file"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Static Analysis (cppcheck)",
+            "type": "shell",
+            "command": "cppcheck",
+            "args": [
+                "--enable=all",
+                "--inconclusive",
+                "--std=c11",
+                "--platform=unix32",
+                "--suppress=missingIncludeSystem",
+                "--suppress=unusedFunction",
+                "--suppress=unmatchedSuppression",
+                "-I",
+                "Drivers/CMSIS/Device/ST/STM32H7xx/Include",
+                "-I",
+                "Drivers/CMSIS/Include",
+                "-I",
+                "Drivers/STM32H7xx_HAL_Driver/Inc",
+                "-I",
+                "CM7/Core/Inc",
+                "-I",
+                "CM4/Core/Inc",
+                "-I",
+                "Common/Inc",
+                "CM7/",
+                "CM4/",
+                "Common/"
+            ],
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": {
+                "owner": "cppcheck",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^\\[(.*):(\\d+)\\]:\\s+\\((\\w+)\\)\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "severity": 3,
+                    "message": 4
+                }
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ]
+}

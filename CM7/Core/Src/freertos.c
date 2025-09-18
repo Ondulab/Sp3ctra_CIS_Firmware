@@ -27,7 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "lwip.h"
 #include "cis_scan.h"
-#include "cis_linearCal.h"
+#include "cis.h"
 #include "icm42688.h"
 #include "file_manager.h"
 #include "ftpd.h"
@@ -195,6 +195,9 @@ void StartDefaultTask(void const * argument)
 	{
 		printf("File initialization ERROR\n");
 	}
+
+	printf("-------- POWER ON CIS ---------\n");
+	cis_Power(ON);
 
     printf("---- LWIP INITIALIZATIONS -----\n");
 	MX_LWIP_Init();
