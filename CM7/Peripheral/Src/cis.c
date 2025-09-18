@@ -37,7 +37,6 @@
 #include "cis_scan.h"
 
 #include "cis_linearCal.h"
-#include "cis_polyCal.h"
 
 #include "cis.h"
 
@@ -743,23 +742,17 @@ void cis_ledPowerAdj(int32_t red_pwm, int32_t green_pwm, int32_t blue_pwm)
 	blue_pwm = blue_pwm < 0 ? 0 : blue_pwm > 100 ? 100 : blue_pwm;
 
 	pulseValue = cisLeds_Calibration.redLed_maxPulse - 1;
-#ifdef CIS_MONOCHROME
-	pulseValue /= 3;
-#endif
+
 	pulseValue = (pulseValue * red_pwm) / 100;
 	__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, pulseValue);
 
 	pulseValue = cisLeds_Calibration.greenLed_maxPulse - 1;
-#ifdef CIS_MONOCHROME
-	pulseValue /= 3;
-#endif
+
 	pulseValue = (pulseValue * green_pwm) / 100;
 	__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_3, pulseValue);
 
 	pulseValue = cisLeds_Calibration.blueLed_maxPulse - 1;
-#ifdef CIS_MONOCHROME
-	pulseValue /= 3;
-#endif
+
 	pulseValue = (pulseValue * blue_pwm) / 100;
 	__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pulseValue);
 }

@@ -131,12 +131,7 @@ void MX_TIM3_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-  #ifndef CIS_MONOCHROME
-    counterPeriod = (cisConfig.lane_size * 3) - 1;
-  #else
-    counterPeriod = (cisConfig.lane_size) - 1;
-    pulseValue /= 3;
-  #endif
+  counterPeriod = (cisConfig.lane_size * 3) - 1;
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
@@ -198,12 +193,7 @@ void MX_TIM4_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-#ifndef CIS_MONOCHROME
   counterPeriod = (cisConfig.lane_size * 3) - 1;
-#else
-  counterPeriod = (cisConfig.lane_size) - 1;
-  pulseValue /= 3;
-#endif
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
@@ -265,12 +255,7 @@ void MX_TIM5_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-#ifndef CIS_MONOCHROME
   counterPeriod = (cisConfig.lane_size * 3) - 1;
-#else
-  counterPeriod = (cisConfig.lane_size) - 1;
-  pulseValue /= 3;
-#endif
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
