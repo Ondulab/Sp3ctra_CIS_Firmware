@@ -307,8 +307,7 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
             cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         }
 
-        //cis_applyLinearCalibration(cisDataCpy, 255);
-        cis_applyLinearCalibrationWithDriftCorrection(cisDataCpy, 255);
+        cis_applyLinearCalibration(cisDataCpy, 255);
 
         if (shared_config.cis_handedness)
         {
@@ -541,8 +540,10 @@ void cis_startCapture()
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)cisData_ADC2, cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)cisData_ADC3, cisConfig.adc_buff_size);
 
+    osDelay(1);
+
     /* Start ADC Main Timer #######################################*/
-    __HAL_TIM_SET_COUNTER(&htim1, 0);
+    __HAL_TIM_SET_COUNTER(&htim1, 1);
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     __HAL_TIM_MOE_ENABLE(&htim8);
