@@ -543,7 +543,7 @@ void cis_startCapture()
     osDelay(1);
 
     /* Start ADC Main Timer #######################################*/
-    __HAL_TIM_SET_COUNTER(&htim1, 1);
+    __HAL_TIM_SET_COUNTER(&htim1, 0);
     __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     __HAL_TIM_MOE_ENABLE(&htim8);
