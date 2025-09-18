@@ -106,13 +106,6 @@ CIS_StatusTypeDef cis_Power(bool powerOn)
     {
         /* Enable 5V power DC/DC for CIS */
         HAL_GPIO_WritePin(EN_5V_GPIO_Port, EN_5V_Pin, GPIO_PIN_SET);
-        
-        //osDelay(300);
-
-        cis_initTimClock();
-
-        /* Start CLK generation ##################################*/
-        HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
         printf("CIS Power ON\n");
     }
@@ -179,12 +172,12 @@ static CIS_StatusTypeDef cis_configure(void)
     cisConfig.green_lane_offset = cisConfig.lane_size + cisConfig.start_offset;
     cisConfig.blue_lane_offset = (cisConfig.lane_size * 2) + cisConfig.start_offset;
 
-    cisConfig.useful_data_size_per_color_per_lane = CIS_BLACK_LINE + cisConfig.pixels_per_color_per_lane;
+    cisConfig.useful_data_size_per_color_per_lane = CIS_BLACK_PIXELS + cisConfig.pixels_per_color_per_lane;
     cisConfig.useful_data_size_per_lane = cisConfig.useful_data_size_per_color_per_lane * COLOR_CHANNELS;
 
-    cisConfig.red_offset = CIS_BLACK_LINE;
-    cisConfig.green_offset = cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_LINE;
-    cisConfig.blue_offset = (cisConfig.useful_data_size_per_color_per_lane * 2) + CIS_BLACK_LINE;
+    cisConfig.red_offset = CIS_BLACK_PIXELS;
+    cisConfig.green_offset = cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_PIXELS;
+    cisConfig.blue_offset = (cisConfig.useful_data_size_per_color_per_lane * 2) + CIS_BLACK_PIXELS;
 
     /* Initialize buffers */
     memset(cisData_ADC1, 0, cisConfig.adc_buff_size * sizeof(uint16_t));
@@ -201,6 +194,7 @@ static CIS_StatusTypeDef cis_configure(void)
     /* Check that led_off_index does not exceed CIS_MAX_LANE_SIZE */
     if (cisConfig.leds_off_index > CIS_MAX_LANE_SIZE)
     {
+    	printf("leds_off_index overflow %d \n", (int)(cisConfig.leds_off_index - CIS_MAX_LANE_SIZE));
     	cisConfig.leds_off_index = CIS_MAX_LANE_SIZE;
     }
 
@@ -313,7 +307,8 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
             cisBufferState[i] = CIS_BUFFER_OFFSET_NONE;
         }
 
-        cis_applyLinearCalibration(cisDataCpy, 255);
+        //cis_applyLinearCalibration(cisDataCpy, 255);
+        cis_applyLinearCalibrationWithDriftCorrection(cisDataCpy, 255);
 
         if (shared_config.cis_handedness)
         {
@@ -505,9 +500,15 @@ void cis_startCapture()
     cis_initTimLedRed();
     cis_initTimLedGreen();
     cis_initTimLedBlue();
+    cis_initTimClock();
+
+    /* Start CLK generation ##################################*/
+    HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+
+    osDelay(300);
 
     // Reset SP counter
-    //__HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
+    __HAL_TIM_SET_COUNTER(&htim8, cisConfig.lane_size - CIS_SP_WIDTH);
 
     // Set RGB phase shift
     __HAL_TIM_SET_COUNTER(&htim4, (cisConfig.lane_size * 1) - CIS_LED_ON);  // R

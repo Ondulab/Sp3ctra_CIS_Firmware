@@ -61,6 +61,12 @@ struct cisCalsTypes blackCal;
 __attribute__((section(".calAccWhite")))
 struct cisCalsTypes whiteCal;
 
+/* Debug variables */
+static uint32_t drift_debug_enabled = 0;
+static uint32_t drift_debug_interval = 100;
+static uint32_t detailed_debug_enabled = 0;
+static uint32_t detailed_debug_interval = 100;
+
 /* Variable containing ADC conversions data */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,6 +119,285 @@ void cis_max(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint3
         *pIndex = maxIdx;
     }
 }
+
+/**
+ * @brief       Print the values of inactive pixels for a specific lane and color.
+ * @param       cisDataCpy    Pointer to the current image data.
+ * @param       lane          Lane number (0, 1, 2...).
+ * @param       color         Color channel (0=Red, 1=Green, 2=Blue).
+ * @retval      None
+ *
+ * Prints all 38 inactive pixel values for debugging purposes.
+ */
+void cis_printInactivePixels(const int32_t * restrict cisDataCpy, uint32_t lane, int color)
+{
+    const char* colorNames[] = {"RED", "GREEN", "BLUE"};
+    int32_t laneOffset = 0;
+    int32_t colorOffsets[3] = {
+        cisConfig.red_offset - CIS_BLACK_PIXELS,
+        cisConfig.green_offset - CIS_BLACK_PIXELS,
+        cisConfig.blue_offset - CIS_BLACK_PIXELS
+    };
+
+    if (color < 0 || color > 2 || lane >= CIS_ADC_OUT_LANES)
+    {
+        printf("ERROR: Invalid color (%d) or lane (%lu)\n", color, lane);
+        return;
+    }
+
+    laneOffset = (cisConfig.useful_data_size_per_lane * lane) + colorOffsets[color];
+
+    printf("INACTIVE PIXELS - Lane %lu %s (38 pixels, using pixels 9-32 for average):\n", lane, colorNames[color]);
+    printf("  ");
+    for (uint32_t i = 0; i < CIS_BLACK_PIXELS; i++)
+    {
+        // Highlight the pixels used for drift correction (9-32)
+        if (i == CIS_IGNORE_FIRST_BLACK_PIXELS)
+        {
+            printf("[");
+        }
+        printf("%ld ", cisDataCpy[laneOffset + i]);
+        if (i == CIS_IGNORE_FIRST_BLACK_PIXELS + CIS_USEFUL_BLACK_PIXELS - 1)
+        {
+            printf("] ");
+        }
+        if ((i + 1) % 10 == 0) // New line every 10 values
+        {
+            printf("\n  ");
+        }
+    }
+    printf("\n");
+
+    // Calculate and print averages
+    int32_t average_all, average_useful;
+    cis_mean((const uint32_t *)&cisDataCpy[laneOffset], CIS_BLACK_PIXELS, &average_all);
+    cis_mean((const uint32_t *)&cisDataCpy[laneOffset + CIS_IGNORE_FIRST_BLACK_PIXELS], CIS_USEFUL_BLACK_PIXELS, &average_useful);
+    printf("  Average (all 38): %ld\n", average_all);
+    printf("  Average (pixels 9-32): %ld (used for drift correction)\n", average_useful);
+}
+
+/**
+ * @brief       Enable detailed debug output including inactive pixel values.
+ * @param       print_interval   Print debug info every N lines (e.g., 100).
+ * @retval      None
+ *
+ * Enables detailed debug printf output including all 38 inactive pixel values.
+ */
+void cis_enableDetailedDebug(uint32_t print_interval)
+{
+    detailed_debug_enabled = 1;
+    detailed_debug_interval = print_interval;
+    printf("Detailed drift debug ENABLED (interval: %lu lines)\n", print_interval);
+}
+
+/**
+ * @brief       Disable detailed debug output.
+ * @param       None
+ * @retval      None
+ *
+ * Disables detailed debug printf output.
+ */
+void cis_disableDetailedDebug(void)
+{
+    detailed_debug_enabled = 0;
+    printf("Detailed drift debug DISABLED\n");
+}
+
+/**
+ * @brief       Enable drift correction debug output.
+ * @param       print_interval   Print debug info every N lines (e.g., 100).
+ * @retval      None
+ *
+ * Enables debug printf output to monitor drift correction values in real-time.
+ */
+void cis_enableDriftDebug(uint32_t print_interval)
+{
+    drift_debug_enabled = 1;
+    drift_debug_interval = print_interval;
+    printf("Drift correction debug ENABLED (interval: %lu lines)\n", print_interval);
+}
+
+/**
+ * @brief       Disable drift correction debug output.
+ * @param       None
+ * @retval      None
+ *
+ * Disables debug printf output for drift correction.
+ */
+void cis_disableDriftDebug(void)
+{
+    drift_debug_enabled = 0;
+    printf("Drift correction debug DISABLED\n");
+}
+
+/**
+ * @brief       Initialize drift correction parameters with default values.
+ * @param       None
+ * @retval      None
+ *
+ * Sets default values for drift correction parameters.
+ */
+void cis_initDriftCorrectionDefaults(void)
+{
+    cisCals.driftCorrectionEnabled = 1;  // Enable drift correction by default
+    cisCals.driftThreshold = 100;       // Maximum allowed drift of 50 ADC counts
+}
+
+/**
+ * @brief       Compute global drift correction offsets based on current inactive pixels.
+ * @param       cisDataCpy              Pointer to the current image data.
+ * @param       globalDriftOffset       Output array for drift offsets [color][lane].
+ * @retval      None
+ *
+ * This function measures the current inactive pixel averages and compares them
+ * with the calibration references to compute drift correction offsets.
+ */
+void cis_computeGlobalDriftCorrection(const int32_t * restrict cisDataCpy, int32_t globalDriftOffset[3][CIS_ADC_OUT_LANES])
+{
+    int32_t currentInactiveAvg[3][CIS_ADC_OUT_LANES];  // [color][lane]
+    int32_t laneOffset = 0;
+
+    // Color offsets for inactive pixel regions
+    int32_t colorOffsets[3] = {
+        cisConfig.red_offset - CIS_BLACK_PIXELS,
+        cisConfig.green_offset - CIS_BLACK_PIXELS,
+        cisConfig.blue_offset - CIS_BLACK_PIXELS
+    };
+
+    // Compute current inactive pixel averages for each color and lane
+    for (int32_t color = 0; color < 3; color++)
+    {
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            laneOffset = (cisConfig.useful_data_size_per_lane * lane) + colorOffsets[color] + CIS_IGNORE_FIRST_BLACK_PIXELS;
+            cis_mean((const uint32_t *)&cisDataCpy[laneOffset], CIS_USEFUL_BLACK_PIXELS, &currentInactiveAvg[color][lane]);
+        }
+    }
+
+    // Compute drift correction offsets
+    for (int32_t color = 0; color < 3; color++)
+    {
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            // Drift offset = current_inactive_avg - calibration_black_ref
+            globalDriftOffset[color][lane] = currentInactiveAvg[color][lane] - cisCals.blackRefInactiveAvg[color][lane];
+
+            // Optional: Apply threshold limiting to prevent excessive corrections
+            if (cisCals.driftThreshold > 0)
+            {
+                if (globalDriftOffset[color][lane] > cisCals.driftThreshold)
+                {
+                    globalDriftOffset[color][lane] = cisCals.driftThreshold;
+                }
+                else if (globalDriftOffset[color][lane] < -cisCals.driftThreshold)
+                {
+                    globalDriftOffset[color][lane] = -cisCals.driftThreshold;
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief       Apply linear calibration with global drift correction on the image buffer.
+ *
+ * The applied formula is:
+ *      1. Global drift correction: drift_corrected = raw - global_drift_offset
+ *      2. Individual calibration: calibrated = clip( ((drift_corrected - offset) * gain) >> 16, 0, maxClipValue )
+ *
+ * @param       cisDataCpy    Pointer to the image buffer (int32_t).
+ * @param       maxClipValue  Clipping value (e.g., 255).
+ * @retval      None
+ */
+#pragma GCC push_options
+#pragma GCC optimize ("unroll-loops")
+void cis_applyLinearCalibrationWithDriftCorrection(int32_t * restrict cisDataCpy, uint32_t maxClipValue)
+{
+    int32_t globalDriftOffset[3][CIS_ADC_OUT_LANES];  // [color][lane]
+
+    cisCals.driftCorrectionEnabled = 1;
+
+    // Skip drift correction if disabled
+    if (!cisCals.driftCorrectionEnabled)
+    {
+        cis_applyLinearCalibration(cisDataCpy, maxClipValue);
+        return;
+    }
+
+    // Step 1: Compute global drift correction offsets
+    cis_computeGlobalDriftCorrection(cisDataCpy, globalDriftOffset);
+
+    // DEBUG: Print drift correction values if enabled
+    if (drift_debug_enabled)
+    {
+        static uint32_t debug_counter = 0;
+        debug_counter++;
+        if (debug_counter % drift_debug_interval == 0)
+        {
+            printf("DRIFT DEBUG - Line %lu:\n", debug_counter);
+            for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+            {
+                printf("  Lane %ld: R=%ld G=%ld B=%ld\n",
+                       lane,
+                       globalDriftOffset[0][lane], // Red
+                       globalDriftOffset[1][lane], // Green
+                       globalDriftOffset[2][lane]  // Blue
+                );
+            }
+        }
+    }
+
+    // DETAILED DEBUG: Print all 38 inactive pixel values if enabled
+    if (detailed_debug_enabled)
+    {
+        static uint32_t detailed_debug_counter = 0;
+        detailed_debug_counter++;
+        if (detailed_debug_counter % detailed_debug_interval == 0)
+        {
+            printf("=== DETAILED DEBUG - Line %lu ===\n", detailed_debug_counter);
+            for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+            {
+                for (int color = 0; color < 3; color++)
+                {
+                    cis_printInactivePixels(cisDataCpy, lane, color);
+                }
+            }
+            printf("=== END DETAILED DEBUG ===\n");
+        }
+    }
+
+    // Step 2: Apply calibration with drift correction
+    for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
+    {
+        uint32_t baseR = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.red_offset;
+        uint32_t baseG = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.green_offset;
+        uint32_t baseB = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.blue_offset;
+
+        for (uint32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
+        {
+            int32_t driftCorrected, value, calibrated;
+
+            /* Process RED channel */
+            driftCorrected = cisDataCpy[baseR + i] - globalDriftOffset[0][lane];  // Global drift correction
+            value = driftCorrected - cisCals.offsetData[baseR + i];              // Individual offset correction
+            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseR + i]) >> 16);
+            cisDataCpy[baseR + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
+
+            /* Process GREEN channel */
+            driftCorrected = cisDataCpy[baseG + i] - globalDriftOffset[1][lane];  // Global drift correction
+            value = driftCorrected - cisCals.offsetData[baseG + i];              // Individual offset correction
+            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseG + i]) >> 16);
+            cisDataCpy[baseG + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
+
+            /* Process BLUE channel */
+            driftCorrected = cisDataCpy[baseB + i] - globalDriftOffset[2][lane];  // Global drift correction
+            value = driftCorrected - cisCals.offsetData[baseB + i];              // Individual offset correction
+            calibrated = (int32_t)(((int64_t)value * cisCals.gainsData[baseB + i]) >> 16);
+            cisDataCpy[baseB + i] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
+        }
+    }
+}
+#pragma GCC pop_options
 
 void cis_min(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult, uint32_t * pIndex)
 {
@@ -264,7 +549,24 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
     printf("Compute gains\n");
 
-    // Step 7: Save calibration data
+    // Step 7: Store inactive pixel references for drift correction
+    printf("Store drift correction references\n");
+    for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+    {
+        cisCals.blackRefInactiveAvg[0][lane] = blackCal.red.inactiveAvrgPix[lane];    // Red
+        cisCals.blackRefInactiveAvg[1][lane] = blackCal.green.inactiveAvrgPix[lane];  // Green
+        cisCals.blackRefInactiveAvg[2][lane] = blackCal.blue.inactiveAvrgPix[lane];   // Blue
+
+        cisCals.whiteRefInactiveAvg[0][lane] = whiteCal.red.inactiveAvrgPix[lane];    // Red
+        cisCals.whiteRefInactiveAvg[1][lane] = whiteCal.green.inactiveAvrgPix[lane];  // Green
+        cisCals.whiteRefInactiveAvg[2][lane] = whiteCal.blue.inactiveAvrgPix[lane];   // Blue
+    }
+
+    // Initialize drift correction parameters
+    cis_initDriftCorrectionDefaults();
+    SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
+
+    // Step 8: Save calibration data
     sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
     file_writeCisCals(calibrationFilePath, &cisCals);
 
@@ -339,19 +641,19 @@ static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Colo
         case CIS_RED:
         {
             currColor = &currCals->red;
-            offset = cisConfig.red_offset - CIS_BLACK_LINE;
+            offset = cisConfig.red_offset - CIS_BLACK_PIXELS;
             break;
         }
         case CIS_GREEN:
         {
             currColor = &currCals->green;
-            offset = cisConfig.green_offset - CIS_BLACK_LINE;
+            offset = cisConfig.green_offset - CIS_BLACK_PIXELS;
             break;
         }
         case CIS_BLUE:
         {
             currColor = &currCals->blue;
-            offset = cisConfig.blue_offset - CIS_BLACK_LINE;
+            offset = cisConfig.blue_offset - CIS_BLACK_PIXELS;
             break;
         }
         default:
@@ -363,8 +665,8 @@ static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Colo
 
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
-        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
-        cis_mean(&currCals->data[laneOffset], CIS_BLACK_LINE, &currColor->inactiveAvrgPix[lane]);
+        laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset + CIS_IGNORE_FIRST_BLACK_PIXELS;
+        cis_mean(&currCals->data[laneOffset], CIS_USEFUL_BLACK_PIXELS, &currColor->inactiveAvrgPix[lane]);
     }
 }
 

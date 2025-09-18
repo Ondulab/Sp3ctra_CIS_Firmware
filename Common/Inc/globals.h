@@ -169,6 +169,12 @@ struct __attribute__((aligned(4))) cisCals
 {
 	int32_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
 	int32_t gainsData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+	// Global drift correction references (inactive pixels averages from calibration)
+	int32_t blackRefInactiveAvg[3][CIS_ADC_OUT_LANES];  // [color][lane] - black calibration reference
+	int32_t whiteRefInactiveAvg[3][CIS_ADC_OUT_LANES];  // [color][lane] - white calibration reference
+	// Drift correction parameters
+	int32_t driftCorrectionEnabled;
+	int32_t driftThreshold;  // Maximum allowed drift before warning
 };
 
 struct __attribute__((aligned(4))) shared_var
