@@ -47,7 +47,7 @@ void gui_startCalibration(void)
     {
         switch (shared_var.cis_cal_state)
         {
-        case CIS_CAL_PLACE_ON_WHITE :
+        case CIS_CAL_WHITE :
             /*-------- 1 --------*/
             ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
@@ -62,13 +62,30 @@ void gui_startCalibration(void)
             ssd1362_progressBar(30, 30, 99, 0xF);
             HAL_Delay(10);
 
-            while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_WHITE);
+            while (shared_var.cis_cal_state == CIS_CAL_WHITE);
             break;
-        case CIS_CAL_PLACE_ON_BLACK :
+        case CIS_CAL_INTERMEDIATE :
             /*-------- 2 --------*/
             ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
-            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - LL ", 0xF, 8);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON GRAY SURFACE - ML ", 0xF, 8);
+            ssd1362_writeFullBuffer();
+
+            while (shared_var.cis_cal_progressbar < 99)
+            {
+                ssd1362_progressBar(30, 30, shared_var.cis_cal_progressbar, 0xF);
+            }
+
+            ssd1362_progressBar(30, 30, 99, 0xF);
+            HAL_Delay(10);
+
+            while (shared_var.cis_cal_state == CIS_CAL_INTERMEDIATE);
+            break;
+        case CIS_CAL_BLACK :
+            /*-------- 3 --------*/
+            ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
+            ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON BLACK SURFACE - LL ", 0xF, 8);
             ssd1362_writeFullBuffer();
 
             while (shared_var.cis_cal_progressbar < 99)
@@ -78,7 +95,7 @@ void gui_startCalibration(void)
 
             ssd1362_progressBar(30, 30, 99, 0xF);
             HAL_Delay(100);
-            while (shared_var.cis_cal_state == CIS_CAL_PLACE_ON_BLACK);
+            while (shared_var.cis_cal_state == CIS_CAL_BLACK);
             break;
         case CIS_CAL_EXTRACT_EXTREMUMS :
             ssd1362_fillRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
@@ -90,7 +107,7 @@ void gui_startCalibration(void)
             while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_EXTREMUMS);
             break;
         case CIS_CAL_EXTRACT_OFFSETS :
-            /*-------- 3 --------*/
+            /*-------- 4 --------*/
             ssd1362_fillRect(0, DISPLAY_HEAD_Y2POS, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
             ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"EXTRACT DIFFERENTIAL OFFSETS", 0xF, 8);
@@ -98,11 +115,18 @@ void gui_startCalibration(void)
             while (shared_var.cis_cal_state == CIS_CAL_EXTRACT_OFFSETS);
             break;
         case CIS_CAL_COMPUTE_GAINS :
-            /*-------- 4 --------*/
+            /*-------- 5 --------*/
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
             ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" COMPUTE COMPENSATIION GAINS", 0xF, 8);
             ssd1362_writeFullBuffer();
             while (shared_var.cis_cal_state == CIS_CAL_COMPUTE_GAINS);
+            break;
+        case CIS_CAL_COMPUTE_TRANSITIONS :
+            /*-------- 6 --------*/
+            ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" COMPUTE TRANSITION POINTS", 0xF, 8);
+            ssd1362_writeFullBuffer();
+            while (shared_var.cis_cal_state == CIS_CAL_COMPUTE_TRANSITIONS);
             break;
         default:
             break;
