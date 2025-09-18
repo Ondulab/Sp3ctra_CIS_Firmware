@@ -73,12 +73,14 @@ typedef enum
 {
 	CIS_CAL_REQUESTED = 0,
 	CIS_CAL_START,
-	CIS_CAL_PLACE_ON_WHITE,
-	CIS_CAL_PLACE_ON_BLACK,
+	CIS_CAL_WHITE,                    // MODIFIÉ (ancien CIS_CAL_PLACE_ON_WHITE)
+	CIS_CAL_INTERMEDIATE,             // NOUVEAU (ancien CIS_CAL_PLACE_ON_INTERMEDIATE)
+	CIS_CAL_BLACK,                    // MODIFIÉ (ancien CIS_CAL_PLACE_ON_BLACK)
 	CIS_CAL_EXTRACT_INNACTIVE_REF,
 	CIS_CAL_EXTRACT_EXTREMUMS,
 	CIS_CAL_EXTRACT_OFFSETS,
 	CIS_CAL_COMPUTE_GAINS,
+	CIS_CAL_COMPUTE_TRANSITIONS,      // NOUVEAU
 	CIS_CAL_END,
 }CIS_Calibration_StateTypeDef;
 
@@ -167,9 +169,17 @@ struct __attribute__((aligned(4))) cisRgbBuffers
 
 struct __attribute__((aligned(4))) cisCals
 {
-	int32_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
-	int32_t gainsData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
-	// Drift correction reference averages from black calibration [color][lane]
+	// Offset unique (valeur noire) - OPTIMISÉ 16-bit
+	int16_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+
+	// Gains pour les deux segments - OPTIMISÉ Q8.8 format
+	int16_t gainsData_seg1[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];   // 0% → 50%
+	int16_t gainsData_seg2[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];   // 50% → 100%
+
+	// Points de transition par pixel (valeur ADC à 50%) - OPTIMISÉ 16-bit
+	int16_t transitionPoint[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+
+	// Références pour correction de dérive (INCHANGÉ)
 	int32_t blackRefInactiveAvg[COLOR_CHANNELS][CIS_ADC_OUT_LANES];  // Red, Green, Blue for each lane
 };
 
