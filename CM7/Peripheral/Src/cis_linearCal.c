@@ -322,16 +322,6 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
     // Step 2: Apply segmented calibration with drift correction
     uint32_t target_intermediate = (maxClipValue * CIS_INTERMEDIATE_LED_POWER) / 100;
 
-    // DEBUG: Print application parameters
-    static uint32_t app_debug_counter = 0;
-    app_debug_counter++;
-    if (app_debug_counter % 100 == 0) {  // Debug every 100 lines
-        printf("=== DEBUG APPLICATION - Line %lu ===\n", app_debug_counter);
-        printf("maxClipValue: %lu, target_intermediate: %lu\n", maxClipValue, target_intermediate);
-        printf("baseR offset: %lu, baseG offset: %lu, baseB offset: %lu\n",
-               cisConfig.red_offset, cisConfig.green_offset, cisConfig.blue_offset);
-    }
-
     for (int8_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
         uint32_t baseR = (cisConfig.useful_data_size_per_lane * lane) + cisConfig.red_offset;
@@ -350,121 +340,50 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
             // Correction de dérive + offset unique
             int32_t corrected = driftCorrected - cisCals.offsetData[pixelIdx];
 
-            // DEBUG: Print detailed info for first few pixels
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("RED Lane %d, Pixel %lu (pixelIdx=%lu):\n", lane, i, pixelIdx);
-                printf("  raw=%ld, drift_offset=%ld, driftCorrected=%ld\n",
-                       cisDataCpy[pixelIdx] + globalDriftOffset[0][lane], globalDriftOffset[0][lane], driftCorrected);
-                printf("  offset=%d, corrected=%ld, transition=%d\n",
-                       cisCals.offsetData[pixelIdx], corrected, cisCals.transitionPoint[pixelIdx]);
-                printf("  gain_seg1=%d, gain_seg2=%d\n",
-                       cisCals.gainsData_seg1[pixelIdx], cisCals.gainsData_seg2[pixelIdx]);
-            }
-
             if (driftCorrected <= cisCals.transitionPoint[pixelIdx]) {
                 // Segment 1: 0% → 50% (Q8.8 format)
                 calibrated = (int32_t)(((int64_t)corrected * cisCals.gainsData_seg1[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg1: calibrated=%ld\n", calibrated);
-                }
             } else {
                 // Segment 2: 50% → 100% (Q8.8 format)
                 int32_t excess = driftCorrected - cisCals.transitionPoint[pixelIdx];
                 calibrated = target_intermediate + (int32_t)(((int64_t)excess * cisCals.gainsData_seg2[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg2: excess=%ld, calibrated=%ld\n", excess, calibrated);
-                }
             }
 
-            int32_t final_red = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-            cisDataCpy[pixelIdx] = final_red;
-
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("  final_RED=%ld\n", final_red);
-            }
+            cisDataCpy[pixelIdx] = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
 
             /* Process GREEN channel */
             pixelIdx = baseG + i;
             driftCorrected = cisDataCpy[pixelIdx] - globalDriftOffset[1][lane];
             corrected = driftCorrected - cisCals.offsetData[pixelIdx];
 
-            // DEBUG: Print detailed info for GREEN channel
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("GREEN Lane %d, Pixel %lu (pixelIdx=%lu):\n", lane, i, pixelIdx);
-                printf("  raw=%ld, drift_offset=%ld, driftCorrected=%ld\n",
-                       cisDataCpy[pixelIdx] + globalDriftOffset[1][lane], globalDriftOffset[1][lane], driftCorrected);
-                printf("  offset=%d, corrected=%ld, transition=%d\n",
-                       cisCals.offsetData[pixelIdx], corrected, cisCals.transitionPoint[pixelIdx]);
-                printf("  gain_seg1=%d, gain_seg2=%d\n",
-                       cisCals.gainsData_seg1[pixelIdx], cisCals.gainsData_seg2[pixelIdx]);
-            }
-
             if (driftCorrected <= cisCals.transitionPoint[pixelIdx]) {
                 // Segment 1: 0% → 50% (Q8.8 format)
                 calibrated = (int32_t)(((int64_t)corrected * cisCals.gainsData_seg1[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg1: calibrated=%ld\n", calibrated);
-                }
             } else {
                 // Segment 2: 50% → 100% (Q8.8 format)
                 int32_t excess = driftCorrected - cisCals.transitionPoint[pixelIdx];
                 calibrated = target_intermediate + (int32_t)(((int64_t)excess * cisCals.gainsData_seg2[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg2: excess=%ld, calibrated=%ld\n", excess, calibrated);
-                }
             }
 
-            int32_t final_green = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-            cisDataCpy[pixelIdx] = final_green;
-
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("  final_GREEN=%ld\n", final_green);
-            }
+            cisDataCpy[pixelIdx] = (calibrated < 0) ? 0 :
+                                  ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
 
             /* Process BLUE channel */
             pixelIdx = baseB + i;
             driftCorrected = cisDataCpy[pixelIdx] - globalDriftOffset[2][lane];
             corrected = driftCorrected - cisCals.offsetData[pixelIdx];
 
-            // DEBUG: Print detailed info for BLUE channel
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("BLUE Lane %d, Pixel %lu (pixelIdx=%lu):\n", lane, i, pixelIdx);
-                printf("  raw=%ld, drift_offset=%ld, driftCorrected=%ld\n",
-                       cisDataCpy[pixelIdx] + globalDriftOffset[2][lane], globalDriftOffset[2][lane], driftCorrected);
-                printf("  offset=%d, corrected=%ld, transition=%d\n",
-                       cisCals.offsetData[pixelIdx], corrected, cisCals.transitionPoint[pixelIdx]);
-                printf("  gain_seg1=%d, gain_seg2=%d\n",
-                       cisCals.gainsData_seg1[pixelIdx], cisCals.gainsData_seg2[pixelIdx]);
-            }
-
             if (driftCorrected <= cisCals.transitionPoint[pixelIdx]) {
                 // Segment 1: 0% → 50% (Q8.8 format)
                 calibrated = (int32_t)(((int64_t)corrected * cisCals.gainsData_seg1[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg1: calibrated=%ld\n", calibrated);
-                }
             } else {
                 // Segment 2: 50% → 100% (Q8.8 format)
                 int32_t excess = driftCorrected - cisCals.transitionPoint[pixelIdx];
                 calibrated = target_intermediate + (int32_t)(((int64_t)excess * cisCals.gainsData_seg2[pixelIdx]) >> 8);
-
-                if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                    printf("  Using Seg2: excess=%ld, calibrated=%ld\n", excess, calibrated);
-                }
             }
 
-            int32_t final_blue = (calibrated < 0) ? 0 : ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
-            cisDataCpy[pixelIdx] = final_blue;
-
-            if (app_debug_counter % 100 == 0 && lane == 0 && i < 3) {
-                printf("  final_BLUE=%ld\n", final_blue);
-                printf("RGB SUMMARY: R=%ld G=%ld B=%ld\n", final_red, final_green, final_blue);
-            }
+            cisDataCpy[pixelIdx] = (calibrated < 0) ? 0 :
+                                  ((calibrated > (int32_t)maxClipValue) ? (int32_t)maxClipValue : calibrated);
         }
     }
 }
@@ -810,11 +729,6 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
     uint32_t laneOffset = 0;
     uint32_t offset = 0;
     uint32_t target_intermediate = (maxADCValue * CIS_INTERMEDIATE_LED_POWER) / 100;
-    const char* colorNames[] = {"RED", "GREEN", "BLUE"};
-
-    printf("=== DEBUG GAINS COMPUTATION ===\n");
-    printf("Color: %s, maxADCValue: %lu, target_intermediate: %lu\n",
-           colorNames[color], maxADCValue, target_intermediate);
 
     switch (color)
     {
@@ -824,39 +738,23 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
         default: Error_Handler(); return;
     }
 
-    printf("Offset for %s: %lu\n", colorNames[color], offset);
-
     for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
     {
         laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
 
-        // Debug pour quelques pixels représentatifs
         for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
         {
             int32_t black_val = blackCal->data[laneOffset + i];
             int32_t inter_val = intermediateCal->data[laneOffset + i];
             int32_t white_val = whiteCal->data[laneOffset + i];
 
-            // Debug pour les premiers pixels de chaque lane
-            if (i < 5 || i == cisConfig.pixels_per_color_per_lane/2 || i >= cisConfig.pixels_per_color_per_lane-5) {
-                printf("Lane %ld, Pixel %ld: Black=%ld, Inter=%ld, White=%ld\n",
-                       lane, i, black_val, inter_val, white_val);
-            }
-
             // Gain segment 1: noir → intermédiaire (Q8.8 format)
             int32_t diff_seg1 = inter_val - black_val;
             if (diff_seg1 != 0) {
                 int32_t gain_temp = ((int32_t)target_intermediate << 8) / diff_seg1;
                 cisCals.gainsData_seg1[laneOffset + i] = CLIP_INT16(gain_temp);
-
-                // Debug pour les premiers pixels
-                if (i < 5 || i == cisConfig.pixels_per_color_per_lane/2 || i >= cisConfig.pixels_per_color_per_lane-5) {
-                    printf("  Seg1: diff=%ld, gain_temp=%ld, gain_final=%d\n",
-                           diff_seg1, gain_temp, cisCals.gainsData_seg1[laneOffset + i]);
-                }
             } else {
                 cisCals.gainsData_seg1[laneOffset + i] = UNITY_Q8_8;
-                if (i < 5) printf("  Seg1: diff=0, using UNITY_Q8_8=%d\n", UNITY_Q8_8);
             }
 
             // Gain segment 2: intermédiaire → blanc (Q8.8 format)
@@ -864,19 +762,11 @@ static void cis_computeCalsGains(uint32_t maxADCValue, struct cisCalsTypes *whit
             if (diff_seg2 != 0) {
                 int32_t gain_temp = (((int32_t)maxADCValue - target_intermediate) << 8) / diff_seg2;
                 cisCals.gainsData_seg2[laneOffset + i] = CLIP_INT16(gain_temp);
-
-                // Debug pour les premiers pixels
-                if (i < 5 || i == cisConfig.pixels_per_color_per_lane/2 || i >= cisConfig.pixels_per_color_per_lane-5) {
-                    printf("  Seg2: diff=%ld, gain_temp=%ld, gain_final=%d\n",
-                           diff_seg2, gain_temp, cisCals.gainsData_seg2[laneOffset + i]);
-                }
             } else {
                 cisCals.gainsData_seg2[laneOffset + i] = UNITY_Q8_8;
-                if (i < 5) printf("  Seg2: diff=0, using UNITY_Q8_8=%d\n", UNITY_Q8_8);
             }
         }
     }
-    printf("=== END DEBUG GAINS %s ===\n", colorNames[color]);
 }
 
 static void cis_computeTransitionPoints(struct cisCalsTypes *intermediateCal, CIS_Color_TypeDef color)

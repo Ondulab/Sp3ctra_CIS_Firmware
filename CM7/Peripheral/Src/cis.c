@@ -523,6 +523,8 @@ void cis_startCapture()
     /* Start LED B generation ###############################*/
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
+    cis_ledPowerAdj(100, 100, 100);
+
     /* Start SP generation ##################################*/
     HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
     __HAL_TIM_MOE_DISABLE(&htim8);
