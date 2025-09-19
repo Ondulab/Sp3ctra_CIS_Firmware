@@ -541,7 +541,7 @@ void cis_startCapture()
     HAL_ADC_Start_DMA(&hadc2, (uint32_t *)cisData_ADC2, cisConfig.adc_buff_size);
     HAL_ADC_Start_DMA(&hadc3, (uint32_t *)cisData_ADC3, cisConfig.adc_buff_size);
 
-    osDelay(1);
+    //osDelay(1);
 
     /* Start ADC Main Timer #######################################*/
     __HAL_TIM_SET_COUNTER(&htim1, 0);
