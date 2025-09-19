@@ -477,8 +477,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
 
     cis_imageProcessRGB_Calibration(cisDataCpy, blackCal.data, iterationNb);
     SCB_CleanDCache_by_Addr((uint32_t *)&cisCals, sizeof(cisCals));
-    cis_ledPowerAdj(100, 100, 100);
-    osDelay(500);
+    osDelay(300);
 
     printf("Compute average\n");
 

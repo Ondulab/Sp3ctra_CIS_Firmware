@@ -128,7 +128,7 @@ static void cis_userCal(void)
 #ifdef POLYNOMIAL_CALIBRATION
         cis_StartCalibration(20); // WIP
 #else
-        cis_startLinearCalibration(cisDataCpy, 500, 255);
+        cis_startLinearCalibration(cisDataCpy, 1000, 255);
 #endif
 
 #ifdef PRINT_CIS_CALIBRATION
