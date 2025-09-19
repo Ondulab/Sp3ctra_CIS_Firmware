@@ -141,7 +141,7 @@
 #define CIS_DRIFT_THRESHOLD                     (100)   // Maximum allowed drift in ADC counts
 
 // Calibration segmentée
-#define CIS_INTERMEDIATE_LED_POWER              (50)    // Puissance LED intermédiaire (50%)
+#define CIS_INTERMEDIATE_LED_POWER              (5)    // Puissance LED intermédiaire (50%)
 
 // Format Q8.8 pour les gains (optimisation mémoire)
 #define UNITY_Q8_8                              (1 << 8)    // 1.0 en format Q8.8
