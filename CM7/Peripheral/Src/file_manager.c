@@ -455,6 +455,80 @@ fileManager_StatusTypeDef file_readCisCals(const char* filePath, struct cisCals*
 }
 
 /**
+ * @brief  Writes IMU calibration data to a file.
+ *         This function creates or overwrites the specified file and writes
+ *         the provided IMU calibration data into it.
+ *
+ * @param  filePath  Path to the file where the IMU calibration data will be stored.
+ * @param  data      Pointer to the IMU calibration data to be written.
+ *
+ * @return FILEMANAGER_OK if the write operation is successful, FILEMANAGER_ERROR otherwise.
+ */
+fileManager_StatusTypeDef file_writeImuCals(const char* filePath, const struct imuCals* data)
+{
+    FIL file;
+    UINT bw;
+    FRESULT fr;
+
+    // Open the file in write mode (overwrite if exists)
+    fr = f_open(&file, filePath, FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr != FR_OK)
+    {
+        printf("Failed to create IMU calibration file: %s\n", filePath);
+        return FILEMANAGER_ERROR;
+    }
+
+    // Write data to the file
+    fr = f_write(&file, data, sizeof(struct imuCals), &bw);
+    if (fr != FR_OK || bw != sizeof(struct imuCals))
+    {
+        printf("Failed to write IMU calibration file\n");
+        f_close(&file);
+        return FILEMANAGER_ERROR;
+    }
+
+    // Close the file
+    f_close(&file);
+    return FILEMANAGER_OK;
+}
+
+/**
+ * @brief  Reads IMU calibration data from a file.
+ *         This function opens the specified file, reads its content into the
+ *         `imuCals` structure, and then closes the file.
+ *
+ * @param  filePath  Path to the file containing the IMU calibration data.
+ * @param  data      Pointer to the structure where the read data will be stored.
+ *
+ * @return FILEMANAGER_OK if the read operation is successful, FILEMANAGER_ERROR otherwise.
+ */
+fileManager_StatusTypeDef file_readImuCals(const char* filePath, struct imuCals* data)
+{
+    FIL file;
+    UINT br;
+    FRESULT fr;
+
+    // Open the file in read mode
+    fr = f_open(&file, filePath, FA_READ);
+    if (fr != FR_OK)
+    {
+        return FILEMANAGER_ERROR;
+    }
+
+    // Read data from the file
+    fr = f_read(&file, data, sizeof(struct imuCals), &br);
+    if (fr != FR_OK || br != sizeof(struct imuCals))
+    {
+        f_close(&file);
+        return FILEMANAGER_ERROR;
+    }
+
+    // Close the file
+    f_close(&file);
+    return FILEMANAGER_OK;
+}
+
+/**
  * @brief Computes CRC over a memory buffer in streaming mode using STM32H7 hardware CRC.
  *
  * This function:

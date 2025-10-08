@@ -183,6 +183,25 @@ struct __attribute__((aligned(4))) cisCals
 	int32_t blackRefInactiveAvg[COLOR_CHANNELS][CIS_ADC_OUT_LANES];  // Red, Green, Blue for each lane
 };
 
+// IMU calibration data structure
+struct __attribute__((aligned(4))) imuCals
+{
+	// Gyroscope biases (dps)
+	float gyroBiasX;
+	float gyroBiasY;
+	float gyroBiasZ;
+
+	// Accelerometer biases (g)
+	float accelBiasX;
+	float accelBiasY;
+	float accelBiasZ;
+
+	// Accelerometer scale factors
+	float accelScaleX;
+	float accelScaleY;
+	float accelScaleZ;
+};
+
 struct __attribute__((aligned(4))) shared_var
 {
 	int32_t cis_process_rdy;

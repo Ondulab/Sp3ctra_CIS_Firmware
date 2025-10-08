@@ -269,6 +269,12 @@ typedef struct {
     void icm42688_setAccelCalX(float bias,float scaleFactor);
     void icm42688_setAccelCalY(float bias,float scaleFactor);
     void icm42688_setAccelCalZ(float bias,float scaleFactor);
+
+    // IMU calibration persistence functions
+    ICM42688_StatusTypeDef icm42688_performCalibration(void);
+    ICM42688_StatusTypeDef icm42688_saveCalibration(const char* filePath);
+    ICM42688_StatusTypeDef icm42688_loadCalibration(const char* filePath);
+
     void icm42688_TIM_Callback();
 
 #ifdef DEBUG_ICM42688

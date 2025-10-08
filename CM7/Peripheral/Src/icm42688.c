@@ -27,6 +27,8 @@
 #include "icm42688.h"
 #include "spi.h"
 #include "config.h"
+#include "file_manager.h"
+#include "globals.h"
 
 // buffer for reading from sensor
 static uint8_t _buffer[15] = {};
@@ -247,18 +249,30 @@ ICM42688_StatusTypeDef icm42688_init()
 
 	osDelay(100);
 
-	// estimate gyro bias
-	if (icm42688_calibrateGyro() != ICM42688_OK)
+	// Try to load calibration from flash
+	if (icm42688_loadCalibration(IMU_CALIBRATION_FILE_PATH) == ICM42688_OK)
 	{
-		printf("failed to calibrate GYRO IMU\n");
-		return ICM42688_ERROR;
+		printf("IMU: Calibration loaded from flash\n");
 	}
-
-	// estimate acc bias
-	if (icm42688_calibrateAccel() != ICM42688_OK)
+	else
 	{
-		printf("failed to calibrate ACC IMU\n");
-		return ICM42688_ERROR;
+		// No valid calibration found - perform automatic calibration
+		printf("IMU: No valid calibration found, performing auto-calibration...\n");
+		printf("IMU: Please keep device stationary...\n");
+
+		if (icm42688_performCalibration() == ICM42688_OK)
+		{
+			printf("IMU: Auto-calibration successful and saved\n");
+		}
+		else
+		{
+			printf("IMU: Auto-calibration failed, using default values\n");
+			// Set default values (zeros)
+			_gyrB[0] = _gyrB[1] = _gyrB[2] = 0.0f;
+			_accB[0] = _accB[1] = 0.0f;
+			_accB[2] = -1.0f; // Gravity offset
+			_accS[0] = _accS[1] = _accS[2] = 1.0f;
+		}
 	}
 
 	// successful init, return 1
@@ -402,27 +416,27 @@ ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilte
 	{
 		// Configure AAF for 213Hz bandwidth (optimal for 200Hz ODR gesture detection)
 		// From datasheet table: 213Hz -> DELT=5, DELTSQR=25, BITSHIFT=10
-		
+
 		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT (5), bit 0 = ACCEL_AAF_DIS (0=enable)
 		uint8_t config_static2 = (5 << 1) | ACCEL_AAF_ENABLE;  // DELT=5, AAF enabled
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, config_static2) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
-		
+
 		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte (25 & 0xFF = 25)
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, 25) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
-		
+
 		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 3:0 = ACCEL_AAF_DELTSQR high nibble (25 >> 8 = 0), bits 7:4 = ACCEL_AAF_BITSHIFT (10)
 		uint8_t config_static4 = (10 << 4) | ((25 >> 8) & 0x0F);  // BITSHIFT=10, DELTSQR high=0
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC4, config_static4) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
-		
+
 #ifdef DEBUG_ICM42688
 		printf("ICM42688: AAF configured for 213Hz (DELT=5, DELTSQR=25, BITSHIFT=10)\n");
 #endif
@@ -438,7 +452,7 @@ ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilte
 		printf("ICM42688: AAF disabled\n");
 #endif
 	}
-	
+
 	if (icm42688_setBank(0) != ICM42688_OK)
 	{
 		return ICM42688_ERROR;
@@ -721,7 +735,7 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	// Prevent concurrent DMA transfers during calibration
 	IMU_StateTypeDef saved_state = IMU_State;
 	IMU_State = IMU_INIT_NOK;
-	
+
 	// set at a lower range (more resolution) since IMU not moving
 	const AccelFS current_fssel = _accelFS;
 	if (icm42688_setAccelFS(gpm2) != ICM42688_OK)
@@ -741,7 +755,7 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 		_accBD[0] += icm42688_accX();
 		_accBD[1] += icm42688_accY();
 		_accBD[2] += icm42688_accZ();
-		
+
 		// Wait for ~5ms between samples to preserve temporal spacing
 		// Safe to use osDelay during initialization since IMU_State = IMU_INIT_NOK prevents DMA conflicts
 		if (i < NUM_CALIB_SAMPLES - 1) // Don't wait after last sample
@@ -766,20 +780,20 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
-	
+
 	// Let sensor settle after configuration changes
 	osDelay(20);
-	
+
 	// Reinitialize SPI interface to clear any potential HAL state corruption
 	HAL_SPI_DeInit(&hspi2);
 	MX_SPI2_Init();
-	
+
 	// Clean DMA buffer cache to ensure coherency
 	SCB_CleanDCache_by_Addr((uint32_t*)_bufferDMA, sizeof(_bufferDMA));
-	
+
 	// Restore IMU state to allow DMA transfers
 	IMU_State = saved_state;
-	
+
 	return ICM42688_OK;
 }
 
@@ -922,7 +936,7 @@ ICM42688_StatusTypeDef icm42688_reset()
 {
 	// First, let's check if we can communicate with the device at all
 	uint8_t test_val = 0;
-	
+
 	// Try to read WHO_AM_I without setting bank (should work from any bank)
 	if (icm42688_readRegisters(UB0_REG_WHO_AM_I, 1, &test_val) == ICM42688_OK)
 	{
@@ -932,35 +946,35 @@ ICM42688_StatusTypeDef icm42688_reset()
 	{
 		return ICM42688_ERROR;
 	}
-	
+
 	// Ensure we're on bank 0
 	if (icm42688_setBank(0) != ICM42688_OK)
 	{
 		printf("ICM42688: Failed to set bank 0\n");
 		return ICM42688_ERROR;
 	}
-	
+
 	// According to datasheet: DEVICE_CONFIG bit 0 (SOFT_RESET_CONFIG)
 	// 0 = Normal (default), 1 = Enable reset
 	// After writing 1, the bit auto-clears and readback will be 0x00 (normal behavior)
-	
+
 	// Write 0x01 to trigger reset - don't check readback as it auto-clears
 	static uint8_t tx[2];
 	tx[0] = UB0_REG_DEVICE_CONFIG;
 	tx[1] = 0x01;
-	
+
 	while(HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY);
-	
+
 	HAL_StatusTypeDef hal_status = HAL_SPI_Transmit(&hspi2, tx, 2, 1000);
 	if (hal_status != HAL_OK)
 	{
 		printf("ICM42688: Reset write HAL_ERROR status=%d\n", hal_status);
 		return ICM42688_ERROR;
 	}
-	
+
 	// Wait 1ms as specified in datasheet, then additional time for device to come back up
 	osDelay(2); // 1ms minimum + margin
-	
+
 	// Verify device is responsive after reset
 	for (int retry = 0; retry < 10; retry++)
 	{
@@ -971,7 +985,7 @@ ICM42688_StatusTypeDef icm42688_reset()
 		}
 		osDelay(1); // Wait 1ms between attempts
 	}
-	
+
 	printf("ICM42688: Device not responsive after reset\n");
 	return ICM42688_ERROR;
 }
@@ -1064,6 +1078,107 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 	}
 }
 
+/**
+ * @brief  Performs complete IMU calibration (gyro + accel) and saves to flash.
+ * @note   Device MUST be stationary during calibration (~1.2 seconds).
+ * @return ICM42688_OK if successful, ICM42688_ERROR otherwise.
+ */
+ICM42688_StatusTypeDef icm42688_performCalibration(void)
+{
+	printf("IMU: Starting calibration (keep device stationary)...\n");
+
+	// Calibrate gyroscope (~200ms, 200 samples @ 1ms)
+	if (icm42688_calibrateGyro() != ICM42688_OK)
+	{
+		printf("IMU: Gyro calibration FAILED\n");
+		return ICM42688_ERROR;
+	}
+	printf("IMU: Gyro calibration OK (bias: X=%.3f Y=%.3f Z=%.3f dps)\n",
+	       _gyrB[0], _gyrB[1], _gyrB[2]);
+
+	// Calibrate accelerometer (~1000ms, 200 samples @ 5ms)
+	if (icm42688_calibrateAccel() != ICM42688_OK)
+	{
+		printf("IMU: Accel calibration FAILED\n");
+		return ICM42688_ERROR;
+	}
+	printf("IMU: Accel calibration OK (bias: X=%.3f Y=%.3f Z=%.3f g)\n",
+	       _accB[0], _accB[1], _accB[2]);
+
+	// Save calibration to flash
+	if (icm42688_saveCalibration(IMU_CALIBRATION_FILE_PATH) != ICM42688_OK)
+	{
+		printf("IMU: WARNING - Failed to save calibration to flash\n");
+		printf("IMU: Calibration data remains in RAM only\n");
+		// Continue anyway - calibration is valid in RAM
+	}
+	else
+	{
+		printf("IMU: Calibration saved to flash successfully\n");
+	}
+
+	return ICM42688_OK;
+}
+
+/**
+ * @brief  Saves current IMU calibration to flash file.
+ * @param  filePath  Path to calibration file.
+ * @return ICM42688_OK if successful, ICM42688_ERROR otherwise.
+ */
+ICM42688_StatusTypeDef icm42688_saveCalibration(const char* filePath)
+{
+	struct imuCals cal_data;
+
+	// Fill calibration structure from current values
+	cal_data.gyroBiasX = _gyrB[0];
+	cal_data.gyroBiasY = _gyrB[1];
+	cal_data.gyroBiasZ = _gyrB[2];
+	cal_data.accelBiasX = _accB[0];
+	cal_data.accelBiasY = _accB[1];
+	cal_data.accelBiasZ = _accB[2];
+	cal_data.accelScaleX = _accS[0];
+	cal_data.accelScaleY = _accS[1];
+	cal_data.accelScaleZ = _accS[2];
+
+	// Write to file system
+	if (file_writeImuCals(filePath, &cal_data) != FILEMANAGER_OK)
+	{
+		return ICM42688_ERROR;
+	}
+
+	return ICM42688_OK;
+}
+
+/**
+ * @brief  Loads IMU calibration from flash file and applies it.
+ * @param  filePath  Path to calibration file.
+ * @return ICM42688_OK if successful, ICM42688_ERROR if file missing/corrupt.
+ */
+ICM42688_StatusTypeDef icm42688_loadCalibration(const char* filePath)
+{
+	struct imuCals cal_data;
+
+	// Read from file system
+	if (file_readImuCals(filePath, &cal_data) != FILEMANAGER_OK)
+	{
+		printf("IMU: Calibration file not found\n");
+		return ICM42688_ERROR;
+	}
+
+	// Apply calibration values
+	_gyrB[0] = cal_data.gyroBiasX;
+	_gyrB[1] = cal_data.gyroBiasY;
+	_gyrB[2] = cal_data.gyroBiasZ;
+	_accB[0] = cal_data.accelBiasX;
+	_accB[1] = cal_data.accelBiasY;
+	_accB[2] = cal_data.accelBiasZ;
+	_accS[0] = cal_data.accelScaleX;
+	_accS[1] = cal_data.accelScaleY;
+	_accS[2] = cal_data.accelScaleZ;
+
+	return ICM42688_OK;
+}
+
 void icm42688_TIM_Callback()
 {
     /* increment diagnostic timer callback counter (non-blocking) */
@@ -1083,7 +1198,7 @@ void icm42688_handle_debug_print()
     if (_newDataAvailable) {
         // Local copy to avoid race conditions
         float acc[3], gyr[3], t;
-        
+
         // Simple critical section to copy data
         __disable_irq();
         acc[0] = _dbg_acc[0]; acc[1] = _dbg_acc[1]; acc[2] = _dbg_acc[2];
