@@ -182,7 +182,7 @@ ICM42688_StatusTypeDef icm42688_init()
 	}
 
 	// Set accelerometer to ±4G for better resolution in hand gesture detection
-	if (icm42688_setAccelFS(gpm4) != ICM42688_OK)
+	if (icm42688_setAccelFS(gpm2) != ICM42688_OK)
 	{
 		printf("failed to set ACC FS IMU\n");
 		return ICM42688_ERROR;

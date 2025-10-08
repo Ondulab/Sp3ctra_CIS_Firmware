@@ -92,14 +92,14 @@
 #define DEFAULT_CIS_PRINT_CALIBRATION 0
 #define DEFAULT_CIS_RAW 0
 #define DEFAULT_CIS_DPI 400
-#define DEFAULT_CIS_MAX_LINE_FREQ 900
-#define DEFAULT_CIS_OVERSAMPLING 2
+#define DEFAULT_CIS_OVERSAMPLING 1
 
-//#define DEFAULT_CIS_CLK_FREQ					(2500000)
-//#define   DEFAULT_CIS_CLK_FREQ				(3125000)
-//#define DEFAULT_CIS_CLK_FREQ					(3200000)
-#define DEFAULT_CIS_CLK_FREQ					(4000000)
-//#define DEFAULT_CIS_CLK_FREQ					(5000000)
+// CIS clock frequency - fixed value
+//#define CIS_CLK_FREQ							(2500000)
+//#define   CIS_CLK_FREQ						(3125000)
+//#define CIS_CLK_FREQ							(3200000)
+#define CIS_CLK_FREQ							(4000000)
+//#define CIS_CLK_FREQ							(5000000)
 
 #define CIS_CAPTURE_TIMEOUT 					(100)
 

@@ -185,7 +185,7 @@ static CIS_StatusTypeDef cis_configure(void)
     memset(cisDataCpy, 0, cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES * sizeof(uint32_t));
 
     /* Calculate the cycle duration in microseconds */
-    float32_t cycle_duration_us = (1000000.0f / DEFAULT_CIS_CLK_FREQ);
+    float32_t cycle_duration_us = (1000000.0f / CIS_CLK_FREQ);
 
     /* Calculate LED OFF index */
     cisConfig.leds_off_index = (int)(leds_duration_us / cycle_duration_us) + CIS_LED_ON;
