@@ -734,6 +734,22 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
+					/* Get gyro sensitivity */
+					else if (strncmp((char const *)buf, "GET /getGyroSensitivity", 23) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_gyro_sensitivity);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get accel sensitivity */
+					else if (strncmp((char const *)buf, "GET /getAccelSensitivity", 24) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_accel_sensitivity);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
 					/* Send 404 if no route matches */
 					else
 					{
@@ -877,6 +893,74 @@ static void http_server(struct netconn *conn)
 					            printf("HTTP: IMU calibration failed\n");
 					        }
 					    }
+					}
+
+					/* Process POST request to set gyro sensitivity */
+					else if (strncmp((char const *)buf, "POST /setGyroSensitivity", 24) == 0)
+					{
+						char *gyroSensValue = strstr(buf, "gyro_sensitivity=") + 17;
+
+						if (gyroSensValue)
+						{
+							uint8_t newValue = (uint8_t)atoi(gyroSensValue);
+							// Validate range (0x00-0x07 for GyroFS)
+							if (newValue <= 0x07)
+							{
+								shared_config.imu_gyro_sensitivity = newValue;
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								// Reinitialize IMU with new sensitivity
+								icm42688_setGyroFS((GyroFS)newValue);
+
+								char response[100];
+								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_gyro_sensitivity);
+								netconn_write(conn, response, len, NETCONN_COPY);
+							}
+							else
+							{
+								char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid gyro sensitivity value";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nGyro sensitivity value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set accel sensitivity */
+					else if (strncmp((char const *)buf, "POST /setAccelSensitivity", 25) == 0)
+					{
+						char *accelSensValue = strstr(buf, "accel_sensitivity=") + 18;
+
+						if (accelSensValue)
+						{
+							uint8_t newValue = (uint8_t)atoi(accelSensValue);
+							// Validate range (0x00-0x03 for AccelFS)
+							if (newValue <= 0x03)
+							{
+								shared_config.imu_accel_sensitivity = newValue;
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								// Reinitialize IMU with new sensitivity
+								icm42688_setAccelFS((AccelFS)newValue);
+
+								char response[100];
+								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_accel_sensitivity);
+								netconn_write(conn, response, len, NETCONN_COPY);
+							}
+							else
+							{
+								char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nInvalid accel sensitivity value";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nAccel sensitivity value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
 					}
 
 					/* Handler for updating network settings */

@@ -395,9 +395,37 @@
             </div>
         </div>
 
-        <!-- IMU Calibration -->
+        <!-- IMU Parameters -->
         <div class="container">
-            <span class="title">IMU CALIBRATION</span>
+            <span class="title">IMU PARAMETERS</span>
+            <div class="form-group">
+                <label for="gyroSensitivity">Gyro</label>
+                <div id="loadingIndicatorGyro" class="button-loading2" style="display:none;"></div>
+                <div class="select-container" style="position: relative;">
+                    <select id="gyroSensitivity" onchange="updateGyroSensitivity(this.value)">
+                        <option value="0">±2000 dps</option>
+                        <option value="1">±1000 dps</option>
+                        <option value="2">±500 dps</option>
+                        <option value="3">±250 dps</option>
+                        <option value="4">±125 dps</option>
+                        <option value="5">±62.5 dps</option>
+                        <option value="6">±31.25 dps</option>
+                        <option value="7">±15.625 dps</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="accelSensitivity">Accel</label>
+                <div id="loadingIndicatorAccel" class="button-loading2" style="display:none;"></div>
+                <div class="select-container" style="position: relative;">
+                    <select id="accelSensitivity" onchange="updateAccelSensitivity(this.value)">
+                        <option value="0">±16 g</option>
+                        <option value="1">±8 g</option>
+                        <option value="2">±4 g</option>
+                        <option value="3">±2 g</option>
+                    </select>
+                </div>
+            </div>
             <div class="button-container">
                 <button id="calibrateIMUButton" onclick="startIMUCalibration()">Start IMU Calibration</button>
             </div>
@@ -485,6 +513,8 @@
             })
                 .then(() => loadHand())
                 .then(() => loadOversampling())
+                .then(() => loadGyroSensitivity())
+                .then(() => loadAccelSensitivity())
                 .then(() => loadNetworkConfig())
                 .then(() => timer())
                 .catch(error => {
@@ -742,6 +772,116 @@
                     reject(new Error("Network request failed"));
                 };
                 xhr.send("hand=" + newHand);
+            });
+        }
+
+        // Load Gyro Sensitivity
+        function loadGyroSensitivity() {
+            const loadingIndicator = document.getElementById('loadingIndicatorGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getGyroSensitivity", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var select = document.getElementById('gyroSensitivity');
+                        select.value = xhr.responseText.trim();
+                        console.log("Gyro sensitivity loaded:", xhr.responseText);
+                        loadingIndicator.style.display = 'none';
+                        resolve();
+                    } else {
+                        console.error("Failed to load gyro sensitivity:", xhr.statusText);
+                        loadingIndicator.style.display = 'none';
+                        reject(new Error("Failed to load gyro sensitivity"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        // Update Gyro Sensitivity
+        function updateGyroSensitivity(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setGyroSensitivity", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Gyro sensitivity updated to:", newValue);
+                        loadingIndicator.style.display = 'none';
+                        resolve();
+                    } else {
+                        console.error("Failed to update gyro sensitivity:", xhr.statusText);
+                        loadingIndicator.style.display = 'none';
+                        reject(new Error("Failed to update gyro sensitivity"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("gyro_sensitivity=" + newValue);
+            });
+        }
+
+        // Load Accel Sensitivity
+        function loadAccelSensitivity() {
+            const loadingIndicator = document.getElementById('loadingIndicatorAccel');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getAccelSensitivity", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var select = document.getElementById('accelSensitivity');
+                        select.value = xhr.responseText.trim();
+                        console.log("Accel sensitivity loaded:", xhr.responseText);
+                        loadingIndicator.style.display = 'none';
+                        resolve();
+                    } else {
+                        console.error("Failed to load accel sensitivity:", xhr.statusText);
+                        loadingIndicator.style.display = 'none';
+                        reject(new Error("Failed to load accel sensitivity"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        // Update Accel Sensitivity
+        function updateAccelSensitivity(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorAccel');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setAccelSensitivity", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Accel sensitivity updated to:", newValue);
+                        loadingIndicator.style.display = 'none';
+                        resolve();
+                    } else {
+                        console.error("Failed to update accel sensitivity:", xhr.statusText);
+                        loadingIndicator.style.display = 'none';
+                        reject(new Error("Failed to update accel sensitivity"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("accel_sensitivity=" + newValue);
             });
         }
 

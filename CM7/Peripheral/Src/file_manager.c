@@ -25,6 +25,7 @@
 #include "crc.h"
 
 #include "file_manager.h"
+#include "icm42688.h"
 
 /* Private define ------------------------------------------------------------*/
 #define WORKING_BUFFER_SIZE (2 * _MAX_SS)
@@ -42,9 +43,10 @@ const struct shared_config DefaultConfig =
     .network_tcp_port = DEFAULT_NETWORK_TCP_PORT,
     .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
     .cis_dpi = DEFAULT_CIS_DPI,
-    .cis_clk_freq = DEFAULT_CIS_CLK_FREQ,
     .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
-    .cis_handedness = DEFAULT_CIS_HANDEDNESS
+    .cis_handedness = DEFAULT_CIS_HANDEDNESS,
+    .imu_gyro_sensitivity = DEFAULT_GYRO_SENSITIVITY,
+    .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY
 };
 
 FATFS fs;
@@ -159,10 +161,6 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->cis_dpi = (uint16_t)strtoul(value, NULL, 10);
             }
-            else if (strcmp(token, "CIS_CLK_FREQ") == 0)
-            {
-                config->cis_clk_freq = strtoul(value, NULL, 10);
-            }
             else if (strcmp(token, "CIS_OVERSAMPLING") == 0)
             {
                 config->cis_oversampling = (uint8_t)strtoul(value, NULL, 10);
@@ -170,6 +168,14 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             else if (strcmp(token, "CIS_HANDEDNESS") == 0)
             {
                 config->cis_handedness = (uint8_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "IMU_GYRO_SENSITIVITY") == 0)
+            {
+                config->imu_gyro_sensitivity = (uint8_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "IMU_ACCEL_SENSITIVITY") == 0)
+            {
+                config->imu_accel_sensitivity = (uint8_t)strtoul(value, NULL, 10);
             }
         }
         token = strtok(NULL, "=");
@@ -222,9 +228,10 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "NETWORK_TCP_PORT=%u\n", config->network_tcp_port);
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
     f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
-    f_printf(&file, "CIS_CLK_FREQ=%lu\n", config->cis_clk_freq);
     f_printf(&file, "CIS_OVERSAMPLING=%u\n", config->cis_oversampling);
     f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
+    f_printf(&file, "IMU_GYRO_SENSITIVITY=%u\n", config->imu_gyro_sensitivity);
+    f_printf(&file, "IMU_ACCEL_SENSITIVITY=%u\n", config->imu_accel_sensitivity);
 
     // Close the file
     f_close(&file);
@@ -264,7 +271,6 @@ fileManager_StatusTypeDef print_shared_config(struct shared_config config)
     printf("Network TCP Port: %u\n", config.network_tcp_port);
     printf("CIS Print Calibration: %u\n", config.cis_print_calibration);
     printf("CIS DPI: %u\n", config.cis_dpi);
-    printf("CIS Clock Frequency: %u Hz\n", (unsigned int)config.cis_clk_freq);
     printf("CIS Oversampling: %u\n", config.cis_oversampling);
     printf("CIS Handedness: %u\n", config.cis_handedness);
     printf("===============================\n");

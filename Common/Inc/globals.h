@@ -227,9 +227,10 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t network_tcp_port;
 	uint8_t cis_print_calibration;
 	uint16_t cis_dpi;
-	uint32_t cis_clk_freq;
 	uint8_t cis_oversampling;
 	uint8_t cis_handedness;
+	uint8_t imu_gyro_sensitivity;   // GyroFS enum value (0x00-0x07)
+	uint8_t imu_accel_sensitivity;  // AccelFS enum value (0x00-0x03)
 };
 
 /**************************************************************************************/
