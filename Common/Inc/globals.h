@@ -231,6 +231,12 @@ struct __attribute__((aligned(4))) shared_config
 	uint8_t cis_handedness;
 	uint8_t imu_gyro_sensitivity;   // GyroFS enum value (0x00-0x07)
 	uint8_t imu_accel_sensitivity;  // AccelFS enum value (0x00-0x03)
+	// GUI and screensaver configuration
+	uint8_t gui_show_imu;           // 0=hide IMU panel, 1=show IMU panel
+	uint8_t gui_invert_cis_image;   // 0=normal, 1=inverted CIS image colors
+	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
+	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
+	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
 };
 
 /**************************************************************************************/

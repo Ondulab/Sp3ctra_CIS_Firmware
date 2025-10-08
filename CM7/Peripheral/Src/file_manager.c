@@ -46,7 +46,12 @@ const struct shared_config DefaultConfig =
     .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
     .cis_handedness = DEFAULT_CIS_HANDEDNESS,
     .imu_gyro_sensitivity = DEFAULT_GYRO_SENSITIVITY,
-    .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY
+    .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY,
+    .gui_show_imu = DEFAULT_GUI_SHOW_IMU,
+    .gui_invert_cis_image = DEFAULT_GUI_INVERT_CIS_IMAGE,
+    .screensaver_timeout_sec = DEFAULT_SCREENSAVER_TIMEOUT_SEC,
+    .motion_threshold_acc = DEFAULT_MOTION_THRESHOLD_ACC,
+    .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO
 };
 
 FATFS fs;
@@ -177,6 +182,26 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->imu_accel_sensitivity = (uint8_t)strtoul(value, NULL, 10);
             }
+            else if (strcmp(token, "GUI_SHOW_IMU") == 0)
+            {
+                config->gui_show_imu = (uint8_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "GUI_INVERT_CIS_IMAGE") == 0)
+            {
+                config->gui_invert_cis_image = (uint8_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "SCREENSAVER_TIMEOUT_SEC") == 0)
+            {
+                config->screensaver_timeout_sec = (uint16_t)strtoul(value, NULL, 10);
+            }
+            else if (strcmp(token, "MOTION_THRESHOLD_ACC") == 0)
+            {
+                config->motion_threshold_acc = strtof(value, NULL);
+            }
+            else if (strcmp(token, "MOTION_THRESHOLD_GYRO") == 0)
+            {
+                config->motion_threshold_gyro = strtof(value, NULL);
+            }
         }
         token = strtok(NULL, "=");
     }
@@ -232,6 +257,11 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
     f_printf(&file, "IMU_GYRO_SENSITIVITY=%u\n", config->imu_gyro_sensitivity);
     f_printf(&file, "IMU_ACCEL_SENSITIVITY=%u\n", config->imu_accel_sensitivity);
+    f_printf(&file, "GUI_SHOW_IMU=%u\n", config->gui_show_imu);
+    f_printf(&file, "GUI_INVERT_CIS_IMAGE=%u\n", config->gui_invert_cis_image);
+    f_printf(&file, "SCREENSAVER_TIMEOUT_SEC=%u\n", config->screensaver_timeout_sec);
+    f_printf(&file, "MOTION_THRESHOLD_ACC=%.2f\n", config->motion_threshold_acc);
+    f_printf(&file, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
 
     // Close the file
     f_close(&file);

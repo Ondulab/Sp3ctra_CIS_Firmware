@@ -30,13 +30,10 @@
 #include "gui_imu.h"
 
 /* Private variables ---------------------------------------------------------*/
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 struct IMU_average IMU_average = {0};
-#endif
 
 /* Private functions ---------------------------------------------------------*/
 
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 /**
  * @brief Updates the moving average for the IMU sensor data.
  *
@@ -87,23 +84,33 @@ void gui_displayIMU(void)
     static int32_t x1 = 0;
     static int32_t w2 = 0;
 
+    // Get dynamic area positions
+    uint32_t area2_y1pos = GUI_GET_AREA2_Y1POS();
+    uint32_t area2_y2pos = GUI_GET_AREA2_Y2POS();
+    uint32_t area2_height = GUI_GET_AREA2_HEIGHT();
+
+    // Don't display IMU if area height is 0
+    if (area2_height == 0) {
+        return;
+    }
+
     update_IMU_average();
 
-    ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA2_Y2POS, 1, false);
-    ssd1362_fillRect(24, DISPLAY_AERA2_Y1POS + 4, 231, DISPLAY_AERA2_Y2POS - 4, 5, false);
-    ssd1362_fillRect(0, DISPLAY_AERA2_Y1POS, 22, DISPLAY_AERA2_Y2POS, 5, false);
-    ssd1362_fillRect(DISPLAY_WIDTH - 1, DISPLAY_AERA2_Y1POS, DISPLAY_WIDTH - 1 - 22, DISPLAY_AERA2_Y2POS, 5, false);
+    ssd1362_fillRect(0, area2_y1pos, DISPLAY_WIDTH, area2_y2pos, 1, false);
+    ssd1362_fillRect(24, area2_y1pos + 4, 231, area2_y2pos - 4, 5, false);
+    ssd1362_fillRect(0, area2_y1pos, 22, area2_y2pos, 5, false);
+    ssd1362_fillRect(DISPLAY_WIDTH - 1, area2_y1pos, DISPLAY_WIDTH - 1 - 22, area2_y2pos, 5, false);
 
     //ACC Y (adjusted for ±4g range and calibrated values)
     int32_t accY = (int32_t)(IMU_average.acc[0] * 25);  // Reduced from 50 to 25 for ±4g range
-    if (accY > (DISPLAY_AERAS2_HEIGHT / 2))
-        accY = (DISPLAY_AERAS2_HEIGHT / 2);
-    if (accY < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
-        accY = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+    if (accY > (int32_t)(area2_height / 2))
+        accY = (int32_t)(area2_height / 2);
+    if (accY < ((int32_t)(area2_height / 2) * -1))
+        accY = (int32_t)(area2_height / 2) * -1;
 
     x1 = 2;
     w2 = 18;
-    ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + accY, 0, false);
+    ssd1362_fillRect(x1, area2_y1pos + (area2_height / 2), x1 + w2, area2_y1pos + (area2_height / 2) + accY, 0, false);
 
     //GYRO Y
     int32_t gyroY = (int32_t)(IMU_average.gyro[0]);
@@ -115,7 +122,7 @@ void gui_displayIMU(void)
     x1 = DISPLAY_WIDTH / 2;
     w2 = gyroY;
 
-    ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 4, x1 + w2, DISPLAY_AERA2_Y2POS - 4, 13, false);
+    ssd1362_fillRect(x1, area2_y1pos + 4, x1 + w2, area2_y2pos - 4, 13, false);
 
     //ACC X and ACC Z (adjusted for ±4g range and calibrated values with Z≈1g)
     // For Z: expect ~0.995g, so scale to show this properly in display area
@@ -137,8 +144,8 @@ void gui_displayIMU(void)
     x1 = DISPLAY_WIDTH / 2 - accX;
     w2 = accZ_RectWith - accZ;
 
-    ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 5, x1 + w2, DISPLAY_AERA2_Y2POS - 5, 0, false);
-    ssd1362_fillRect(x1 - w2, DISPLAY_AERA2_Y1POS + 5, x1, DISPLAY_AERA2_Y2POS - 5, 0, false);
+    ssd1362_fillRect(x1, area2_y1pos + 5, x1 + w2, area2_y2pos - 5, 0, false);
+    ssd1362_fillRect(x1 - w2, area2_y1pos + 5, x1, area2_y2pos - 5, 0, false);
 
     //GYRO X
     int32_t gyroX = (int32_t)(IMU_average.gyro[1] / 5);
@@ -149,35 +156,34 @@ void gui_displayIMU(void)
         gyroX = abs((int)gyroX);
         if ((gyroX) > 8)
             gyroX = 8;
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7 + gyroX, false);
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 8 - gyroX, false);
+        ssd1362_fillRect(x1, area2_y1pos + 2, x1 + w2, area2_y1pos, 7 + gyroX, false);
+        ssd1362_fillRect(x1, area2_y2pos, x1 + w2, area2_y2pos - 2, 8 - gyroX, false);
     }
     else if (gyroX > 0)
     {
         if ((gyroX) > 8)
             gyroX = 8;
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7 + gyroX, false);
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 8 - gyroX, false);
+        ssd1362_fillRect(x1, area2_y2pos, x1 + w2, area2_y2pos - 2, 7 + gyroX, false);
+        ssd1362_fillRect(x1, area2_y1pos + 2, x1 + w2, area2_y1pos, 8 - gyroX, false);
     }
     else
     {
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + 2, x1 + w2, DISPLAY_AERA2_Y1POS, 7, false);
-        ssd1362_fillRect(x1, DISPLAY_AERA2_Y2POS, x1 + w2, DISPLAY_AERA2_Y2POS - 2, 7, false);
+        ssd1362_fillRect(x1, area2_y1pos + 2, x1 + w2, area2_y1pos, 7, false);
+        ssd1362_fillRect(x1, area2_y2pos, x1 + w2, area2_y2pos - 2, 7, false);
     }
 
     int32_t gyroZ = (int32_t)(IMU_average.gyro[2] / 5);
-    if (gyroZ > (DISPLAY_AERAS2_HEIGHT / 2))
-        gyroZ = (DISPLAY_AERAS2_HEIGHT / 2);
-    if (gyroZ < ((DISPLAY_AERAS2_HEIGHT / 2) * -1))
-        gyroZ = (DISPLAY_AERAS2_HEIGHT / 2) * -1;
+    if (gyroZ > (int32_t)(area2_height / 2))
+        gyroZ = (int32_t)(area2_height / 2);
+    if (gyroZ < ((int32_t)(area2_height / 2) * -1))
+        gyroZ = (int32_t)(area2_height / 2) * -1;
 
     w2 = 9;
     x1 = 235 + 9;
-    ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) + gyroZ, 15, false);
+    ssd1362_fillRect(x1, area2_y1pos + (area2_height / 2), x1 + w2, area2_y1pos + (area2_height / 2) + gyroZ, 15, false);
     x1 = 235;
-    ssd1362_fillRect(x1, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2), x1 + w2, DISPLAY_AERA2_Y1POS + (DISPLAY_AERAS2_HEIGHT / 2) - gyroZ, 15, false);
+    ssd1362_fillRect(x1, area2_y1pos + (area2_height / 2), x1 + w2, area2_y1pos + (area2_height / 2) - gyroZ, 15, false);
 }
-#endif // GUI_SHOW_IMU
 
 /**
  * @brief Detects significant motion from IMU data.
@@ -215,6 +221,6 @@ bool gui_isSignificantMotion(void)
     memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
     memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
 
-    // Return true if motion exceeds thresholds
-    return (acc_delta > MOTION_THRESHOLD_ACC || gyro_delta > MOTION_THRESHOLD_GYRO);
+    // Return true if motion exceeds thresholds (use shared_config values)
+    return (acc_delta > shared_config.motion_threshold_acc || gyro_delta > shared_config.motion_threshold_gyro);
 }

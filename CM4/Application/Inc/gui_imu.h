@@ -23,21 +23,16 @@
 #include "basetypes.h"
 
 /* Exported types ------------------------------------------------------------*/
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 // Structure to store IMU data and moving average
 struct IMU_average
 {
     float32_t acc[3];  // Moving average of accelerometer
     float32_t gyro[3]; // Moving average of gyroscope
 };
-#endif
 
 /* Exported function prototypes ----------------------------------------------*/
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
 void gui_displayIMU(void);
 void update_IMU_average(void);
-#endif
-
 bool gui_isSignificantMotion(void);
 
 #endif /* __GUI_IMU_H */

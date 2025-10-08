@@ -47,9 +47,11 @@ void gui_displayImage(void)
     int32_t i = 0;
     int32_t y = 0;
     float32_t packet, index;
-    int32_t line_Ypos = DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2);
-    int32_t half_height_above = (DISPLAY_AERAS1_HEIGHT + 1) / 2;  // Round up for odd heights
-    int32_t half_height_below = DISPLAY_AERAS1_HEIGHT / 2;        // Round down for odd heights
+    uint32_t area1_height = GUI_GET_AREA1_HEIGHT();
+    uint32_t area1_y2pos = GUI_GET_AREA1_Y2POS();
+    int32_t line_Ypos = DISPLAY_AERA1_Y1POS + (area1_height / 2);
+    int32_t half_height_above = (area1_height + 1) / 2;  // Round up for odd heights
+    int32_t half_height_below = area1_height / 2;        // Round down for odd heights
     int32_t pixel_intensity = 0;
     float64_t angle = 0;
 
@@ -60,7 +62,7 @@ void gui_displayImage(void)
 
     transferComplete = false;
 
-    ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, DISPLAY_AERA1_Y2POS, GUI_COLOR(0), false);
+    ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, area1_y2pos, GUI_COLOR(0), false);
 
     // CIS DISPLAY
     for (i = 0; i < (DISPLAY_WIDTH); i++)

@@ -80,9 +80,10 @@ int gui_mainLoop(void)
             screensaver_active = false;  // Wake up from screensaver
         }
 
-        // Check if we should activate screensaver
+        // Check if we should activate screensaver (timeout in seconds converted to ms)
+        uint32_t screensaver_timeout_ms = (uint32_t)shared_config.screensaver_timeout_sec * 1000;
         if (!screensaver_active &&
-            (current_tick - last_significant_motion_tick) >= SCREENSAVER_TIMEOUT_MS) {
+            (current_tick - last_significant_motion_tick) >= screensaver_timeout_ms) {
             screensaver_active = true;
         }
 
@@ -114,9 +115,10 @@ int gui_mainLoop(void)
             }
 
             gui_interractiveMenu();
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
-            gui_displayIMU();
-#endif
+            // Display IMU if enabled in configuration
+            if (shared_config.gui_show_imu) {
+                gui_displayIMU();
+            }
             ssd1362_writeUpdates();
         }
     }
