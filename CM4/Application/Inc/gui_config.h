@@ -17,6 +17,8 @@
 #define __GUI_CONFIG_H__
 
 #include "config.h"
+#include "globals.h"
+#include "ssd1362.h"
 
 /**************************************************************************************/
 /********************             	GUI definitions                ********************/
@@ -28,30 +30,39 @@
 
 #define DISPLAY_HEAD_HEIGHT						(9)
 
-// Conditional display area definitions based on GUI_SHOW_IMU
-#if defined(GUI_SHOW_IMU) && (GUI_SHOW_IMU == 1)
-	#define DISPLAY_AERAS2_HEIGHT				(17)
-	/* Ensure area1 + inter + area2 exactly fit the screen.
-	   Start area1 at 0 like original layout so AERA2 ends at bottom */
-	#define DISPLAY_AERA1_Y1POS					(0)
-	#define DISPLAY_AERAS1_HEIGHT				((DISPLAY_HEIGHT) - (DISPLAY_AERAS2_HEIGHT))
-#else
-	#define DISPLAY_AERAS2_HEIGHT				(0)
-	#define DISPLAY_AERAS1_HEIGHT				(DISPLAY_HEIGHT)
-	#define DISPLAY_AERA1_Y1POS					(0)
-#endif
+// Static display area definitions
+#define DISPLAY_AERA1_Y1POS					(0)
 
 #define DISPLAY_HEAD_Y1POS						(0)
 #define DISPLAY_HEAD_Y2POS						(DISPLAY_HEAD_HEIGHT)
 
-#define DISPLAY_AERA1_Y2POS						(DISPLAY_AERA1_Y1POS + DISPLAY_AERAS1_HEIGHT - 1)
+// Dynamic display area calculations based on runtime GUI_SHOW_IMU config
+static inline uint32_t GUI_GET_AREA2_HEIGHT(void) {
+    return shared_config.gui_show_imu ? 17 : 0;
+}
 
-#define DISPLAY_AERA2_Y1POS						(DISPLAY_AERA1_Y2POS)
-#define DISPLAY_AERA2_Y2POS						(DISPLAY_AERA2_Y1POS + DISPLAY_AERAS2_HEIGHT)
+static inline uint32_t GUI_GET_AREA1_HEIGHT(void) {
+    return DISPLAY_HEIGHT - GUI_GET_AREA2_HEIGHT();
+}
+
+static inline uint32_t GUI_GET_AREA1_Y2POS(void) {
+    return DISPLAY_AERA1_Y1POS + GUI_GET_AREA1_HEIGHT() - 1;
+}
+
+static inline uint32_t GUI_GET_AREA2_Y1POS(void) {
+    return GUI_GET_AREA1_Y2POS();
+}
+
+static inline uint32_t GUI_GET_AREA2_Y2POS(void) {
+    uint32_t area2_height = GUI_GET_AREA2_HEIGHT();
+    return area2_height > 0 ? (GUI_GET_AREA2_Y1POS() + area2_height) : 0;
+}
 
 #define WINDOW_IMU_AVERAGE_SIZE 				(5)  // Window size for the moving average
 
-// Color inversion macro for display
-#define GUI_COLOR(c) ((GUI_INVERT_DISPLAY) ? (15 - (c)) : (c))
+// Color inversion function for display (uses runtime configuration)
+static inline uint8_t GUI_COLOR(uint8_t c) {
+    return (shared_config.gui_invert_cis_image) ? (15 - (c)) : (c);
+}
 
 #endif // __GUI_CONFIG_H__

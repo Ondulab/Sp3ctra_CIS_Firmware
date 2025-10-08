@@ -750,6 +750,46 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
+					/* Get GUI show IMU setting */
+					else if (strncmp((char const *)buf, "GET /getGuiShowImu", 18) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.gui_show_imu);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get GUI invert CIS image setting */
+					else if (strncmp((char const *)buf, "GET /getGuiInvertCisImage", 25) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.gui_invert_cis_image);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get screensaver timeout (in seconds) */
+					else if (strncmp((char const *)buf, "GET /getScreensaverTimeout", 26) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.screensaver_timeout_sec);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get motion threshold accelerometer */
+					else if (strncmp((char const *)buf, "GET /getMotionThresholdAcc", 26) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%.2f", shared_config.motion_threshold_acc);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get motion threshold gyroscope */
+					else if (strncmp((char const *)buf, "GET /getMotionThresholdGyro", 27) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%.2f", shared_config.motion_threshold_gyro);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
 					/* Send 404 if no route matches */
 					else
 					{
@@ -959,6 +999,138 @@ static void http_server(struct netconn *conn)
 						else
 						{
 							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nAccel sensitivity value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set GUI show IMU */
+					else if (strncmp((char const *)buf, "POST /setGuiShowImu", 19) == 0)
+					{
+						char *value = strstr(buf, "gui_show_imu=") + 13;
+						if (value)
+						{
+							uint8_t newValue = (uint8_t)atoi(value);
+							shared_config.gui_show_imu = (newValue > 0) ? 1 : 0;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.gui_show_imu);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set GUI invert CIS image */
+					else if (strncmp((char const *)buf, "POST /setGuiInvertCisImage", 26) == 0)
+					{
+						char *value = strstr(buf, "gui_invert_cis_image=") + 21;
+						if (value)
+						{
+							uint8_t newValue = (uint8_t)atoi(value);
+							shared_config.gui_invert_cis_image = (newValue > 0) ? 1 : 0;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.gui_invert_cis_image);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set screensaver timeout (in seconds) */
+					else if (strncmp((char const *)buf, "POST /setScreensaverTimeout", 27) == 0)
+					{
+						char *value = strstr(buf, "screensaver_timeout=") + 20;
+						if (value)
+						{
+							uint16_t newValue = (uint16_t)atoi(value);
+							// Validate range (1-1000 seconds)
+							if (newValue >= MIN_SCREENSAVER_TIMEOUT_SEC && newValue <= MAX_SCREENSAVER_TIMEOUT_SEC)
+							{
+								shared_config.screensaver_timeout_sec = newValue;
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								char response[100];
+								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.screensaver_timeout_sec);
+								netconn_write(conn, response, len, NETCONN_COPY);
+							}
+							else
+							{
+								char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue out of range (1-1000)";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set motion threshold accelerometer */
+					else if (strncmp((char const *)buf, "POST /setMotionThresholdAcc", 27) == 0)
+					{
+						char *value = strstr(buf, "motion_threshold_acc=") + 21;
+						if (value)
+						{
+							float newValue = strtof(value, NULL);
+							// Validate range (0.01-1.0 g)
+							if (newValue >= MIN_MOTION_THRESHOLD_ACC && newValue <= MAX_MOTION_THRESHOLD_ACC)
+							{
+								shared_config.motion_threshold_acc = newValue;
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								char response[100];
+								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%.2f", shared_config.motion_threshold_acc);
+								netconn_write(conn, response, len, NETCONN_COPY);
+							}
+							else
+							{
+								char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue out of range (0.01-1.0)";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set motion threshold gyroscope */
+					else if (strncmp((char const *)buf, "POST /setMotionThresholdGyro", 28) == 0)
+					{
+						char *value = strstr(buf, "motion_threshold_gyro=") + 22;
+						if (value)
+						{
+							float newValue = strtof(value, NULL);
+							// Validate range (0.5-10.0 dps)
+							if (newValue >= MIN_MOTION_THRESHOLD_GYRO && newValue <= MAX_MOTION_THRESHOLD_GYRO)
+							{
+								shared_config.motion_threshold_gyro = newValue;
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								char response[100];
+								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%.2f", shared_config.motion_threshold_gyro);
+								netconn_write(conn, response, len, NETCONN_COPY);
+							}
+							else
+							{
+								char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue out of range (0.5-10.0)";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
 							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
 						}
 					}

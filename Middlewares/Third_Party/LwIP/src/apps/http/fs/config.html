@@ -436,6 +436,39 @@
             </div>
         </div>
 
+        <!-- GUI & Screensaver Parameters -->
+        <div class="container">
+            <span class="title">GUI & SCREENSAVER SETTINGS</span>
+            <div class="form-group">
+                <label for="guiShowImu">Show IMU</label>
+                <button id="guiShowImuOff" class="hand-button" onclick="updateGuiShowImu('0')">OFF</button>
+                <button id="guiShowImuOn" class="hand-button" onclick="updateGuiShowImu('1')">ON</button>
+            </div>
+            <div class="form-group">
+                <label for="guiInvertCisImage">Invert CIS Image</label>
+                <button id="guiInvertOff" class="hand-button" onclick="updateGuiInvertCisImage('0')">OFF</button>
+                <button id="guiInvertOn" class="hand-button" onclick="updateGuiInvertCisImage('1')">ON</button>
+            </div>
+            <div class="form-group">
+                <label for="screensaverTimeout">Timeout (sec)</label>
+                <div id="loadingIndicatorScreensaver" class="button-loading2" style="display:none;"></div>
+                <input type="number" id="screensaverTimeout" min="1" max="1000"
+                    onchange="updateScreensaverTimeout(this.value)">
+            </div>
+            <div class="form-group">
+                <label for="motionThresholdAcc">Motion Acc (g)</label>
+                <div id="loadingIndicatorMotionAcc" class="button-loading2" style="display:none;"></div>
+                <input type="number" id="motionThresholdAcc" min="0.01" max="1.0" step="0.01"
+                    onchange="updateMotionThresholdAcc(this.value)">
+            </div>
+            <div class="form-group">
+                <label for="motionThresholdGyro">Motion Gyro (dps)</label>
+                <div id="loadingIndicatorMotionGyro" class="button-loading2" style="display:none;"></div>
+                <input type="number" id="motionThresholdGyro" min="0.5" max="10.0" step="0.5"
+                    onchange="updateMotionThresholdGyro(this.value)">
+            </div>
+        </div>
+
         <!-- Network Configuration -->
         <div class="container">
             <span class="title">NETWORK SETTINGS</span>
@@ -513,6 +546,11 @@
             })
                 .then(() => loadHand())
                 .then(() => loadOversampling())
+                .then(() => loadGuiShowImu())
+                .then(() => loadGuiInvertCisImage())
+                .then(() => loadScreensaverTimeout())
+                .then(() => loadMotionThresholdAcc())
+                .then(() => loadMotionThresholdGyro())
                 .then(() => loadGyroSensitivity())
                 .then(() => loadAccelSensitivity())
                 .then(() => loadNetworkConfig())
@@ -526,15 +564,41 @@
             return new Promise(resolve => {
                 var ipInputs = document.querySelectorAll('input[type="number"]');
                 ipInputs.forEach(function (input) {
+                    // Character filtering during input (allows free typing)
                     input.addEventListener('input', function () {
-                        this.value = this.value.replace(/\D/g, '');
-                        let num = parseInt(this.value, 10);
-                        if (this.value === "") {
+                        const isFloat = this.step && parseFloat(this.step) !== parseInt(this.step);
+
+                        if (isFloat) {
+                            // Allow digits, comma, and dot for float inputs
+                            this.value = this.value.replace(/[^\d.,]/g, '');
+                            // Replace comma with dot (European decimal separator)
+                            this.value = this.value.replace(/,/g, '.');
+                            // Ensure only one decimal point
+                            const parts = this.value.split('.');
+                            if (parts.length > 2) {
+                                this.value = parts[0] + '.' + parts.slice(1).join('');
+                            }
+                        } else {
+                            // Integer only - remove all non-digits
+                            this.value = this.value.replace(/\D/g, '');
+                        }
+                    });
+
+                    // Validation and bounds correction when leaving the field
+                    input.addEventListener('blur', function () {
+                        if (this.value === "" || this.value === ".") {
+                            this.value = this.min; // Default to min if empty
                             return;
                         }
-                        if (num > parseInt(this.max, 10)) {
+
+                        const isFloat = this.step && parseFloat(this.step) !== parseInt(this.step);
+                        let num = isFloat ? parseFloat(this.value) : parseInt(this.value, 10);
+
+                        if (isNaN(num)) {
+                            this.value = this.min;
+                        } else if (num > parseFloat(this.max)) {
                             this.value = this.max;
-                        } else if (num < parseInt(this.min, 10) || isNaN(num)) {
+                        } else if (num < parseFloat(this.min)) {
                             this.value = this.min;
                         }
                     });
@@ -951,6 +1015,271 @@
                 };
 
                 xhr.send("IMU_CAL_START");
+            });
+        }
+
+        // GUI Show IMU Functions
+        function setGuiShowImu(value) {
+            var buttons = [document.getElementById('guiShowImuOff'), document.getElementById('guiShowImuOn')];
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            if (value === "1") {
+                document.getElementById('guiShowImuOn').classList.add('selected');
+            } else {
+                document.getElementById('guiShowImuOff').classList.add('selected');
+            }
+        }
+
+        function loadGuiShowImu() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getGuiShowImu", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        setGuiShowImu(xhr.responseText.trim());
+                        console.log("GUI Show IMU loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load GUI Show IMU:", xhr.statusText);
+                        reject(new Error("Failed to load GUI Show IMU"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+
+        function updateGuiShowImu(newValue) {
+            return new Promise((resolve, reject) => {
+                var buttons = [document.getElementById('guiShowImuOff'), document.getElementById('guiShowImuOn')];
+                buttons.forEach(btn => btn.classList.add('button-loading'));
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setGuiShowImu", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    if (xhr.status === 200) {
+                        setGuiShowImu(newValue);
+                        console.log("GUI Show IMU updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update GUI Show IMU:", xhr.statusText);
+                        reject(new Error("Failed to update GUI Show IMU"));
+                    }
+                };
+                xhr.onerror = () => {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("gui_show_imu=" + newValue);
+            });
+        }
+
+        // GUI Invert CIS Image Functions
+        function setGuiInvertCisImage(value) {
+            var buttons = [document.getElementById('guiInvertOff'), document.getElementById('guiInvertOn')];
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            if (value === "1") {
+                document.getElementById('guiInvertOn').classList.add('selected');
+            } else {
+                document.getElementById('guiInvertOff').classList.add('selected');
+            }
+        }
+
+        function loadGuiInvertCisImage() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getGuiInvertCisImage", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        setGuiInvertCisImage(xhr.responseText.trim());
+                        console.log("GUI Invert CIS Image loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load GUI Invert CIS Image:", xhr.statusText);
+                        reject(new Error("Failed to load GUI Invert CIS Image"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+
+        function updateGuiInvertCisImage(newValue) {
+            return new Promise((resolve, reject) => {
+                var buttons = [document.getElementById('guiInvertOff'), document.getElementById('guiInvertOn')];
+                buttons.forEach(btn => btn.classList.add('button-loading'));
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setGuiInvertCisImage", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    if (xhr.status === 200) {
+                        setGuiInvertCisImage(newValue);
+                        console.log("GUI Invert CIS Image updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update GUI Invert CIS Image:", xhr.statusText);
+                        reject(new Error("Failed to update GUI Invert CIS Image"));
+                    }
+                };
+                xhr.onerror = () => {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("gui_invert_cis_image=" + newValue);
+            });
+        }
+
+        // Screensaver Timeout Functions
+        function loadScreensaverTimeout() {
+            const loadingIndicator = document.getElementById('loadingIndicatorScreensaver');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getScreensaverTimeout", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('screensaverTimeout').value = xhr.responseText.trim();
+                        console.log("Screensaver Timeout loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Screensaver Timeout:", xhr.statusText);
+                        reject(new Error("Failed to load Screensaver Timeout"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        function updateScreensaverTimeout(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorScreensaver');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setScreensaverTimeout", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Screensaver Timeout updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Screensaver Timeout:", xhr.statusText);
+                        reject(new Error("Failed to update Screensaver Timeout"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("screensaver_timeout=" + newValue);
+            });
+        }
+
+        // Motion Threshold Acc Functions
+        function loadMotionThresholdAcc() {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionAcc');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getMotionThresholdAcc", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('motionThresholdAcc').value = xhr.responseText.trim();
+                        console.log("Motion Threshold Acc loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Motion Threshold Acc:", xhr.statusText);
+                        reject(new Error("Failed to load Motion Threshold Acc"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        function updateMotionThresholdAcc(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionAcc');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setMotionThresholdAcc", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Motion Threshold Acc updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Motion Threshold Acc:", xhr.statusText);
+                        reject(new Error("Failed to update Motion Threshold Acc"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("motion_threshold_acc=" + newValue);
+            });
+        }
+
+        // Motion Threshold Gyro Functions
+        function loadMotionThresholdGyro() {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getMotionThresholdGyro", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('motionThresholdGyro').value = xhr.responseText.trim();
+                        console.log("Motion Threshold Gyro loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Motion Threshold Gyro:", xhr.statusText);
+                        reject(new Error("Failed to load Motion Threshold Gyro"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        function updateMotionThresholdGyro(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setMotionThresholdGyro", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Motion Threshold Gyro updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Motion Threshold Gyro:", xhr.statusText);
+                        reject(new Error("Failed to update Motion Threshold Gyro"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("motion_threshold_gyro=" + newValue);
             });
         }
 

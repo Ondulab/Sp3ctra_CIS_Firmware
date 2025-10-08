@@ -44,15 +44,28 @@
 #define CIS_DETAILED_DEBUG_INTERVAL             (100)   // Print detailed debug every N lines
 
 /**************************************************************************************/
-/********************              GUI definitions                 ********************/
+/********************              UI definitions                 *********************/
 /**************************************************************************************/
-#define GUI_SHOW_IMU 0   		// Set to 0 to hide IMU panel and use full image area
-#define GUI_INVERT_DISPLAY 1  	// Set to 1 to invert display colors (white background, dark content)
+// Default UI configuration values
+#define DEFAULT_GUI_SHOW_IMU                    (0)      // Set to 0 to hide IMU panel and use full image area
+#define DEFAULT_GUI_INVERT_CIS_IMAGE            (1)      // Set to 1 to invert CIS image colors (white background, dark content)
+#define DEFAULT_SCREENSAVER_TIMEOUT_SEC         (60)     // Screensaver timeout in seconds (default: 60s)
+#define DEFAULT_MOTION_THRESHOLD_ACC            (0.08f)  // Accelerometer motion threshold in g (default: 0.08g)
+#define DEFAULT_MOTION_THRESHOLD_GYRO           (2.0f)   // Gyroscope motion threshold in dps (default: 2.0 dps)
 
-// Screensaver configuration
-#define SCREENSAVER_TIMEOUT_MS                  (6000)  // 60 seconds timeout for testing
-#define MOTION_THRESHOLD_ACC                    (0.08f)  // Accelerometer motion threshold (g)
-#define MOTION_THRESHOLD_GYRO                   (2.0f)   // Gyroscope motion threshold (dps)
+// UI configuration value ranges
+#define MIN_SCREENSAVER_TIMEOUT_SEC             (1)      // Minimum: 1 second
+#define MAX_SCREENSAVER_TIMEOUT_SEC             (1000)   // Maximum: 1000 seconds
+#define MIN_MOTION_THRESHOLD_ACC                (0.01f)  // Minimum: 0.01g (very sensitive)
+#define MAX_MOTION_THRESHOLD_ACC                (1.0f)   // Maximum: 1.0g (less sensitive)
+#define MIN_MOTION_THRESHOLD_GYRO               (0.5f)   // Minimum: 0.5 dps (very sensitive)
+#define MAX_MOTION_THRESHOLD_GYRO               (10.0f)  // Maximum: 10.0 dps (less sensitive)
+
+#define DEFAULT_UI_BUTTON_DELAY 				(100)
+#define DEFAULT_CIS_HANDEDNESS 					(1)
+
+#define	NUMBER_OF_BUTTONS						(3)
+#define	NUMBER_OF_LEDS							(3)
 
 /**************************************************************************************/
 /*******************              Storage definitions               *******************/
@@ -62,15 +75,6 @@
 #define CALIBRATION_FILE_PATH_FORMAT 			"0:/CIS_CALIB_%ddpi.BIN"
 #define CONFIG_FILE_PATH 						"0:/CONFIG.TXT"
 #define IMU_CALIBRATION_FILE_PATH 				"0:/IMU_CALIB.BIN"
-
-/**************************************************************************************/
-/********************             	HID definitions                ********************/
-/**************************************************************************************/
-#define DEFAULT_UI_BUTTON_DELAY 				(100)
-#define DEFAULT_CIS_HANDEDNESS 					(1)
-
-#define	NUMBER_OF_BUTTONS						(3)
-#define	NUMBER_OF_LEDS							(3)
 
 /**************************************************************************************/
 /******************              Ethernet definitions               *******************/
