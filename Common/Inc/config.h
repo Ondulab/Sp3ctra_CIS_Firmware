@@ -46,11 +46,11 @@
 /**************************************************************************************/
 /********************              GUI definitions                 ********************/
 /**************************************************************************************/
-#define GUI_SHOW_IMU 0  // Set to 0 to hide IMU panel and use full image area
-#define GUI_INVERT_DISPLAY 1  // Set to 1 to invert display colors (white background, dark content)
+#define GUI_SHOW_IMU 0   		// Set to 0 to hide IMU panel and use full image area
+#define GUI_INVERT_DISPLAY 1  	// Set to 1 to invert display colors (white background, dark content)
 
 // Screensaver configuration
-#define SCREENSAVER_TIMEOUT_MS                  (60000)  // 60 seconds timeout for testing
+#define SCREENSAVER_TIMEOUT_MS                  (6000)  // 60 seconds timeout for testing
 #define MOTION_THRESHOLD_ACC                    (0.08f)  // Accelerometer motion threshold (g)
 #define MOTION_THRESHOLD_GYRO                   (2.0f)   // Gyroscope motion threshold (dps)
 
@@ -59,8 +59,9 @@
 /**************************************************************************************/
 #define FILE_NAME_MAX_LENGTH                    (256)  //Max filename length
 
-#define CALIBRATION_FILE_PATH_FORMAT "0:/CALIB_%ddpi.BIN"
-#define CONFIG_FILE_PATH "0:/CONFIG.TXT"
+#define CALIBRATION_FILE_PATH_FORMAT 			"0:/CIS_CALIB_%ddpi.BIN"
+#define CONFIG_FILE_PATH 						"0:/CONFIG.TXT"
+#define IMU_CALIBRATION_FILE_PATH 				"0:/IMU_CALIB.BIN"
 
 /**************************************************************************************/
 /********************             	HID definitions                ********************/

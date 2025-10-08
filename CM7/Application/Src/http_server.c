@@ -32,6 +32,7 @@
 
 #include "file_manager.h"
 #include "cis.h"
+#include "icm42688.h"
 
 #include "stm32_flash.h"
 
@@ -135,7 +136,7 @@ typedef struct
 
     /* New: store the boundary from the HTTP header here (if multipart/form-data). */
     char boundary[128];
-    
+
     /* Store the filename and full path for later use */
     char file_name[FILE_NAME_MAX_LENGTH];
     char full_file_path[FILE_NAME_MAX_LENGTH];
@@ -488,14 +489,14 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                     {
                         /* Close the file first to ensure all data is written */
                         f_close(&file);
-                        
+
                         /* If we previously parsed a boundary, let's try to remove it from the end of the file. */
                         if (fwupdate.boundary[0] != '\0')
                         {
                             /* Read the last part of the file to check for boundary */
                             const size_t check_size = 512; /* Increased buffer for safety */
                             uint8_t *check_buffer = pvPortMalloc(check_size);
-                            
+
                             if (check_buffer != NULL)
                             {
                                 /* Reopen file for reading */
@@ -507,22 +508,22 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                     DWORD read_offset = (actual_size > check_size) ? (actual_size - check_size) : 0;
                                     UINT bytes_to_read = (actual_size > check_size) ? check_size : actual_size;
                                     UINT bytes_read;
-                                    
+
                                     /* Seek to position and read */
                                     f_lseek(&file, read_offset);
                                     fr = f_read(&file, check_buffer, bytes_to_read, &bytes_read);
-                                    
+
                                     if (fr == FR_OK && bytes_read > 0)
                                     {
                                         /* Build the complete boundary string with ending -- */
                                         char boundary_final[256];
                                         snprintf(boundary_final, sizeof(boundary_final), "\r\n--%s--", fwupdate.boundary);
                                         size_t boundary_len = strlen(boundary_final);
-                                        
+
                                         /* Search for boundary in the buffer */
                                         bool found = false;
                                         size_t new_file_size = actual_size;
-                                        
+
                                         for (size_t i = 0; i <= bytes_read - boundary_len; i++)
                                         {
                                             if (memcmp(&check_buffer[i], boundary_final, boundary_len) == 0)
@@ -530,37 +531,37 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                                 /* Found the boundary - calculate new file size */
                                                 new_file_size = read_offset + i;
                                                 found = true;
-                                                
+
                                                 printf("@ fwupdate - Found boundary at position %u, truncating file from %u to %u bytes\n",
-                                                       (unsigned int)(read_offset + i), 
-                                                       (unsigned int)actual_size, 
+                                                       (unsigned int)(read_offset + i),
+                                                       (unsigned int)actual_size,
                                                        (unsigned int)new_file_size);
-                                                
+
                                                 /* Truncate the file */
                                                 f_lseek(&file, new_file_size);
                                                 f_truncate(&file);
-                                                
+
                                                 /* Update the tracked file length */
                                                 fwupdate.file_length = new_file_size;
                                                 break;
                                             }
                                         }
-                                        
+
                                         if (!found)
                                         {
                                             /* Also check for boundary without the ending \r\n (edge case) */
                                             snprintf(boundary_final, sizeof(boundary_final), "--%s--", fwupdate.boundary);
                                             boundary_len = strlen(boundary_final);
-                                            
+
                                             for (size_t i = 0; i <= bytes_read - boundary_len; i++)
                                             {
                                                 if (memcmp(&check_buffer[i], boundary_final, boundary_len) == 0)
                                                 {
                                                     new_file_size = read_offset + i;
-                                                    
+
                                                     printf("@ fwupdate - Found boundary (without CRLF) at position %u, truncating file\n",
                                                            (unsigned int)(read_offset + i));
-                                                    
+
                                                     f_lseek(&file, new_file_size);
                                                     f_truncate(&file);
                                                     fwupdate.file_length = new_file_size;
@@ -569,14 +570,14 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                             }
                                         }
                                     }
-                                    
+
                                     f_close(&file);
                                 }
-                                
+
                                 vPortFree(check_buffer);
                             }
                         }
-                        
+
                         /* Clean up and remove older firmware if needed */
                         delete_old_firmware(fwupdate.file_name);
                         fwupdate.has_been_initialized = 0;
@@ -842,6 +843,38 @@ static void http_server(struct netconn *conn)
 					        {
 					            const char *response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nCalibration started";
 					            netconn_write(conn, response, strlen(response), NETCONN_COPY);
+					        }
+					    }
+					}
+
+					/* Process IMU calibration start command */
+					else if (strncmp((char const *)buf, "POST /startIMUCalibration", 25) == 0)
+					{
+					    char *body = strstr(buf, "\r\n\r\n");
+					    if (body && strstr(body, "IMU_CAL_START"))
+					    {
+					        printf("HTTP: IMU calibration requested via web interface\n");
+
+					        // Direct synchronous call - blocks HTTP handler for ~1.2 seconds
+					        ICM42688_StatusTypeDef result = icm42688_performCalibration();
+
+					        if (result == ICM42688_OK)
+					        {
+					            const char *response =
+					                "HTTP/1.1 200 OK\r\n"
+					                "Content-Type: text/plain\r\n\r\n"
+					                "IMU Calibration completed successfully and saved to flash";
+					            netconn_write(conn, response, strlen(response), NETCONN_COPY);
+					            printf("HTTP: IMU calibration successful\n");
+					        }
+					        else
+					        {
+					            const char *response =
+					                "HTTP/1.1 500 Internal Server Error\r\n"
+					                "Content-Type: text/plain\r\n\r\n"
+					                "IMU Calibration failed. Ensure device is stationary during calibration.";
+					            netconn_write(conn, response, strlen(response), NETCONN_COPY);
+					            printf("HTTP: IMU calibration failed\n");
 					        }
 					    }
 					}

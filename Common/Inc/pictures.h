@@ -16,6 +16,8 @@
 #ifndef __PICTURES_H__
 #define __PICTURES_H__
 
+#include <stdio.h>
+
 //w = 250 h = 64
 const unsigned char Sp3ctra_img[2000] = { /* 0X22,0X01,0XFA,0X00,0X40,0X00, */
 		0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X00,0X80,

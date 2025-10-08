@@ -1,350 +1,367 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-        <meta http-equiv="Pragma" content="no-cache">
-        <meta http-equiv="Expires" content="0">
-        <title>CISYNTH Configuration</title>
-        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
-        <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
-        <style>
-            body {
-                font-family: 'Orbitron', sans-serif;
-                background-color: #222;
-                color: #D4AF37;
-                margin: 0;
-                padding: 5px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            img.logo-inverted {
-                filter: invert(100%);
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sp3ctra Configuration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            background-color: #222;
+            color: #FFF;
+            margin: 0;
+            padding: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Pour Mozilla Firefox */
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 600px;
+            min-width: 400px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .containerHead {
+            margin: auto;
+            text-align: center;
+        }
+
+        .title {
+            color: #FFF;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            border: 1px solid #666;
+            padding: 10px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        select,
+        input,
+        button {
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            background-color: #333;
+            border: 2px solid #444;
+            outline: none;
+            margin: 5px 0;
+            box-sizing: border-box;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            -moz-text-align-last: center;
+            text-align-last: center;
+        }
+
+        input[disabled] {
+            background-color: #222;
+        }
+
+        label {
+            color: #FFF;
+            font-weight: 500;
+            background-color: transparent;
+            margin: 5px 0;
+            box-sizing: border-box;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+
+        select {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            background-color: #333;
+            color: #999;
+            border: 2px solid #333;
+            border-radius: 0;
+            outline: none;
+            margin: 5px 0;
+            box-sizing: border-box;
+            font-size: 16px;
+            cursor: pointer;
+            text-align-last: center;
+            backdrop-filter: none;
+        }
+
+        select:focus {
+            color: #FFF;
+        }
+
+        .dpi-button,
+        .hand-button {
+            background-color: #333;
+            color: #555;
+            border: 2px solid #333;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .dpi-button.selected,
+        .hand-button.selected {
+            background-color: #999;
+            border-color: #999;
+        }
+
+        button {
+            color: #000;
+            background-color: #555;
+            border-color: #555;
+            transition-duration: 0.2s;
+        }
+
+        button:hover {
+            color: #FFF;
+            background-color: #444;
+            border-color: #666;
+        }
+
+        input[type="file"] {
+            cursor: pointer;
+        }
+
+        input[type="number"] {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            background-color: #333;
+            color: #999;
+            border: 1px solid #333;
+            outline: none;
+            cursor: pointer;
+            text-align: center;
+            -moz-text-align-last: center;
+            text-align-last: center;
+        }
+
+        input[type="number"]:focus {
+            border-color: #999;
+            color: #FFF;
+        }
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-group label {
+            flex-basis: 25%;
+            text-align: right;
+        }
+
+        .form-group input,
+        .form-group button {
+            flex-grow: 1;
+            width: calc(60% / 4 - 10px);
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+
+        .form-group select {
+            flex-grow: 1;
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .network-input-group input,
+        .firmware-input-group input {
+            flex-grow: 1;
+            width: calc(60% / 4 - 10px);
+            margin-left: 5px;
+            margin-right: 5px;
+            text-align: center;
+        }
+
+        .firmware-input-group input {
+            text-align: left;
+            text-align-last: left;
+        }
+
+        progress {
+            width: 80%;
+            height: 3px;
+            color: #FFF;
+            background-color: #333;
+            border-radius: 0px;
+            border: 2px solid #333;
+            margin: 5px auto;
+            margin-top: 0px;
+            display: block;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Chrome, Safari */
+        progress::-webkit-progress-bar {
+            background-color: #333;
+        }
+
+        progress::-webkit-progress-value {
+            background-color: #FFF;
+        }
+
+        /* Pour Firefox */
+        progress::-moz-progress-bar {
+            background-color: #FFF;
+        }
+
+        input[type="file"] {
+            background-color: #222;
+            color: #999;
+        }
+
+        input[type="file"]::file-selector-button {
+            background-color: #222;
+            color: #222;
+            border: none;
+        }
+
+        input[type="file"]::file-selector-text {
+            color: #222;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .button-loading {
+            background-color: #333;
+            color: #333;
+            pointer-events: none;
+            display: inline-flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .button-loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 3px solid #FFF;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        .button-loading2 {
+            background-color: #333;
+            color: #333;
+            pointer-events: none;
+            display: inline-flex;
+            justify-content: left;
+            margin-left: 60px;
+            position: absolute;
+        }
+
+        .button-loading2::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 3px solid #FFF;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        .select-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-grow: 1;
+            width: calc(60% / 4 - 10px);
+            position: relative;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
             }
 
-            input[type="number"]::-webkit-inner-spin-button,
-            input[type="number"]::-webkit-outer-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
             }
-            
-            /* Pour Mozilla Firefox */
-            input[type="number"] {
-                -moz-appearance: textfield;
-            }
-    
-            .main-wrapper {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                width: 100%;
-                max-width: 600px;
-                min-width: 400px;
-                margin: 0 auto;
-                box-sizing: border-box;
-                text-align: center;
-            }
-    
-            .containerHead {
-                margin: auto;
-                text-align: center;
-            }
-    
-            .title {
-                color: #D4AF37;
-                font-size: 20px;
-                text-align: center;
-            }
-    
-            .container {
-                width: 100%;
-                border: 1px solid #D4AF37;
-                padding: 10px;
-                padding-top: 5px;
-                padding-bottom: 5px;
-                margin: 10px 0;
-                border-radius: 8px;
-                box-sizing: border-box;
-            }
-    
-            select, input, button {
-                font-family: 'Orbitron', sans-serif;
-                background-color: #333;
-                border: 2px solid #444;
-                outline: none;
-                margin: 5px 0;
-                box-sizing: border-box;
-                font-size: 16px;
-                cursor: pointer;
-                text-align: center;
-                -moz-text-align-last: center;
-                text-align-last: center;
-            }
-    
-            input[disabled] {
-                background-color: #222;
-            }
-    
-            label {
-                color: #D4AF37;
-                background-color: transparent;
-                margin: 5px 0;
-                box-sizing: border-box;
-                font-size: 16px;
-                cursor: pointer;
-            }
+        }
 
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            /* Couleur de fond semi-transparente */
+            z-index: 1000;
+            /* Assurez-vous que l'overlay est au-dessus des autres contenus */
+            display: none;
+            /* Masqué par défaut */
+        }
+    </style>
+</head>
 
-            select {
-                font-family: 'Orbitron', sans-serif;
-                background-color: #333;
-                color: #BBB;
-                border: 2px solid #333;
-                border-radius: 0;
-                outline: none;
-                margin: 5px 0;
-                box-sizing: border-box;
-                font-size: 16px;
-                cursor: pointer;
-                text-align-last: center;
-                backdrop-filter: none;
-            }
-            
-            select:focus {
-                color: #EEE;
-            }
-    
-            .dpi-button, .hand-button {
-                background-color: #333;
-                color: #555;
-                border: 2px solid #333;
-                cursor: pointer;
-                transition: background-color 0.2s, border-color 0.2s;
-            }
-    
-            .dpi-button.selected, .hand-button.selected {
-                background-color: #AAA;
-                border-color: #AAA;
-            }
-    
-            button {
-                color: #000;
-                background-color: #555;
-                border-color: #555;
-                transition-duration: 0.2s;
-            }
-    
-            button:hover {
-                color: #FFF;
-                background-color: #333;
-                border-color: #555;
-            }
-    
-            input[type="file"] {
-                cursor: pointer;
-            }
+<body>
+    <div class="main-wrapper">
+        <div class="containerHead" style="align-self: stretch; width: 100%;">
+            <img src="img/Sp3ctra.png" alt="Logo Image"
+                style="width:256px; height:64px; display:block; margin-right:auto;">
+        </div>
 
-            input[type="number"] {
-                font-family: 'Orbitron', sans-serif;
-                background-color: #333;
-                color: #BBB;
-                border: 1px solid #333;
-                outline: none;
-                cursor: pointer;
-                text-align: center;
-                -moz-text-align-last: center;
-                text-align-last: center;
-            }
-            
-            input[type="number"]:focus {
-                border-color: #BBB;
-                color: #FFF;
-            }
-    
-            .form-group {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-            }
-            
-            .form-group label {
-                flex-basis: 25%;
-                text-align: right;
-            }
-            
-            .form-group input, .form-group button {
-                flex-grow: 1;
-                width: calc(60% / 4 - 10px);
-                margin-left: 5px;
-                margin-right: 5px;
-            }
-
-            .form-group select {
-                flex-grow: 1;
-                margin-left: 5px;
-                margin-right: 5px;
-            }
-            
-            .input-group {
-                display: flex;
-                justify-content: space-between;
-            }
-            
-            .network-input-group input, .firmware-input-group input {
-                flex-grow: 1;
-                width: calc(60% / 4 - 10px);
-                margin-left: 5px;
-                margin-right: 5px;
-                text-align: center;
-            }
-
-            .firmware-input-group input {
-                text-align: left;
-                text-align-last: left;
-            }
-            
-            progress {
-                width: 80%;
-                height: 3px;
-                color: #FFF;
-                background-color: #333;
-                border-radius: 0px;
-                border: 2px solid #333;
-                margin: 5px auto;
-                margin-top: 0px;
-                display: block;
-                position: relative;
-                overflow: hidden;
-            }
-            
-            /* Chrome, Safari */
-            progress::-webkit-progress-bar {
-                background-color: #333;
-            }
-            
-            progress::-webkit-progress-value {
-                background-color: #FFF;
-            }
-            
-            /* Pour Firefox */
-            progress::-moz-progress-bar {
-                background-color: #FFF;
-            }
-
-            input[type="file"] {
-                background-color: #222;
-                color: #BBB;
-            }
-            
-            input[type="file"]::file-selector-button {
-                background-color: #222;
-                color: #222;
-                border: none;
-            }
-            
-            input[type="file"]::file-selector-text {
-                color: #222;
-            }
-
-            .button-container {
-                display: flex;
-                justify-content: center;
-                width: 100%;
-            }
-
-            .button-loading {
-                background-color: #333;
-                color: #333;
-                pointer-events: none;
-                display: inline-flex;
-                justify-content: center;
-                position: relative;
-            }
-            
-            .button-loading::after {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                border: 3px solid #BBB;
-                border-top-color: transparent;
-                animation: spin 1s linear infinite;
-            }
-
-            .button-loading2 {
-                background-color: #333;
-                color: #333;
-                pointer-events: none;
-                display: inline-flex;
-                justify-content: left;
-                margin-left: 60px;
-                position: absolute;
-            }
-            
-            .button-loading2::after {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 14px;
-                height: 14px;
-                border-radius: 50%;
-                border: 3px solid #BBB;
-                border-top-color: transparent;
-                animation: spin 1s linear infinite;
-            }
-
-            .select-container {           
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                flex-grow: 1;
-                width: calc(60% / 4 - 10px);
-                position: relative;
-            }
-
-            @keyframes spin {
-                0% { transform: translate(-50%, -50%) rotate(0deg); }
-                100% { transform: translate(-50%, -50%) rotate(360deg); }
-            }
-
-            .overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.5); /* Couleur de fond semi-transparente */
-                z-index: 1000; /* Assurez-vous que l'overlay est au-dessus des autres contenus */
-                display: none; /* Masqué par défaut */
-            }
-
-        </style>
-    </head>
-    <body>
-        <div class="main-wrapper">
-            <div class="containerHead">
-                <img src="img/CISYNTH.png" alt="Logo Image" class="logo-inverted" style="width: 200px; height: 200px;">
-                <h1>Configuration Page</h1>
-            </div>    
-    
-            <!-- CIS Parameters -->
-            <div class="container">
-                <span class="title">CIS PARAMETERS</span>
-                <div class="form-group">
-                    <label for="dpi">DPI</label>
-                    <button id="dpi200" class="dpi-button" onclick="updateDPI('200')">200</button>
-                    <button id="dpi400" class="dpi-button" onclick="updateDPI('400')">400</button>
-                </div>
+        <!-- CIS Parameters -->
+        <div class="container">
+            <span class="title">CIS PARAMETERS</span>
+            <div class="form-group">
+                <label for="dpi">DPI</label>
+                <button id="dpi200" class="dpi-button" onclick="updateDPI('200')">200</button>
+                <button id="dpi400" class="dpi-button" onclick="updateDPI('400')">400</button>
+            </div>
             <div class="form-group">
                 <label for="oversampling">OVSP</label>
                 <div id="loadingIndicator" class="button-loading2" style="display:none;"></div>
@@ -359,95 +376,113 @@
                     </select>
                 </div>
             </div>
-                <div class="form-group">
-                    <label for="freqValue">LPS</label>
-                    <input id="freqValue" disabled/>
+            <div class="form-group">
+                <label for="freqValue">LPS</label>
+                <input id="freqValue" disabled />
+            </div>
+            <div class="form-group">
+                <label for="handedness">Hand</label>
+                <button id="leftHand" class="hand-button" onclick="updateHand('0')">LEFT</button>
+                <button id="rightHand" class="hand-button" onclick="updateHand('1')">RIGHT</button>
+            </div>
+            <div class="button-container">
+                <button id="calibrateButton" onclick="startCalibration()">Start CIS Calibration</button>
+            </div>
+            <div style="text-align: center;">
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">
+                    ⚠️ Move continuously over white reference surface
+                </p>
+            </div>
+        </div>
+
+        <!-- IMU Calibration -->
+        <div class="container">
+            <span class="title">IMU CALIBRATION</span>
+            <div class="button-container">
+                <button id="calibrateIMUButton" onclick="startIMUCalibration()">Start IMU Calibration</button>
+            </div>
+            <div style="text-align: center;">
+                <p style="font-size: 12px; color: #666; margin: 5px 0;">
+                    ⚠️ Keep device stationary during calibration (~1.5s)
+                </p>
+            </div>
+        </div>
+
+        <!-- Network Configuration -->
+        <div class="container">
+            <span class="title">NETWORK SETTINGS</span>
+            <div class="form-group network-input-group">
+                <label>IP Addr</label>
+                <input type="number" id="ipPart1" min="0" max="255">
+                <input type="number" id="ipPart2" min="0" max="255">
+                <input type="number" id="ipPart3" min="0" max="255">
+                <input type="number" id="ipPart4" min="0" max="255">
+            </div>
+            <div class="form-group network-input-group">
+                <label>Subnet Mask</label>
+                <input type="number" id="maskPart1" min="0" max="255">
+                <input type="number" id="maskPart2" min="0" max="255">
+                <input type="number" id="maskPart3" min="0" max="255">
+                <input type="number" id="maskPart4" min="0" max="255">
+            </div>
+            <div class="form-group network-input-group">
+                <label>Gateway</label>
+                <input type="number" id="gateway1" min="0" max="255">
+                <input type="number" id="gateway2" min="0" max="255">
+                <input type="number" id="gateway3" min="0" max="255">
+                <input type="number" id="gateway4" min="0" max="255">
+            </div>
+            <div class="form-group network-input-group">
+                <label>Dest IP Addr</label>
+                <input type="number" id="ipDestPart1" min="0" max="255">
+                <input type="number" id="ipDestPart2" min="0" max="255">
+                <input type="number" id="ipDestPart3" min="0" max="255">
+                <input type="number" id="ipDestPart4" min="0" max="255">
+            </div>
+            <div class="form-group">
+                <label for="port">UDP Port</label>
+                <input type="number" id="port" min="0" max="65535">
+            </div>
+            <div class="button-container">
+                <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply Network Settings</button>
+            </div>
+        </div>
+
+        <!-- Firmware Update -->
+        <div class="container">
+            <form id="firmwareForm" action="/upload" method="post" enctype="multipart/form-data">
+                <span class="title">FIRMWARE UPDATE</span>
+                <div class="form-group firmware-input-group">
+                    <label for="firmwareFile">Select Firmware</label>
+                    <input type="file" id="firmwareFile" name="firmware" accept=".bin">
                 </div>
                 <div class="form-group">
-                    <label for="handedness">Hand</label>
-                    <button id="leftHand" class="hand-button" onclick="updateHand('0')">LEFT</button>
-                    <button id="rightHand" class="hand-button" onclick="updateHand('1')">RIGHT</button>
+                    <progress id="uploadProgress" value="0" max="100"></progress>
                 </div>
                 <div class="button-container">
-                    <button id="calibrateButton" onclick="startCalibration()">Start Calibration</button>
+                    <button type="submit">Upload Firmware</button>
                 </div>
-            </div>
-    
-            <!-- Network Configuration -->
-            <div class="container">
-                <span class="title">NETWORK SETTINGS</span>
-                <div class="form-group network-input-group">
-                    <label>IP Addr</label>
-                        <input type="number" id="ipPart1" min="0" max="255">
-                        <input type="number" id="ipPart2" min="0" max="255">
-                        <input type="number" id="ipPart3" min="0" max="255">
-                        <input type="number" id="ipPart4" min="0" max="255">
-                </div>
-                <div class="form-group network-input-group">
-                    <label>Subnet Mask</label>
-                        <input type="number" id="maskPart1" min="0" max="255">
-                        <input type="number" id="maskPart2" min="0" max="255">
-                        <input type="number" id="maskPart3" min="0" max="255">
-                        <input type="number" id="maskPart4" min="0" max="255"> 
-                </div>
-                <div class="form-group network-input-group">
-                    <label>Gateway</label>
-                        <input type="number" id="gateway1" min="0" max="255">
-                        <input type="number" id="gateway2" min="0" max="255">
-                        <input type="number" id="gateway3" min="0" max="255">
-                        <input type="number" id="gateway4" min="0" max="255"> 
-                </div>
-                <div class="form-group network-input-group">
-                    <label>Dest IP Addr</label>
-                        <input type="number" id="ipDestPart1" min="0" max="255">
-                        <input type="number" id="ipDestPart2" min="0" max="255">
-                        <input type="number" id="ipDestPart3" min="0" max="255">
-                        <input type="number" id="ipDestPart4" min="0" max="255"> 
-                </div>
-                <div class="form-group">
-                    <label for="port">UDP Port</label>
-                        <input type="number" id="port" min="0" max="65535"> 
-                </div>
-                <div class="button-container">
-                    <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply Network Settings</button>
-                </div>
-            </div>
+            </form>
+        </div>
 
-            <!-- Firmware Update -->
-            <div class="container">
-                <form id="firmwareForm" action="/upload" method="post" enctype="multipart/form-data">
-                    <span class="title">FIRMWARE UPDATE</span>
-                    <div class="form-group firmware-input-group">
-                        <label for="firmwareFile">Select Firmware</label>
-                        <input type="file" id="firmwareFile" name="firmware" accept=".bin">
-                    </div>
-                    <div class="form-group">
-                        <progress id="uploadProgress" value="0" max="100"></progress>
-                    </div>
-                    <div class="button-container">
-                        <button type="submit">Upload Firmware</button>
-                    </div>
-                </form>
+        <!-- Advanced Settings -->
+        <div class="container">
+            <span class="title">ADVANCED SETTINGS</span>
+            <div class="button-container">
+                <button id="factoryResetBtn" onclick="factoryReset()">Factory Reset</button>
             </div>
+        </div>
 
-            <!-- Advanced Settings -->
-            <div class="container">
-                <span class="title">ADVANCED SETTINGS</span>
-                <div class="button-container">
-                    <button id="factoryResetBtn" onclick="factoryReset()">Factory Reset</button>
-                </div>
-            </div>
-
-            <div id="overlay" class="overlay"></div>
-        </div>    
-        <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
-        <script>
-            function initialize() {
-                overlay.style.display = 'none'; // Remove overlay
-                setupInputListeners().then(() => {
-                    console.log("Input listeners setup completed.");
-                    return loadDPI();
-                })
+        <div id="overlay" class="overlay"></div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
+    <script>
+        function initialize() {
+            overlay.style.display = 'none'; // Remove overlay
+            setupInputListeners().then(() => {
+                console.log("Input listeners setup completed.");
+                return loadDPI();
+            })
                 .then(() => loadHand())
                 .then(() => loadOversampling())
                 .then(() => loadNetworkConfig())
@@ -455,486 +490,508 @@
                 .catch(error => {
                     console.error("Initialization failed:", error);
                 });
-            }
-            
-            function setupInputListeners() {
-                return new Promise(resolve => {
-                    var ipInputs = document.querySelectorAll('input[type="number"]');
-                    ipInputs.forEach(function(input) {
-                        input.addEventListener('input', function() {
-                            this.value = this.value.replace(/\D/g, '');
-                            let num = parseInt(this.value, 10);
-                            if (this.value === "") {
-                                return;
-                            }
-                            if (num > parseInt(this.max, 10)) {
-                                this.value = this.max;
-                            } else if (num < parseInt(this.min, 10) || isNaN(num)) {
-                                this.value = this.min;
-                            }
-                        });
+        }
+
+        function setupInputListeners() {
+            return new Promise(resolve => {
+                var ipInputs = document.querySelectorAll('input[type="number"]');
+                ipInputs.forEach(function (input) {
+                    input.addEventListener('input', function () {
+                        this.value = this.value.replace(/\D/g, '');
+                        let num = parseInt(this.value, 10);
+                        if (this.value === "") {
+                            return;
+                        }
+                        if (num > parseInt(this.max, 10)) {
+                            this.value = this.max;
+                        } else if (num < parseInt(this.min, 10) || isNaN(num)) {
+                            this.value = this.min;
+                        }
                     });
-                    resolve();
                 });
-            }
-            
-            var timerId;  // Déclaration au niveau global ou dans une portée accessible
-            
-            function timer() {
+                resolve();
+            });
+        }
+
+        var timerId;  // Déclaration au niveau global ou dans une portée accessible
+
+        function timer() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById("freqValue").value = this.responseText;
+                }
+            };
+            xhr.open("GET", "getFreq?_=" + new Date().getTime(), true);
+            xhr.send();
+            timerId = setTimeout(timer, 1000);  // Stockage de l'identifiant de timeout
+        }
+
+        function stopTimers() {
+            clearTimeout(timerId);  // Assuming you keep a reference to your timeout
+        }
+
+        function setDPI(value) {
+            var buttons = document.querySelectorAll('.dpi-button');
+            buttons.forEach(function (button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim() === value) {
+                    button.classList.add('selected');
+                }
+            });
+        }
+
+        // Load DPI Settings
+        function loadDPI() {
+            return new Promise((resolve, reject) => {
                 var xhr = new XMLHttpRequest();
-                xhr.onreadystatechange = function() {
-                    if (this.readyState == 4 && this.status == 200) {
-                        document.getElementById("freqValue").value = this.responseText;
+                xhr.open("GET", "getDPI", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("DPI settings loaded:", xhr.responseText);
+                        setDPI(xhr.responseText.trim());
+                        resolve();
+                    } else {
+                        console.error("Failed to load DPI settings:", xhr.statusText);
+                        reject(new Error("Failed to load DPI settings with status: " + xhr.status));
                     }
                 };
-                xhr.open("GET", "getFreq?_=" + new Date().getTime(), true);
+                xhr.onerror = () => reject(new Error("Network request failed"));
                 xhr.send();
-                timerId = setTimeout(timer, 1000);  // Stockage de l'identifiant de timeout
+            });
+        }
+
+        // Update DPI Settings
+        function updateDPI(newDPI) {
+            return new Promise((resolve, reject) => {
+                var dpi200Button = document.getElementById('dpi200');
+                var dpi400Button = document.getElementById('dpi400');
+                dpi200Button.classList.add('button-loading');  // Add loading class
+                dpi400Button.classList.add('button-loading');  // Add loading class
+                if (!newDPI || isNaN(newDPI)) {
+                    alert("Invalid DPI value. Please enter a numeric value.");
+                    reject(new Error("Invalid DPI value"));
+                    return;
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "setDPI", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("DPI updated to", newDPI);
+                        setDPI(newDPI.toString());
+                        dpi200Button.classList.remove('button-loading');  // Remove loading class
+                        dpi400Button.classList.remove('button-loading');  // Remove loading class
+                        resolve();
+                    } else {
+                        console.error("Failed to update DPI settings:", xhr.statusText);
+                        dpi200Button.classList.remove('button-loading');  // Remove loading class on error
+                        dpi400Button.classList.remove('button-loading');  // Remove loading class on error
+                        reject(new Error("Failed to update DPI settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    dpi200Button.classList.remove('button-loading');  // Remove loading class on network error
+                    dpi400Button.classList.remove('button-loading');  // Remove loading class on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("dpi=" + newDPI);
+            });
+        }
+
+        function setOversampling(value) {
+            var select = document.getElementById('oversampling');
+            select.value = value; // Set the dropdown to the current oversampling value
+        }
+
+        // Function to activate or deactivate the loading animation
+        function setLoadingIndicator(loading) {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loading) {
+                loadingIndicator.style.display = 'inline-flex';
+            }
+            else {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        // Function modified to load the oversampling settings
+        function loadOversampling() {
+            setLoadingIndicator(true); // Activates the loading animation
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getOversampling", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var select = document.getElementById('oversampling');
+                        select.value = xhr.responseText.trim();
+                        console.log("Oversampling settings loaded:", xhr.responseText);
+                        setLoadingIndicator(false); // Deactivates the loading animation
+                        resolve();
+                    }
+                    else {
+                        console.error("Failed to load oversampling settings:", xhr.statusText);
+                        setLoadingIndicator(false); // Deactivates the loading animation on error
+                        reject(new Error("Failed to load oversampling settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    setLoadingIndicator(false); // Deactivates the loading animation on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+
+        // Function modified to update the oversampling settings
+        function updateOversampling(newOversampling) {
+            setLoadingIndicator(true); // Activates the loading animation
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setOversampling", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Oversampling updated to:", newOversampling);
+                        setLoadingIndicator(false); // Deactivates the loading animation
+                        resolve();
+                    }
+                    else {
+                        console.error("Failed to update oversampling settings:", xhr.statusText);
+                        setLoadingIndicator(false); // Deactivates the loading animation on error
+                        reject(new Error("Failed to update oversampling settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    setLoadingIndicator(false); // Deactivates the loading animation on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("oversampling=" + newOversampling);
+            });
+        }
+
+        function setHand(value) {
+            var buttons = document.querySelectorAll('.hand-button');
+            var handValue = "";
+            if (value === "1") {
+                handValue = "right";
+            } else if (value === "0") {
+                handValue = "left";
             }
 
-            function stopTimers() {
-                clearTimeout(timerId);  // Assuming you keep a reference to your timeout
-            }
-            
-            function setDPI(value) {
-                var buttons = document.querySelectorAll('.dpi-button');
-                buttons.forEach(function(button) {
-                    button.classList.remove('selected');
-                    if (button.textContent.trim() === value) {
-                        button.classList.add('selected');
-                    }
-                });
-            }
-            
-            // Load DPI Settings
-            function loadDPI() {
-                return new Promise((resolve, reject) => {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", "getDPI", true);
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("DPI settings loaded:", xhr.responseText);
-                            setDPI(xhr.responseText.trim());
-                            resolve();
-                        } else {
-                            console.error("Failed to load DPI settings:", xhr.statusText);
-                            reject(new Error("Failed to load DPI settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error("Network request failed"));
-                    xhr.send();
-                });
-            }
-            
-            // Update DPI Settings
-            function updateDPI(newDPI) {
-                return new Promise((resolve, reject) => {
-                    var dpi200Button = document.getElementById('dpi200');
-                    var dpi400Button = document.getElementById('dpi400');
-                    dpi200Button.classList.add('button-loading');  // Add loading class
-                    dpi400Button.classList.add('button-loading');  // Add loading class
-                    if (!newDPI || isNaN(newDPI)) {
-                        alert("Invalid DPI value. Please enter a numeric value.");
-                        reject(new Error("Invalid DPI value"));
-                        return;
-                    }
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "setDPI", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("DPI updated to", newDPI);
-                            setDPI(newDPI.toString());
-                            dpi200Button.classList.remove('button-loading');  // Remove loading class
-                            dpi400Button.classList.remove('button-loading');  // Remove loading class
-                            resolve();
-                        } else {
-                            console.error("Failed to update DPI settings:", xhr.statusText);
-                            dpi200Button.classList.remove('button-loading');  // Remove loading class on error
-                            dpi400Button.classList.remove('button-loading');  // Remove loading class on error
-                            reject(new Error("Failed to update DPI settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => {
-                        dpi200Button.classList.remove('button-loading');  // Remove loading class on network error
-                        dpi400Button.classList.remove('button-loading');  // Remove loading class on network error
-                        reject(new Error("Network request failed"));
-                    };
-                    xhr.send("dpi=" + newDPI);
-                });
-            }
-            
-            function setOversampling(value) {
-                var select = document.getElementById('oversampling');
-                select.value = value; // Set the dropdown to the current oversampling value
-            }
-            
-            // Function to activate or deactivate the loading animation
-            function setLoadingIndicator(loading)
-            {
-                const loadingIndicator = document.getElementById('loadingIndicator');
-                if (loading)
-                {
-                    loadingIndicator.style.display = 'inline-flex';
+            buttons.forEach(function (button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim().toLowerCase() === handValue) {
+                    button.classList.add('selected');
                 }
-                else
-                {
-                    loadingIndicator.style.display = 'none';
-                }
-            }
-            
-            // Function modified to load the oversampling settings
-            function loadOversampling()
-            {
-                setLoadingIndicator(true); // Activates the loading animation
-                return new Promise((resolve, reject) =>
-                {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", "/getOversampling", true);
-                    xhr.onload = function()
-                    {
-                        if (xhr.status === 200)
-                        {
-                            var select = document.getElementById('oversampling');
-                            select.value = xhr.responseText.trim();
-                            console.log("Oversampling settings loaded:", xhr.responseText);
-                            setLoadingIndicator(false); // Deactivates the loading animation
-                            resolve();
-                        }
-                        else
-                        {
-                            console.error("Failed to load oversampling settings:", xhr.statusText);
-                            setLoadingIndicator(false); // Deactivates the loading animation on error
-                            reject(new Error("Failed to load oversampling settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () =>
-                    {
-                        setLoadingIndicator(false); // Deactivates the loading animation on network error
-                        reject(new Error("Network request failed"));
-                    };
-                    xhr.send();
-                });
-            }
-            
-            // Function modified to update the oversampling settings
-            function updateOversampling(newOversampling)
-            {
-                setLoadingIndicator(true); // Activates the loading animation
-                return new Promise((resolve, reject) =>
-                {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "/setOversampling", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                    xhr.onload = function()
-                    {
-                        if (xhr.status === 200)
-                        {
-                            console.log("Oversampling updated to:", newOversampling);
-                            setLoadingIndicator(false); // Deactivates the loading animation
-                            resolve();
-                        }
-                        else
-                        {
-                            console.error("Failed to update oversampling settings:", xhr.statusText);
-                            setLoadingIndicator(false); // Deactivates the loading animation on error
-                            reject(new Error("Failed to update oversampling settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () =>
-                    {
-                        setLoadingIndicator(false); // Deactivates the loading animation on network error
-                        reject(new Error("Network request failed"));
-                    };
-                    xhr.send("oversampling=" + newOversampling);
-                });
-            }
-            
-            function setHand(value) {
-                var buttons = document.querySelectorAll('.hand-button');
-                var handValue = "";
-                if (value === "1") {
-                    handValue = "right";
-                } else if (value === "0") {
-                    handValue = "left";
-                }
-            
-                buttons.forEach(function(button) {
-                    button.classList.remove('selected');
-                    if (button.textContent.trim().toLowerCase() === handValue) {
-                        button.classList.add('selected');
+            });
+        }
+
+        // Load Hand Settings
+        function loadHand() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "getHand", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Hand settings loaded:", xhr.responseText);
+                        setHand(xhr.responseText.trim());
+                        resolve();
+                    } else {
+                        console.error("Failed to load hand settings:", xhr.statusText);
+                        reject(new Error("Failed to load hand settings with status: " + xhr.status));
                     }
-                });
-            }
-            
-            // Load Hand Settings
-            function loadHand() {
-                return new Promise((resolve, reject) => {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", "getHand", true);
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("Hand settings loaded:", xhr.responseText);
-                            setHand(xhr.responseText.trim());
-                            resolve();
-                        } else {
-                            console.error("Failed to load hand settings:", xhr.statusText);
-                            reject(new Error("Failed to load hand settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error("Network request failed"));
-                    xhr.send();
-                });
-            }
-            
-            // Update Hand Settings
-            function updateHand(newHand) {
-                return new Promise((resolve, reject) => {
-                    var leftHandButton = document.getElementById('leftHand');
-                    var rightHandButton = document.getElementById('rightHand');
-                    leftHandButton.classList.add('button-loading');  // Add loading class
-                    rightHandButton.classList.add('button-loading');  // Add loading class
-                    if (!newHand || isNaN(newHand)) {
-                        alert("Invalid hand value. Please enter a numeric value.");
-                        reject(new Error("Invalid hand value"));
-                        return;
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+
+        // Update Hand Settings
+        function updateHand(newHand) {
+            return new Promise((resolve, reject) => {
+                var leftHandButton = document.getElementById('leftHand');
+                var rightHandButton = document.getElementById('rightHand');
+                leftHandButton.classList.add('button-loading');  // Add loading class
+                rightHandButton.classList.add('button-loading');  // Add loading class
+                if (!newHand || isNaN(newHand)) {
+                    alert("Invalid hand value. Please enter a numeric value.");
+                    reject(new Error("Invalid hand value"));
+                    return;
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "setHand", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Hand updated to", newHand);
+                        setHand(newHand.toString());
+                        leftHandButton.classList.remove('button-loading');  // Remove loading class
+                        rightHandButton.classList.remove('button-loading');  // Remove loading class
+                        resolve();
+                    } else {
+                        console.error("Failed to update hand settings:", xhr.statusText);
+                        leftHandButton.classList.remove('button-loading');  // Remove loading class on error
+                        rightHandButton.classList.remove('button-loading');  // Remove loading class on error
+                        reject(new Error("Failed to update hand settings with status: " + xhr.status));
                     }
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "setHand", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("Hand updated to", newHand);
-                            setHand(newHand.toString());
-                            leftHandButton.classList.remove('button-loading');  // Remove loading class
-                            rightHandButton.classList.remove('button-loading');  // Remove loading class
-                            resolve();
-                        } else {
-                            console.error("Failed to update hand settings:", xhr.statusText);
-                            leftHandButton.classList.remove('button-loading');  // Remove loading class on error
-                            rightHandButton.classList.remove('button-loading');  // Remove loading class on error
-                            reject(new Error("Failed to update hand settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => {
-                        leftHandButton.classList.remove('button-loading');  // Remove loading class on network error
-                        rightHandButton.classList.remove('button-loading');  // Remove loading class on network error
-                        reject(new Error("Network request failed"));
-                    };
-                    xhr.send("hand=" + newHand);
-                });
-            }
-            
-            // Start Calibration
-            function startCalibration() {
-                return new Promise((resolve, reject) => {
-                    var calibrateButton = document.getElementById('calibrateButton');
-                    calibrateButton.classList.add('button-loading');  // Add loading class
-            
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "startCalibration", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("Calibration started successfully");
-                            calibrateButton.classList.remove('button-loading');  // Remove loading class
-                            resolve();
-                        } else {
-                            console.error("Failed to start calibration:", xhr.statusText);
-                            calibrateButton.classList.remove('button-loading');  // Remove loading class on error
-                            reject(new Error("Failed to start calibration with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => {
-                        calibrateButton.classList.remove('button-loading');  // Remove loading class on network error
-                        reject(new Error("Network request failed"));
-                    };
-                    xhr.send("CIS_CAL_START");
-                });
-            }
-            
-            function loadNetworkConfig() {
-                return new Promise((resolve, reject) => {
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", "/getNetworkConfig", true);
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            var config = JSON.parse(xhr.responseText);
-                            document.getElementById("ipPart1").value = config.ip.split('.')[0];
-                            document.getElementById("ipPart2").value = config.ip.split('.')[1];
-                            document.getElementById("ipPart3").value = config.ip.split('.')[2];
-                            document.getElementById("ipPart4").value = config.ip.split('.')[3];
-                            document.getElementById("maskPart1").value = config.mask.split('.')[0];
-                            document.getElementById("maskPart2").value = config.mask.split('.')[1];
-                            document.getElementById("maskPart3").value = config.mask.split('.')[2];
-                            document.getElementById("maskPart4").value = config.mask.split('.')[3];
-                            document.getElementById("gateway1").value = config.gw.split('.')[0];
-                            document.getElementById("gateway2").value = config.gw.split('.')[1];
-                            document.getElementById("gateway3").value = config.gw.split('.')[2];
-                            document.getElementById("gateway4").value = config.gw.split('.')[3];
-                            document.getElementById("ipDestPart1").value = config.dest_ip.split('.')[0];
-                            document.getElementById("ipDestPart2").value = config.dest_ip.split('.')[1];
-                            document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
-                            document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
-                            document.getElementById("port").value = config.udp_port;
-                            resolve();
-                        } else {
-                            console.error("Failed to load network settings:", xhr.statusText);
-                            reject(new Error("Network configuration failed to load with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error("Network request failed"));
-                    xhr.send();
-                });
-            }
-            
-            function updateNetworkConfig() {
-                return new Promise((resolve, reject) => {
-                    // Selecting the button associated with the network configuration update action.
-                    var updateNetworkButton = document.getElementById('updateNetworkBtn');
-                    updateNetworkButton.classList.add('button-loading');  // Add loading class to the button to indicate processing.
-            
-                    // Collect network configuration data from input fields
-                    const ipAddr = [
-                        document.getElementById("ipPart1").value,
-                        document.getElementById("ipPart2").value,
-                        document.getElementById("ipPart3").value,
-                        document.getElementById("ipPart4").value
-                    ].join('.');
-                    
-                    const subnetMask = [
-                        document.getElementById("maskPart1").value,
-                        document.getElementById("maskPart2").value,
-                        document.getElementById("maskPart3").value,
-                        document.getElementById("maskPart4").value
-                    ].join('.');
-            
-                    const gateway = [
-                        document.getElementById("gateway1").value,
-                        document.getElementById("gateway2").value,
-                        document.getElementById("gateway3").value,
-                        document.getElementById("gateway4").value
-                    ].join('.');
-                    
-                    const destIpAddr = [
-                        document.getElementById("ipDestPart1").value,
-                        document.getElementById("ipDestPart2").value,
-                        document.getElementById("ipDestPart3").value,
-                        document.getElementById("ipDestPart4").value
-                    ].join('.');
-                    
-                    const udpPort = document.getElementById("port").value;
-            
-                    // Construct the POST request data
-                    const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}`;
-                    
-                    // Create and send the HTTP POST request
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "/updateNetworkConfig", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded"); 
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("Network configuration updated successfully.");
-                            stopTimers();
-                            overlay.style.display = 'block'; // Set overlay
-                        setTimeout(function() {
+                };
+                xhr.onerror = () => {
+                    leftHandButton.classList.remove('button-loading');  // Remove loading class on network error
+                    rightHandButton.classList.remove('button-loading');  // Remove loading class on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("hand=" + newHand);
+            });
+        }
+
+        // Start Calibration
+        function startCalibration() {
+            return new Promise((resolve, reject) => {
+                var calibrateButton = document.getElementById('calibrateButton');
+                calibrateButton.classList.add('button-loading');  // Add loading class
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "startCalibration", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Calibration started successfully");
+                        calibrateButton.classList.remove('button-loading');  // Remove loading class
+                        resolve();
+                    } else {
+                        console.error("Failed to start calibration:", xhr.statusText);
+                        calibrateButton.classList.remove('button-loading');  // Remove loading class on error
+                        reject(new Error("Failed to start calibration with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    calibrateButton.classList.remove('button-loading');  // Remove loading class on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("CIS_CAL_START");
+            });
+        }
+
+        // Start IMU Calibration
+        function startIMUCalibration() {
+            return new Promise((resolve, reject) => {
+                var calibrateButton = document.getElementById('calibrateIMUButton');
+                calibrateButton.classList.add('button-loading');
+                calibrateButton.disabled = true;
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "startIMUCalibration", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+                xhr.onload = function () {
+                    calibrateButton.classList.remove('button-loading');
+                    calibrateButton.disabled = false;
+
+                    if (xhr.status === 200) {
+                        console.log("IMU Calibration completed successfully");
+                        alert("✓ IMU Calibration Successful!\n\nCalibration data has been saved to flash memory.");
+                        resolve();
+                    } else if (xhr.status === 408) {
+                        console.error("IMU Calibration timeout");
+                        alert("✗ IMU Calibration Timeout!\n\nPlease ensure the device is completely stationary during calibration.");
+                        reject(new Error("Timeout"));
+                    } else {
+                        console.error("IMU Calibration failed:", xhr.statusText);
+                        alert("✗ IMU Calibration Failed!\n\nError: " + xhr.responseText);
+                        reject(new Error("Calibration failed"));
+                    }
+                };
+
+                xhr.onerror = function () {
+                    calibrateButton.classList.remove('button-loading');
+                    calibrateButton.disabled = false;
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
+                    reject(new Error("Network request failed"));
+                };
+
+                xhr.send("IMU_CAL_START");
+            });
+        }
+
+        function loadNetworkConfig() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getNetworkConfig", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var config = JSON.parse(xhr.responseText);
+                        document.getElementById("ipPart1").value = config.ip.split('.')[0];
+                        document.getElementById("ipPart2").value = config.ip.split('.')[1];
+                        document.getElementById("ipPart3").value = config.ip.split('.')[2];
+                        document.getElementById("ipPart4").value = config.ip.split('.')[3];
+                        document.getElementById("maskPart1").value = config.mask.split('.')[0];
+                        document.getElementById("maskPart2").value = config.mask.split('.')[1];
+                        document.getElementById("maskPart3").value = config.mask.split('.')[2];
+                        document.getElementById("maskPart4").value = config.mask.split('.')[3];
+                        document.getElementById("gateway1").value = config.gw.split('.')[0];
+                        document.getElementById("gateway2").value = config.gw.split('.')[1];
+                        document.getElementById("gateway3").value = config.gw.split('.')[2];
+                        document.getElementById("gateway4").value = config.gw.split('.')[3];
+                        document.getElementById("ipDestPart1").value = config.dest_ip.split('.')[0];
+                        document.getElementById("ipDestPart2").value = config.dest_ip.split('.')[1];
+                        document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
+                        document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
+                        document.getElementById("port").value = config.udp_port;
+                        resolve();
+                    } else {
+                        console.error("Failed to load network settings:", xhr.statusText);
+                        reject(new Error("Network configuration failed to load with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+
+        function updateNetworkConfig() {
+            return new Promise((resolve, reject) => {
+                // Selecting the button associated with the network configuration update action.
+                var updateNetworkButton = document.getElementById('updateNetworkBtn');
+                updateNetworkButton.classList.add('button-loading');  // Add loading class to the button to indicate processing.
+
+                // Collect network configuration data from input fields
+                const ipAddr = [
+                    document.getElementById("ipPart1").value,
+                    document.getElementById("ipPart2").value,
+                    document.getElementById("ipPart3").value,
+                    document.getElementById("ipPart4").value
+                ].join('.');
+
+                const subnetMask = [
+                    document.getElementById("maskPart1").value,
+                    document.getElementById("maskPart2").value,
+                    document.getElementById("maskPart3").value,
+                    document.getElementById("maskPart4").value
+                ].join('.');
+
+                const gateway = [
+                    document.getElementById("gateway1").value,
+                    document.getElementById("gateway2").value,
+                    document.getElementById("gateway3").value,
+                    document.getElementById("gateway4").value
+                ].join('.');
+
+                const destIpAddr = [
+                    document.getElementById("ipDestPart1").value,
+                    document.getElementById("ipDestPart2").value,
+                    document.getElementById("ipDestPart3").value,
+                    document.getElementById("ipDestPart4").value
+                ].join('.');
+
+                const udpPort = document.getElementById("port").value;
+
+                // Construct the POST request data
+                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}`;
+
+                // Create and send the HTTP POST request
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/updateNetworkConfig", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Network configuration updated successfully.");
+                        stopTimers();
+                        overlay.style.display = 'block'; // Set overlay
+                        setTimeout(function () {
                             window.location.href = `http://${ipAddr}/config.html?nocache=${new Date().getTime()}`;
                         }, 10000);
-                            resolve();
-                        } else {
-                            console.error("Failed to update network configuration:", xhr.statusText);
-                            updateNetworkButton.classList.remove('button-loading');  // Remove loading class on error.
-                            overlay.style.display = 'none'; // Remove overlay
-                            reject(new Error("Failed to update network configuration with status: " + xhr.status));
-                        }
-                    };
-                    
-                    xhr.onerror = function() {
-                        console.error("Network request failed.");
-                        updateNetworkButton.classList.remove('button-loading');  // Remove loading class on network error.
-                        overlay.style.display = 'none'; // Remove overlay
-                        reject(new Error("Network request error"));
-                    };
-                    
-                    xhr.send(data);
-                });
-            }
-
-            document.getElementById('firmwareForm').addEventListener('submit', function(e) {
-                e.preventDefault();  // Prevent the default form submission
-            
-                var formData = new FormData(this);
-                var xhr = new XMLHttpRequest();
-                var submitButton = document.querySelector('#firmwareForm button[type="submit"]');  // Assuming there is one submit button within this form
-                submitButton.classList.add('button-loading');  // Add loading class to the button to show processing
-            
-                // Configure the request
-                xhr.open('POST', this.action, true);
-            
-                // Listen to the progress event
-                xhr.upload.onprogress = function(e) {
-                    if (e.lengthComputable) {
-                        var percentComplete = (e.loaded / e.total) * 100;
-                        document.getElementById('uploadProgress').value = percentComplete;
-                    }
-                };
-            
-                // Listen to the load event
-                xhr.onload = function() {
-                    submitButton.classList.remove('button-loading');  // Remove loading class upon completion
-                    if (xhr.status === 200) {
-                        alert('Firmware transfer complete!');
-                        document.getElementById('uploadProgress').value = 0;
+                        resolve();
                     } else {
-                        alert('Error during firmware updade: ' + xhr.status);
+                        console.error("Failed to update network configuration:", xhr.statusText);
+                        updateNetworkButton.classList.remove('button-loading');  // Remove loading class on error.
+                        overlay.style.display = 'none'; // Remove overlay
+                        reject(new Error("Failed to update network configuration with status: " + xhr.status));
                     }
                 };
-            
-                // Handle network errors
-                xhr.onerror = function() {
-                    submitButton.classList.remove('button-loading');  // Remove loading class on network error
-                    alert('Network error occurred during the firmware update.');
+
+                xhr.onerror = function () {
+                    console.error("Network request failed.");
+                    updateNetworkButton.classList.remove('button-loading');  // Remove loading class on network error.
+                    overlay.style.display = 'none'; // Remove overlay
+                    reject(new Error("Network request error"));
                 };
-            
-                // Send the form data
-                xhr.send(formData);
+
+                xhr.send(data);
             });
+        }
 
-            function factoryReset() {
-                return new Promise((resolve, reject) => {
-                    // Selecting the button associated with the factory reset action.
-                    var resetButton = document.getElementById('factoryResetBtn');
-                    resetButton.classList.add('button-loading');  // Add loading class to indicate processing.
-            
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("POST", "factoryReset", true);
-                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {
-                            console.log("Factory reset done");
-                            resetButton.classList.remove('button-loading');  // Remove loading class upon success.
-                            resolve();
-                        } else {
-                            console.error("Failed to reset factory settings:", xhr.statusText);
-                            resetButton.classList.remove('button-loading');  // Remove loading class on error.
-                            reject(new Error("Failed to reset factory settings with status: " + xhr.status));
-                        }
-                    };
-                    xhr.onerror = function() {
-                        console.error("Network request failed.");
-                        resetButton.classList.remove('button-loading');  // Remove loading class on network error.
-                        reject(new Error("Network request error"));
-                    };
-                    xhr.send("START_FACTORY_RESET");
-                });
-            }
+        document.getElementById('firmwareForm').addEventListener('submit', function (e) {
+            e.preventDefault();  // Prevent the default form submission
 
-            document.addEventListener('DOMContentLoaded', initialize);
+            var formData = new FormData(this);
+            var xhr = new XMLHttpRequest();
+            var submitButton = document.querySelector('#firmwareForm button[type="submit"]');  // Assuming there is one submit button within this form
+            submitButton.classList.add('button-loading');  // Add loading class to the button to show processing
 
-            document.querySelectorAll('input[type="number"]').forEach(input => {
-                input.removeEventListener('input', handleInput);
-                input.addEventListener('input', handleInput);  // Reattach with potentially new logic
+            // Configure the request
+            xhr.open('POST', this.action, true);
+
+            // Listen to the progress event
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    var percentComplete = (e.loaded / e.total) * 100;
+                    document.getElementById('uploadProgress').value = percentComplete;
+                }
+            };
+
+            // Listen to the load event
+            xhr.onload = function () {
+                submitButton.classList.remove('button-loading');  // Remove loading class upon completion
+                if (xhr.status === 200) {
+                    alert('Firmware transfer complete!');
+                    document.getElementById('uploadProgress').value = 0;
+                } else {
+                    alert('Error during firmware updade: ' + xhr.status);
+                }
+            };
+
+            // Handle network errors
+            xhr.onerror = function () {
+                submitButton.classList.remove('button-loading');  // Remove loading class on network error
+                alert('Network error occurred during the firmware update.');
+            };
+
+            // Send the form data
+            xhr.send(formData);
+        });
+
+        function factoryReset() {
+            return new Promise((resolve, reject) => {
+                // Selecting the button associated with the factory reset action.
+                var resetButton = document.getElementById('factoryResetBtn');
+                resetButton.classList.add('button-loading');  // Add loading class to indicate processing.
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "factoryReset", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Factory reset done");
+                        resetButton.classList.remove('button-loading');  // Remove loading class upon success.
+                        resolve();
+                    } else {
+                        console.error("Failed to reset factory settings:", xhr.statusText);
+                        resetButton.classList.remove('button-loading');  // Remove loading class on error.
+                        reject(new Error("Failed to reset factory settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = function () {
+                    console.error("Network request failed.");
+                    resetButton.classList.remove('button-loading');  // Remove loading class on network error.
+                    reject(new Error("Network request error"));
+                };
+                xhr.send("START_FACTORY_RESET");
             });
-        </script>
-    </body>
+        }
+
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+
 </html>

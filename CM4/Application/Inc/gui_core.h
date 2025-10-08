@@ -22,9 +22,7 @@
 #include "stdint.h"
 
 /* Exported constants --------------------------------------------------------*/
-#define SCREENSAVER_TIMEOUT_MS    (30000)  // 30 seconds
-#define MOTION_THRESHOLD_ACC      (0.1f)   // Accelerometer threshold
-#define MOTION_THRESHOLD_GYRO     (10.0f)  // Gyroscope threshold
+// Screensaver and motion detection constants are defined in config.h
 
 /* Exported function prototypes ----------------------------------------------*/
 int gui_mainLoop(void);

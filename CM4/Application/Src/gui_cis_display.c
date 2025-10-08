@@ -28,7 +28,7 @@
 #include "gui_cis_display.h"
 
 /* Private defines -----------------------------------------------------------*/
-#define PI 3.14159265358979323846
+// Use M_PI from math.h instead of redefining PI
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -47,7 +47,9 @@ void gui_displayImage(void)
     int32_t i = 0;
     int32_t y = 0;
     float32_t packet, index;
-    int32_t line_Ypos = DISPLAY_AERA1_Y2POS - (DISPLAY_AERAS1_HEIGHT / 2);
+    int32_t line_Ypos = DISPLAY_AERA1_Y1POS + (DISPLAY_AERAS1_HEIGHT / 2);
+    int32_t half_height_above = (DISPLAY_AERAS1_HEIGHT + 1) / 2;  // Round up for odd heights
+    int32_t half_height_below = DISPLAY_AERAS1_HEIGHT / 2;        // Round down for odd heights
     int32_t pixel_intensity = 0;
     float64_t angle = 0;
 
@@ -88,21 +90,31 @@ void gui_displayImage(void)
 
         cis_color = cis_color < 0 ? 0 : cis_color > 765 ? 765 : cis_color;
 
-        angle = cis_color * (PI / 2) / 765.00;
+        angle = cis_color * (M_PI / 2) / 765.00;
 
-        for (y = 0; y < (DISPLAY_AERAS1_HEIGHT / 2); y++)
+        // Draw pixels above the center line
+        for (y = 0; y < half_height_above; y++)
         {
-            if (angle < (PI / 2))
+            if (angle < (M_PI / 2))
                 pixel_intensity = tan(angle) * (y + 1);
 
             pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
 
             pixel_intensity = 15 - pixel_intensity;
 
-            // Draw a pixel above the center of the line for symmetry
             ssd1362_drawPixel(i, line_Ypos + y, GUI_COLOR(pixel_intensity), false);
+        }
 
-            // Draw a pixel below the center of the line for symmetry
+        // Draw pixels below the center line
+        for (y = 1; y <= half_height_below; y++)
+        {
+            if (angle < (M_PI / 2))
+                pixel_intensity = tan(angle) * (y + 1);
+
+            pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
+
+            pixel_intensity = 15 - pixel_intensity;
+
             ssd1362_drawPixel(i, line_Ypos - y, GUI_COLOR(pixel_intensity), false);
         }
     }

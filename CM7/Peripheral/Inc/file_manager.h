@@ -42,6 +42,8 @@ fileManager_StatusTypeDef file_readConfig(const char* filePath, volatile struct 
 fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile struct shared_config* config);
 fileManager_StatusTypeDef file_writeCisCals(const char* filePath, const struct cisCals* data);
 fileManager_StatusTypeDef file_readCisCals(const char* filePath, struct cisCals* data);
+fileManager_StatusTypeDef file_writeImuCals(const char* filePath, const struct imuCals* data);
+fileManager_StatusTypeDef file_readImuCals(const char* filePath, struct imuCals* data);
 fileManager_StatusTypeDef file_reliableWrite(FIL *file, const uint8_t *buffer, uint32_t length, int maxRetries);
 
 #endif // FILE_MANAGER_H
