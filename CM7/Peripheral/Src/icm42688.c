@@ -181,15 +181,21 @@ ICM42688_StatusTypeDef icm42688_init()
 		return ICM42688_ERROR;
 	}
 
-	// Set accelerometer to ±4G for better resolution in hand gesture detection
-	if (icm42688_setAccelFS(gpm2) != ICM42688_OK)
+	// Set accelerometer to configured sensitivity from flash (default: ±4G)
+	// Validate range and fallback to gpm2 if invalid
+	AccelFS accel_fs = (shared_config.imu_accel_sensitivity <= 0x03) ?
+	                   (AccelFS)shared_config.imu_accel_sensitivity : gpm2;
+	if (icm42688_setAccelFS(accel_fs) != ICM42688_OK)
 	{
 		printf("failed to set ACC FS IMU\n");
 		return ICM42688_ERROR;
 	}
 
-	// Set gyroscope to ±500DPS (optimal for hand gestures)
-	if (icm42688_setGyroFS(dps500) != ICM42688_OK)
+	// Set gyroscope to configured sensitivity from flash (default: ±500 dps)
+	// Validate range and fallback to dps500 if invalid
+	GyroFS gyro_fs = (shared_config.imu_gyro_sensitivity <= 0x07) ?
+	                 (GyroFS)shared_config.imu_gyro_sensitivity : dps500;
+	if (icm42688_setGyroFS(gyro_fs) != ICM42688_OK)
 	{
 		printf("failed to set GYRO FS IMU\n");
 		return ICM42688_ERROR;
@@ -658,12 +664,23 @@ void icm42688_FIFO_getFifoTemperature_C(int32_t *size,float* data)
 /* estimates the gyro biases */
 ICM42688_StatusTypeDef icm42688_calibrateGyro()
 {
+	// Prevent concurrent DMA transfers during calibration
+	IMU_StateTypeDef saved_state = IMU_State;
+	IMU_State = IMU_INIT_NOK;
+
 	// set at a lower range (more resolution) since IMU not moving
 	const GyroFS current_fssel = _gyroFS;
 	if (icm42688_setGyroFS(dps250) != ICM42688_OK)
 	{
+		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
+
+	// Reset biases to zero before measurement to avoid cumulative errors
+	// This ensures we measure raw sensor values, not already-compensated values
+	_gyrB[0] = 0.0f;
+	_gyrB[1] = 0.0f;
+	_gyrB[2] = 0.0f;
 
 	// take samples and find bias
 	_gyroBD[0] = 0;
@@ -686,8 +703,12 @@ ICM42688_StatusTypeDef icm42688_calibrateGyro()
 	// recover the full scale setting
 	if (icm42688_setGyroFS(current_fssel) != ICM42688_OK)
 	{
+		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
+
+	// Restore IMU state to allow DMA transfers
+	IMU_State = saved_state;
 	return ICM42688_OK;
 }
 
@@ -743,6 +764,15 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 		IMU_State = saved_state;
 		return ICM42688_ERROR;
 	}
+
+	// Reset biases and scale to identity before measurement to avoid cumulative errors
+	// This ensures we measure raw sensor values, not already-compensated values
+	_accB[0] = 0.0f;
+	_accB[1] = 0.0f;
+	_accB[2] = 0.0f;
+	_accS[0] = 1.0f;
+	_accS[1] = 1.0f;
+	_accS[2] = 1.0f;
 
 	// take samples and find min / max
 	_accBD[0] = 0;

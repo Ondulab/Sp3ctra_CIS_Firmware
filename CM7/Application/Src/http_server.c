@@ -957,12 +957,28 @@ static void http_server(struct netconn *conn)
 								shared_config.imu_gyro_sensitivity = newValue;
 								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
-								// Reinitialize IMU with new sensitivity
+								printf("HTTP: Gyro sensitivity changed to %u, recalibrating...\n", newValue);
+
+								// Apply new sensitivity and recalibrate immediately
 								icm42688_setGyroFS((GyroFS)newValue);
 
-								char response[100];
-								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_gyro_sensitivity);
-								netconn_write(conn, response, len, NETCONN_COPY);
+								// Perform gyro calibration with new sensitivity (~200ms)
+								if (icm42688_calibrateGyro() == ICM42688_OK)
+								{
+									// Save the new calibration
+									icm42688_saveCalibration(IMU_CALIBRATION_FILE_PATH);
+									printf("HTTP: Gyro recalibration successful\n");
+
+									char response[100];
+									int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_gyro_sensitivity);
+									netconn_write(conn, response, len, NETCONN_COPY);
+								}
+								else
+								{
+									printf("HTTP: Gyro recalibration failed\n");
+									char *errorResponse = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nGyro recalibration failed";
+									netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+								}
 							}
 							else
 							{
@@ -991,12 +1007,26 @@ static void http_server(struct netconn *conn)
 								shared_config.imu_accel_sensitivity = newValue;
 								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
-								// Reinitialize IMU with new sensitivity
-								icm42688_setAccelFS((AccelFS)newValue);
+								printf("HTTP: Accel sensitivity changed to %u, performing full IMU recalibration...\n", newValue);
 
-								char response[100];
-								int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_accel_sensitivity);
-								netconn_write(conn, response, len, NETCONN_COPY);
+								// Apply new sensitivity and perform full IMU calibration (~1.2s)
+								// This recalibrates both gyro and accel with the new accel sensitivity
+								ICM42688_StatusTypeDef result = icm42688_performCalibration();
+
+								if (result == ICM42688_OK)
+								{
+									printf("HTTP: IMU recalibration successful\n");
+
+									char response[100];
+									int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.imu_accel_sensitivity);
+									netconn_write(conn, response, len, NETCONN_COPY);
+								}
+								else
+								{
+									printf("HTTP: IMU recalibration failed\n");
+									char *errorResponse = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nIMU recalibration failed";
+									netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+								}
 							}
 							else
 							{
