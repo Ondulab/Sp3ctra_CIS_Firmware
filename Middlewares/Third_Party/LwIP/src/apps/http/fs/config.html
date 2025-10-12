@@ -534,6 +534,11 @@
             </div>
         </div>
 
+        <!-- Firmware Version Footer -->
+        <p id="firmwareVersion" style="font-size: 12px; color: #666; margin: 15px 0 5px 0; text-align: center;">
+            Firmware Version: <span id="versionNumber">Loading...</span>
+        </p>
+
         <div id="overlay" class="overlay"></div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
@@ -542,8 +547,9 @@
             overlay.style.display = 'none'; // Remove overlay
             setupInputListeners().then(() => {
                 console.log("Input listeners setup completed.");
-                return loadDPI();
+                return loadFirmwareVersion();
             })
+                .then(() => loadDPI())
                 .then(() => loadHand())
                 .then(() => loadOversampling())
                 .then(() => loadGuiShowImu())
@@ -564,30 +570,23 @@
             return new Promise(resolve => {
                 var ipInputs = document.querySelectorAll('input[type="number"]');
                 ipInputs.forEach(function (input) {
-                    // Character filtering during input (allows free typing)
-                    input.addEventListener('input', function () {
-                        const isFloat = this.step && parseFloat(this.step) !== parseInt(this.step);
-
-                        if (isFloat) {
-                            // Allow digits, comma, and dot for float inputs
-                            this.value = this.value.replace(/[^\d.,]/g, '');
-                            // Replace comma with dot (European decimal separator)
-                            this.value = this.value.replace(/,/g, '.');
-                            // Ensure only one decimal point
-                            const parts = this.value.split('.');
-                            if (parts.length > 2) {
-                                this.value = parts[0] + '.' + parts.slice(1).join('');
-                            }
-                        } else {
-                            // Integer only - remove all non-digits
-                            this.value = this.value.replace(/\D/g, '');
+                    // Handle European decimal separator (comma) by replacing with dot
+                    input.addEventListener('keypress', function (e) {
+                        if (e.key === ',') {
+                            e.preventDefault();
+                            const cursorPos = this.selectionStart;
+                            const currentValue = this.value;
+                            // Insert a dot at cursor position
+                            this.value = currentValue.slice(0, cursorPos) + '.' + currentValue.slice(cursorPos);
+                            // Move cursor after the inserted dot
+                            this.setSelectionRange(cursorPos + 1, cursorPos + 1);
                         }
                     });
 
                     // Validation and bounds correction when leaving the field
                     input.addEventListener('blur', function () {
-                        if (this.value === "" || this.value === ".") {
-                            this.value = this.min; // Default to min if empty
+                        if (this.value === "" || this.value === "." || this.value === "-" || this.value === "-.") {
+                            this.value = this.min; // Default to min if empty or invalid
                             return;
                         }
 
@@ -1280,6 +1279,30 @@
                     reject(new Error("Network request failed"));
                 };
                 xhr.send("motion_threshold_gyro=" + newValue);
+            });
+        }
+
+        // Load Firmware Version
+        function loadFirmwareVersion() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getFirmwareVersion", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        document.getElementById('versionNumber').textContent = xhr.responseText.trim();
+                        console.log("Firmware version loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load firmware version:", xhr.statusText);
+                        document.getElementById('versionNumber').textContent = "Unknown";
+                        reject(new Error("Failed to load firmware version"));
+                    }
+                };
+                xhr.onerror = () => {
+                    document.getElementById('versionNumber').textContent = "Unknown";
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
             });
         }
 
