@@ -823,10 +823,9 @@ static void http_server(struct netconn *conn)
 							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_dpi);
 							netconn_write(conn, response, len, NETCONN_COPY);
 
-							cis_reConfigure();
-
-							printf("Rebooting\n");
-							System_SafeReset();
+							// DPI change requires a full system reboot to apply new configuration
+							// No need to call cis_reConfigure() as the system will reinitialize on reboot
+							reboot = true;
 						}
 						else
 						{

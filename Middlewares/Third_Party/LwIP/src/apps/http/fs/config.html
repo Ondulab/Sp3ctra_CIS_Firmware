@@ -543,6 +543,8 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
     <script>
+        var overlay = document.getElementById('overlay');
+
         function initialize() {
             overlay.style.display = 'none'; // Remove overlay
             setupInputListeners().then(() => {
@@ -663,6 +665,8 @@
                 dpi400Button.classList.add('button-loading');  // Add loading class
                 if (!newDPI || isNaN(newDPI)) {
                     alert("Invalid DPI value. Please enter a numeric value.");
+                    dpi200Button.classList.remove('button-loading');
+                    dpi400Button.classList.remove('button-loading');
                     reject(new Error("Invalid DPI value"));
                     return;
                 }
@@ -672,24 +676,106 @@
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         console.log("DPI updated to", newDPI);
-                        setDPI(newDPI.toString());
-                        dpi200Button.classList.remove('button-loading');  // Remove loading class
-                        dpi400Button.classList.remove('button-loading');  // Remove loading class
+
+                        // Device will reboot, stop timers and show overlay
+                        stopTimers();
+                        overlay.style.display = 'block';
+
+                        // Show alert after a small delay to let the overlay render
+                        setTimeout(function () {
+                            alert("✓ DPI Settings Updated!\n\n⚠️ Device is rebooting to apply changes...\n\nThe page will reload automatically when device is ready.");
+                        }, 100);
+
+                        // Wait for device to become available again, then reload
+                        waitForDeviceAndReload(newDPI);
+
                         resolve();
                     } else {
                         console.error("Failed to update DPI settings:", xhr.statusText);
                         dpi200Button.classList.remove('button-loading');  // Remove loading class on error
                         dpi400Button.classList.remove('button-loading');  // Remove loading class on error
+                        overlay.style.display = 'none'; // Remove overlay
                         reject(new Error("Failed to update DPI settings with status: " + xhr.status));
                     }
                 };
                 xhr.onerror = () => {
                     dpi200Button.classList.remove('button-loading');  // Remove loading class on network error
                     dpi400Button.classList.remove('button-loading');  // Remove loading class on network error
+                    overlay.style.display = 'none'; // Remove overlay
                     reject(new Error("Network request failed"));
                 };
                 xhr.send("dpi=" + newDPI);
             });
+        }
+
+        // Wait for device to be available again after reboot, then reload page
+        function waitForDeviceAndReload(expectedDPI) {
+            var startTime = Date.now();
+            var maxWaitTime = 30000; // Maximum 30 seconds
+            var initialDelay = 5000; // Wait 5 seconds before first check (device is rebooting)
+            var consecutiveSuccessfulReads = 0;
+            var requiredSuccessfulReads = 3; // Require 3 consecutive successful reads with correct DPI
+
+            setTimeout(function checkDevice() {
+                // Check if we've exceeded max wait time
+                if (Date.now() - startTime > maxWaitTime) {
+                    console.log("Timeout waiting for device, reloading anyway...");
+                    window.location.href = window.location.pathname + '?nocache=' + new Date().getTime();
+                    return;
+                }
+
+                // Try to reach the device
+                var xhr = new XMLHttpRequest();
+                xhr.timeout = 2000; // 2 second timeout per attempt
+                xhr.open("GET", "/getDPI?nocache=" + new Date().getTime(), true);
+
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var currentDPI = xhr.responseText.trim();
+                        console.log("Device responded with DPI:", currentDPI);
+
+                        // Check if DPI matches expected value
+                        if (currentDPI === expectedDPI) {
+                            consecutiveSuccessfulReads++;
+                            console.log("DPI matches expected value (" + consecutiveSuccessfulReads + "/" + requiredSuccessfulReads + ")");
+
+                            if (consecutiveSuccessfulReads >= requiredSuccessfulReads) {
+                                console.log("Device ready with correct DPI confirmed, reloading page...");
+                                // Reload the page to ensure UI is in sync with device state
+                                window.location.href = window.location.pathname + '?nocache=' + new Date().getTime();
+                            } else {
+                                // Need more confirmations
+                                setTimeout(checkDevice, 500);
+                            }
+                        } else {
+                            console.log("DPI not yet updated (got " + currentDPI + ", expected " + expectedDPI + "), retrying in 1s...");
+                            consecutiveSuccessfulReads = 0; // Reset counter
+                            setTimeout(checkDevice, 1000);
+                        }
+                    } else {
+                        // Device responded but with error, retry
+                        console.log("Device not ready yet (status: " + xhr.status + "), retrying in 1s...");
+                        consecutiveSuccessfulReads = 0; // Reset counter
+                        setTimeout(checkDevice, 1000);
+                    }
+                };
+
+                xhr.onerror = function () {
+                    // Device not reachable yet, retry
+                    console.log("Device not reachable yet, retrying in 1s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 1000);
+                };
+
+                xhr.ontimeout = function () {
+                    // Request timed out, retry
+                    console.log("Request timeout, retrying in 1s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 1000);
+                };
+
+                xhr.send();
+            }, initialDelay);
         }
 
         function setOversampling(value) {
