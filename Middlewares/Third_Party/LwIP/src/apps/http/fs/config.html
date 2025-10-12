@@ -13,8 +13,8 @@
         body {
             font-family: 'Inter', sans-serif;
             font-weight: 400;
-            background-color: #222;
-            color: #FFF;
+            background-color: #333;
+            color: #EEE;
             margin: 0;
             padding: 5px;
             display: flex;
@@ -53,7 +53,7 @@
         }
 
         .title {
-            color: #FFF;
+            color: #EEE;
             font-size: 20px;
             font-weight: 700;
             text-align: center;
@@ -75,8 +75,8 @@
         button {
             font-family: 'Inter', sans-serif;
             font-weight: 500;
-            background-color: #333;
-            border: 2px solid #444;
+            background-color: #444;
+            border: 2px solid #555;
             outline: none;
             margin: 5px 0;
             box-sizing: border-box;
@@ -92,7 +92,7 @@
         }
 
         label {
-            color: #FFF;
+            color: #EEE;
             font-weight: 500;
             background-color: transparent;
             margin: 5px 0;
@@ -105,9 +105,9 @@
         select {
             font-family: 'Inter', sans-serif;
             font-weight: 400;
-            background-color: #333;
+            background-color: #444;
             color: #999;
-            border: 2px solid #333;
+            border: 2px solid #444;
             border-radius: 0;
             outline: none;
             margin: 5px 0;
@@ -119,14 +119,14 @@
         }
 
         select:focus {
-            color: #FFF;
+            color: #EEE;
         }
 
         .dpi-button,
         .hand-button {
-            background-color: #333;
-            color: #555;
-            border: 2px solid #333;
+            background-color: #444;
+            color: #666;
+            border: 2px solid #444;
             cursor: pointer;
             transition: background-color 0.2s, border-color 0.2s;
         }
@@ -139,15 +139,15 @@
 
         button {
             color: #000;
-            background-color: #555;
-            border-color: #555;
+            background-color: #666;
+            border-color: #666;
             transition-duration: 0.2s;
         }
 
         button:hover {
-            color: #FFF;
-            background-color: #444;
-            border-color: #666;
+            color: #EEE;
+            background-color: #555;
+            border-color: #777;
         }
 
         input[type="file"] {
@@ -157,9 +157,9 @@
         input[type="number"] {
             font-family: 'Inter', sans-serif;
             font-weight: 400;
-            background-color: #333;
-            color: #999;
-            border: 1px solid #333;
+            background-color: #444;
+            color: #AAA;
+            border: 1px solid #444;
             outline: none;
             cursor: pointer;
             text-align: center;
@@ -168,8 +168,8 @@
         }
 
         input[type="number"]:focus {
-            border-color: #999;
-            color: #FFF;
+            border-color: #AAA;
+            color: #EEE;
         }
 
         .form-group {
@@ -219,10 +219,10 @@
         progress {
             width: 80%;
             height: 3px;
-            color: #FFF;
-            background-color: #333;
+            color: #EEE;
+            background-color: #444;
             border-radius: 0px;
-            border: 2px solid #333;
+            border: 2px solid #444;
             margin: 5px auto;
             margin-top: 0px;
             display: block;
@@ -232,21 +232,21 @@
 
         /* Chrome, Safari */
         progress::-webkit-progress-bar {
-            background-color: #333;
+            background-color: #444;
         }
 
         progress::-webkit-progress-value {
-            background-color: #FFF;
+            background-color: #EEE;
         }
 
         /* Pour Firefox */
         progress::-moz-progress-bar {
-            background-color: #FFF;
+            background-color: #EEE;
         }
 
         input[type="file"] {
             background-color: #222;
-            color: #999;
+            color: #AAA;
         }
 
         input[type="file"]::file-selector-button {
@@ -266,8 +266,8 @@
         }
 
         .button-loading {
-            background-color: #333;
-            color: #333;
+            background-color: #444;
+            color: #444;
             pointer-events: none;
             display: inline-flex;
             justify-content: center;
@@ -283,14 +283,14 @@
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            border: 3px solid #FFF;
+            border: 3px solid #EEE;
             border-top-color: transparent;
             animation: spin 1s linear infinite;
         }
 
         .button-loading2 {
-            background-color: #333;
-            color: #333;
+            background-color: #444;
+            color: #444;
             pointer-events: none;
             display: inline-flex;
             justify-content: left;
@@ -307,7 +307,7 @@
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            border: 3px solid #FFF;
+            border: 3px solid #EEE;
             border-top-color: transparent;
             animation: spin 1s linear infinite;
         }
@@ -961,6 +961,7 @@
                     if (xhr.status === 200) {
                         console.log("Calibration started successfully");
                         calibrateButton.classList.remove('button-loading');  // Remove loading class
+                        alert("✓ CIS Calibration Successful!\n\nCalibration data has been saved to flash memory.");
                         resolve();
                     } else {
                         console.error("Failed to start calibration:", xhr.statusText);
@@ -970,6 +971,7 @@
                 };
                 xhr.onerror = () => {
                     calibrateButton.classList.remove('button-loading');  // Remove loading class on network error
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
                     reject(new Error("Network request failed"));
                 };
                 xhr.send("CIS_CAL_START");
@@ -1388,6 +1390,7 @@
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         console.log("Network configuration updated successfully.");
+                        alert("✓ Network Settings Updated!\n\n⚠️ Important: Depending on your configuration, you may need to reconfigure your network connection.\n\nRedirecting to new IP address...");
                         stopTimers();
                         overlay.style.display = 'block'; // Set overlay
                         setTimeout(function () {
@@ -1406,6 +1409,7 @@
                     console.error("Network request failed.");
                     updateNetworkButton.classList.remove('button-loading');  // Remove loading class on network error.
                     overlay.style.display = 'none'; // Remove overlay
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
                     reject(new Error("Network request error"));
                 };
 
@@ -1436,7 +1440,7 @@
             xhr.onload = function () {
                 submitButton.classList.remove('button-loading');  // Remove loading class upon completion
                 if (xhr.status === 200) {
-                    alert('Firmware transfer complete!');
+                    alert("✓ Firmware Upload Successful!\n\nFirmware has been transferred to device.");
                     document.getElementById('uploadProgress').value = 0;
                 } else {
                     alert('Error during firmware updade: ' + xhr.status);
@@ -1446,7 +1450,7 @@
             // Handle network errors
             xhr.onerror = function () {
                 submitButton.classList.remove('button-loading');  // Remove loading class on network error
-                alert('Network error occurred during the firmware update.');
+                alert("✗ Network Error!\n\nUnable to communicate with device.");
             };
 
             // Send the form data
@@ -1466,6 +1470,7 @@
                     if (xhr.status === 200) {
                         console.log("Factory reset done");
                         resetButton.classList.remove('button-loading');  // Remove loading class upon success.
+                        alert("✓ Factory Reset Successful!\n\nDevice has been reset to default settings.\nDefault IP: 192.168.1.10");
                         resolve();
                     } else {
                         console.error("Failed to reset factory settings:", xhr.statusText);
@@ -1476,6 +1481,7 @@
                 xhr.onerror = function () {
                     console.error("Network request failed.");
                     resetButton.classList.remove('button-loading');  // Remove loading class on network error.
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
                     reject(new Error("Network request error"));
                 };
                 xhr.send("START_FACTORY_RESET");
