@@ -344,6 +344,59 @@
             display: none;
             /* Masqué par défaut */
         }
+
+        .reconnect-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 8px;
+            padding: 30px;
+            z-index: 1001;
+            display: none;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .reconnect-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .reconnect-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #666;
+            border-top-color: #EEE;
+            border-radius: 50%;
+            animation: spin-reconnect 1s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .reconnect-message {
+            color: #EEE;
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.8;
+            white-space: pre-line;
+            text-align: center;
+            width: 100%;
+        }
+
+        @keyframes spin-reconnect {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -540,6 +593,12 @@
         </p>
 
         <div id="overlay" class="overlay"></div>
+        <div id="reconnectNotification" class="reconnect-notification">
+            <div class="reconnect-content">
+                <div class="reconnect-spinner"></div>
+                <div id="reconnectMessage" class="reconnect-message"></div>
+            </div>
+        </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/crc-32/crc32.min.js"></script>
     <script>
@@ -626,6 +685,24 @@
             clearTimeout(timerId);  // Assuming you keep a reference to your timeout
         }
 
+        // Show/hide reconnection notification
+        function showReconnectNotification(message) {
+            var notification = document.getElementById('reconnectNotification');
+            var messageElement = document.getElementById('reconnectMessage');
+            messageElement.textContent = message;
+            notification.style.display = 'block';
+        }
+
+        function hideReconnectNotification() {
+            var notification = document.getElementById('reconnectNotification');
+            notification.style.display = 'none';
+        }
+
+        function updateReconnectMessage(message) {
+            var messageElement = document.getElementById('reconnectMessage');
+            messageElement.textContent = message;
+        }
+
         function setDPI(value) {
             var buttons = document.querySelectorAll('.dpi-button');
             buttons.forEach(function (button) {
@@ -681,10 +758,8 @@
                         stopTimers();
                         overlay.style.display = 'block';
 
-                        // Show alert after a small delay to let the overlay render
-                        setTimeout(function () {
-                            alert("✓ DPI Settings Updated!\n\n⚠️ Device is rebooting to apply changes...\n\nThe page will reload automatically when device is ready.");
-                        }, 100);
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification("Applying DPI settings\nDevice rebooting\nWaiting for reconnection...");
 
                         // Wait for device to become available again, then reload
                         waitForDeviceAndReload(newDPI);
@@ -772,6 +847,66 @@
                     console.log("Request timeout, retrying in 1s...");
                     consecutiveSuccessfulReads = 0; // Reset counter
                     setTimeout(checkDevice, 1000);
+                };
+
+                xhr.send();
+            }, initialDelay);
+        }
+
+        // Wait for device to be available at new IP address after network change, then reload page
+        function waitForNetworkChangeAndReload(newIP) {
+            var startTime = Date.now();
+            var maxWaitTime = 45000; // Maximum 45 seconds (longer for network change)
+            var initialDelay = 10000; // Wait 10 seconds before first check (device is rebooting and reconfiguring network)
+            var consecutiveSuccessfulReads = 0;
+            var requiredSuccessfulReads = 3; // Require 3 consecutive successful reads
+
+            setTimeout(function checkDevice() {
+                // Check if we've exceeded max wait time
+                if (Date.now() - startTime > maxWaitTime) {
+                    console.log("Timeout waiting for device at new IP, redirecting anyway...");
+                    window.location.href = 'http://' + newIP + '/config.html?nocache=' + new Date().getTime();
+                    return;
+                }
+
+                // Try to reach the device at new IP
+                var xhr = new XMLHttpRequest();
+                xhr.timeout = 3000; // 3 second timeout per attempt
+                xhr.open("GET", "http://" + newIP + "/getFirmwareVersion?nocache=" + new Date().getTime(), true);
+
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        consecutiveSuccessfulReads++;
+                        console.log("Device responded at new IP (" + consecutiveSuccessfulReads + "/" + requiredSuccessfulReads + ")");
+
+                        if (consecutiveSuccessfulReads >= requiredSuccessfulReads) {
+                            console.log("Device ready at new IP confirmed, reloading page...");
+                            // Reload the page at new IP
+                            window.location.href = 'http://' + newIP + '/config.html?nocache=' + new Date().getTime();
+                        } else {
+                            // Need more confirmations
+                            setTimeout(checkDevice, 1000);
+                        }
+                    } else {
+                        // Device responded but with error, retry
+                        console.log("Device not ready yet at new IP (status: " + xhr.status + "), retrying in 2s...");
+                        consecutiveSuccessfulReads = 0; // Reset counter
+                        setTimeout(checkDevice, 2000);
+                    }
+                };
+
+                xhr.onerror = function () {
+                    // Device not reachable yet at new IP, retry
+                    console.log("Device not reachable yet at new IP, retrying in 2s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 2000);
+                };
+
+                xhr.ontimeout = function () {
+                    // Request timed out, retry
+                    console.log("Request timeout for new IP, retrying in 2s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 2000);
                 };
 
                 xhr.send();
@@ -1476,12 +1611,17 @@
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         console.log("Network configuration updated successfully.");
-                        alert("✓ Network Settings Updated!\n\n⚠️ Important: Depending on your configuration, you may need to reconfigure your network connection.\n\nRedirecting to new IP address...");
+
+                        // Device will reboot, stop timers and show overlay
                         stopTimers();
-                        overlay.style.display = 'block'; // Set overlay
-                        setTimeout(function () {
-                            window.location.href = `http://${ipAddr}/config.html?nocache=${new Date().getTime()}`;
-                        }, 10000);
+                        overlay.style.display = 'block';
+
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification("Applying network settings\nDevice rebooting\n\n⚠️ Important: Depending on your configuration,\nyou may need to reconfigure your network connection.\n\nConnecting to new IP address...");
+
+                        // Wait for device to become available at new IP, then reload
+                        waitForNetworkChangeAndReload(ipAddr);
+
                         resolve();
                     } else {
                         console.error("Failed to update network configuration:", xhr.statusText);
