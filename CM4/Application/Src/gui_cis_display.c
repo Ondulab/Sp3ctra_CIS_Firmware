@@ -102,8 +102,6 @@ void gui_displayImage(void)
 
             pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
 
-            pixel_intensity = 15 - pixel_intensity;
-
             ssd1362_drawPixel(i, line_Ypos + y, GUI_COLOR(pixel_intensity), false);
         }
 
@@ -114,8 +112,6 @@ void gui_displayImage(void)
                 pixel_intensity = tan(angle) * (y + 1);
 
             pixel_intensity = pixel_intensity < 0 ? 0 : pixel_intensity > 15 ? 15 : pixel_intensity;
-
-            pixel_intensity = 15 - pixel_intensity;
 
             ssd1362_drawPixel(i, line_Ypos - y, GUI_COLOR(pixel_intensity), false);
         }

@@ -790,6 +790,14 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
+					/* Get firmware version */
+					else if (strncmp((char const *)buf, "GET /getFirmwareVersion", 23) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%s", FW_VERSION);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
 					/* Send 404 if no route matches */
 					else
 					{
