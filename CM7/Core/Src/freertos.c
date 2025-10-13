@@ -231,12 +231,6 @@ void StartDefaultTask(void const * argument)
 		System_SafeReset();
 	}
 
-	printf("----- IMU INITIALIZATIONS -----\n");
-	if (icm42688_init() != ICM42688_OK)
-	{
-		printf("IMU initialization ERROR\n");
-	}
-
 	printf("----- HTTP INITIALIZATIONS ----\n");
 	if (http_serverInit() != HTTPSERVER_OK)
 	{
@@ -257,7 +251,7 @@ void StartDefaultTask(void const * argument)
 
     printf("--- WAITING FOR NETWORK CONNECTION ---\n");
     uint32_t network_wait_count = 0;
-    while(isConnected == 0) 
+    while(isConnected == 0)
     {
         osDelay(500);
         network_wait_count++;
@@ -265,7 +259,7 @@ void StartDefaultTask(void const * argument)
         {
             printf("Still waiting for network connection... (%lu seconds)\n", network_wait_count / 2);
         }
-        
+
         // Safety timeout after 60 seconds
         if (network_wait_count > 120)
         {
@@ -273,11 +267,17 @@ void StartDefaultTask(void const * argument)
             break;
         }
     }
-    
+
     if (isConnected == 1)
     {
         printf("Network connection established - proceeding with CIS initialization\n");
     }
+
+    printf("----- IMU INITIALIZATIONS -----\n");
+	if (icm42688_init() != ICM42688_OK)
+	{
+		printf("IMU initialization ERROR\n");
+	}
 
     printf("----- CIS INITIALIZATIONS -----\n");
 	if (cis_scanInit() != CISSCAN_OK)

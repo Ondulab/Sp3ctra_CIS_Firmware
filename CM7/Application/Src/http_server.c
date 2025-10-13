@@ -1240,13 +1240,22 @@ static void http_server(struct netconn *conn)
 								response = "HTTP/1.1 500 Internal Server Error\r\n"
 										"Content-Type: text/plain\r\n\r\n"
 										"Error: Factory reset failed due to internal error";
+								netconn_write(conn, response, strlen(response), NETCONN_COPY);
 							}
 							else
 							{
 								response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nFactory reset done";
-								reboot = true;
+								netconn_write(conn, response, strlen(response), NETCONN_COPY);
+
+								// Close connection immediately to prevent any further network activity
+								netconn_close(conn);
+
+								// Perform system reset
+								System_SafeReset();
+
+								// Mark that we've handled the reboot (should never reach here)
+								reboot = false;
 							}
-							netconn_write(conn, response, strlen(response), NETCONN_COPY);
 						}
 					}
 
@@ -1316,10 +1325,11 @@ static void http_server(struct netconn *conn)
 	if (reboot)
 	{
 		netconn_close(conn);
-		printf("Rebooting in 1\n");
-		/* Wait 5 seconds. */
-		osDelay(1000);
-		NVIC_SystemReset();
+		printf("Rebooting in 3 seconds...\n");
+		// Delay before reboot to allow Ethernet PHY to stabilize
+		// This prevents network timeout issues after factory reset
+		osDelay(3000);
+		System_SafeReset();
 	}
 
 }

@@ -588,7 +588,7 @@
         </div>
 
         <!-- Firmware Version Footer -->
-        <p id="firmwareVersion" style="font-size: 12px; color: #666; margin: 15px 0 5px 0; text-align: center;">
+        <p id="firmwareVersion" style="font-size: 12px; color: red; margin: 15px 0 5px 0; text-align: center;">
             Firmware Version: <span id="versionNumber">Loading...</span>
         </p>
 
@@ -1683,6 +1683,66 @@
             xhr.send(formData);
         });
 
+        // Wait for device to be available at default IP after factory reset, then reload page
+        function waitForFactoryResetAndReload(defaultIP) {
+            var startTime = Date.now();
+            var maxWaitTime = 45000; // Maximum 45 seconds
+            var initialDelay = 10000; // Wait 10 seconds before first check (device is rebooting and resetting)
+            var consecutiveSuccessfulReads = 0;
+            var requiredSuccessfulReads = 3; // Require 3 consecutive successful reads
+
+            setTimeout(function checkDevice() {
+                // Check if we've exceeded max wait time
+                if (Date.now() - startTime > maxWaitTime) {
+                    console.log("Timeout waiting for device at default IP, redirecting anyway...");
+                    window.location.href = 'http://' + defaultIP + '/config.html?nocache=' + new Date().getTime();
+                    return;
+                }
+
+                // Try to reach the device at default IP
+                var xhr = new XMLHttpRequest();
+                xhr.timeout = 3000; // 3 second timeout per attempt
+                xhr.open("GET", "http://" + defaultIP + "/getFirmwareVersion?nocache=" + new Date().getTime(), true);
+
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        consecutiveSuccessfulReads++;
+                        console.log("Device responded at default IP (" + consecutiveSuccessfulReads + "/" + requiredSuccessfulReads + ")");
+
+                        if (consecutiveSuccessfulReads >= requiredSuccessfulReads) {
+                            console.log("Device ready at default IP confirmed, reloading page...");
+                            // Reload the page at default IP
+                            window.location.href = 'http://' + defaultIP + '/config.html?nocache=' + new Date().getTime();
+                        } else {
+                            // Need more confirmations
+                            setTimeout(checkDevice, 1000);
+                        }
+                    } else {
+                        // Device responded but with error, retry
+                        console.log("Device not ready yet at default IP (status: " + xhr.status + "), retrying in 2s...");
+                        consecutiveSuccessfulReads = 0; // Reset counter
+                        setTimeout(checkDevice, 2000);
+                    }
+                };
+
+                xhr.onerror = function () {
+                    // Device not reachable yet at default IP, retry
+                    console.log("Device not reachable yet at default IP, retrying in 2s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 2000);
+                };
+
+                xhr.ontimeout = function () {
+                    // Request timed out, retry
+                    console.log("Request timeout for default IP, retrying in 2s...");
+                    consecutiveSuccessfulReads = 0; // Reset counter
+                    setTimeout(checkDevice, 2000);
+                };
+
+                xhr.send();
+            }, initialDelay);
+        }
+
         function factoryReset() {
             return new Promise((resolve, reject) => {
                 // Selecting the button associated with the factory reset action.
@@ -1694,9 +1754,24 @@
                 xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
                 xhr.onload = function () {
                     if (xhr.status === 200) {
-                        console.log("Factory reset done");
-                        resetButton.classList.remove('button-loading');  // Remove loading class upon success.
-                        alert("✓ Factory Reset Successful!\n\nDevice has been reset to default settings.\nDefault IP: 192.168.1.10");
+                        console.log("Factory reset initiated");
+
+                        // Device will reboot, stop timers and show overlay
+                        stopTimers();
+                        overlay.style.display = 'block';
+
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification(
+                            "Factory reset in progress\n" +
+                            "Device rebooting\n\n" +
+                            "⚠️ Important: Device will reset to default IP\n" +
+                            "Default IP: 192.168.100.1\n\n" +
+                            "Waiting for reconnection..."
+                        );
+
+                        // Wait for device to become available at default IP (192.168.1.10)
+                        waitForFactoryResetAndReload('192.168.100.1');
+
                         resolve();
                     } else {
                         console.error("Failed to reset factory settings:", xhr.statusText);

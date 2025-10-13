@@ -289,29 +289,29 @@ void HSEM7_Init(void)
 void System_SafeReset(void)
 {
     printf("Performing safe system reset...\n");
-    
+
     // Disable all interrupts
     __disable_irq();
-    
+
     // Clean and invalidate data cache
     SCB_CleanDCache();
     SCB_InvalidateDCache();
-    
+
     // Invalidate instruction cache
     SCB_InvalidateICache();
-    
+
     // Data Synchronization Barrier
     __DSB();
-    
+
     // Instruction Synchronization Barrier
     __ISB();
-    
+
     // Add a small delay to ensure cache operations complete
     for(volatile uint32_t i = 0; i < 1000; i++);
-    
+
     // Perform system reset
-    NVIC_SystemReset();
-    
+    HAL_NVIC_SystemReset();
+
     // Infinite loop in case reset fails
     while(1)
     {
