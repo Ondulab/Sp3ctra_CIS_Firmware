@@ -260,8 +260,13 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "GUI_SHOW_IMU=%u\n", config->gui_show_imu);
     f_printf(&file, "GUI_INVERT_CIS_IMAGE=%u\n", config->gui_invert_cis_image);
     f_printf(&file, "SCREENSAVER_TIMEOUT_SEC=%u\n", config->screensaver_timeout_sec);
-    f_printf(&file, "MOTION_THRESHOLD_ACC=%.2f\n", config->motion_threshold_acc);
-    f_printf(&file, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
+
+    // Write float values using sprintf to ensure proper formatting
+    char float_buffer[32];
+    sprintf(float_buffer, "MOTION_THRESHOLD_ACC=%.2f\n", config->motion_threshold_acc);
+    f_puts(float_buffer, &file);
+    sprintf(float_buffer, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
+    f_puts(float_buffer, &file);
 
     // Close the file
     f_close(&file);
@@ -310,7 +315,8 @@ fileManager_StatusTypeDef print_shared_config(struct shared_config config)
 
 /**
  * @brief  Resets the file system to factory settings.
- *         This function formats the QSPI flash to restore a clean filesystem.
+ *         This function formats the QSPI flash to restore a clean filesystem,
+ *         loads default configuration values, and writes the CONFIG.TXT file.
  *
  * @return FILEMANAGER_OK if the reset operation is successful, FILEMANAGER_ERROR otherwise.
  */
@@ -318,11 +324,19 @@ fileManager_StatusTypeDef file_factoryReset(void)
 {
     printf("- CONFIG FILE TO FACTORY RESET -\n");
 
-    FRESULT fres; // Variable to store the result of FATFS operations
+    FRESULT fres;
+
+    // Unmount the filesystem before formatting by mounting NULL
+    printf("Unmounting filesystem...\n");
+    fres = f_mount(NULL, "0:", 0);
+    if (fres != FR_OK)
+    {
+        printf("Warning: Failed to unmount filesystem (continuing anyway)\n");
+    }
 
     printf("Attempting to format the QSPI flash...\n");
 
-    BYTE work[WORKING_BUFFER_SIZE]; // Static allocation to simplify
+    BYTE work[WORKING_BUFFER_SIZE];
 
     fres = f_mkfs("0:", FM_ANY, 0, work, WORKING_BUFFER_SIZE);
     if (fres != FR_OK)
@@ -330,6 +344,35 @@ fileManager_StatusTypeDef file_factoryReset(void)
         printf("Failed to format the QSPI flash.\n");
         return FILEMANAGER_ERROR;
     }
+
+    printf("Format successful\n");
+
+    // Remount the filesystem after formatting to avoid FR_NOT_ENOUGH_CORE errors
+    // if any code tries to access the filesystem before reboot
+    printf("Remounting filesystem...\n");
+    fres = f_mount(&fs, "0:", 1);
+    if (fres != FR_OK)
+    {
+        printf("Warning: Failed to remount filesystem after format\n");
+        return FILEMANAGER_ERROR;
+    }
+
+    printf("Filesystem remounted successfully\n");
+
+    // Load default configuration into shared_config
+    printf("Loading default configuration...\n");
+    shared_config = DefaultConfig;
+
+    // Write default configuration to CONFIG.TXT
+    printf("Writing default configuration file...\n");
+    if (file_writeConfig(CONFIG_FILE_PATH, &shared_config) != FILEMANAGER_OK)
+    {
+        printf("Failed to write default configuration file\n");
+        return FILEMANAGER_ERROR;
+    }
+
+    printf("Default configuration written successfully\n");
+    print_shared_config(shared_config);
 
     return FILEMANAGER_OK;
 }
@@ -399,6 +442,19 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         if (file_writeConfig(CONFIG_FILE_PATH, config) == 0)
         {
             printf("Write configuration SUCCESS\n");
+
+            // Re-read the configuration file to ensure it's properly loaded
+            if (file_readConfig(CONFIG_FILE_PATH, config) == 0)
+            {
+                printf("Configuration verified and loaded\n");
+                print_shared_config(*config);
+            }
+            else
+            {
+                printf("Warning: Failed to verify written configuration\n");
+                // Still use the default config in memory
+                print_shared_config(*config);
+            }
         }
         else
         {
