@@ -53,12 +53,11 @@ static void performAutomaticReset(void)
     printf("=== AUTOMATIC SYSTEM RESET ===\n");
     printf("Network disconnection detected after full initialization\n");
     printf("Performing system reset in 2 seconds...\n");
-    
+
     // Give time for the message to be transmitted
     osDelay(2000);
-    
-    // Perform system reset
-    HAL_NVIC_SystemReset();
+
+    System_SafeReset();
 }
 
 /* USER CODE END 1 */
@@ -172,7 +171,7 @@ static void ethernet_link_status_updated(struct netif *netif)
       printf("Ethernet link is DOWN\n");
       isConnected = 0;
       startupPacketSent = 0;
-      
+
       /* Check if system was fully initialized before disconnection */
       if (systemFullyInitialized == 1)
       {
@@ -259,4 +258,3 @@ u32_t sio_tryread(sio_fd_t fd, u8_t *data, u32_t len)
   return recved_bytes;
 }
 #endif /* MDK ARM Compiler */
-

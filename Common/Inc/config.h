@@ -33,7 +33,7 @@
 
 //#define CIS_PRINT_COUNTER
 
-//#define DEBUG_ICM42688
+#define DEBUG_ICM42688
 
 //#define USE_WDG
 

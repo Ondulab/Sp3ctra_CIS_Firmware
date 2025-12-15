@@ -259,6 +259,15 @@ ICM42688_StatusTypeDef icm42688_init()
 	if (icm42688_loadCalibration(IMU_CALIBRATION_FILE_PATH) == ICM42688_OK)
 	{
 		printf("IMU: Calibration loaded from flash\n");
+		printf("=== IMU CALIBRATION DEBUG ===\n");
+		printf("Accel FS: %d (0=16g, 1=8g, 2=4g, 3=2g)\n", _accelFS);
+		printf("Accel Scale: %.10f\n", _accelScale);
+		printf("Accel Bias [X/Y/Z]: %.6f, %.6f, %.6f g\n", _accB[0], _accB[1], _accB[2]);
+		printf("Accel Scale [X/Y/Z]: %.6f, %.6f, %.6f\n", _accS[0], _accS[1], _accS[2]);
+		printf("Gyro FS: %d (0=2000dps, 1=1000dps, 2=500dps, 3=250dps)\n", _gyroFS);
+		printf("Gyro Scale: %.10f\n", _gyroScale);
+		printf("Gyro Bias [X/Y/Z]: %.6f, %.6f, %.6f dps\n", _gyrB[0], _gyrB[1], _gyrB[2]);
+		printf("=============================\n");
 	}
 	else
 	{
@@ -798,11 +807,23 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	_accBD[2] /= NUM_CALIB_SAMPLES;
 
 	// For gesture detection: preserve gravity while removing small DC offsets
-	// Assume device is roughly horizontal during calibration (Z-axis pointing up)
-	// Only remove bias from X and Y axes, preserve gravity component in Z
+	// Detect IMU orientation based on Z-axis measurement
 	_accB[0] = _accBD[0];  // Remove X bias (should be ~0g when horizontal)
 	_accB[1] = _accBD[1];  // Remove Y bias (should be ~0g when horizontal)
-	_accB[2] = _accBD[2] - 1.0f;  // Preserve gravity (~1g) in Z axis
+
+	// Handle both normal and upside-down IMU mounting
+	if (_accBD[2] < -0.5f) {
+		// IMU mounted upside-down (Z pointing down): measured gravity is negative
+		_accB[2] = _accBD[2] + 1.0f;  // Add 1g to compensate for inverted mounting
+		printf("IMU CAL: Upside-down mounting detected\n");
+	} else {
+		// IMU mounted normally (Z pointing up): measured gravity is positive
+		_accB[2] = _accBD[2] - 1.0f;  // Subtract 1g as before
+		printf("IMU CAL: Normal mounting detected\n");
+	}
+
+	printf("IMU CAL: Raw averages: X=%.6fg Y=%.6fg Z=%.6fg\n", _accBD[0], _accBD[1], _accBD[2]);
+	printf("IMU CAL: Computed bias: X=%.6fg Y=%.6fg Z=%.6fg\n", _accB[0], _accB[1], _accB[2]);
 
 	// recover the full scale setting
 	if (icm42688_setAccelFS(current_fssel) != ICM42688_OK)
@@ -1076,8 +1097,8 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 	_gyr[1] = (rawMeas[5] * _gyroScale) - _gyrB[1];
 	_gyr[2] = (rawMeas[6] * _gyroScale) - _gyrB[2];
 
-	/* detect saturation/clipping in raw measurements and log when DEBUG enabled */
 #ifdef DEBUG_ICM42688
+	// Debug: Print every 200th sample to avoid flooding (~1Hz at 200Hz sampling)
 	for (int i = 1; i <= 3; i++)
 	{
 		if (rawMeas[i] == 32767 || rawMeas[i] == -32768)

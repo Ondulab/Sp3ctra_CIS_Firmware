@@ -293,10 +293,12 @@ UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	packet_IMU.acc[0] = icm42688_accX();
-	packet_IMU.acc[1] = icm42688_accY();
-	packet_IMU.acc[2] = icm42688_accZ();
+	// Convert accelerometer values from G to m/s² (1G = 9.81 m/s²)
+	packet_IMU.acc[0] = icm42688_accX() * 9.81f;
+	packet_IMU.acc[1] = icm42688_accY() * 9.81f;
+	packet_IMU.acc[2] = icm42688_accZ() * 9.81f;
 
+	// Gyroscope values are already in dps (degrees per second)
 	packet_IMU.gyro[0] = icm42688_gyrX();
 	packet_IMU.gyro[1] = icm42688_gyrY();
 	packet_IMU.gyro[2] = icm42688_gyrZ();
