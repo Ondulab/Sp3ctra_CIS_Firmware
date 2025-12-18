@@ -58,7 +58,7 @@ static inline uint32_t GUI_GET_AREA2_Y2POS(void) {
     return area2_height > 0 ? (GUI_GET_AREA2_Y1POS() + area2_height) : 0;
 }
 
-#define WINDOW_IMU_AVERAGE_SIZE 				(5)  // Window size for the moving average
+#define WINDOW_IMU_AVERAGE_SIZE 				(4)  // Window size for the moving average (10ms @ 1000Hz ODR)
 
 // Color inversion function for display (uses runtime configuration)
 static inline uint8_t GUI_COLOR(uint8_t c) {

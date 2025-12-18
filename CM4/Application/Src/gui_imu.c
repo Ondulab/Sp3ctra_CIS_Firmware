@@ -124,9 +124,10 @@ void gui_displayIMU(void)
 
     ssd1362_fillRect(x1, area2_y1pos + 4, x1 + w2, area2_y2pos - 4, 13, false);
 
-    //ACC X and ACC Z (adjusted for ±4g range and calibrated values with Z≈1g)
-    // For Z: expect ~0.995g, so scale to show this properly in display area
-    int32_t accZ = (int32_t)((IMU_average.acc[2] - 1.0f) * 100);  // Center around 1g, then scale
+    //ACC X and ACC Z (values in m/s² from driver)
+    // For Z: expect ~9.81 m/s² at rest, amplify variations around gravity for visible animation
+    // Scaling: ±1 m/s² → ±25 pixels (sensitive to 0.04g variations)
+    int32_t accZ = (int32_t)((IMU_average.acc[2] + 9.81f) * 25);  // Variations around 9.81 m/s²
     const int32_t accZ_RectWith = 25;
 
     if (accZ > accZ_RectWith)

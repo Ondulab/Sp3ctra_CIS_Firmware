@@ -63,8 +63,6 @@ volatile uint32_t isConnected = 0;
 volatile uint8_t startupPacketSent = 0;
 volatile uint8_t udpConnectionEstablished = 0;
 
-static uint32_t retryAttempts = 0;
-
 /* Private function prototypes -----------------------------------------------*/
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void);
 static UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length);
@@ -293,10 +291,10 @@ UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers
 
 	packet_IMU.packet_id = packetsCounter++;
 
-	// Convert accelerometer values from G to m/s² (1G = 9.81 m/s²)
-	packet_IMU.acc[0] = icm42688_accX() * 9.81f;
-	packet_IMU.acc[1] = icm42688_accY() * 9.81f;
-	packet_IMU.acc[2] = icm42688_accZ() * 9.81f;
+	// Keep accelerometer values in G (not m/s²) for consistency with GUI display
+	packet_IMU.acc[0] = icm42688_accX();
+	packet_IMU.acc[1] = icm42688_accY();
+	packet_IMU.acc[2] = icm42688_accZ();
 
 	// Gyroscope values are already in dps (degrees per second)
 	packet_IMU.gyro[0] = icm42688_gyrX();

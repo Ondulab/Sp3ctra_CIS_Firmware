@@ -92,19 +92,21 @@ static volatile bool _newDataAvailable = false;
 /**
  * @brief      Get accelerometer data, per axis
  *
- * @return     Acceleration in g's
+ * @return     Acceleration in m/s² (converted from g's)
  */
+#define GRAVITY_MS2 9.81f  // Standard gravity constant for G to m/s² conversion
+
 float icm42688_accX()
 {
-	return _acc[0];
+	return _acc[0] * GRAVITY_MS2;
 }
 float icm42688_accY()
 {
-	return _acc[1];
+	return _acc[1] * GRAVITY_MS2;
 }
 float icm42688_accZ()
 {
-	return _acc[2];
+	return _acc[2] * GRAVITY_MS2;
 }
 
 /**
@@ -201,14 +203,14 @@ ICM42688_StatusTypeDef icm42688_init()
 		return ICM42688_ERROR;
 	}
 
-	// Set ODR to 200Hz for both sensors (optimal for gesture analysis)
-	if (icm42688_setAccelODR(odr200) != ICM42688_OK)
+	// Set ODR to 1000Hz for both sensors (optimal for fast motion capture)
+	if (icm42688_setAccelODR(odr1k) != ICM42688_OK)
 	{
 		printf("failed to set ACC ODR IMU\n");
 		return ICM42688_ERROR;
 	}
 
-	if (icm42688_setGyroODR(odr200) != ICM42688_OK)
+	if (icm42688_setGyroODR(odr1k) != ICM42688_OK)
 	{
 		printf("failed to set GYRO ODR IMU\n");
 		return ICM42688_ERROR;
@@ -429,31 +431,31 @@ ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilte
 
 	if (accFilters == true)
 	{
-		// Configure AAF for 213Hz bandwidth (optimal for 200Hz ODR gesture detection)
-		// From datasheet table: 213Hz -> DELT=5, DELTSQR=25, BITSHIFT=10
+		// Configure AAF for 473Hz bandwidth (optimal for 1000Hz ODR fast motion capture)
+		// From datasheet table: 473Hz -> DELT=1, DELTSQR=1, BITSHIFT=15
 
-		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT (5), bit 0 = ACCEL_AAF_DIS (0=enable)
-		uint8_t config_static2 = (5 << 1) | ACCEL_AAF_ENABLE;  // DELT=5, AAF enabled
+		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT (1), bit 0 = ACCEL_AAF_DIS (0=enable)
+		uint8_t config_static2 = (1 << 1) | ACCEL_AAF_ENABLE;  // DELT=1, AAF enabled
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, config_static2) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
-		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte (25 & 0xFF = 25)
-		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, 25) != ICM42688_OK)
+		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte (1 & 0xFF = 1)
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, 1) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
-		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 3:0 = ACCEL_AAF_DELTSQR high nibble (25 >> 8 = 0), bits 7:4 = ACCEL_AAF_BITSHIFT (10)
-		uint8_t config_static4 = (10 << 4) | ((25 >> 8) & 0x0F);  // BITSHIFT=10, DELTSQR high=0
+		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 3:0 = ACCEL_AAF_DELTSQR high nibble (1 >> 8 = 0), bits 7:4 = ACCEL_AAF_BITSHIFT (15)
+		uint8_t config_static4 = (15 << 4) | ((1 >> 8) & 0x0F);  // BITSHIFT=15, DELTSQR high=0
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC4, config_static4) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
 #ifdef DEBUG_ICM42688
-		printf("ICM42688: AAF configured for 213Hz (DELT=5, DELTSQR=25, BITSHIFT=10)\n");
+		printf("ICM42688: AAF configured for 473Hz (DELT=1, DELTSQR=1, BITSHIFT=15)\n");
 #endif
 	}
 	else
