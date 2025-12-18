@@ -37,6 +37,9 @@
 #include "tim.h"
 #include "stm32_flash.h"
 #include "lwip.h"
+#include "rtpmidi.h"
+#include "midi_led_mapper.h"
+#include "midi_button_mapper.h"
 
 /* USER CODE END Includes */
 
@@ -63,7 +66,7 @@ osThreadId defaultTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+void StartMidiTask(void const * argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
@@ -169,7 +172,8 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-
+	osThreadDef(midiTask, StartMidiTask, osPriorityNormal, 0, 512);
+	osThreadCreate(osThread(midiTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
 }
@@ -237,10 +241,33 @@ void StartDefaultTask(void const * argument)
 		printf("HTTP initialization ERROR\n");
 	}
 
-	printf("--- TCP LED INITIALIZATIONS ---\n");
-	if (tcpClient_init() != TCPCLIENT_OK)
+	printf("--- RTP-MIDI INITIALIZATIONS --\n");
+	// Configure remote IP (PC)
+	ip_addr_t remote_ip;
+	IP4_ADDR(&remote_ip,
+	         shared_config.network_dest_ip[0],
+	         shared_config.network_dest_ip[1],
+	         shared_config.network_dest_ip[2],
+	         shared_config.network_dest_ip[3]);
+
+	// Initialize RTP-MIDI
+	if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
 	{
-		printf("TCP initialization ERROR\n");
+		printf("RTP-MIDI initialization ERROR\n");
+	}
+	else
+	{
+		// Initialize mappers
+		midi_button_mapper_init();
+		midi_led_mapper_init(LED_MODE_SIMPLE);
+
+		// Register LED callback for incoming MIDI
+		rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
+
+		// Connect to PC
+		printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
+		rtpmidi_connect();
+		printf("RTP-MIDI initialization SUCCESS\n");
 	}
 
 	printf("---------- UDP INIT -----------\n");
@@ -310,5 +337,66 @@ void StartDefaultTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+
+/* USER CODE BEGIN Header_StartMidiTask */
+/**
+ * @brief  Function implementing the MIDI task.
+ * @param  argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartMidiTask */
+void StartMidiTask(void const * argument)
+{
+    /* USER CODE BEGIN StartMidiTask */
+
+    // Wait for system to be fully initialized
+    printf("--- MIDI TASK: Waiting for system init ---\n");
+    while(systemFullyInitialized == 0)
+    {
+        osDelay(100);
+    }
+
+    printf("--- MIDI TASK: Starting RTP-MIDI processing ---\n");
+
+    // Track previous button states to detect changes
+    static buttonStateTypeDef last_button_state[NUMBER_OF_BUTTONS] = {SWITCH_RELEASED, SWITCH_RELEASED, SWITCH_RELEASED};
+
+    // Main loop
+    for(;;)
+    {
+        // Process RTP-MIDI (handles session, RX, timeouts)
+        rtpmidi_process();
+
+        // Check for button state changes (set by CM4 via shared memory)
+        for (uint8_t i = 0; i < NUMBER_OF_BUTTONS; i++)
+        {
+            if (shared_var.button_update_requested[i])
+            {
+                // Get current button state
+                buttonStateTypeDef current_state = shared_var.buttonState[i].state;
+
+                // Check if state actually changed
+                if (current_state != last_button_state[i])
+                {
+                    // Send MIDI message
+                    uint8_t pressed = (current_state == SWITCH_PRESSED) ? 1 : 0;
+                    midi_button_mapper_on_change(i, pressed);
+
+                    printf("MIDI: Button %d %s\n", i, pressed ? "PRESSED" : "RELEASED");
+
+                    // Update last known state
+                    last_button_state[i] = current_state;
+                }
+
+                // Clear the update request flag
+                shared_var.button_update_requested[i] = FALSE;
+            }
+        }
+
+        osDelay(1);  // 1ms task period
+    }
+
+    /* USER CODE END StartMidiTask */
+}
 
 /* USER CODE END Application */

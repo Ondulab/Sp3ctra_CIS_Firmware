@@ -168,6 +168,17 @@
 #define UDP_LINE_FRAGMENT_SIZE                  (CIS_MAX_PIXELS_NB / UDP_MAX_NB_PACKET_PER_LINE)
 
 /**************************************************************************************/
+/*******************              RTP-MIDI definitions              *******************/
+/**************************************************************************************/
+#define RTPMIDI_ENABLED                 1
+#define RTPMIDI_DEVICE_NAME             "Sp3ctra_CIS"
+
+// LED control mode (LED_MODE_SIMPLE or LED_MODE_ADVANCED)
+// LED_MODE_SIMPLE: 1 CC per LED (CC 30-32 → brightness)
+// LED_MODE_ADVANCED: 7 CC per LED with 14-bit support
+#define RTPMIDI_LED_MODE_DEFAULT        LED_MODE_SIMPLE
+
+/**************************************************************************************/
 /********************              GYRO definitions                ********************/
 /**************************************************************************************/
 #define ICM42688P
