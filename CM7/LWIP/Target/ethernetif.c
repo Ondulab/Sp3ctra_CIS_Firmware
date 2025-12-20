@@ -266,9 +266,9 @@ static void low_level_init(struct netif *netif)
   /* Accept broadcast address and ARP traffic */
   /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
   #if LWIP_ARP
-    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
+    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
   #else
-    netif->flags |= NETIF_FLAG_BROADCAST;
+    netif->flags |= NETIF_FLAG_BROADCAST | NETIF_FLAG_IGMP;
   #endif /* LWIP_ARP */
 
   /* create a binary semaphore used for informing ethernetif of frame reception */
