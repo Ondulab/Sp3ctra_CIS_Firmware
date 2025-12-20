@@ -112,10 +112,11 @@ struct __attribute__((aligned(4))) buffers_Scanline
 	struct packet_Scanline scanline_buff2[UDP_MAX_NB_PACKET_PER_LINE];
 };
 
-struct __attribute__((aligned(4))) button_State
+struct __attribute__((aligned(4))) button_Event
 {
 	buttonStateTypeDef state;
 	uint32_t pressed_time;
+	uint32_t sequence_number;
 };
 
 // Structure for packets containing button state information
@@ -124,7 +125,7 @@ struct __attribute__((aligned(4))) packet_Button
 	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
 	uint32_t packet_id;               				// Sequence number, useful for ordering packets
 	buttonIdTypeDef button_id;     					// Id of the button
-	struct button_State button_state;     			// State of the led A
+	struct button_Event button_state;     			// State of the button
 };
 
 struct __attribute__((aligned(4))) led_State
@@ -210,10 +211,9 @@ struct __attribute__((aligned(4))) shared_var
 	int32_t cis_cal_request;
 	uint32_t cis_cal_progressbar;
 	CIS_Calibration_StateTypeDef cis_cal_state;
-	struct button_State buttonState[3];
+	struct button_Event button_events[3];
 	struct led_State ledState[3];
     uint32_t led_update_requested[3];
-    uint32_t button_update_requested[3];
 };
 
 struct __attribute__((aligned(4))) shared_config

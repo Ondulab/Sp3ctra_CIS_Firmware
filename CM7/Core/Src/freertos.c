@@ -360,8 +360,8 @@ void StartMidiTask(void const * argument)
 
     printf("--- MIDI TASK: Starting RTP-MIDI processing ---\n");
 
-    // Track previous button states to detect changes
-    static buttonStateTypeDef last_button_state[NUMBER_OF_BUTTONS] = {SWITCH_RELEASED, SWITCH_RELEASED, SWITCH_RELEASED};
+    // Track last processed sequence numbers for each button
+    static uint32_t last_processed_sequence[NUMBER_OF_BUTTONS] = {0};
 
     // Main loop
     for(;;)
@@ -369,29 +369,27 @@ void StartMidiTask(void const * argument)
         // Process RTP-MIDI (handles session, RX, timeouts)
         rtpmidi_process();
 
-        // Check for button state changes (set by CM4 via shared memory)
+        // Check for button events using sequence numbers (edge-triggered)
         for (uint8_t i = 0; i < NUMBER_OF_BUTTONS; i++)
         {
-            if (shared_var.button_update_requested[i])
+            // Read current sequence number (atomic operation)
+            uint32_t current_sequence = shared_var.button_events[i].sequence_number;
+
+            // Check if sequence has changed (new event available)
+            if (current_sequence != last_processed_sequence[i])
             {
-                // Get current button state
-                buttonStateTypeDef current_state = shared_var.buttonState[i].state;
+                // Get button state from shared memory
+                buttonStateTypeDef state = shared_var.button_events[i].state;
 
-                // Check if state actually changed
-                if (current_state != last_button_state[i])
-                {
-                    // Send MIDI message
-                    uint8_t pressed = (current_state == SWITCH_PRESSED) ? 1 : 0;
-                    midi_button_mapper_on_change(i, pressed);
+                // Send MIDI message
+                uint8_t pressed = (state == SWITCH_PRESSED) ? 1 : 0;
+                midi_button_mapper_on_change(i, pressed);
 
-                    printf("MIDI: Button %d %s\n", i, pressed ? "PRESSED" : "RELEASED");
+                printf("MIDI: Button %d %s (seq=%lu)\n", i,
+                       pressed ? "PRESSED" : "RELEASED", current_sequence);
 
-                    // Update last known state
-                    last_button_state[i] = current_state;
-                }
-
-                // Clear the update request flag
-                shared_var.button_update_requested[i] = FALSE;
+                // Update last processed sequence
+                last_processed_sequence[i] = current_sequence;
             }
         }
 

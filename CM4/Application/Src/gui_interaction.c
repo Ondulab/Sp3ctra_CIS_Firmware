@@ -86,73 +86,112 @@ bool gui_checkButtonActivity(void)
 /**
  * @brief Processes interactive button inputs and updates the UI.
  *
- * Monitors the state of each button, provides visual feedback through LEDs,
+ * Monitors the state of each button with robust debounce, provides visual feedback through LEDs,
  * and triggers actions (such as starting calibration) based on button events.
+ * Uses edge-triggered events with sequence numbers to ensure reliable inter-core communication.
  */
 void gui_interractiveMenu(void)
 {
-    static uint32_t button_current_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
-    static uint32_t button_initial_tick[NUMBER_OF_BUTTONS] = {0, 0, 0};
-    static uint8_t clear_button[NUMBER_OF_BUTTONS] = {0, 0, 0};
+    // Button debounce state - static to maintain state between calls
+    typedef struct {
+        uint32_t debounce_start_tick;  // Tick when debounce started
+        GPIO_PinState raw_state;       // Current raw GPIO state
+        buttonStateTypeDef stable_state; // Debounced stable state
+        uint32_t sequence_number;      // Event sequence counter
+    } ButtonDebounceState_t;
 
+    static ButtonDebounceState_t btn_state[NUMBER_OF_BUTTONS] = {0};
+
+    // Configuration constants
+    #define DEBOUNCE_PRESS_MS   20    // Debounce time for press (20ms standard)
+    #define DEBOUNCE_RELEASE_MS 20    // Debounce time for release (20ms standard)
+
+    // UI state tracking
     static uint8_t oldScanDir = 0;
     static uint8_t oldOversampling = 0;
     static uint16_t oldDPI = 0;
     static uint32_t start_tick = 0;
 
+    uint32_t current_tick = HAL_GetTick();
+
+    // Handle calibration request
     if (shared_var.cis_cal_state == CIS_CAL_REQUESTED)
     {
         gui_startCalibration();
     }
 
+    // Handle popup display for configuration changes
     if (shared_config.cis_oversampling != oldOversampling)
     {
-        start_tick = HAL_GetTick();
+        start_tick = current_tick;
         oldOversampling = shared_config.cis_oversampling;
     }
     if (shared_config.cis_dpi != oldDPI)
     {
-        start_tick = HAL_GetTick();
+        start_tick = current_tick;
         oldDPI = shared_config.cis_dpi;
     }
-    if ((HAL_GetTick() - start_tick) < 3000)
+    if ((current_tick - start_tick) < 3000)
     {
         gui_displayPopUp();
     }
 
+    // Handle handedness change
     if (shared_config.cis_handedness != oldScanDir)
     {
         gui_changeHand();
         oldScanDir = shared_config.cis_handedness;
     }
 
-    for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
+    // Process each button with debounce
+    for (uint8_t i = 0; i < NUMBER_OF_BUTTONS; i++)
     {
-        GPIO_TypeDef* button_port = (i == 0) ? SW1_GPIO_Port : (i == 1) ? SW2_GPIO_Port : SW3_GPIO_Port;
-        uint16_t button_pin = (i == 0) ? SW1_Pin : (i == 1) ? SW2_Pin : SW3_Pin;
+        // Get GPIO configuration for this button
+        GPIO_TypeDef* button_port = (i == 0) ? SW1_GPIO_Port :
+                                   (i == 1) ? SW2_GPIO_Port : SW3_GPIO_Port;
+        uint16_t button_pin = (i == 0) ? SW1_Pin :
+                             (i == 1) ? SW2_Pin : SW3_Pin;
 
-        if (HAL_GPIO_ReadPin(button_port, button_pin) == GPIO_PIN_RESET)
+        // Read current GPIO state
+        GPIO_PinState current_raw = HAL_GPIO_ReadPin(button_port, button_pin);
+
+        // Check for state change
+        if (current_raw != btn_state[i].raw_state)
         {
-            button_current_tick[i] = HAL_GetTick();
-            if (clear_button[i] == 1)
-            {
-                clear_button[i] = 0;
-                button_initial_tick[i] = button_current_tick[i];
-            }
-
-            leds_pressFeedback(i, SWITCH_PRESSED);
-            shared_var.buttonState[i].state = SWITCH_PRESSED;
-            shared_var.buttonState[i].pressed_time = button_current_tick[i] - button_initial_tick[i];
-            shared_var.button_update_requested[i] = TRUE;
+            // State changed - start debounce timer
+            btn_state[i].raw_state = current_raw;
+            btn_state[i].debounce_start_tick = current_tick;
         }
-
-        if (HAL_GetTick() > (button_current_tick[i] + shared_config.ui_button_delay) && clear_button[i] != 1)
+        else
         {
-            clear_button[i] = 1;
+            // State is stable - check if debounce time has elapsed
+            uint32_t debounce_time = (current_raw == GPIO_PIN_RESET) ?
+                                     DEBOUNCE_PRESS_MS : DEBOUNCE_RELEASE_MS;
 
-            leds_pressFeedback(i, SWITCH_RELEASED);
-            shared_var.buttonState[i].state = SWITCH_RELEASED;
-            shared_var.button_update_requested[i] = TRUE;
+            if ((current_tick - btn_state[i].debounce_start_tick) >= debounce_time)
+            {
+                // Convert GPIO state to button state
+                buttonStateTypeDef new_state = (current_raw == GPIO_PIN_RESET) ?
+                                                SWITCH_PRESSED : SWITCH_RELEASED;
+
+                // Check if this is a state transition
+                if (new_state != btn_state[i].stable_state)
+                {
+                    // State transition detected - update stable state
+                    btn_state[i].stable_state = new_state;
+
+                    // Provide LED feedback
+                    leds_pressFeedback(i, new_state);
+
+                    // Publish event to CM7 via shared memory (edge-triggered)
+                    shared_var.button_events[i].state = new_state;
+                    shared_var.button_events[i].pressed_time = 0; // Could be calculated if needed
+
+                    // Increment sequence number (atomic operation on uint32_t)
+                    btn_state[i].sequence_number++;
+                    shared_var.button_events[i].sequence_number = btn_state[i].sequence_number;
+                }
+            }
         }
     }
 }

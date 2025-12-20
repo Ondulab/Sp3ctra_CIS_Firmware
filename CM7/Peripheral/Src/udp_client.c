@@ -276,6 +276,9 @@ UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers
 
 	icm42688_TIM_Callback();
 
+	// BUTTON UDP PACKETS DISABLED - Buttons are now handled exclusively via RTP-MIDI
+	// This eliminates redundancy and simplifies the architecture
+	/*
 	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
 	{
 		// Check if an update was requested for this Button
@@ -294,6 +297,7 @@ UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers
 	{
 		return UDPCLIENT_ERROR;
 	}
+	*/
 
 	return UDPCLIENT_OK;
 }
