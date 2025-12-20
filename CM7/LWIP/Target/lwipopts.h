@@ -52,7 +52,7 @@
 /*----- Default value in ETH configuration GUI in CubeMx: 1524 -----*/
 #define ETH_RX_BUFFER_SIZE 1536
 /*----- Default Value for MEMP_NUM_UDP_PCB: 4 ---*/
-#define MEMP_NUM_UDP_PCB 3
+#define MEMP_NUM_UDP_PCB 8
 /*----- Default Value for MEMP_NUM_TCP_PCB: 5 ---*/
 #define MEMP_NUM_TCP_PCB 15
 /*----- Value in opt.h for MEM_ALIGNMENT: 1 -----*/
@@ -132,6 +132,13 @@
 #define HTTPD_USE_CUSTOM_FSDATA 	0
 
 #define LWIP_DEBUG 0
+
+// mDNS support for RTP-MIDI discovery (using official LwIP module)
+#define LWIP_MDNS_RESPONDER          1
+#define LWIP_IGMP                    1
+#define LWIP_NUM_NETIF_CLIENT_DATA   (LWIP_MDNS_RESPONDER)
+#define MEMP_NUM_IGMP_GROUP          8   // Increase IGMP group limit for mDNS
+#define MDNS_MAX_SERVICES            2   // Support multiple services per netif
 
 #ifdef DEBUG_LWIP_STATS
 #define LWIP_STATS                   1   // Enable global statistics

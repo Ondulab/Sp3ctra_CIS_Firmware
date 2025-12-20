@@ -237,6 +237,7 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
+	uint8_t mdns_enabled;           // mDNS service enabled (0=disabled, 1=enabled)
 };
 
 /**************************************************************************************/

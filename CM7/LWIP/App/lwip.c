@@ -33,6 +33,8 @@
 #include "udp_client.h"
 #include "http_server.h"
 #include "lwip/netifapi.h"
+#include "lwip/apps/mdns.h"
+#include "rtpmidi.h"
 
 /* Global variable to track system initialization state */
 volatile uint8_t systemFullyInitialized = 0;
@@ -137,7 +139,32 @@ void MX_LWIP_Init(void)
 /* USER CODE END H7_OS_THREAD_DEF_CREATE_CMSIS_RTOS_V1 */
 
 /* USER CODE BEGIN 3 */
+  // Initialize mDNS responder (official LwIP 2.1.2 implementation)
+  if (shared_config.mdns_enabled) {
+    printf("--- mDNS INITIALIZATIONS ---\n");
+    mdns_resp_init();
 
+    // Add network interface to mDNS
+    err_t err = mdns_resp_add_netif(&gnetif, "sp3ctra", 3600);
+    if (err == ERR_OK) {
+      printf("mDNS: Network interface added successfully\n");
+
+      // Add RTP-MIDI service
+      // Note: In LwIP 2.1.2, mdns_resp_add_service returns s8_t (slot ID), not err_t
+      s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
+                                        DNSSD_PROTO_UDP, RTPMIDI_CONTROL_PORT,
+                                        3600, NULL, NULL);
+      if (slot >= 0) {
+        printf("mDNS: RTP-MIDI service registered successfully (slot=%d)\n", slot);
+      } else {
+        printf("mDNS: Failed to register RTP-MIDI service (slot=%d)\n", slot);
+      }
+    } else {
+      printf("mDNS: Failed to add network interface (err=%d)\n", err);
+    }
+  } else {
+    printf("mDNS: Service disabled in configuration\n");
+  }
 /* USER CODE END 3 */
 }
 
@@ -161,6 +188,7 @@ static void ethernet_link_status_updated(struct netif *netif)
     /* Lien Ethernet actif */
     printf("Ethernet link is UP\n");
     isConnected = 1;
+
     osSemaphoreRelease(udpReadySemaphoreHandle);  // Signal that the stack is ready
 /* USER CODE END 5 */
   }
@@ -258,4 +286,3 @@ u32_t sio_tryread(sio_fd_t fd, u8_t *data, u32_t len)
   return recved_bytes;
 }
 #endif /* MDK ARM Compiler */
-

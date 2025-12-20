@@ -173,6 +173,9 @@
 #define RTPMIDI_ENABLED                 1
 #define RTPMIDI_DEVICE_NAME             "Sp3ctra_CIS"
 
+// mDNS service configuration
+#define MDNS_ENABLED                    1  // Enable mDNS by default
+
 // LED control mode (LED_MODE_SIMPLE or LED_MODE_ADVANCED)
 // LED_MODE_SIMPLE: 1 CC per LED (CC 30-32 → brightness)
 // LED_MODE_ADVANCED: 7 CC per LED with 14-bit support

@@ -51,7 +51,8 @@ const struct shared_config DefaultConfig =
     .gui_invert_cis_image = DEFAULT_GUI_INVERT_CIS_IMAGE,
     .screensaver_timeout_sec = DEFAULT_SCREENSAVER_TIMEOUT_SEC,
     .motion_threshold_acc = DEFAULT_MOTION_THRESHOLD_ACC,
-    .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO
+    .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO,
+    .mdns_enabled = MDNS_ENABLED
 };
 
 FATFS fs;
@@ -202,6 +203,10 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->motion_threshold_gyro = strtof(value, NULL);
             }
+            else if (strcmp(token, "MDNS_ENABLED") == 0)
+            {
+                config->mdns_enabled = (uint8_t)strtoul(value, NULL, 10);
+            }
         }
         token = strtok(NULL, "=");
     }
@@ -267,6 +272,7 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_puts(float_buffer, &file);
     sprintf(float_buffer, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
     f_puts(float_buffer, &file);
+    f_printf(&file, "MDNS_ENABLED=%u\n", config->mdns_enabled);
 
     // Close the file
     f_close(&file);

@@ -271,34 +271,44 @@ void StartDefaultTask(void const * argument)
         printf("Network connection established - proceeding with initialization\n");
     }
 
-	printf("--- RTP-MIDI INITIALIZATIONS --\n");
-	// Configure remote IP (PC)
-	ip_addr_t remote_ip;
-	IP4_ADDR(&remote_ip,
-	         shared_config.network_dest_ip[0],
-	         shared_config.network_dest_ip[1],
-	         shared_config.network_dest_ip[2],
-	         shared_config.network_dest_ip[3]);
+    // Wait a bit more for LwIP to be fully ready
+    printf("Waiting for network interface to be fully ready...\n");
+    osDelay(200);  // 200ms delay to ensure LwIP is stable
 
-	// Initialize RTP-MIDI
-	if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
-	{
-		printf("RTP-MIDI initialization ERROR\n");
-	}
-	else
-	{
-		// Initialize mappers
-		midi_button_mapper_init();
-		midi_led_mapper_init(LED_MODE_SIMPLE);
+    // Verify network interface has valid IP
+    struct netif *netif = netif_default;
+    if (!netif || ip_addr_isany(&netif->ip_addr)) {
+        printf("Network interface not ready - RTP-MIDI initialization skipped\n");
+    } else {
+        printf("--- RTP-MIDI INITIALIZATIONS --\n");
+        // Configure remote IP (PC)
+        ip_addr_t remote_ip;
+        IP4_ADDR(&remote_ip,
+                 shared_config.network_dest_ip[0],
+                 shared_config.network_dest_ip[1],
+                 shared_config.network_dest_ip[2],
+                 shared_config.network_dest_ip[3]);
 
-		// Register LED callback for incoming MIDI
-		rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
+        // Initialize RTP-MIDI
+        if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
+        {
+            printf("RTP-MIDI initialization ERROR\n");
+        }
+        else
+        {
+            // Initialize mappers
+            midi_button_mapper_init();
+            midi_led_mapper_init(LED_MODE_SIMPLE);
 
-		// Connect to PC (now that network is ready!)
-		printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
-		rtpmidi_connect();
-		printf("RTP-MIDI initialization SUCCESS\n");
-	}
+            // Register LED callback for incoming MIDI
+            rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
+
+            // Connect to PC (now that network is ready!)
+            printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
+            rtpmidi_connect();
+            printf("RTP-MIDI initialization SUCCESS\n");
+        }
+    }
 
     printf("----- IMU INITIALIZATIONS -----\n");
 	if (icm42688_init() != ICM42688_OK)
@@ -360,6 +370,8 @@ void StartMidiTask(void const * argument)
 
     printf("--- MIDI TASK: Starting RTP-MIDI processing ---\n");
 
+    // mDNS is now initialized in MX_LWIP_Init() in lwip.c
+    // RTP-MIDI is initialized in StartDefaultTask where it worked before
     // Track last processed sequence numbers for each button
     static uint32_t last_processed_sequence[NUMBER_OF_BUTTONS] = {0};
 
@@ -368,6 +380,8 @@ void StartMidiTask(void const * argument)
     {
         // Process RTP-MIDI (handles session, RX, timeouts)
         rtpmidi_process();
+
+        // mDNS is now handled automatically by LwIP
 
         // Check for button events using sequence numbers (edge-triggered)
         for (uint8_t i = 0; i < NUMBER_OF_BUTTONS; i++)
