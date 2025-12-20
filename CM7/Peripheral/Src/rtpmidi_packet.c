@@ -17,14 +17,15 @@
 /* Includes ------------------------------------------------------------------*/
 #include "rtpmidi.h"
 #include "stm32h7xx_hal.h"
-#include "lwip/pbuf.h"
+#include "lwip/api.h"
 #include <string.h>
+#include <stdio.h>
 
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
 #define RTP_VERSION             2
-#define RTP_PAYLOAD_TYPE_MIDI   0x61
+#define RTP_PAYLOAD_TYPE_MIDI   0x61 // 97 - Standard RTP-MIDI payload type (RFC 6295)
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -41,6 +42,7 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
 rtpmidi_status_t rtpmidi_send_cc(uint8_t channel, uint8_t cc, uint8_t value)
 {
     if (!rtpmidi_is_connected()) {
+        printf("RTP-MIDI Warning: Send CC failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -70,6 +72,7 @@ rtpmidi_status_t rtpmidi_send_cc(uint8_t channel, uint8_t cc, uint8_t value)
 rtpmidi_status_t rtpmidi_send_cc14(uint8_t channel, uint8_t cc_msb, uint16_t value14)
 {
     if (!rtpmidi_is_connected()) {
+        printf("RTP-MIDI Warning: Send CC14 failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -103,6 +106,7 @@ rtpmidi_status_t rtpmidi_send_cc14(uint8_t channel, uint8_t cc_msb, uint16_t val
 rtpmidi_status_t rtpmidi_send_note(uint8_t channel, uint8_t note, uint8_t velocity)
 {
     if (!rtpmidi_is_connected()) {
+        printf("RTP-MIDI Warning: Send Note failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -139,29 +143,29 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
 {
     rtpmidi_session_t *session = rtpmidi_get_session();
 
-    if (!session->pcb_data) {
+    if (!session->conn_data) {
+        printf("RTP-MIDI Error: No data connection\n");
         return RTPMIDI_ERROR;
     }
 
     // Calculate total packet size
-    // RTP header (12 bytes) + RTP-MIDI payload header (2 bytes) + MIDI data
-    uint16_t packet_size = 12 + 2 + midi_len;
+    // RTP header (12 bytes) + RTP-MIDI payload header (1 byte for short header) + MIDI data (without delta time)
+    uint16_t packet_size = 12 + 1 + (midi_len - 1);
 
-    // Allocate packet buffer
-    struct pbuf *pb = pbuf_alloc(PBUF_TRANSPORT, packet_size, PBUF_RAM);
-    if (!pb) {
-        return RTPMIDI_BUFFER_FULL;
+    // Build packet in local buffer
+    uint8_t packet[128];  // Should be enough for most MIDI messages
+    if (packet_size > sizeof(packet)) {
+        return RTPMIDI_ERROR;
     }
 
-    uint8_t *packet = (uint8_t*)pb->payload;
     uint8_t *p = packet;
 
     // --- RTP Header (12 bytes) ---
-    // Byte 0: V=2, P=0, X=0, CC=0
-    *p++ = (RTP_VERSION << 6);
+    // Byte 0: V=2, P=0 (no padding), X=0, CC=0
+    *p++ = (RTP_VERSION << 6);  // P=0 like Mac
 
-    // Byte 1: M=1 (marker), PT=97 (0x61 = MIDI)
-    *p++ = 0x80 | RTP_PAYLOAD_TYPE_MIDI;
+    // Byte 1: M=0 (marker, like Mac), PT=97 (0x61 = MIDI)
+    *p++ = RTP_PAYLOAD_TYPE_MIDI;
 
     // Bytes 2-3: Sequence number
     uint16_t seq = htons(session->sequence_tx++);
@@ -169,29 +173,60 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     p += 2;
 
     // Bytes 4-7: Timestamp (10kHz clock)
+    // Use current time converted to 100us units, adjusted with clock offset
+    // Note: We use the lower 32 bits of the 64-bit timestamp
+    uint64_t now_us = (uint64_t)HAL_GetTick() * 10;
+    uint32_t adjusted_ts = (uint32_t)(now_us + session->clock_offset);
+    session->timestamp = adjusted_ts;
+
     uint32_t timestamp = htonl(session->timestamp);
     memcpy(p, &timestamp, 4);
     p += 4;
-    session->timestamp += 1;  // Increment by 1 for each packet
 
     // Bytes 8-11: SSRC
     uint32_t ssrc = htonl(session->ssrc);
     memcpy(p, &ssrc, 4);
     p += 4;
 
-    // --- RTP-MIDI Payload Header (2 bytes) ---
-    // Byte 0: B=0, J=0, Z=0, P=0, LEN[12:8]=0
-    *p++ = 0x00;
+    // --- RTP-MIDI Payload Header ---
+    // Use SHORT HEADER format like Mac (B=0, J=0, Z=0, P=0)
+    // For B=0: LEN is 4 bits only (bits 3-0 of first byte)
+    uint8_t actual_midi_len = midi_len - 1; // Remove delta time byte
+    *p++ = 0x00 | (actual_midi_len & 0x0F); // B=0, J=0, Z=0, P=0, LEN[3:0]
 
-    // Byte 1: LEN[7:0] = MIDI data length
-    *p++ = midi_len & 0xFF;
+    // --- MIDI Data (Command Section) ---
+    // Copy MIDI commands directly WITHOUT delta time (like Mac)
+    // midi_data starts with 0x00 (delta time), skip it
+    memcpy(p, midi_data + 1, actual_midi_len);
+    p += actual_midi_len;
 
-    // --- MIDI Data ---
-    memcpy(p, midi_data, midi_len);
+    // NO Journal Section (like Mac)
+    // NO Padding (like Mac - P=0)
 
-    // Send packet
-    err_t err = udp_sendto(session->pcb_data, pb, &session->remote_ip, session->remote_port_data);
-    pbuf_free(pb);
+    // Send packet using netconn API (thread-safe)
+    struct netbuf *buf = netbuf_new();
+    if (!buf) {
+        printf("RTP-MIDI Error: Failed to allocate netbuf\n");
+        return RTPMIDI_BUFFER_FULL;
+    }
 
-    return (err == ERR_OK) ? RTPMIDI_OK : RTPMIDI_ERROR;
+    void *data = netbuf_alloc(buf, packet_size);
+    if (!data) {
+        netbuf_delete(buf);
+        printf("RTP-MIDI Error: Failed to allocate buffer data\n");
+        return RTPMIDI_BUFFER_FULL;
+    }
+
+    memcpy(data, packet, packet_size);
+
+    err_t err = netconn_sendto(session->conn_data, buf, &session->remote_ip, session->remote_port_data);
+    netbuf_delete(buf);
+
+    if (err != ERR_OK) {
+        printf("RTP-MIDI Error: netconn_sendto failed with error %d\n", err);
+        return RTPMIDI_ERROR;
+    }
+
+    printf("RTP-MIDI: Sent packet seq=%d len=%d\n", seq, packet_size);
+    return RTPMIDI_OK;
 }

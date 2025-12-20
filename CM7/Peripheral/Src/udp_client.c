@@ -67,7 +67,6 @@ volatile uint8_t udpConnectionEstablished = 0;
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void);
 static UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length);
 static UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void);
-static void udpStartupTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -232,39 +231,6 @@ UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void)
 	return UDPCLIENT_OK;
 }
 
-/**
- * @brief Task that waits for the network to be ready and sends the startup packet.
- */
-void udpStartupTask(void const * argument) //todo change to initialization protocol
-{
-    // Infinite loop: this task continuously runs.
-    for (;;)
-    {
-        // Wait indefinitely (or with a very long timeout) for the semaphore.
-        // This semaphore indicates that the network link might be up.
-        if (osSemaphoreWait(udpReadySemaphoreHandle, osWaitForever) == osOK)
-        {
-            // Semaphore acquired, so check if the network is connected and the startup packet has not been sent.
-            if (isConnected == 1 && startupPacketSent == 0)
-            {
-                // Attempt to send the startup information packet.
-                if (udpClient_sendStartupInfoPacket() == UDPCLIENT_OK)
-                {
-                    // Mark that the startup packet has been successfully sent.
-                    startupPacketSent = 1;
-                    printf("Startup packet sent.\n");
-                }
-                else
-                {
-                    // Log an error message if sending the startup packet fails.
-                    printf("Failed to send startup packet.\n");
-                }
-            }
-        }
-        // Delay for 100 ticks before the next iteration to prevent busy-waiting.
-        osDelay(100);
-    }
-}
 
 /**
  * @brief Send multiple packets, including IMU and button states.

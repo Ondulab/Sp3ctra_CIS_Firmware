@@ -172,7 +172,7 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	osThreadDef(midiTask, StartMidiTask, osPriorityNormal, 0, 512);
+	osThreadDef(midiTask, StartMidiTask, osPriorityNormal, 0, 2048);
 	osThreadCreate(osThread(midiTask), NULL);
   /* USER CODE END RTOS_THREADS */
 
@@ -241,35 +241,6 @@ void StartDefaultTask(void const * argument)
 		printf("HTTP initialization ERROR\n");
 	}
 
-	printf("--- RTP-MIDI INITIALIZATIONS --\n");
-	// Configure remote IP (PC)
-	ip_addr_t remote_ip;
-	IP4_ADDR(&remote_ip,
-	         shared_config.network_dest_ip[0],
-	         shared_config.network_dest_ip[1],
-	         shared_config.network_dest_ip[2],
-	         shared_config.network_dest_ip[3]);
-
-	// Initialize RTP-MIDI
-	if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
-	{
-		printf("RTP-MIDI initialization ERROR\n");
-	}
-	else
-	{
-		// Initialize mappers
-		midi_button_mapper_init();
-		midi_led_mapper_init(LED_MODE_SIMPLE);
-
-		// Register LED callback for incoming MIDI
-		rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
-
-		// Connect to PC
-		printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
-		rtpmidi_connect();
-		printf("RTP-MIDI initialization SUCCESS\n");
-	}
-
 	printf("---------- UDP INIT -----------\n");
     if (udpClient_init() != UDPCLIENT_OK)
     {
@@ -297,8 +268,37 @@ void StartDefaultTask(void const * argument)
 
     if (isConnected == 1)
     {
-        printf("Network connection established - proceeding with CIS initialization\n");
+        printf("Network connection established - proceeding with initialization\n");
     }
+
+	printf("--- RTP-MIDI INITIALIZATIONS --\n");
+	// Configure remote IP (PC)
+	ip_addr_t remote_ip;
+	IP4_ADDR(&remote_ip,
+	         shared_config.network_dest_ip[0],
+	         shared_config.network_dest_ip[1],
+	         shared_config.network_dest_ip[2],
+	         shared_config.network_dest_ip[3]);
+
+	// Initialize RTP-MIDI
+	if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
+	{
+		printf("RTP-MIDI initialization ERROR\n");
+	}
+	else
+	{
+		// Initialize mappers
+		midi_button_mapper_init();
+		midi_led_mapper_init(LED_MODE_SIMPLE);
+
+		// Register LED callback for incoming MIDI
+		rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
+
+		// Connect to PC (now that network is ready!)
+		printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
+		rtpmidi_connect();
+		printf("RTP-MIDI initialization SUCCESS\n");
+	}
 
     printf("----- IMU INITIALIZATIONS -----\n");
 	if (icm42688_init() != ICM42688_OK)
@@ -345,6 +345,8 @@ void StartDefaultTask(void const * argument)
  * @retval None
  */
 /* USER CODE END Header_StartMidiTask */
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 void StartMidiTask(void const * argument)
 {
     /* USER CODE BEGIN StartMidiTask */
@@ -398,5 +400,6 @@ void StartMidiTask(void const * argument)
 
     /* USER CODE END StartMidiTask */
 }
+#pragma GCC pop_options
 
 /* USER CODE END Application */

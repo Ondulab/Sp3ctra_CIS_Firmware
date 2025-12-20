@@ -23,7 +23,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
-#include "lwip/udp.h"
+#include "lwip/api.h"
 #include "lwip/ip_addr.h"
 
 /* Exported types ------------------------------------------------------------*/
@@ -34,8 +34,9 @@ extern "C" {
 typedef enum {
     RTPMIDI_STATE_IDLE = 0,
     RTPMIDI_STATE_INVITED,
-    RTPMIDI_STATE_CONNECTED,
-    RTPMIDI_STATE_SYNCHRONIZED
+    RTPMIDI_STATE_CONTROL_CONNECTED, // Control port handshake done
+    RTPMIDI_STATE_CONNECTED,         // Data port handshake done
+    RTPMIDI_STATE_SYNCHRONIZED       // Clock sync done
 } rtpmidi_state_t;
 
 /**
@@ -73,8 +74,11 @@ typedef struct {
     uint16_t sequence_rx_last;  // Last RX sequence
     uint32_t timestamp;         // RTP timestamp (10kHz clock)
 
-    struct udp_pcb *pcb_control;  // UDP port 5004
-    struct udp_pcb *pcb_data;     // UDP port 5005
+    uint32_t last_feedback_tick; // Last receiver feedback time
+    int64_t clock_offset;        // Clock offset (remote - local)
+
+    struct netconn *conn_control;  // UDP port 5004
+    struct netconn *conn_data;     // UDP port 5005
     ip_addr_t remote_ip;
     uint16_t remote_port_control;
     uint16_t remote_port_data;
@@ -98,8 +102,9 @@ typedef void (*rtpmidi_rx_callback_t)(uint8_t status, uint8_t data1, uint8_t dat
 #define RTPMIDI_CONTROL_PORT        5004
 #define RTPMIDI_DATA_PORT           5005
 #define RTPMIDI_SYNC_INTERVAL_MS    10000  // 10 seconds
-#define RTPMIDI_INVITE_INTERVAL_MS  3000   // 3 seconds
-#define RTPMIDI_MAX_ATTEMPTS        10
+#define RTPMIDI_FEEDBACK_INTERVAL_MS 1000  // 1 second
+#define RTPMIDI_INVITE_INTERVAL_MS  1000   // 1 second (Apple spec)
+#define RTPMIDI_MAX_ATTEMPTS        12     // Apple spec
 
 /* Exported functions --------------------------------------------------------*/
 
