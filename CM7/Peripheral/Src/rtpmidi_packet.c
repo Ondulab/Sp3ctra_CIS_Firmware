@@ -149,7 +149,7 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     }
 
     // Calculate total packet size
-    // RTP header (12 bytes) + RTP-MIDI payload header (1 byte for short header) + MIDI data (without delta time)
+    // RTP header (12 bytes) + RTP-MIDI payload header (1 byte for short header) + MIDI data (WITHOUT delta time)
     uint16_t packet_size = 12 + 1 + (midi_len - 1);
 
     // Build packet in local buffer
@@ -190,15 +190,18 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
 
     // --- RTP-MIDI Payload Header ---
     // Use SHORT HEADER format like Mac (B=0, J=0, Z=0, P=0)
+    // Z=0 means "No Delta-Time for first MIDI-command" (RFC 6295)
     // For B=0: LEN is 4 bits only (bits 3-0 of first byte)
-    uint8_t actual_midi_len = midi_len - 1; // Remove delta time byte
-    *p++ = 0x00 | (actual_midi_len & 0x0F); // B=0, J=0, Z=0, P=0, LEN[3:0]
+    // LEN = number of MIDI command bytes (WITHOUT delta-time)
+    uint8_t midi_cmd_len = midi_len - 1; // Remove delta-time byte
+    *p++ = 0x00 | (midi_cmd_len & 0x0F); // B=0, J=0, Z=0, P=0, LEN[3:0]
 
     // --- MIDI Data (Command Section) ---
-    // Copy MIDI commands directly WITHOUT delta time (like Mac)
-    // midi_data starts with 0x00 (delta time), skip it
-    memcpy(p, midi_data + 1, actual_midi_len);
-    p += actual_midi_len;
+    // Copy MIDI command WITHOUT delta time (Z=0 means no delta-time)
+    // Format: [status] [data1] [data2]
+    // Skip first byte (delta-time = 0x00)
+    memcpy(p, midi_data + 1, midi_cmd_len);
+    p += midi_cmd_len;
 
     // NO Journal Section (like Mac)
     // NO Padding (like Mac - P=0)

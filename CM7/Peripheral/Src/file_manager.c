@@ -52,7 +52,8 @@ const struct shared_config DefaultConfig =
     .screensaver_timeout_sec = DEFAULT_SCREENSAVER_TIMEOUT_SEC,
     .motion_threshold_acc = DEFAULT_MOTION_THRESHOLD_ACC,
     .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO,
-    .mdns_enabled = MDNS_ENABLED
+    .mdns_enabled = MDNS_ENABLED,
+    .rtpmidi_mode = RTPMIDI_MODE_DEFAULT
 };
 
 FATFS fs;
@@ -207,6 +208,10 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->mdns_enabled = (uint8_t)strtoul(value, NULL, 10);
             }
+            else if (strcmp(token, "RTPMIDI_MODE") == 0)
+            {
+                config->rtpmidi_mode = (uint8_t)strtoul(value, NULL, 10);
+            }
         }
         token = strtok(NULL, "=");
     }
@@ -273,6 +278,7 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     sprintf(float_buffer, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
     f_puts(float_buffer, &file);
     f_printf(&file, "MDNS_ENABLED=%u\n", config->mdns_enabled);
+    f_printf(&file, "RTPMIDI_MODE=%u\n", config->rtpmidi_mode);
 
     // Close the file
     f_close(&file);

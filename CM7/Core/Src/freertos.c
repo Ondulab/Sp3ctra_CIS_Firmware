@@ -281,7 +281,8 @@ void StartDefaultTask(void const * argument)
         printf("Network interface not ready - RTP-MIDI initialization skipped\n");
     } else {
         printf("--- RTP-MIDI INITIALIZATIONS --\n");
-        // Configure remote IP (PC)
+
+        // Convert config destination IP to LwIP ip_addr_t
         ip_addr_t remote_ip;
         IP4_ADDR(&remote_ip,
                  shared_config.network_dest_ip[0],
@@ -289,8 +290,21 @@ void StartDefaultTask(void const * argument)
                  shared_config.network_dest_ip[2],
                  shared_config.network_dest_ip[3]);
 
-        // Initialize RTP-MIDI
-        if (rtpmidi_init("Sp3ctra_CIS", &remote_ip) != RTPMIDI_OK)
+        // Determine RTP-MIDI mode from configuration
+        rtpmidi_mode_t mode = (rtpmidi_mode_t)shared_config.rtpmidi_mode;
+        const char* mode_str = (mode == RTPMIDI_MODE_SERVER) ? "SERVER" : "CLIENT";
+
+        printf("RTP-MIDI: Mode=%s, Destination IP=%d.%d.%d.%d\n",
+               mode_str,
+               shared_config.network_dest_ip[0],
+               shared_config.network_dest_ip[1],
+               shared_config.network_dest_ip[2],
+               shared_config.network_dest_ip[3]);
+
+        // Initialize RTP-MIDI with mode from configuration
+        // SERVER mode (0): Passive, waits for INVITE from macOS (uses mDNS for discovery)
+        // CLIENT mode (1): Active, initiates connection to remote IP from config (no mDNS)
+        if (rtpmidi_init("Sp3ctra_CIS", &remote_ip, mode) != RTPMIDI_OK)
         {
             printf("RTP-MIDI initialization ERROR\n");
         }
@@ -303,10 +317,16 @@ void StartDefaultTask(void const * argument)
             // Register LED callback for incoming MIDI
             rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
 
-            // Connect to PC (now that network is ready!)
-            printf("RTP-MIDI: Connecting to %s...\n", ipaddr_ntoa(&remote_ip));
-            rtpmidi_connect();
-            printf("RTP-MIDI initialization SUCCESS\n");
+            // In CLIENT mode, initiate connection to remote server
+            if (rtpmidi_connect() != RTPMIDI_OK)
+            {
+                printf("RTP-MIDI: Failed to initiate connection\n");
+            }
+            else
+            {
+                printf("RTP-MIDI: Initialized in CLIENT mode (connecting to remote)\n");
+                printf("RTP-MIDI initialization SUCCESS\n");
+            }
         }
     }
 

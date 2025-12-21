@@ -62,6 +62,31 @@ static void performAutomaticReset(void)
     System_SafeReset();
 }
 
+/**
+ * @brief mDNS TXT callback for Apple MIDI service
+ * @note Adds required TXT records for Apple MIDI (RTP-MIDI) discovery
+ */
+static void mdns_apple_midi_txt_callback(struct mdns_service *service, void *txt_userdata)
+{
+    err_t res;
+
+    // Add txtvers=1 (required by Apple MIDI spec)
+    res = mdns_resp_add_service_txtitem(service, "txtvers=1", 9);
+    if (res != ERR_OK) {
+        printf("mDNS: Failed to add txtvers TXT record\n");
+        return;
+    }
+
+    // Add protovers=2 (required by Apple MIDI spec - RTP-MIDI protocol version)
+    res = mdns_resp_add_service_txtitem(service, "protovers=2", 11);
+    if (res != ERR_OK) {
+        printf("mDNS: Failed to add protovers TXT record\n");
+        return;
+    }
+
+    printf("mDNS: Apple MIDI TXT records added (txtvers=1, protovers=2)\n");
+}
+
 /* USER CODE END 1 */
 
 /* Variables Initialization */
@@ -140,7 +165,9 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN 3 */
   // Initialize mDNS responder (official LwIP 2.1.2 implementation)
-  if (shared_config.mdns_enabled) {
+  // mDNS is only needed in SERVER mode (for discovery by macOS)
+  // In CLIENT mode, the device connects directly to a fixed IP
+  if (shared_config.mdns_enabled && shared_config.rtpmidi_mode == 0) {
     printf("--- mDNS INITIALIZATIONS ---\n");
     mdns_resp_init();
 
@@ -149,11 +176,11 @@ void MX_LWIP_Init(void)
     if (err == ERR_OK) {
       printf("mDNS: Network interface added successfully\n");
 
-      // Add RTP-MIDI service
+      // Add RTP-MIDI service with TXT records callback
       // Note: In LwIP 2.1.2, mdns_resp_add_service returns s8_t (slot ID), not err_t
       s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
                                         DNSSD_PROTO_UDP, RTPMIDI_CONTROL_PORT,
-                                        3600, NULL, NULL);
+                                        3600, mdns_apple_midi_txt_callback, NULL);
       if (slot >= 0) {
         printf("mDNS: RTP-MIDI service registered successfully (slot=%d)\n", slot);
       } else {
@@ -163,7 +190,11 @@ void MX_LWIP_Init(void)
       printf("mDNS: Failed to add network interface (err=%d)\n", err);
     }
   } else {
-    printf("mDNS: Service disabled in configuration\n");
+    if (!shared_config.mdns_enabled) {
+      printf("mDNS: Service disabled in configuration\n");
+    } else if (shared_config.rtpmidi_mode == 1) {
+      printf("mDNS: Service disabled (RTP-MIDI CLIENT mode uses fixed IP)\n");
+    }
   }
 /* USER CODE END 3 */
 }
@@ -286,4 +317,3 @@ u32_t sio_tryread(sio_fd_t fd, u8_t *data, u32_t len)
   return recved_bytes;
 }
 #endif /* MDK ARM Compiler */
-

@@ -174,7 +174,10 @@
 #define RTPMIDI_DEVICE_NAME             "Sp3ctra_CIS"
 
 // mDNS service configuration
-#define MDNS_ENABLED                    1  // Enable mDNS by default
+#define MDNS_ENABLED                    0  // Enable mDNS by default
+
+// RTP-MIDI mode configuration
+#define RTPMIDI_MODE_DEFAULT            1  // 0=SERVER (macOS), 1=CLIENT (PC/Linux)
 
 // LED control mode (LED_MODE_SIMPLE or LED_MODE_ADVANCED)
 // LED_MODE_SIMPLE: 1 CC per LED (CC 30-32 → brightness)

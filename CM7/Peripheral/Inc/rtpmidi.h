@@ -29,6 +29,14 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 
 /**
+ * @brief RTP-MIDI operation modes
+ */
+typedef enum {
+    RTPMIDI_MODE_SERVER = 0,  // AppleMIDI server (passive, waits for INVITE from macOS)
+    RTPMIDI_MODE_CLIENT = 1   // RTP-MIDI client (active, initiates connection to PC/Linux)
+} rtpmidi_mode_t;
+
+/**
  * @brief RTP-MIDI session states
  */
 typedef enum {
@@ -65,6 +73,7 @@ typedef enum {
  * @brief RTP-MIDI session context
  */
 typedef struct {
+    rtpmidi_mode_t mode;        // Operation mode (SERVER or CLIENT)
     rtpmidi_state_t state;
     uint32_t ssrc;              // Our SSRC (unique identifier)
     uint32_t remote_ssrc;       // Remote SSRC
@@ -111,10 +120,11 @@ typedef void (*rtpmidi_rx_callback_t)(uint8_t status, uint8_t data1, uint8_t dat
 /**
  * @brief Initialize RTP-MIDI subsystem
  * @param device_name Name of this MIDI device
- * @param remote_ip IP address of remote peer (PC)
+ * @param remote_ip IP address of remote peer (used in CLIENT mode, can be NULL in SERVER mode)
+ * @param mode Operation mode (RTPMIDI_MODE_SERVER for macOS, RTPMIDI_MODE_CLIENT for PC/Linux)
  * @return RTPMIDI_OK on success, error code otherwise
  */
-rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip);
+rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtpmidi_mode_t mode);
 
 /**
  * @brief Start connection to remote peer

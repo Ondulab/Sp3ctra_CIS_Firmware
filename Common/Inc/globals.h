@@ -238,6 +238,7 @@ struct __attribute__((aligned(4))) shared_config
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
 	uint8_t mdns_enabled;           // mDNS service enabled (0=disabled, 1=enabled)
+	uint8_t rtpmidi_mode;           // RTP-MIDI mode (0=SERVER, 1=CLIENT)
 };
 
 /**************************************************************************************/

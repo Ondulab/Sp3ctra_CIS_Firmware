@@ -55,9 +55,12 @@ static void rtpmidi_data_recv_thread(void *arg);
 /**
  * @brief Initialize RTP-MIDI subsystem
  */
-rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip)
+rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtpmidi_mode_t mode)
 {
     memset(&g_session, 0, sizeof(g_session));
+
+    // Store operation mode
+    g_session.mode = mode;
 
     // Generate unique SSRC based on STM32 unique ID and current tick
     // Adding HAL_GetTick() helps to have different SSRC if we reboot quickly
@@ -77,8 +80,10 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip)
     // Copy device name
     strncpy((char*)g_session.device_name, device_name, sizeof(g_session.device_name) - 1);
 
-    // Store remote IP
-    ip_addr_copy(g_session.remote_ip, *remote_ip);
+    // Store remote IP (only used in CLIENT mode)
+    if (remote_ip) {
+        ip_addr_copy(g_session.remote_ip, *remote_ip);
+    }
     g_session.remote_port_control = RTPMIDI_CONTROL_PORT;
     g_session.remote_port_data = RTPMIDI_DATA_PORT;
 
@@ -125,10 +130,16 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip)
 }
 
 /**
- * @brief Start connection to remote peer
+ * @brief Start connection to remote peer (CLIENT mode only)
  */
 rtpmidi_status_t rtpmidi_connect(void)
 {
+    // In SERVER mode, we never initiate connections
+    if (g_session.mode == RTPMIDI_MODE_SERVER) {
+        printf("RTP-MIDI: Cannot connect in SERVER mode (passive mode)\n");
+        return RTPMIDI_ERROR;
+    }
+
     if (g_session.state != RTPMIDI_STATE_IDLE) {
         return RTPMIDI_ERROR;
     }
@@ -170,6 +181,13 @@ rtpmidi_status_t rtpmidi_process(void)
     // Check for incoming control packets (non-blocking)
     struct netbuf *buf;
     if (netconn_recv(g_session.conn_control, &buf) == ERR_OK) {
+        // In SERVER mode, extract remote IP and port from incoming packet
+        // This is critical for sending responses to the correct address
+        if (g_session.mode == RTPMIDI_MODE_SERVER) {
+            ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
+            g_session.remote_port_control = netbuf_fromport(buf);
+        }
+
         // Process control packet
         uint8_t *data = (uint8_t*)buf->p->payload;
         uint16_t len = buf->p->len;
@@ -199,11 +217,12 @@ rtpmidi_status_t rtpmidi_process(void)
                             // IMPORTANT: Do NOT overwrite our own SSRC with remote SSRC
                             // g_session.ssrc must remain unique to us
 
+                            // Update state BEFORE sending OK to avoid race condition
+                            // This ensures the data thread is ready to accept INVITE before macOS receives our OK
+                            g_session.state = RTPMIDI_STATE_CONTROL_CONNECTED;
+
                             // Send OK on control port
                             rtpmidi_send_ok(token, remote_ssrc, 1);
-
-                            // Now we wait for invitation on data port
-                            g_session.state = RTPMIDI_STATE_CONTROL_CONNECTED;
 
                             printf("RTP-MIDI: Control invitation received, sent OK, SSRC=0x%08lX\n", remote_ssrc);
                         }
@@ -250,44 +269,54 @@ rtpmidi_status_t rtpmidi_process(void)
     // BUT: The data thread is designed for stream processing.
     // Let's modify the data thread to handle commands as well.
 
-    // Handle session state machine timeouts and retries
-    switch (g_session.state) {
-        case RTPMIDI_STATE_INVITED:
-            // Retry control invitation
-            if (now - g_session.last_invite_tick > RTPMIDI_INVITE_INTERVAL_MS) {
-                if (g_session.connection_attempts < RTPMIDI_MAX_ATTEMPTS) {
-                    rtpmidi_send_invitation(1); // Control port
-                    g_session.last_invite_tick = now;
-                    g_session.connection_attempts++;
-                    printf("RTP-MIDI: Retry control invitation (%d/%d)\n",
-                           g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
-                } else {
-                    printf("RTP-MIDI: Connection timeout (control)\n");
-                    g_session.state = RTPMIDI_STATE_IDLE;
-                    return RTPMIDI_TIMEOUT;
-                }
-            }
-            break;
-
-        case RTPMIDI_STATE_CONTROL_CONNECTED:
-            // Retry data invitation if we are the initiator
-            // If we are responder, we wait for IN on data port
-            if (g_session.connection_attempts > 0) { // We are initiator
+    // Handle session state machine timeouts and retries (CLIENT mode only)
+    // In SERVER mode, we never initiate or retry invitations
+    if (g_session.mode == RTPMIDI_MODE_CLIENT) {
+        switch (g_session.state) {
+            case RTPMIDI_STATE_INVITED:
+                // Retry control invitation
                 if (now - g_session.last_invite_tick > RTPMIDI_INVITE_INTERVAL_MS) {
                     if (g_session.connection_attempts < RTPMIDI_MAX_ATTEMPTS) {
-                        rtpmidi_send_invitation(0); // Data port
+                        rtpmidi_send_invitation(1); // Control port
                         g_session.last_invite_tick = now;
                         g_session.connection_attempts++;
-                        printf("RTP-MIDI: Retry data invitation (%d/%d)\n",
+                        printf("RTP-MIDI: Retry control invitation (%d/%d)\n",
                                g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
                     } else {
-                        printf("RTP-MIDI: Connection timeout (data)\n");
+                        printf("RTP-MIDI: Connection timeout (control)\n");
                         g_session.state = RTPMIDI_STATE_IDLE;
                         return RTPMIDI_TIMEOUT;
                     }
                 }
-            }
-            break;
+                break;
+
+            case RTPMIDI_STATE_CONTROL_CONNECTED:
+                // Retry data invitation if we are the initiator
+                // If we are responder, we wait for IN on data port
+                if (g_session.connection_attempts > 0) { // We are initiator
+                    if (now - g_session.last_invite_tick > RTPMIDI_INVITE_INTERVAL_MS) {
+                        if (g_session.connection_attempts < RTPMIDI_MAX_ATTEMPTS) {
+                            rtpmidi_send_invitation(0); // Data port
+                            g_session.last_invite_tick = now;
+                            g_session.connection_attempts++;
+                            printf("RTP-MIDI: Retry data invitation (%d/%d)\n",
+                                   g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
+                        } else {
+                            printf("RTP-MIDI: Connection timeout (data)\n");
+                            g_session.state = RTPMIDI_STATE_IDLE;
+                            return RTPMIDI_TIMEOUT;
+                        }
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    // Handle connected/synchronized states (both modes)
+    switch (g_session.state) {
 
         case RTPMIDI_STATE_CONNECTED:
             // Force synchronization after timeout if we never received count=2
@@ -306,8 +335,10 @@ rtpmidi_status_t rtpmidi_process(void)
                 g_session.last_sync_tick = now;
             }
 
-            // Send periodic receiver feedback
-            if (now - g_session.last_feedback_tick > RTPMIDI_FEEDBACK_INTERVAL_MS) {
+            // Send periodic receiver feedback ONLY if we have received MIDI packets
+            // Sending RS with seq=0 when no packets received can cause macOS to close the session
+            if (g_session.sequence_rx_last > 0 &&
+                now - g_session.last_feedback_tick > RTPMIDI_FEEDBACK_INTERVAL_MS) {
                 rtpmidi_send_receiver_feedback();
                 g_session.last_feedback_tick = now;
             }
@@ -667,7 +698,7 @@ static void rtpmidi_data_recv_thread(void *arg)
                             // Extract timestamps
                             memcpy(&ts1, data + 12, 8);
                             ts1 = __builtin_bswap64(ts1);
-                            printf("RTP-MIDI: CK ts1=%llu\n", ts1);
+                            printf("RTP-MIDI: CK ts1=%llu\n", (unsigned long long)ts1);
 
                             if (count == 0) {
                                 // Initiator sent count=0, we respond with count=1
