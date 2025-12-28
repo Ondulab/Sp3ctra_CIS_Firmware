@@ -16,6 +16,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "rtpmidi.h"
+#include "globals.h"
 #include "stm32h7xx_hal.h"
 #include "lwip/api.h"
 #include "cmsis_os.h"
@@ -138,8 +139,20 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     if (remote_ip) {
         ip_addr_copy(g_session.remote_ip, *remote_ip);
     }
-    g_session.remote_port_control = RTPMIDI_CONTROL_PORT;
-    g_session.remote_port_data = RTPMIDI_DATA_PORT;
+    // Local/advertised RTP-MIDI ports are configurable.
+    // Data port is always control + 1.
+    uint16_t control_port = (uint16_t)shared_config.rtpmidi_control_port;
+    if (control_port == 0U) {
+        control_port = (uint16_t)DEFAULT_RTPMIDI_CONTROL_PORT;
+    }
+    uint16_t data_port = (uint16_t)(control_port + 1U);
+    if (data_port == 0U) {
+        // Overflow case: control_port was 65535.
+        data_port = control_port;
+    }
+
+    g_session.remote_port_control = control_port;
+    g_session.remote_port_data = data_port;
 
     // Peer ports are learned from incoming packets (macOS may use ephemeral source ports).
     g_session.peer_port_control = 0;
@@ -160,15 +173,15 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     // Set receive timeout for data connection (blocking with timeout)
     netconn_set_recvtimeout(g_session.conn_data, 100);
 
-    // Bind control port (5004)
-    if (netconn_bind(g_session.conn_control, IP_ADDR_ANY, RTPMIDI_CONTROL_PORT) != ERR_OK) {
-        RTPMIDI_LOGF("RTP-MIDI: Failed to bind control port %d\n", RTPMIDI_CONTROL_PORT);
+    // Bind control port
+    if (netconn_bind(g_session.conn_control, IP_ADDR_ANY, control_port) != ERR_OK) {
+        RTPMIDI_LOGF("RTP-MIDI: Failed to bind control port %d\n", control_port);
         return RTPMIDI_ERROR;
     }
 
-    // Bind data port (5005)
-    if (netconn_bind(g_session.conn_data, IP_ADDR_ANY, RTPMIDI_DATA_PORT) != ERR_OK) {
-        RTPMIDI_LOGF("RTP-MIDI: Failed to bind data port %d\n", RTPMIDI_DATA_PORT);
+    // Bind data port
+    if (netconn_bind(g_session.conn_data, IP_ADDR_ANY, data_port) != ERR_OK) {
+        RTPMIDI_LOGF("RTP-MIDI: Failed to bind data port %d\n", data_port);
         return RTPMIDI_ERROR;
     }
 
@@ -191,7 +204,7 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     g_session.ck_sync_initiated = 0;
 
     RTPMIDI_LOGF("RTP-MIDI: Initialized '%s' on ports %d/%d, SSRC=0x%08lX\n",
-                 g_session.device_name, RTPMIDI_CONTROL_PORT, RTPMIDI_DATA_PORT, g_session.ssrc);
+                 g_session.device_name, control_port, data_port, g_session.ssrc);
 
     return RTPMIDI_OK;
 }

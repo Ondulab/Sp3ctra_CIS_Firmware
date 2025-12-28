@@ -225,6 +225,7 @@ struct __attribute__((aligned(4))) shared_config
 	uint8_t network_dest_ip[4];
 	uint16_t network_udp_port;
 	uint16_t network_tcp_port;
+	uint16_t rtpmidi_control_port;
 	uint8_t cis_print_calibration;
 	uint16_t cis_dpi;
 	uint8_t cis_oversampling;

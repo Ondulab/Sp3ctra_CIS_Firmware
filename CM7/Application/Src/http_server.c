@@ -717,19 +717,22 @@ static void http_server(struct netconn *conn)
 					else if (strncmp((char const *)buf, "GET /getNetworkConfig", 21) == 0)
 					{
 						char response[400];
-						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+						int len = sprintf(response,
+								"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
 								"{"
 								"\"ip\":\"%d.%d.%d.%d\","
 								"\"mask\":\"%d.%d.%d.%d\","
 								"\"gw\":\"%d.%d.%d.%d\","
 								"\"dest_ip\":\"%d.%d.%d.%d\","
-								"\"udp_port\":%d"
+								"\"udp_port\":%d,"
+								"\"rtpmidi_control_port\":%d"
 								"}",
 								shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3],
 								shared_config.network_netmask[0], shared_config.network_netmask[1], shared_config.network_netmask[2], shared_config.network_netmask[3],
 								shared_config.network_gw[0], shared_config.network_gw[1], shared_config.network_gw[2], shared_config.network_gw[3],
 								shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3],
-								shared_config.network_udp_port);
+								shared_config.network_udp_port,
+								shared_config.rtpmidi_control_port);
 
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
@@ -1179,14 +1182,16 @@ static void http_server(struct netconn *conn)
 						if (data)
 						{
 							int ip[4], mask[4], gw[4], dest_ip[4], udp_port;
+							int rtpmidi_control_port = (int)shared_config.rtpmidi_control_port;
 
 							// Parsing POST data
-							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d",
+							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d&rtpmidi_control_port=%d",
 									&ip[0], &ip[1], &ip[2], &ip[3],
 									&mask[0], &mask[1], &mask[2], &mask[3],
 									&gw[0], &gw[1], &gw[2], &gw[3],
 									&dest_ip[0], &dest_ip[1], &dest_ip[2], &dest_ip[3],
-									&udp_port);
+									&udp_port,
+									&rtpmidi_control_port);
 
 							// Updating shared configuration
 							for (int i = 0; i < 4; i++)
@@ -1197,6 +1202,7 @@ static void http_server(struct netconn *conn)
 								shared_config.network_dest_ip[i] = dest_ip[i];
 							}
 							shared_config.network_udp_port = udp_port;
+							shared_config.rtpmidi_control_port = (uint16_t)rtpmidi_control_port;
 
 							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 

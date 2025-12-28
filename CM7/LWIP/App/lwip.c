@@ -179,7 +179,7 @@ void MX_LWIP_Init(void)
       // Add RTP-MIDI service with TXT records callback
       // Note: In LwIP 2.1.2, mdns_resp_add_service returns s8_t (slot ID), not err_t
       s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
-                                        DNSSD_PROTO_UDP, RTPMIDI_CONTROL_PORT,
+                                        DNSSD_PROTO_UDP, shared_config.rtpmidi_control_port,
                                         3600, mdns_apple_midi_txt_callback, NULL);
       if (slot >= 0) {
         printf("mDNS: RTP-MIDI service registered successfully (slot=%d)\n", slot);

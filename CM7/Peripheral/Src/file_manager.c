@@ -39,6 +39,7 @@ const struct shared_config DefaultConfig =
     .network_netmask = DEFAULT_NETWORK_NETMASK,
     .network_gw = DEFAULT_NETWORK_GW,
     .network_dest_ip = DEFAULT_NETWORK_DEST_IP,
+    .rtpmidi_control_port = DEFAULT_RTPMIDI_CONTROL_PORT,
     .network_udp_port = DEFAULT_NETWORK_UDP_PORT,
     .network_tcp_port = DEFAULT_NETWORK_TCP_PORT,
     .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
@@ -160,6 +161,10 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->network_tcp_port = (uint16_t)strtoul(value, NULL, 10);
             }
+            else if (strcmp(token, "RTPMIDI_CONTROL_PORT") == 0)
+            {
+                config->rtpmidi_control_port = (uint16_t)strtoul(value, NULL, 10);
+            }
             else if (strcmp(token, "CIS_PRINT_CALIBRATION") == 0)
             {
                 config->cis_print_calibration = (uint8_t)strtoul(value, NULL, 10);
@@ -261,6 +266,7 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "NETWORK_DEST_IP_ADDR3=%u\n", config->network_dest_ip[3]);
     f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
     f_printf(&file, "NETWORK_TCP_PORT=%u\n", config->network_tcp_port);
+    f_printf(&file, "RTPMIDI_CONTROL_PORT=%u\n", config->rtpmidi_control_port);
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
     f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
     f_printf(&file, "CIS_OVERSAMPLING=%u\n", config->cis_oversampling);

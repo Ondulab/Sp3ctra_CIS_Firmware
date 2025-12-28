@@ -87,6 +87,11 @@
 #define DEFAULT_NETWORK_UDP_PORT 				(55151)
 #define DEFAULT_NETWORK_TCP_PORT 				(5000)
 
+// RTP-MIDI
+// Control port is configurable from the web UI.
+// Data port is derived automatically as (control + 1).
+#define DEFAULT_RTPMIDI_CONTROL_PORT            (5004)
+
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
 /**************************************************************************************/

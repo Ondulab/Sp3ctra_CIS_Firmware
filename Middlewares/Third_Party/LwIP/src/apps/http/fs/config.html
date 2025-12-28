@@ -557,6 +557,15 @@
                 <label for="port">UDP Port</label>
                 <input type="number" id="port" min="0" max="65535">
             </div>
+
+            <div class="form-group">
+                <label for="midiControlPort">MIDI Control Port</label>
+                <input type="number" id="midiControlPort" min="0" max="65535" onchange="updateMidiDataPortDisplay()">
+            </div>
+            <div class="form-group">
+                <label for="midiDataPort">MIDI Data Port</label>
+                <input type="number" id="midiDataPort" disabled />
+            </div>
             <div class="button-container">
                 <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply Network Settings</button>
             </div>
@@ -1553,6 +1562,12 @@
                         document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
                         document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
                         document.getElementById("port").value = config.udp_port;
+
+                        // RTP-MIDI ports
+                        if (config.rtpmidi_control_port !== undefined) {
+                            document.getElementById("midiControlPort").value = config.rtpmidi_control_port;
+                        }
+                        updateMidiDataPortDisplay();
                         resolve();
                     } else {
                         console.error("Failed to load network settings:", xhr.statusText);
@@ -1562,6 +1577,19 @@
                 xhr.onerror = () => reject(new Error("Network request failed"));
                 xhr.send();
             });
+        }
+
+        function updateMidiDataPortDisplay() {
+            var controlPort = parseInt(document.getElementById("midiControlPort").value, 10);
+            if (isNaN(controlPort)) {
+                document.getElementById("midiDataPort").value = "";
+                return;
+            }
+            var dataPort = controlPort + 1;
+            if (dataPort > 65535) {
+                dataPort = 65535;
+            }
+            document.getElementById("midiDataPort").value = dataPort;
         }
 
         function updateNetworkConfig() {
@@ -1601,8 +1629,10 @@
 
                 const udpPort = document.getElementById("port").value;
 
+                const rtpmidiControlPort = document.getElementById("midiControlPort").value;
+
                 // Construct the POST request data
-                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}`;
+                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}&rtpmidi_control_port=${rtpmidiControlPort}`;
 
                 // Create and send the HTTP POST request
                 var xhr = new XMLHttpRequest();
