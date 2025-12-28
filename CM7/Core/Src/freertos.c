@@ -41,6 +41,9 @@
 #include "midi_led_mapper.h"
 #include "midi_button_mapper.h"
 
+/* Enable to log button->MIDI events (verbose, for debugging only). */
+/* #define DEBUG_MIDI_BUTTONS */
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -419,8 +422,19 @@ void StartMidiTask(void const * argument)
                 uint8_t pressed = (state == SWITCH_PRESSED) ? 1 : 0;
                 midi_button_mapper_on_change(i, pressed);
 
-                printf("MIDI: Button %d %s (seq=%lu)\n", i,
-                       pressed ? "PRESSED" : "RELEASED", current_sequence);
+#ifdef DEBUG_MIDI_BUTTONS
+                /* Keep logs out of critical paths by default.
+                 * This task runs at 1ms period, so printing here can spam.
+                 */
+                uint8_t cc = (i == 0U) ? MIDI_BUTTON1_CC : (i == 1U) ? MIDI_BUTTON2_CC : MIDI_BUTTON3_CC;
+                uint8_t value = pressed ? 127U : 0U;
+                printf("MIDI: Button %u %s (seq=%lu) -> CC %u = %u\n",
+                       (unsigned)i,
+                       pressed ? "PRESSED" : "RELEASED",
+                       (unsigned long)current_sequence,
+                       (unsigned)cc,
+                       (unsigned)value);
+#endif
 
                 // Update last processed sequence
                 last_processed_sequence[i] = current_sequence;

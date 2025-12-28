@@ -62,6 +62,32 @@
 static rtpmidi_session_t g_session = {0};
 static rtpmidi_rx_callback_t g_rx_callback = NULL;
 
+/* Private functions ---------------------------------------------------------*/
+/**
+ * @brief Compute a stable 32-bit identifier from the MCU unique ID.
+ *
+ * We must keep the RTP-MIDI SSRC stable across reboots to avoid macOS creating
+ * a new participant every time the device power cycles (PoE hot-unplug).
+ *
+ * NOTE:
+ * - This is not crypto; it is a lightweight non-allocating mixing function.
+ * - Must be deterministic and fast.
+ */
+static uint32_t rtpmidi_uid_hash32(uint32_t uid0, uint32_t uid1, uint32_t uid2)
+{
+    /* Simple avalanche mix (inspired by Jenkins/xxhash style mixes). */
+    uint32_t h = 0x9E3779B9u;
+    h ^= uid0 + 0x7F4A7C15u + (h << 6) + (h >> 2);
+    h ^= uid1 + 0x165667B1u + (h << 6) + (h >> 2);
+    h ^= uid2 + 0xD3A2646Cu + (h << 6) + (h >> 2);
+    h ^= (h >> 16);
+    h *= 0x85EBCA6Bu;
+    h ^= (h >> 13);
+    h *= 0xC2B2AE35u;
+    h ^= (h >> 16);
+    return h;
+}
+
 /* Private function prototypes -----------------------------------------------*/
 static void rtpmidi_send_invitation(uint8_t is_control_port);
 static void rtpmidi_send_ok(uint32_t initiator_token, uint32_t remote_ssrc, uint8_t is_control_port);
@@ -85,19 +111,24 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     // Store operation mode
     g_session.mode = mode;
 
-    // Generate unique SSRC based on STM32 unique ID and current tick
-    // Adding HAL_GetTick() helps to have different SSRC if we reboot quickly
-    // and the host still has the old session active.
+    // Generate SSRC based on STM32 unique ID.
+    // IMPORTANT:
+    // - For PoE hot-unplug, the device can lose power instantly and cannot
+    //   send an AppleMIDI 'BY' (Goodbye) to close the session.
+    // - If the SSRC changes on every reboot, macOS tends to show a *new*
+    //   participant while keeping the old one until its timeout.
+    // Therefore, we keep SSRC stable across reboots.
     uint32_t uid0 = HAL_GetUIDw0();
     uint32_t uid1 = HAL_GetUIDw1();
     uint32_t uid2 = HAL_GetUIDw2();
 
-    // Force a specific SSRC prefix to ensure it's different from Mac's 0x0527...
-    // Using 0x5350... ("SP...") as prefix
-    g_session.ssrc = 0x53500000 | ((uid0 ^ uid1 ^ uid2 ^ HAL_GetTick()) & 0x000FFFFF);
+    // Force a specific SSRC prefix to ensure it's different from macOS typical values.
+    // Using 0x5350.... ("SP..") as prefix.
+    uint32_t uid_hash = rtpmidi_uid_hash32(uid0, uid1, uid2);
+    g_session.ssrc = 0x53500000u | (uid_hash & 0x00FFFFFFu);
 
-    // Initialize sequence number randomly (RFC 3550)
-    // Using SSRC and Tick as seed
+    // Initialize sequence number (RFC 3550)
+    // Still varies across boots even if SSRC is stable.
     g_session.sequence_tx = (uint16_t)(g_session.ssrc ^ HAL_GetTick());
 
     // Copy device name

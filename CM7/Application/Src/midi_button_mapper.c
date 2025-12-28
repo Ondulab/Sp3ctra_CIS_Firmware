@@ -69,7 +69,10 @@ void midi_button_mapper_on_change(uint8_t button_id, uint8_t pressed)
     rtpmidi_status_t status = rtpmidi_send_cc(MIDI_BUTTON_CHANNEL, cc, value);
 
     if (status == RTPMIDI_OK) {
-        printf("MIDI: Button %d → CC %d = %d\n", button_id, cc, value);
+        /* Intentionally silent here to avoid double logging.
+         * Button event logging (including seq) is handled in StartMidiTask
+         * and can be enabled via DEBUG_MIDI_BUTTONS.
+         */
     } else if (status == RTPMIDI_NOT_CONNECTED) {
         // Silently ignore if not connected (avoid spam)
     } else {
