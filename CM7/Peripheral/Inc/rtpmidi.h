@@ -80,6 +80,7 @@ typedef struct {
     uint32_t initiator_token;   // Session token
 
     uint16_t sequence_tx;       // TX sequence number
+    uint16_t sequence_tx_last_sent; // Last RTP sequence actually sent in a data packet
     uint16_t sequence_rx_last;  // Last RX sequence
     uint32_t timestamp;         // RTP timestamp (10kHz clock)
 
@@ -89,12 +90,19 @@ typedef struct {
     struct netconn *conn_control;  // UDP port 5004
     struct netconn *conn_data;     // UDP port 5005
     ip_addr_t remote_ip;
+    // Fixed AppleMIDI control/data ports of the remote participant (typically N / N+1).
     uint16_t remote_port_control;
     uint16_t remote_port_data;
+
+    // Actual UDP source ports used by the peer when initiating AppleMIDI.
+    // macOS may use ephemeral source ports for IN/OK and expects replies to those ports.
+    uint16_t peer_port_control;
+    uint16_t peer_port_data;
 
     uint32_t last_sync_tick;    // Last clock sync time
     uint32_t last_invite_tick;  // Last invitation time
     uint8_t connection_attempts;
+    uint8_t ck_sync_initiated;  // Flag: CK sync initiation sent (CLIENT mode)
 
     uint8_t device_name[64];
 } rtpmidi_session_t;

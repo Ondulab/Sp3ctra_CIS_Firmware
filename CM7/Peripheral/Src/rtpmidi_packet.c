@@ -34,6 +34,20 @@
 /* Private function prototypes -----------------------------------------------*/
 static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_len);
 
+static void rtpmidi_dump_hex(const char *label, const uint8_t *buf, uint16_t len)
+{
+    printf("%s (len=%u):\n", label, (unsigned)len);
+    for (uint16_t i = 0; i < len; i++) {
+        printf("%02X ", buf[i]);
+        if (((i + 1U) % 16U) == 0U) {
+            printf("\n");
+        }
+    }
+    if ((len % 16U) != 0U) {
+        printf("\n");
+    }
+}
+
 /* Exported functions --------------------------------------------------------*/
 
 /**
@@ -164,11 +178,14 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     // Byte 0: V=2, P=0 (no padding), X=0, CC=0
     *p++ = (RTP_VERSION << 6);  // P=0 like Mac
 
-    // Byte 1: M=0 (marker, like Mac), PT=97 (0x61 = MIDI)
+    // Byte 1: M=0 (no marker), PT=97 (0x61 = MIDI)
+    // Note: Linux rtpmidi uses M=0 for MIDI data packets. macOS expects M=0.
     *p++ = RTP_PAYLOAD_TYPE_MIDI;
 
     // Bytes 2-3: Sequence number
-    uint16_t seq = htons(session->sequence_tx++);
+    uint16_t seq_host = session->sequence_tx++;
+    session->sequence_tx_last_sent = seq_host;
+    uint16_t seq = htons(seq_host);
     memcpy(p, &seq, 2);
     p += 2;
 
@@ -222,7 +239,19 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
 
     memcpy(data, packet, packet_size);
 
-    err_t err = netconn_sendto(session->conn_data, buf, &session->remote_ip, session->remote_port_data);
+    // IMPORTANT: macOS may bind the AppleMIDI session to an ephemeral UDP source port.
+    // We must send RTP-MIDI data back to the peer's actual source port observed on 5005.
+    uint16_t dst_port = (session->peer_port_data != 0U) ? session->peer_port_data : session->remote_port_data;
+
+    printf("RTP-MIDI: TX to %s:%u (peer_port_data=%u, remote_port_data=%u)\n",
+           ipaddr_ntoa(&session->remote_ip),
+           (unsigned)dst_port,
+           (unsigned)session->peer_port_data,
+           (unsigned)session->remote_port_data);
+
+    rtpmidi_dump_hex("RTP-MIDI TX packet", packet, packet_size);
+
+    err_t err = netconn_sendto(session->conn_data, buf, &session->remote_ip, dst_port);
     netbuf_delete(buf);
 
     if (err != ERR_OK) {
@@ -230,6 +259,6 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
         return RTPMIDI_ERROR;
     }
 
-    printf("RTP-MIDI: Sent packet seq=%d len=%d\n", seq, packet_size);
+    printf("RTP-MIDI: Sent packet seq=%u len=%u\n", (unsigned)seq_host, (unsigned)packet_size);
     return RTPMIDI_OK;
 }

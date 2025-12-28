@@ -33,10 +33,17 @@
 #define RTPMIDI_CMD_RS          0x5253  // "RS" - Receiver Feedback
 #define RTPMIDI_PROTOCOL_VER    0x00000002
 
+// RTP (RFC3550) / RTP-MIDI (RFC6295)
+// Keep local define here to avoid header coupling.
+#define RTP_PAYLOAD_TYPE_MIDI   0x61U
+
 /* Private macro -------------------------------------------------------------*/
 // Convert 100us ticks to/from system ticks (1ms)
+// AppleMIDI timestamps are in 10kHz units (100µs resolution)
+// HAL_GetTick() returns milliseconds
+// 1 ms = 10 units of 100µs, so multiply by 10
 #define US100_TO_TICKS(x)       ((x) / 10)
-#define TICKS_TO_US100(x)       ((uint64_t)(x) * 10)
+#define TICKS_TO_US100(x)       ((uint64_t)(x) * 10ULL)
 
 /* Private variables ---------------------------------------------------------*/
 static rtpmidi_session_t g_session = {0};
@@ -47,8 +54,11 @@ static void rtpmidi_send_invitation(uint8_t is_control_port);
 static void rtpmidi_send_ok(uint32_t initiator_token, uint32_t remote_ssrc, uint8_t is_control_port);
 static void rtpmidi_send_goodbye(void);
 static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, uint64_t ts3);
-static void rtpmidi_send_receiver_feedback(void);
+// Reserved for future use (RS implementation), keep declaration commented to avoid warnings.
+// static void rtpmidi_send_receiver_feedback_with_seq(uint16_t seq);
 static void rtpmidi_data_recv_thread(void *arg);
+
+static void rtpmidi_handle_clock_sync(const uint8_t *data, uint16_t len);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -87,6 +97,10 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     g_session.remote_port_control = RTPMIDI_CONTROL_PORT;
     g_session.remote_port_data = RTPMIDI_DATA_PORT;
 
+    // Peer ports are learned from incoming packets (macOS may use ephemeral source ports).
+    g_session.peer_port_control = 0;
+    g_session.peer_port_data = 0;
+
     // Create UDP netconns
     g_session.conn_control = netconn_new(NETCONN_UDP);
     g_session.conn_data = netconn_new(NETCONN_UDP);
@@ -122,6 +136,7 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     g_session.state = RTPMIDI_STATE_IDLE;
     g_session.connection_attempts = 0;
     g_session.clock_offset = 0;
+    g_session.ck_sync_initiated = 0;
 
     printf("RTP-MIDI: Initialized '%s' on ports %d/%d, SSRC=0x%08lX\n",
            g_session.device_name, RTPMIDI_CONTROL_PORT, RTPMIDI_DATA_PORT, g_session.ssrc);
@@ -166,6 +181,7 @@ rtpmidi_status_t rtpmidi_disconnect(void)
 
     g_session.state = RTPMIDI_STATE_IDLE;
     g_session.connection_attempts = 0;
+    g_session.ck_sync_initiated = 0;  // Reset for next connection
 
     printf("RTP-MIDI: Disconnected\n");
     return RTPMIDI_OK;
@@ -178,15 +194,16 @@ rtpmidi_status_t rtpmidi_process(void)
 {
     uint32_t now = HAL_GetTick();
 
-    // Check for incoming control packets (non-blocking)
+    // CRITICAL: Process ALL pending control packets BEFORE handling retries
+    // This ensures OK packets are processed before retry logic runs
     struct netbuf *buf;
-    if (netconn_recv(g_session.conn_control, &buf) == ERR_OK) {
-        // In SERVER mode, extract remote IP and port from incoming packet
-        // This is critical for sending responses to the correct address
-        if (g_session.mode == RTPMIDI_MODE_SERVER) {
-            ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
-            g_session.remote_port_control = netbuf_fromport(buf);
-        }
+    uint8_t packet_received = 0;  // Track if we received any packet this cycle
+    while (netconn_recv(g_session.conn_control, &buf) == ERR_OK) {
+        packet_received = 1;  // Mark that we received a packet
+        // Always track the source of incoming control packets.
+        // This is required to correctly reply to macOS-initiated invitations (IN) even in CLIENT mode.
+        ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
+        g_session.peer_port_control = netbuf_fromport(buf);
 
         // Process control packet
         uint8_t *data = (uint8_t*)buf->p->payload;
@@ -202,6 +219,7 @@ rtpmidi_status_t rtpmidi_process(void)
                 switch (command) {
                     case RTPMIDI_CMD_IN:  // Invitation from remote
                         // Accept invitations in IDLE or INVITED state
+                        // Note: macOS will retry every 1s and eventually send BY if it doesn't receive OK.
                         if (g_session.state == RTPMIDI_STATE_IDLE ||
                             g_session.state == RTPMIDI_STATE_INVITED) {
                             // Extract remote SSRC and token
@@ -221,6 +239,10 @@ rtpmidi_status_t rtpmidi_process(void)
                             // This ensures the data thread is ready to accept INVITE before macOS receives our OK
                             g_session.state = RTPMIDI_STATE_CONTROL_CONNECTED;
 
+                            // CRITICAL: Stop retry timer by clearing connection_attempts
+                            // This prevents sending additional invitations after receiving remote's INVITE
+                            g_session.connection_attempts = 0;
+
                             // Send OK on control port
                             rtpmidi_send_ok(token, remote_ssrc, 1);
 
@@ -235,11 +257,17 @@ rtpmidi_status_t rtpmidi_process(void)
                             memcpy(&remote_ssrc, data + 12, 4);
                             g_session.remote_ssrc = ntohl(remote_ssrc);
 
-                            // Control port accepted, now invite on data port
+                            // CRITICAL: Change state FIRST to stop retry immediately
+                            // The retry logic checks state before sending, so this must be first
                             g_session.state = RTPMIDI_STATE_CONTROL_CONNECTED;
+
+                            // Then stop retry counter (belt and suspenders)
+                            g_session.connection_attempts = 0;
+
+                            // Now safe to send data port invitation
                             rtpmidi_send_invitation(0); // 0 = data port
                             g_session.last_invite_tick = HAL_GetTick();
-                            g_session.connection_attempts = 1;
+                            g_session.connection_attempts = 1;  // Start data port retry counter
 
                             printf("RTP-MIDI: Control accepted, inviting on data port\n");
                         }
@@ -271,19 +299,22 @@ rtpmidi_status_t rtpmidi_process(void)
 
     // Handle session state machine timeouts and retries (CLIENT mode only)
     // In SERVER mode, we never initiate or retry invitations
-    if (g_session.mode == RTPMIDI_MODE_CLIENT) {
+    // CRITICAL: Skip retry if we just received a packet (state may have changed)
+    if (g_session.mode == RTPMIDI_MODE_CLIENT && !packet_received) {
         switch (g_session.state) {
             case RTPMIDI_STATE_INVITED:
-                // Retry control invitation
-                if (now - g_session.last_invite_tick > RTPMIDI_INVITE_INTERVAL_MS) {
-                    if (g_session.connection_attempts < RTPMIDI_MAX_ATTEMPTS) {
+                // Limited retry: max 3 attempts total (initial + 2 retries)
+                // Check state again to avoid race with OK handler
+                if (g_session.state == RTPMIDI_STATE_INVITED &&
+                    now - g_session.last_invite_tick > RTPMIDI_INVITE_INTERVAL_MS) {
+                    if (g_session.connection_attempts < 3) {  // Max 3 attempts total
                         rtpmidi_send_invitation(1); // Control port
                         g_session.last_invite_tick = now;
                         g_session.connection_attempts++;
-                        printf("RTP-MIDI: Retry control invitation (%d/%d)\n",
-                               g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
+                        printf("RTP-MIDI: Retry control invitation (%d/3)\n",
+                               g_session.connection_attempts);
                     } else {
-                        printf("RTP-MIDI: Connection timeout (control)\n");
+                        printf("RTP-MIDI: Connection timeout (control) - no response after 3 attempts\n");
                         g_session.state = RTPMIDI_STATE_IDLE;
                         return RTPMIDI_TIMEOUT;
                     }
@@ -326,22 +357,24 @@ rtpmidi_status_t rtpmidi_process(void)
                 g_session.clock_offset = 0; // No offset
             }
             // Fall through to SYNCHRONIZED case
+            __attribute__((fallthrough));
 
         case RTPMIDI_STATE_SYNCHRONIZED:
-            // Send periodic clock sync
-            if (now - g_session.last_sync_tick > RTPMIDI_SYNC_INTERVAL_MS) {
-                // Start sync sequence: count=0, ts1=now
-                rtpmidi_send_clock_sync(0, TICKS_TO_US100(now), 0, 0);
-                g_session.last_sync_tick = now;
+            // CLIENT mode: Send periodic clock sync (CK) to keep session alive
+            // This is REQUIRED for macOS to accept MIDI data from the initiator
+            // Linux rtpmidi sends CK every ~2 seconds as the initiator
+            if (g_session.mode == RTPMIDI_MODE_CLIENT) {
+                if (now - g_session.last_sync_tick > 1500) { // Every 1.5 seconds like macOS
+                    uint64_t now_100us = TICKS_TO_US100(now);
+                    rtpmidi_send_clock_sync(0U, now_100us, 0ULL, 0ULL);
+                    g_session.last_sync_tick = now;
+                }
             }
+            // SERVER mode: We respond to CK from the initiator (handled in data thread)
+            // No need to send periodic CK ourselves
 
-            // Send periodic receiver feedback ONLY if we have received MIDI packets
-            // Sending RS with seq=0 when no packets received can cause macOS to close the session
-            if (g_session.sequence_rx_last > 0 &&
-                now - g_session.last_feedback_tick > RTPMIDI_FEEDBACK_INTERVAL_MS) {
-                rtpmidi_send_receiver_feedback();
-                g_session.last_feedback_tick = now;
-            }
+            // Receiver Feedback (RS): do not send periodic keepalive.
+            // macOS will send RS to us, but we don't need to send it back periodically.
             break;
 
         default:
@@ -391,6 +424,23 @@ rtpmidi_session_t* rtpmidi_get_session(void)
  */
 static void rtpmidi_send_invitation(uint8_t is_control_port)
 {
+    // Guard: Do not send invitations if we're NOT in the correct state
+    // This prevents race conditions where we might send an invitation after receiving OK
+    if (is_control_port) {
+        // For control port, only send if in IDLE or INVITED state
+        if (g_session.state != RTPMIDI_STATE_IDLE &&
+            g_session.state != RTPMIDI_STATE_INVITED) {
+            printf("RTP-MIDI: Skipping control invitation - wrong state %d\n", g_session.state);
+            return;
+        }
+    } else {
+        // For data port, only send if in CONTROL_CONNECTED state
+        if (g_session.state != RTPMIDI_STATE_CONTROL_CONNECTED) {
+            printf("RTP-MIDI: Skipping data invitation - wrong state %d\n", g_session.state);
+            return;
+        }
+    }
+
     uint8_t packet[128];
     uint8_t *p = packet;
 
@@ -432,9 +482,11 @@ static void rtpmidi_send_invitation(uint8_t is_control_port)
         if (data) {
             memcpy(data, packet, p - packet);
             if (is_control_port) {
-                netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip, g_session.remote_port_control);
+                netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip,
+                               (g_session.peer_port_control != 0U) ? g_session.peer_port_control : g_session.remote_port_control);
             } else {
-                netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip, g_session.remote_port_data);
+                netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip,
+                               (g_session.peer_port_data != 0U) ? g_session.peer_port_data : g_session.remote_port_data);
             }
         }
         netbuf_delete(buf);
@@ -448,6 +500,13 @@ static void rtpmidi_send_ok(uint32_t initiator_token, uint32_t remote_ssrc, uint
 {
     uint8_t packet[128];
     uint8_t *p = packet;
+
+    // Debug: log destination used to send OK (helps diagnose macOS-initiated IN not being acknowledged)
+    printf("RTP-MIDI: Sending OK on %s to %s:%u (remote_ssrc=0x%08lX)\n",
+           is_control_port ? "control" : "data",
+           ipaddr_ntoa(&g_session.remote_ip),
+           (unsigned)(is_control_port ? g_session.peer_port_control : g_session.peer_port_data),
+           (unsigned long)remote_ssrc);
 
     // Signature
     *p++ = 0xFF;
@@ -477,15 +536,20 @@ static void rtpmidi_send_ok(uint32_t initiator_token, uint32_t remote_ssrc, uint
     p += strlen((char*)g_session.device_name) + 1;
 
     // Send
+    // IMPORTANT: Reply to the actual UDP source port used by the peer.
+    // macOS may initiate AppleMIDI from an ephemeral source port (not 5004/5005),
+    // and expects the response on that same port.
     struct netbuf *buf = netbuf_new();
     if (buf) {
         void *data = netbuf_alloc(buf, p - packet);
         if (data) {
             memcpy(data, packet, p - packet);
             if (is_control_port) {
-                netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip, g_session.remote_port_control);
+                netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip,
+                               (g_session.peer_port_control != 0U) ? g_session.peer_port_control : g_session.remote_port_control);
             } else {
-                netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip, g_session.remote_port_data);
+                netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip,
+                               (g_session.peer_port_data != 0U) ? g_session.peer_port_data : g_session.remote_port_data);
             }
         }
         netbuf_delete(buf);
@@ -529,7 +593,8 @@ static void rtpmidi_send_goodbye(void)
         void *data = netbuf_alloc(buf, p - packet);
         if (data) {
             memcpy(data, packet, p - packet);
-            netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip, g_session.remote_port_control);
+            netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip,
+                           (g_session.peer_port_control != 0U) ? g_session.peer_port_control : g_session.remote_port_control);
         }
         netbuf_delete(buf);
     }
@@ -537,11 +602,27 @@ static void rtpmidi_send_goodbye(void)
 
 /**
  * @brief Send clock sync packet
+ *
+ * CK packet format (RFC 6295):
+ * - Signature (2 bytes): 0xFFFF
+ * - Command (2 bytes): "CK"
+ * - SSRC (4 bytes): Sender SSRC
+ * - Count (1 byte): Sync sequence number (0, 1, or 2)
+ * - Padding (3 bytes): zeros
+ * - Timestamp1 (8 bytes): always present
+ * - Timestamp2 (8 bytes): present if count >= 1
+ * - Timestamp3 (8 bytes): present if count >= 2
+ *
+ * NOTE: CK packets do NOT have a version field (unlike IN/OK/BY packets)!
  */
 static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, uint64_t ts3)
 {
-    uint8_t packet[64];
+    uint8_t packet[64] = {0};  // Initialize to zero to avoid sending garbage data
     uint8_t *p = packet;
+
+    // Debug: print timestamps
+    printf("RTP-MIDI: Sending CK count=%d, ts1=%llu, ts2=%llu, ts3=%llu\n",
+           count, (unsigned long long)ts1, (unsigned long long)ts2, (unsigned long long)ts3);
 
     // Signature
     *p++ = 0xFF;
@@ -551,7 +632,7 @@ static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, u
     *p++ = 'C';
     *p++ = 'K';
 
-    // SSRC
+    // SSRC (NO VERSION FIELD for CK packets!)
     uint32_t ssrc = htonl(g_session.ssrc);
     memcpy(p, &ssrc, 4);
     p += 4;
@@ -565,6 +646,8 @@ static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, u
     *p++ = 0;
 
     // Timestamps (64-bit, network byte order)
+    // IMPORTANT: Apple MIDI expects ALL 3 timestamps to be present (36 bytes total)
+    // even for count=0. Timestamps not yet filled should be zero.
     uint64_t ts;
 
     // Timestamp 1 (always present)
@@ -572,19 +655,15 @@ static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, u
     memcpy(p, &ts, 8);
     p += 8;
 
-    // Timestamp 2 (if count >= 1)
-    if (count >= 1) {
-        ts = __builtin_bswap64(ts2);
-        memcpy(p, &ts, 8);
-        p += 8;
-    }
+    // Timestamp 2 (always present - zero if count < 1)
+    ts = __builtin_bswap64(ts2);
+    memcpy(p, &ts, 8);
+    p += 8;
 
-    // Timestamp 3 (if count >= 2)
-    if (count >= 2) {
-        ts = __builtin_bswap64(ts3);
-        memcpy(p, &ts, 8);
-        p += 8;
-    }
+    // Timestamp 3 (always present - zero if count < 2)
+    ts = __builtin_bswap64(ts3);
+    memcpy(p, &ts, 8);
+    p += 8;
 
     // Send on control port (Note: Apple spec says CK on MIDI port, but some implementations use control.
     // Let's stick to control port for now as per previous implementation, but verify later)
@@ -596,48 +675,85 @@ static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, u
         void *data = netbuf_alloc(buf, p - packet);
         if (data) {
             memcpy(data, packet, p - packet);
-            netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip, g_session.remote_port_data);
+            netconn_sendto(g_session.conn_data, buf, &g_session.remote_ip,
+                           (g_session.peer_port_data != 0U) ? g_session.peer_port_data : g_session.remote_port_data);
         }
         netbuf_delete(buf);
     }
 }
 
-static void rtpmidi_send_receiver_feedback(void)
+
+
+/**
+ * @brief Handle AppleMIDI Clock Synchronization (CK) on data port.
+ *
+ * Implements the 3-step exchange described in Apple's MIDI Network Driver Protocol.
+ * - Receive count=0 => send count=1 (copy t1, set t2)
+ * - Receive count=1 => send count=2 (copy t1,t2, set t3)
+ *
+ * NOTE:
+ * - Timestamps are 64-bit in units of 100us.
+ * - We use local time derived from HAL_GetTick() (ms) converted to 100us units.
+ * - No dynamic allocation.
+ */
+static void rtpmidi_handle_clock_sync(const uint8_t *data, uint16_t len)
 {
-    uint8_t packet[32];
-    uint8_t *p = packet;
+    // Expected minimum size for count=0:
+    // 0xFFFF + 'CK' + SSRC(4) + count(1) + pad(3) + ts1(8) = 22 bytes
+    if (len < 22U) {
+        return;
+    }
 
-    // Signature
-    *p++ = 0xFF;
-    *p++ = 0xFF;
+    // Layout after signature+command:
+    // [4..7]   SSRC
+    // [8]      count
+    // [9..11]  pad
+    // [12..]   timestamps
+    uint8_t count = data[8];
 
-    // Command 'RS'
-    *p++ = 'R';
-    *p++ = 'S';
+    // Parse ts1
+    uint64_t ts1 = 0;
+    memcpy(&ts1, data + 12, 8);
+    ts1 = __builtin_bswap64(ts1);
 
-    // SSRC
-    uint32_t ssrc = htonl(g_session.ssrc);
-    memcpy(p, &ssrc, 4);
-    p += 4;
+    // Local time in 100us units
+    uint64_t now_100us = TICKS_TO_US100(HAL_GetTick());
 
-    // Sequence number (last received)
-    uint16_t seq = htons(g_session.sequence_rx_last);
-    memcpy(p, &seq, 2);
-    p += 2;
+    if (count == 0U) {
+        // Respond with count=1, copy ts1, set ts2=now
+        rtpmidi_send_clock_sync(1U, ts1, now_100us, 0ULL);
 
-    // Padding
-    *p++ = 0;
-    *p++ = 0;
-
-    // Send on control port
-    struct netbuf *buf = netbuf_new();
-    if (buf) {
-        void *data = netbuf_alloc(buf, p - packet);
-        if (data) {
-            memcpy(data, packet, p - packet);
-            netconn_sendto(g_session.conn_control, buf, &g_session.remote_ip, g_session.remote_port_control);
+        // Consider session synchronized once the sync exchange starts.
+        if (g_session.state == RTPMIDI_STATE_CONNECTED) {
+            g_session.state = RTPMIDI_STATE_SYNCHRONIZED;
         }
-        netbuf_delete(buf);
+        return;
+    }
+
+    if (count == 1U) {
+        // Need ts2 present
+        if (len < (22U + 8U)) {
+            return;
+        }
+        uint64_t ts2 = 0;
+        memcpy(&ts2, data + 20, 8);
+        ts2 = __builtin_bswap64(ts2);
+
+        // Respond with count=2, copy ts1 & ts2, set ts3=now
+        rtpmidi_send_clock_sync(2U, ts1, ts2, now_100us);
+
+        if (g_session.state == RTPMIDI_STATE_CONNECTED) {
+            g_session.state = RTPMIDI_STATE_SYNCHRONIZED;
+        }
+        return;
+    }
+
+    // count=2 received: sync complete. We don't need to respond.
+    if (count == 2U) {
+        if (g_session.state == RTPMIDI_STATE_CONNECTED) {
+            g_session.state = RTPMIDI_STATE_SYNCHRONIZED;
+        }
+        return;
     }
 }
 
@@ -653,6 +769,11 @@ static void rtpmidi_data_recv_thread(void *arg)
         if (netconn_recv(g_session.conn_data, &buf) == ERR_OK) {
             uint8_t *data = (uint8_t*)buf->p->payload;
             uint16_t len = buf->p->len;
+
+            // Always track the source of incoming data packets.
+            // Required to reply to macOS-initiated invitations on the MIDI data port.
+            ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
+            g_session.peer_port_data = netbuf_fromport(buf);
 
             // Check for Apple-MIDI command packet (0xFFFF signature)
             if (len >= 4 && data[0] == 0xFF && data[1] == 0xFF) {
@@ -670,6 +791,10 @@ static void rtpmidi_data_recv_thread(void *arg)
 
                             // Verify it matches control port session
                             if (remote_ssrc == g_session.remote_ssrc) {
+                                // CRITICAL: Stop retry timer by clearing connection_attempts
+                                // This prevents sending additional invitations after receiving remote's INVITE
+                                g_session.connection_attempts = 0;
+
                                 // Send OK on data port
                                 rtpmidi_send_ok(token, remote_ssrc, 0);
                                 g_session.state = RTPMIDI_STATE_CONNECTED;
@@ -684,125 +809,148 @@ static void rtpmidi_data_recv_thread(void *arg)
                             g_session.state = RTPMIDI_STATE_CONNECTED;
                             g_session.last_sync_tick = HAL_GetTick();
                             printf("RTP-MIDI: Data invitation accepted. Session CONNECTED.\n");
+
+                            // CLIENT mode: Initiate clock sync (CK) exchange
+                            // We are the initiator, so we must send CK count=0 first
+                            if (g_session.mode == RTPMIDI_MODE_CLIENT && !g_session.ck_sync_initiated) {
+                                g_session.ck_sync_initiated = 1;
+                                uint64_t now_100us = TICKS_TO_US100(HAL_GetTick());
+                                printf("RTP-MIDI: Initiating clock sync (CK count=0)\n");
+                                rtpmidi_send_clock_sync(0U, now_100us, 0ULL, 0ULL);
+                            }
                         }
                         break;
 
                     case RTPMIDI_CMD_CK: // Clock Sync
-                        printf("RTP-MIDI: Received CK packet, len=%d\n", len);
-                        if (len >= 12) { // Minimum size for CK packet (header + count)
-                            uint8_t count = data[8];
-                            printf("RTP-MIDI: CK count=%d\n", count);
-                            uint64_t ts1 = 0, ts2 = 0, ts3 = 0;
-                            uint64_t now_us = TICKS_TO_US100(HAL_GetTick());
-
-                            // Extract timestamps
-                            memcpy(&ts1, data + 12, 8);
-                            ts1 = __builtin_bswap64(ts1);
-                            printf("RTP-MIDI: CK ts1=%llu\n", (unsigned long long)ts1);
-
-                            if (count == 0) {
-                                // Initiator sent count=0, we respond with count=1
-                                // We store ts1 as the remote initiator time
-                                printf("RTP-MIDI: Responding to count=0 with count=1\n");
-                                rtpmidi_send_clock_sync(1, ts1, now_us, 0);
-                            } else if (count == 1) {
-                                // Initiator sent count=1, we respond with count=2
-                                if (len >= 28) { // Need ts2
-                                    memcpy(&ts2, data + 20, 8);
-                                    ts2 = __builtin_bswap64(ts2);
-                                    printf("RTP-MIDI: Responding to count=1 with count=2, ts2=%llu\n", ts2);
-                                    // ts1 = remote time at count 0
-                                    // ts2 = our time at count 1
-                                    // now_us = our time at count 2
-                                    rtpmidi_send_clock_sync(2, ts1, ts2, now_us);
-                                } else {
-                                    printf("RTP-MIDI: CK count=1 packet too short (%d < 28)\n", len);
-                                }
-                            } else if (count == 2) {
-                                // Sync complete
-                                if (len >= 36) { // Need ts2 and ts3
-                                    memcpy(&ts2, data + 20, 8);
-                                    memcpy(&ts3, data + 28, 8);
-                                    ts2 = __builtin_bswap64(ts2);
-                                    ts3 = __builtin_bswap64(ts3);
-                                    printf("RTP-MIDI: Processing count=2, ts2=%llu, ts3=%llu\n", ts2, ts3);
-
-                                    // Calculate offset: offset = (ts1 + ts3)/2 - ts2
-                                    // Note: ts1/ts3 are remote time, ts2 is local time
-                                    // This offset allows us to convert our local time to remote time
-                                    int64_t offset = (int64_t)((ts1 + ts3) / 2) - (int64_t)ts2;
-                                    g_session.clock_offset = offset;
-                                    g_session.state = RTPMIDI_STATE_SYNCHRONIZED;
-                                    printf("RTP-MIDI: Sync complete. Offset=%lld\n", offset);
-                                } else {
-                                    printf("RTP-MIDI: CK count=2 packet too short (%d < 36)\n", len);
-                                }
-                            } else {
-                                printf("RTP-MIDI: Unknown CK count=%d\n", count);
-                            }
-                        } else {
-                            printf("RTP-MIDI: CK packet too short (%d < 12)\n", len);
-                        }
+                        // Implement minimal Clock Sync responder to keep macOS session alive.
+                        rtpmidi_handle_clock_sync(data, len);
                         break;
                 }
             }
             // Check for RTP-MIDI data packet
             else if (rtpmidi_is_connected() && g_rx_callback && len >= 12) {
-                // Parse RTP header
+                // Parse RTP header (RFC3550)
                 uint8_t version = (data[0] >> 6) & 0x03;
                 uint8_t payload_type = data[1] & 0x7F;
-                uint16_t seq = (data[2] << 8) | data[3];
+                uint16_t seq = (uint16_t)((data[2] << 8) | data[3]);
 
-                if (version == 2 && payload_type == 0x61) {  // RTP v2, MIDI payload
+                if (version == 2 && payload_type == RTP_PAYLOAD_TYPE_MIDI) {  // RTP v2, MIDI payload
                     // Update last received sequence number
                     g_session.sequence_rx_last = seq;
 
-                    // Skip RTP header (12 bytes minimum)
-                    uint8_t *midi_data = data + 12;
-                    uint16_t midi_len = len - 12;
+                    // Skip RTP fixed header (12 bytes)
+                    const uint8_t *p = data + 12;
+                    uint16_t remaining = (uint16_t)(len - 12);
 
-                    // Skip RTP-MIDI payload header (at least 2 bytes)
-                    if (midi_len >= 2) {
-                        // Skip flags and length bytes
-                        midi_data += 2;
-                        midi_len -= 2;
+                    // RTP-MIDI payload header (RFC 6295)
+                    // Short header: 1 byte: B,J,Z,P,LEN(4)
+                    // Long header: 2 bytes: B,J,Z,P,LEN(12)
+                    if (remaining < 1U) {
+                        netbuf_delete(buf);
+                        continue;
+                    }
 
-                        // Parse MIDI commands
-                        uint8_t *ptr = midi_data;
-                        while (ptr < midi_data + midi_len) {
-                            // Skip delta time (variable length, simplified: assume 1 byte)
-                            if (*ptr & 0x80) {
-                                ptr++;  // Extended delta time, skip
-                                if (ptr >= midi_data + midi_len) break;
-                            }
-                            ptr++;  // Skip delta time byte
+                    uint8_t hdr0 = p[0];
+                    uint8_t B = (uint8_t)((hdr0 >> 7) & 0x01);
+                    uint8_t Z = (uint8_t)((hdr0 >> 5) & 0x01);
 
-                            if (ptr >= midi_data + midi_len) break;
+                    uint16_t cmd_len = 0;
+                    uint16_t hdr_len = 1;
 
-                            // Get MIDI status byte
-                            uint8_t status = *ptr++;
-                            if (!(status & 0x80)) break;  // Invalid status
+                    if (B == 0U) {
+                        cmd_len = (uint16_t)(hdr0 & 0x0F);
+                    } else {
+                        // Need 2 bytes
+                        if (remaining < 2U) {
+                            netbuf_delete(buf);
+                            continue;
+                        }
+                        cmd_len = (uint16_t)(((hdr0 & 0x0F) << 8) | p[1]);
+                        hdr_len = 2;
+                    }
 
-                            // Get data bytes based on message type
-                            uint8_t msg_type = status & 0xF0;
-                            uint8_t data1 = 0, data2 = 0;
+                    if (remaining < hdr_len) {
+                        netbuf_delete(buf);
+                        continue;
+                    }
 
-                            if (msg_type == MIDI_PROGRAM_CHANGE || msg_type == 0xD0) {
-                                // 1 data byte
-                                if (ptr < midi_data + midi_len) {
-                                    data1 = *ptr++;
+                    p += hdr_len;
+                    remaining = (uint16_t)(remaining - hdr_len);
+
+                    // Some senders may include a Journal section (J bit) after the command section.
+                    // This firmware does not implement Journal parsing yet; we only decode the command section.
+                    if (cmd_len > remaining) {
+                        // Malformed or truncated packet
+                        netbuf_delete(buf);
+                        continue;
+                    }
+
+                    const uint8_t *cmd = p;
+                    const uint8_t *cmd_end = p + cmd_len;
+
+                    // Decode MIDI command section
+                    // If Z==0: first MIDI command starts immediately with status byte (no delta-time).
+                    // If Z==1: first command is preceded by a delta-time.
+                    const uint8_t *ptr = cmd;
+                    uint8_t first_cmd = 1U;
+
+                    while (ptr < cmd_end) {
+                        // Delta-time handling (very small subset):
+                        // - For Z==0 and first command: no delta-time.
+                        // - Otherwise: consume 1 byte (or multiple for VLQ if MSB=1) conservatively.
+                        if (!(first_cmd && (Z == 0U))) {
+                            // Consume delta-time (VLQ)
+                            do {
+                                if (ptr >= cmd_end) {
+                                    break;
                                 }
+                                uint8_t dt = *ptr++;
+                                if ((dt & 0x80U) == 0U) {
+                                    break;
+                                }
+                            } while (ptr < cmd_end);
+
+                            if (ptr >= cmd_end) {
+                                break;
+                            }
+                        }
+
+                        first_cmd = 0U;
+
+                        // Status byte
+                        if (ptr >= cmd_end) {
+                            break;
+                        }
+                        uint8_t status = *ptr++;
+                        if ((status & 0x80U) == 0U) {
+                            // Running status not supported in this minimal parser
+                            break;
+                        }
+
+                        uint8_t msg_type = (uint8_t)(status & 0xF0U);
+                        uint8_t data1 = 0U, data2 = 0U;
+
+                        // NOTE: System messages (0xF*) are not handled here.
+                        if (msg_type == MIDI_PROGRAM_CHANGE || msg_type == 0xD0U) {
+                            // 1 data byte
+                            if (ptr < cmd_end) {
+                                data1 = *ptr++;
                             } else {
-                                // 2 data bytes
-                                if (ptr < midi_data + midi_len) {
-                                    data1 = *ptr++;
-                                }
-                                if (ptr < midi_data + midi_len) {
-                                    data2 = *ptr++;
-                                }
+                                break;
                             }
-
-                            // Call callback
+                            g_rx_callback(status, data1, 0U);
+                        } else {
+                            // 2 data bytes
+                            if (ptr < cmd_end) {
+                                data1 = *ptr++;
+                            } else {
+                                break;
+                            }
+                            if (ptr < cmd_end) {
+                                data2 = *ptr++;
+                            } else {
+                                break;
+                            }
                             g_rx_callback(status, data1, data2);
                         }
                     }
