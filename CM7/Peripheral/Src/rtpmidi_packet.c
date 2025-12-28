@@ -19,7 +19,19 @@
 #include "stm32h7xx_hal.h"
 #include "lwip/api.h"
 #include <string.h>
+
+// Avoid printf/logging in RTP-MIDI TX path (may lock newlib, non-deterministic).
+// Enable only for local debugging.
+#ifndef RTPMIDI_ENABLE_LOGS
+#define RTPMIDI_ENABLE_LOGS 0
+#endif
+
+#if RTPMIDI_ENABLE_LOGS
 #include <stdio.h>
+#define RTPMIDI_LOGF(...) printf(__VA_ARGS__)
+#else
+#define RTPMIDI_LOGF(...) do { } while (0)
+#endif
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -36,15 +48,15 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
 
 static void rtpmidi_dump_hex(const char *label, const uint8_t *buf, uint16_t len)
 {
-    printf("%s (len=%u):\n", label, (unsigned)len);
+    RTPMIDI_LOGF("%s (len=%u):\n", label, (unsigned)len);
     for (uint16_t i = 0; i < len; i++) {
-        printf("%02X ", buf[i]);
+        RTPMIDI_LOGF("%02X ", buf[i]);
         if (((i + 1U) % 16U) == 0U) {
-            printf("\n");
+            RTPMIDI_LOGF("\n");
         }
     }
     if ((len % 16U) != 0U) {
-        printf("\n");
+        RTPMIDI_LOGF("\n");
     }
 }
 
@@ -56,7 +68,7 @@ static void rtpmidi_dump_hex(const char *label, const uint8_t *buf, uint16_t len
 rtpmidi_status_t rtpmidi_send_cc(uint8_t channel, uint8_t cc, uint8_t value)
 {
     if (!rtpmidi_is_connected()) {
-        printf("RTP-MIDI Warning: Send CC failed - Not connected\n");
+        RTPMIDI_LOGF("RTP-MIDI Warning: Send CC failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -86,7 +98,7 @@ rtpmidi_status_t rtpmidi_send_cc(uint8_t channel, uint8_t cc, uint8_t value)
 rtpmidi_status_t rtpmidi_send_cc14(uint8_t channel, uint8_t cc_msb, uint16_t value14)
 {
     if (!rtpmidi_is_connected()) {
-        printf("RTP-MIDI Warning: Send CC14 failed - Not connected\n");
+        RTPMIDI_LOGF("RTP-MIDI Warning: Send CC14 failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -120,7 +132,7 @@ rtpmidi_status_t rtpmidi_send_cc14(uint8_t channel, uint8_t cc_msb, uint16_t val
 rtpmidi_status_t rtpmidi_send_note(uint8_t channel, uint8_t note, uint8_t velocity)
 {
     if (!rtpmidi_is_connected()) {
-        printf("RTP-MIDI Warning: Send Note failed - Not connected\n");
+        RTPMIDI_LOGF("RTP-MIDI Warning: Send Note failed - Not connected\n");
         return RTPMIDI_NOT_CONNECTED;
     }
 
@@ -158,7 +170,7 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     rtpmidi_session_t *session = rtpmidi_get_session();
 
     if (!session->conn_data) {
-        printf("RTP-MIDI Error: No data connection\n");
+        RTPMIDI_LOGF("RTP-MIDI Error: No data connection\n");
         return RTPMIDI_ERROR;
     }
 
@@ -226,14 +238,14 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     // Send packet using netconn API (thread-safe)
     struct netbuf *buf = netbuf_new();
     if (!buf) {
-        printf("RTP-MIDI Error: Failed to allocate netbuf\n");
+        RTPMIDI_LOGF("RTP-MIDI Error: Failed to allocate netbuf\n");
         return RTPMIDI_BUFFER_FULL;
     }
 
     void *data = netbuf_alloc(buf, packet_size);
     if (!data) {
         netbuf_delete(buf);
-        printf("RTP-MIDI Error: Failed to allocate buffer data\n");
+        RTPMIDI_LOGF("RTP-MIDI Error: Failed to allocate buffer data\n");
         return RTPMIDI_BUFFER_FULL;
     }
 
@@ -243,11 +255,11 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     // We must send RTP-MIDI data back to the peer's actual source port observed on 5005.
     uint16_t dst_port = (session->peer_port_data != 0U) ? session->peer_port_data : session->remote_port_data;
 
-    printf("RTP-MIDI: TX to %s:%u (peer_port_data=%u, remote_port_data=%u)\n",
-           ipaddr_ntoa(&session->remote_ip),
-           (unsigned)dst_port,
-           (unsigned)session->peer_port_data,
-           (unsigned)session->remote_port_data);
+    RTPMIDI_LOGF("RTP-MIDI: TX to %s:%u (peer_port_data=%u, remote_port_data=%u)\n",
+                 ipaddr_ntoa(&session->remote_ip),
+                 (unsigned)dst_port,
+                 (unsigned)session->peer_port_data,
+                 (unsigned)session->remote_port_data);
 
     rtpmidi_dump_hex("RTP-MIDI TX packet", packet, packet_size);
 
@@ -255,10 +267,10 @@ static rtpmidi_status_t rtpmidi_send_packet(uint8_t *midi_data, uint16_t midi_le
     netbuf_delete(buf);
 
     if (err != ERR_OK) {
-        printf("RTP-MIDI Error: netconn_sendto failed with error %d\n", err);
+        RTPMIDI_LOGF("RTP-MIDI Error: netconn_sendto failed with error %d\n", err);
         return RTPMIDI_ERROR;
     }
 
-    printf("RTP-MIDI: Sent packet seq=%u len=%u\n", (unsigned)seq_host, (unsigned)packet_size);
+    RTPMIDI_LOGF("RTP-MIDI: Sent packet seq=%u len=%u\n", (unsigned)seq_host, (unsigned)packet_size);
     return RTPMIDI_OK;
 }

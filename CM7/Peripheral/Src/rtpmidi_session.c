@@ -20,7 +20,20 @@
 #include "lwip/api.h"
 #include "cmsis_os.h"
 #include <string.h>
+
+// RTP-MIDI runs in a FreeRTOS task context. Avoid printf/logging here to keep
+// timing deterministic and prevent newlib locks in RT paths.
+// Enable only for local debugging.
+#ifndef RTPMIDI_ENABLE_LOGS
+#define RTPMIDI_ENABLE_LOGS 0
+#endif
+
+#if RTPMIDI_ENABLE_LOGS
 #include <stdio.h>
+#define RTPMIDI_LOGF(...) printf(__VA_ARGS__)
+#else
+#define RTPMIDI_LOGF(...) do { } while (0)
+#endif
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -106,7 +119,7 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
     g_session.conn_data = netconn_new(NETCONN_UDP);
 
     if (!g_session.conn_control || !g_session.conn_data) {
-        printf("RTP-MIDI: Failed to create UDP connections\n");
+        RTPMIDI_LOGF("RTP-MIDI: Failed to create UDP connections\n");
         return RTPMIDI_ERROR;
     }
 
@@ -118,28 +131,36 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
 
     // Bind control port (5004)
     if (netconn_bind(g_session.conn_control, IP_ADDR_ANY, RTPMIDI_CONTROL_PORT) != ERR_OK) {
-        printf("RTP-MIDI: Failed to bind control port %d\n", RTPMIDI_CONTROL_PORT);
+        RTPMIDI_LOGF("RTP-MIDI: Failed to bind control port %d\n", RTPMIDI_CONTROL_PORT);
         return RTPMIDI_ERROR;
     }
 
     // Bind data port (5005)
     if (netconn_bind(g_session.conn_data, IP_ADDR_ANY, RTPMIDI_DATA_PORT) != ERR_OK) {
-        printf("RTP-MIDI: Failed to bind data port %d\n", RTPMIDI_DATA_PORT);
+        RTPMIDI_LOGF("RTP-MIDI: Failed to bind data port %d\n", RTPMIDI_DATA_PORT);
         return RTPMIDI_ERROR;
     }
 
-    // Create receive thread for data (MIDI messages)
-    // Increased stack size to handle potential printf/logging
-    osThreadDef(rtpmidi_data_rx, rtpmidi_data_recv_thread, osPriorityNormal, 0, 1024);
-    osThreadCreate(osThread(rtpmidi_data_rx), NULL);
+    // Create receive task for data (MIDI messages) using native FreeRTOS API
+    // to match the rest of the project (e.g. cis_scan).
+    // NOTE: uxStackDepth is in words (not bytes).
+    if (xTaskCreate(rtpmidi_data_recv_thread,
+                    "rtpmidi_data_rx",
+                    1024,
+                    NULL,
+                    (UBaseType_t)(tskIDLE_PRIORITY + 2U),
+                    NULL) != pdPASS) {
+        RTPMIDI_LOGF("RTP-MIDI: Failed to create rtpmidi_data_rx task\n");
+        return RTPMIDI_ERROR;
+    }
 
     g_session.state = RTPMIDI_STATE_IDLE;
     g_session.connection_attempts = 0;
     g_session.clock_offset = 0;
     g_session.ck_sync_initiated = 0;
 
-    printf("RTP-MIDI: Initialized '%s' on ports %d/%d, SSRC=0x%08lX\n",
-           g_session.device_name, RTPMIDI_CONTROL_PORT, RTPMIDI_DATA_PORT, g_session.ssrc);
+    RTPMIDI_LOGF("RTP-MIDI: Initialized '%s' on ports %d/%d, SSRC=0x%08lX\n",
+                 g_session.device_name, RTPMIDI_CONTROL_PORT, RTPMIDI_DATA_PORT, g_session.ssrc);
 
     return RTPMIDI_OK;
 }
@@ -151,7 +172,7 @@ rtpmidi_status_t rtpmidi_connect(void)
 {
     // In SERVER mode, we never initiate connections
     if (g_session.mode == RTPMIDI_MODE_SERVER) {
-        printf("RTP-MIDI: Cannot connect in SERVER mode (passive mode)\n");
+        RTPMIDI_LOGF("RTP-MIDI: Cannot connect in SERVER mode (passive mode)\n");
         return RTPMIDI_ERROR;
     }
 
@@ -165,7 +186,7 @@ rtpmidi_status_t rtpmidi_connect(void)
     g_session.last_invite_tick = HAL_GetTick();
     g_session.connection_attempts = 1;
 
-    printf("RTP-MIDI: Control invitation sent to %s\n", ipaddr_ntoa(&g_session.remote_ip));
+    RTPMIDI_LOGF("RTP-MIDI: Control invitation sent to %s\n", ipaddr_ntoa(&g_session.remote_ip));
     return RTPMIDI_OK;
 }
 
@@ -183,7 +204,7 @@ rtpmidi_status_t rtpmidi_disconnect(void)
     g_session.connection_attempts = 0;
     g_session.ck_sync_initiated = 0;  // Reset for next connection
 
-    printf("RTP-MIDI: Disconnected\n");
+    RTPMIDI_LOGF("RTP-MIDI: Disconnected\n");
     return RTPMIDI_OK;
 }
 
@@ -246,7 +267,7 @@ rtpmidi_status_t rtpmidi_process(void)
                             // Send OK on control port
                             rtpmidi_send_ok(token, remote_ssrc, 1);
 
-                            printf("RTP-MIDI: Control invitation received, sent OK, SSRC=0x%08lX\n", remote_ssrc);
+                            RTPMIDI_LOGF("RTP-MIDI: Control invitation received, sent OK, SSRC=0x%08lX\n", remote_ssrc);
                         }
                         break;
 
@@ -269,13 +290,13 @@ rtpmidi_status_t rtpmidi_process(void)
                             g_session.last_invite_tick = HAL_GetTick();
                             g_session.connection_attempts = 1;  // Start data port retry counter
 
-                            printf("RTP-MIDI: Control accepted, inviting on data port\n");
+                            RTPMIDI_LOGF("RTP-MIDI: Control accepted, inviting on data port\n");
                         }
                         break;
 
                     case RTPMIDI_CMD_BY:  // Goodbye
                         g_session.state = RTPMIDI_STATE_IDLE;
-                        printf("RTP-MIDI: Session closed by remote\n");
+                        RTPMIDI_LOGF("RTP-MIDI: Session closed by remote\n");
                         break;
 
                     case RTPMIDI_CMD_RS: // Receiver Feedback
@@ -311,10 +332,10 @@ rtpmidi_status_t rtpmidi_process(void)
                         rtpmidi_send_invitation(1); // Control port
                         g_session.last_invite_tick = now;
                         g_session.connection_attempts++;
-                        printf("RTP-MIDI: Retry control invitation (%d/3)\n",
-                               g_session.connection_attempts);
+                        RTPMIDI_LOGF("RTP-MIDI: Retry control invitation (%d/3)\n",
+                                     g_session.connection_attempts);
                     } else {
-                        printf("RTP-MIDI: Connection timeout (control) - no response after 3 attempts\n");
+                        RTPMIDI_LOGF("RTP-MIDI: Connection timeout (control) - no response after 3 attempts\n");
                         g_session.state = RTPMIDI_STATE_IDLE;
                         return RTPMIDI_TIMEOUT;
                     }
@@ -330,10 +351,10 @@ rtpmidi_status_t rtpmidi_process(void)
                             rtpmidi_send_invitation(0); // Data port
                             g_session.last_invite_tick = now;
                             g_session.connection_attempts++;
-                            printf("RTP-MIDI: Retry data invitation (%d/%d)\n",
-                                   g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
+                            RTPMIDI_LOGF("RTP-MIDI: Retry data invitation (%d/%d)\n",
+                                         g_session.connection_attempts, RTPMIDI_MAX_ATTEMPTS);
                         } else {
-                            printf("RTP-MIDI: Connection timeout (data)\n");
+                            RTPMIDI_LOGF("RTP-MIDI: Connection timeout (data)\n");
                             g_session.state = RTPMIDI_STATE_IDLE;
                             return RTPMIDI_TIMEOUT;
                         }
@@ -352,7 +373,7 @@ rtpmidi_status_t rtpmidi_process(void)
         case RTPMIDI_STATE_CONNECTED:
             // Force synchronization after timeout if we never received count=2
             if (now - g_session.last_sync_tick > 10000) { // 10 seconds timeout
-                printf("RTP-MIDI: Forcing synchronization (timeout)\n");
+                RTPMIDI_LOGF("RTP-MIDI: Forcing synchronization (timeout)\n");
                 g_session.state = RTPMIDI_STATE_SYNCHRONIZED;
                 g_session.clock_offset = 0; // No offset
             }
@@ -430,13 +451,13 @@ static void rtpmidi_send_invitation(uint8_t is_control_port)
         // For control port, only send if in IDLE or INVITED state
         if (g_session.state != RTPMIDI_STATE_IDLE &&
             g_session.state != RTPMIDI_STATE_INVITED) {
-            printf("RTP-MIDI: Skipping control invitation - wrong state %d\n", g_session.state);
+            RTPMIDI_LOGF("RTP-MIDI: Skipping control invitation - wrong state %d\n", g_session.state);
             return;
         }
     } else {
         // For data port, only send if in CONTROL_CONNECTED state
         if (g_session.state != RTPMIDI_STATE_CONTROL_CONNECTED) {
-            printf("RTP-MIDI: Skipping data invitation - wrong state %d\n", g_session.state);
+            RTPMIDI_LOGF("RTP-MIDI: Skipping data invitation - wrong state %d\n", g_session.state);
             return;
         }
     }
@@ -502,11 +523,11 @@ static void rtpmidi_send_ok(uint32_t initiator_token, uint32_t remote_ssrc, uint
     uint8_t *p = packet;
 
     // Debug: log destination used to send OK (helps diagnose macOS-initiated IN not being acknowledged)
-    printf("RTP-MIDI: Sending OK on %s to %s:%u (remote_ssrc=0x%08lX)\n",
-           is_control_port ? "control" : "data",
-           ipaddr_ntoa(&g_session.remote_ip),
-           (unsigned)(is_control_port ? g_session.peer_port_control : g_session.peer_port_data),
-           (unsigned long)remote_ssrc);
+    RTPMIDI_LOGF("RTP-MIDI: Sending OK on %s to %s:%u (remote_ssrc=0x%08lX)\n",
+                 is_control_port ? "control" : "data",
+                 ipaddr_ntoa(&g_session.remote_ip),
+                 (unsigned)(is_control_port ? g_session.peer_port_control : g_session.peer_port_data),
+                 (unsigned long)remote_ssrc);
 
     // Signature
     *p++ = 0xFF;
@@ -620,9 +641,8 @@ static void rtpmidi_send_clock_sync(uint8_t count, uint64_t ts1, uint64_t ts2, u
     uint8_t packet[64] = {0};  // Initialize to zero to avoid sending garbage data
     uint8_t *p = packet;
 
-    // Debug: print timestamps
-    printf("RTP-MIDI: Sending CK count=%d, ts1=%llu, ts2=%llu, ts3=%llu\n",
-           count, (unsigned long long)ts1, (unsigned long long)ts2, (unsigned long long)ts3);
+    RTPMIDI_LOGF("RTP-MIDI: Sending CK count=%d, ts1=%llu, ts2=%llu, ts3=%llu\n",
+                 count, (unsigned long long)ts1, (unsigned long long)ts2, (unsigned long long)ts3);
 
     // Signature
     *p++ = 0xFF;
@@ -799,7 +819,7 @@ static void rtpmidi_data_recv_thread(void *arg)
                                 rtpmidi_send_ok(token, remote_ssrc, 0);
                                 g_session.state = RTPMIDI_STATE_CONNECTED;
                                 g_session.last_sync_tick = HAL_GetTick();
-                                printf("RTP-MIDI: Data invitation received, sent OK. Session CONNECTED.\n");
+                                RTPMIDI_LOGF("RTP-MIDI: Data invitation received, sent OK. Session CONNECTED.\n");
                             }
                         }
                         break;
@@ -808,14 +828,14 @@ static void rtpmidi_data_recv_thread(void *arg)
                         if (g_session.state == RTPMIDI_STATE_CONTROL_CONNECTED) {
                             g_session.state = RTPMIDI_STATE_CONNECTED;
                             g_session.last_sync_tick = HAL_GetTick();
-                            printf("RTP-MIDI: Data invitation accepted. Session CONNECTED.\n");
+                            RTPMIDI_LOGF("RTP-MIDI: Data invitation accepted. Session CONNECTED.\n");
 
                             // CLIENT mode: Initiate clock sync (CK) exchange
                             // We are the initiator, so we must send CK count=0 first
                             if (g_session.mode == RTPMIDI_MODE_CLIENT && !g_session.ck_sync_initiated) {
                                 g_session.ck_sync_initiated = 1;
                                 uint64_t now_100us = TICKS_TO_US100(HAL_GetTick());
-                                printf("RTP-MIDI: Initiating clock sync (CK count=0)\n");
+                                RTPMIDI_LOGF("RTP-MIDI: Initiating clock sync (CK count=0)\n");
                                 rtpmidi_send_clock_sync(0U, now_100us, 0ULL, 0ULL);
                             }
                         }

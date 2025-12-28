@@ -169,24 +169,30 @@ UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length)
 		return UDPCLIENT_ERROR;
 	}
 
-	// Simple retry mechanism - try up to 3 times
+	// Simple retry mechanism - try up to 3 times.
+	// If netbuf allocation fails it usually means LwIP pools/heaps are under pressure.
+	// Avoid hammering the allocator: use a small exponential backoff.
 	for (int retry = 0; retry < 3; retry++)
 	{
 		// Create a new netbuf
 		struct netbuf *buf = netbuf_new();
 		if (buf == NULL)
 		{
-			if (retry == 2) printf("Failed to allocate netbuf after %d retries\n", retry + 1);
-			osDelay(10); // Small delay before retry
+			if (retry == 2) {
+				printf("Failed to allocate netbuf after %d retries\n", retry + 1);
+			}
+			osDelay((uint32_t)(10U << (uint32_t)retry));
 			continue;
 		}
 
 		// Allocate space in the netbuf
 		if (netbuf_alloc(buf, length) == NULL)
 		{
-			if (retry == 2) printf("Failed to allocate buffer in netbuf after %d retries\n", retry + 1);
+			if (retry == 2) {
+				printf("Failed to allocate buffer in netbuf after %d retries\n", retry + 1);
+			}
 			netbuf_delete(buf);
-			osDelay(10);
+			osDelay((uint32_t)(10U << (uint32_t)retry));
 			continue;
 		}
 
@@ -211,7 +217,7 @@ UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length)
 				return UDPCLIENT_ERROR;
 			}
 			// Small delay before retry
-			osDelay(10);
+			osDelay((uint32_t)(10U << (uint32_t)retry));
 		}
 	}
 
