@@ -111,7 +111,7 @@ UDPCLIENT_StatusTypeDef udpClient_init(void)
 		//netconn_set_sendtimeout(conn, 100);
 
 		IP4_ADDR(&destIPaddr, shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
-		netconn_bind(conn, NULL, 0);//        DEFAULT_NETWORK_UDP_PORT);
+		netconn_bind(conn, NULL, 0);
 		netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
 
 	}

@@ -83,14 +83,21 @@
 #define DEFAULT_NETWORK_IP 						{192, 168, 100, 1}
 #define DEFAULT_NETWORK_NETMASK 				{255, 255, 255, 0}
 #define DEFAULT_NETWORK_GW 						{0, 0, 0, 0}
-#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 100, 255}
-#define DEFAULT_NETWORK_UDP_PORT 				(55151)
+#define DEFAULT_NETWORK_DEST_IP 				{192, 168, 100, 10}
+
+// CIS image streaming (UDP)
+// This UDP port is used to transmit CIS image fragments to DEFAULT_NETWORK_DEST_IP.
+#define DEFAULT_NETWORK_CIS_UDP_PORT 			(55151)
 #define DEFAULT_NETWORK_TCP_PORT 				(5000)
 
 // RTP-MIDI
 // Control port is configurable from the web UI.
 // Data port is derived automatically as (control + 1).
 #define DEFAULT_RTPMIDI_CONTROL_PORT            (5004)
+
+// For documentation/reference only.
+// The actual data port used by the stack is always (control + 1).
+#define DEFAULT_RTPMIDI_DATA_PORT               (DEFAULT_RTPMIDI_CONTROL_PORT + 1)
 
 /**************************************************************************************/
 /********************              CIS definitions                 ********************/
@@ -179,7 +186,7 @@
 #define RTPMIDI_DEVICE_NAME             "Sp3ctra_CIS"
 
 // mDNS service configuration
-#define MDNS_ENABLED                    0  // Enable mDNS by default
+#define MDNS_ENABLED                    1  // Enable mDNS by default
 
 // RTP-MIDI mode configuration
 #define RTPMIDI_MODE_DEFAULT            1  // 0=SERVER (macOS), 1=CLIENT (PC/Linux)

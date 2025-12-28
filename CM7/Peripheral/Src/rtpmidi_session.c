@@ -63,6 +63,30 @@
 static rtpmidi_session_t g_session = {0};
 static rtpmidi_rx_callback_t g_rx_callback = NULL;
 
+// In CLIENT mode, g_session.remote_ip is the configured target.
+// When accepting an incoming invitation (hybrid mode), we lock the active peer here.
+static ip_addr_t g_active_peer_ip;
+static uint8_t g_active_peer_ip_valid = 0U;
+
+static uint8_t rtpmidi_ip_is_active_peer_or_free(const ip_addr_t *ip)
+{
+    if (g_active_peer_ip_valid == 0U) {
+        return 1U;
+    }
+    return ip_addr_cmp(ip, &g_active_peer_ip) ? 1U : 0U;
+}
+
+static void rtpmidi_lock_active_peer(const ip_addr_t *ip)
+{
+    ip_addr_copy(g_active_peer_ip, *ip);
+    g_active_peer_ip_valid = 1U;
+}
+
+static void rtpmidi_clear_active_peer(void)
+{
+    g_active_peer_ip_valid = 0U;
+}
+
 /* Private functions ---------------------------------------------------------*/
 /**
  * @brief Compute a stable 32-bit identifier from the MCU unique ID.
@@ -108,6 +132,9 @@ static void rtpmidi_handle_clock_sync(const uint8_t *data, uint16_t len);
 rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtpmidi_mode_t mode)
 {
     memset(&g_session, 0, sizeof(g_session));
+
+    // Reset active peer lock (new session)
+    rtpmidi_clear_active_peer();
 
     // Store operation mode
     g_session.mode = mode;
@@ -248,6 +275,8 @@ rtpmidi_status_t rtpmidi_disconnect(void)
     g_session.connection_attempts = 0;
     g_session.ck_sync_initiated = 0;  // Reset for next connection
 
+    rtpmidi_clear_active_peer();
+
     RTPMIDI_LOGF("RTP-MIDI: Disconnected\n");
     return RTPMIDI_OK;
 }
@@ -265,9 +294,21 @@ rtpmidi_status_t rtpmidi_process(void)
     uint8_t packet_received = 0;  // Track if we received any packet this cycle
     while (netconn_recv(g_session.conn_control, &buf) == ERR_OK) {
         packet_received = 1;  // Mark that we received a packet
-        // Always track the source of incoming control packets.
-        // This is required to correctly reply to macOS-initiated invitations (IN) even in CLIENT mode.
-        ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
+        const ip_addr_t *src_ip = netbuf_fromaddr(buf);
+
+        // In SERVER mode, remote_ip follows the active peer.
+        // In CLIENT mode, remote_ip is the configured target and MUST NOT be overwritten.
+        if (g_session.mode == RTPMIDI_MODE_SERVER) {
+            ip_addr_copy(g_session.remote_ip, *src_ip);
+            rtpmidi_lock_active_peer(src_ip);
+        } else {
+            // Hybrid rule: only accept packets from the active peer if already locked.
+            // This prevents session hijack once a peer is selected.
+            if (!rtpmidi_ip_is_active_peer_or_free(src_ip)) {
+                netbuf_delete(buf);
+                continue;
+            }
+        }
         g_session.peer_port_control = netbuf_fromport(buf);
 
         // Process control packet
@@ -283,6 +324,20 @@ rtpmidi_status_t rtpmidi_process(void)
 
                 switch (command) {
                     case RTPMIDI_CMD_IN:  // Invitation from remote
+                        // Hybrid behavior:
+                        // - If we are not connected yet, allow the FIRST peer that invites us to become active.
+                        // - If already connected/synchronized (or peer locked), reject other peers.
+                        if (g_session.mode == RTPMIDI_MODE_CLIENT) {
+                            // If we haven't locked a peer yet, accept this inviter and lock it.
+                            if (g_active_peer_ip_valid == 0U) {
+                                rtpmidi_lock_active_peer(src_ip);
+                            }
+                            // If peer is locked to someone else, ignore.
+                            if (!ip_addr_cmp(src_ip, &g_active_peer_ip)) {
+                                netbuf_delete(buf);
+                                continue;
+                            }
+                        }
                         // Accept invitations in IDLE or INVITED state
                         // Note: macOS will retry every 1s and eventually send BY if it doesn't receive OK.
                         if (g_session.state == RTPMIDI_STATE_IDLE ||
@@ -834,9 +889,20 @@ static void rtpmidi_data_recv_thread(void *arg)
             uint8_t *data = (uint8_t*)buf->p->payload;
             uint16_t len = buf->p->len;
 
-            // Always track the source of incoming data packets.
-            // Required to reply to macOS-initiated invitations on the MIDI data port.
-            ip_addr_copy(g_session.remote_ip, *netbuf_fromaddr(buf));
+            const ip_addr_t *src_ip = netbuf_fromaddr(buf);
+
+            // In SERVER mode, remote_ip follows the active peer.
+            // In CLIENT mode, remote_ip is the configured target and MUST NOT be overwritten.
+            if (g_session.mode == RTPMIDI_MODE_SERVER) {
+                ip_addr_copy(g_session.remote_ip, *src_ip);
+                rtpmidi_lock_active_peer(src_ip);
+            } else {
+                // Hybrid rule: only accept packets from the active peer if already locked.
+                if (!rtpmidi_ip_is_active_peer_or_free(src_ip)) {
+                    netbuf_delete(buf);
+                    continue;
+                }
+            }
             g_session.peer_port_data = netbuf_fromport(buf);
 
             // Check for Apple-MIDI command packet (0xFFFF signature)
@@ -845,6 +911,16 @@ static void rtpmidi_data_recv_thread(void *arg)
 
                 switch (command) {
                     case RTPMIDI_CMD_IN: // Invitation on data port
+                        // Hybrid behavior: allow first peer to lock, then ignore others.
+                        if (g_session.mode == RTPMIDI_MODE_CLIENT) {
+                            if (g_active_peer_ip_valid == 0U) {
+                                rtpmidi_lock_active_peer(src_ip);
+                            }
+                            if (!ip_addr_cmp(src_ip, &g_active_peer_ip)) {
+                                netbuf_delete(buf);
+                                continue;
+                            }
+                        }
                         if (g_session.state == RTPMIDI_STATE_CONTROL_CONNECTED) {
                             // Extract remote SSRC and token
                             uint32_t remote_ssrc, token;
@@ -869,6 +945,13 @@ static void rtpmidi_data_recv_thread(void *arg)
                         break;
 
                     case RTPMIDI_CMD_OK: // Accepted on data port
+                        // Hybrid behavior: if peer is locked, accept only from that peer.
+                        if (g_session.mode == RTPMIDI_MODE_CLIENT &&
+                            (g_active_peer_ip_valid != 0U) &&
+                            !ip_addr_cmp(src_ip, &g_active_peer_ip)) {
+                            netbuf_delete(buf);
+                            continue;
+                        }
                         if (g_session.state == RTPMIDI_STATE_CONTROL_CONNECTED) {
                             g_session.state = RTPMIDI_STATE_CONNECTED;
                             g_session.last_sync_tick = HAL_GetTick();

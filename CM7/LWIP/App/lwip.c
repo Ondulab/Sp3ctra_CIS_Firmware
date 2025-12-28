@@ -165,18 +165,20 @@ void MX_LWIP_Init(void)
 
 /* USER CODE BEGIN 3 */
   // Initialize mDNS responder (official LwIP 2.1.2 implementation)
-  // mDNS is only needed in SERVER mode (for discovery by macOS)
-  // In CLIENT mode, the device connects directly to a fixed IP
-  if (shared_config.mdns_enabled && shared_config.rtpmidi_mode == 0) {
+  // mDNS is enabled purely based on configuration, independent of RTP-MIDI mode.
+  // In RTP-MIDI CLIENT mode, advertising the _apple-midi service may be undesired,
+  // but the mDNS hostname remains useful for device discovery.
+  if (shared_config.mdns_enabled) {
     printf("--- mDNS INITIALIZATIONS ---\n");
     mdns_resp_init();
 
-    // Add network interface to mDNS
+    // Add network interface to mDNS (publishes hostname)
     err_t err = mdns_resp_add_netif(&gnetif, "sp3ctra", 3600);
     if (err == ERR_OK) {
       printf("mDNS: Network interface added successfully\n");
 
-      // Add RTP-MIDI service with TXT records callback
+      // Advertise RTP-MIDI service regardless of RTP-MIDI mode.
+      // This matches the configuration intent: if mDNS is enabled, always publish the service.
       // Note: In LwIP 2.1.2, mdns_resp_add_service returns s8_t (slot ID), not err_t
       s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
                                         DNSSD_PROTO_UDP, shared_config.rtpmidi_control_port,
@@ -190,11 +192,7 @@ void MX_LWIP_Init(void)
       printf("mDNS: Failed to add network interface (err=%d)\n", err);
     }
   } else {
-    if (!shared_config.mdns_enabled) {
-      printf("mDNS: Service disabled in configuration\n");
-    } else if (shared_config.rtpmidi_mode == 1) {
-      printf("mDNS: Service disabled (RTP-MIDI CLIENT mode uses fixed IP)\n");
-    }
+    printf("mDNS: Service disabled in configuration\n");
   }
 /* USER CODE END 3 */
 }

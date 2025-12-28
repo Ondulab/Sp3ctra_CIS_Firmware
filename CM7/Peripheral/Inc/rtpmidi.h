@@ -116,8 +116,8 @@ typedef struct {
 typedef void (*rtpmidi_rx_callback_t)(uint8_t status, uint8_t data1, uint8_t data2);
 
 /* Exported constants --------------------------------------------------------*/
-#define RTPMIDI_CONTROL_PORT        5004
-#define RTPMIDI_DATA_PORT           5005
+#define RTPMIDI_CONTROL_PORT        DEFAULT_RTPMIDI_CONTROL_PORT
+#define RTPMIDI_DATA_PORT           (DEFAULT_RTPMIDI_CONTROL_PORT + 1)
 #define RTPMIDI_SYNC_INTERVAL_MS    10000  // 10 seconds
 #define RTPMIDI_FEEDBACK_INTERVAL_MS 1000  // 1 second
 #define RTPMIDI_INVITE_INTERVAL_MS  1000   // 1 second (Apple spec)

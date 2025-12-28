@@ -306,7 +306,7 @@ void StartDefaultTask(void const * argument)
 
         // Initialize RTP-MIDI with mode from configuration
         // SERVER mode (0): Passive, waits for INVITE from macOS (uses mDNS for discovery)
-        // CLIENT mode (1): Active, initiates connection to remote IP from config (no mDNS)
+        // CLIENT mode (1): Active, initiates connection to remote IP from config
         if (rtpmidi_init("Sp3ctra_CIS", &remote_ip, mode) != RTPMIDI_OK)
         {
             printf("RTP-MIDI initialization ERROR\n");
@@ -321,13 +321,18 @@ void StartDefaultTask(void const * argument)
             rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
 
             // In CLIENT mode, initiate connection to remote server
-            if (rtpmidi_connect() != RTPMIDI_OK)
-            {
-                printf("RTP-MIDI: Failed to initiate connection\n");
-            }
-            else
-            {
-                printf("RTP-MIDI: Initialized in CLIENT mode (connecting to remote)\n");
+            if (mode == RTPMIDI_MODE_CLIENT) {
+                if (rtpmidi_connect() != RTPMIDI_OK)
+                {
+                    printf("RTP-MIDI: Failed to initiate connection\n");
+                }
+                else
+                {
+                    printf("RTP-MIDI: Initialized in CLIENT mode (connecting to remote)\n");
+                    printf("RTP-MIDI initialization SUCCESS\n");
+                }
+            } else {
+                printf("RTP-MIDI: Initialized in SERVER mode (waiting for macOS invitation)\n");
                 printf("RTP-MIDI initialization SUCCESS\n");
             }
         }

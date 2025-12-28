@@ -554,8 +554,8 @@
                 <input type="number" id="ipDestPart4" min="0" max="255">
             </div>
             <div class="form-group">
-                <label for="port">UDP Port</label>
-                <input type="number" id="port" min="0" max="65535">
+                <label for="udp_port">CIS UDP Port</label>
+                <input type="number" id="udp_port" name="udp_port" value="%udp_port%" min="1" max="65535" required>
             </div>
 
             <div class="form-group">
@@ -1561,7 +1561,7 @@
                         document.getElementById("ipDestPart2").value = config.dest_ip.split('.')[1];
                         document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
                         document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
-                        document.getElementById("port").value = config.udp_port;
+                        document.getElementById("udp_port").value = config.udp_port;
 
                         // RTP-MIDI ports
                         if (config.rtpmidi_control_port !== undefined) {
@@ -1627,7 +1627,7 @@
                     document.getElementById("ipDestPart4").value
                 ].join('.');
 
-                const udpPort = document.getElementById("port").value;
+                const udpPort = document.getElementById("udp_port").value;
 
                 const rtpmidiControlPort = document.getElementById("midiControlPort").value;
 
