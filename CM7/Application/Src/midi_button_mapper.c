@@ -27,13 +27,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-// Button to CC mapping table
-static const uint8_t button_to_cc[NUMBER_OF_BUTTONS] = {
-    MIDI_BUTTON1_CC,  // SW1 → CC 20
-    MIDI_BUTTON2_CC,  // SW2 → CC 21
-    MIDI_BUTTON3_CC   // SW3 → CC 22
-};
-
 /* Private function prototypes -----------------------------------------------*/
 
 /* Exported functions --------------------------------------------------------*/
@@ -44,9 +37,18 @@ static const uint8_t button_to_cc[NUMBER_OF_BUTTONS] = {
 void midi_button_mapper_init(void)
 {
     printf("MIDI Button Mapper: Initialized\n");
-    printf("  SW1 → CC %d\n", MIDI_BUTTON1_CC);
-    printf("  SW2 → CC %d\n", MIDI_BUTTON2_CC);
-    printf("  SW3 → CC %d\n", MIDI_BUTTON3_CC);
+    printf("  SW1: CH=%u CMD=%u PARAM=%u\n",
+           (unsigned int)shared_config.midi_button_channel[0],
+           (unsigned int)shared_config.midi_button_command[0],
+           (unsigned int)shared_config.midi_button_param[0]);
+    printf("  SW2: CH=%u CMD=%u PARAM=%u\n",
+           (unsigned int)shared_config.midi_button_channel[1],
+           (unsigned int)shared_config.midi_button_command[1],
+           (unsigned int)shared_config.midi_button_param[1]);
+    printf("  SW3: CH=%u CMD=%u PARAM=%u\n",
+           (unsigned int)shared_config.midi_button_channel[2],
+           (unsigned int)shared_config.midi_button_command[2],
+           (unsigned int)shared_config.midi_button_param[2]);
 }
 
 /**
@@ -59,14 +61,25 @@ void midi_button_mapper_on_change(uint8_t button_id, uint8_t pressed)
         return;
     }
 
-    // Get CC number for this button
-    uint8_t cc = button_to_cc[button_id];
+    uint8_t channel = shared_config.midi_button_channel[button_id];
+    uint8_t command = shared_config.midi_button_command[button_id];
+    uint8_t param = shared_config.midi_button_param[button_id];
 
-    // Send MIDI CC: 127 when pressed, 0 when released
-    uint8_t value = pressed ? 127 : 0;
+    // Send 127 when pressed, 0 when released (requested behavior)
+    uint8_t value = pressed ? 127U : 0U;
 
-    // Send via RTP-MIDI
-    rtpmidi_status_t status = rtpmidi_send_cc(MIDI_BUTTON_CHANNEL, cc, value);
+    rtpmidi_status_t status = RTPMIDI_ERROR;
+
+    if (command == MIDI_BUTTON_COMMAND_NOTE)
+    {
+        // Note: velocity=0 is Note Off.
+        status = rtpmidi_send_note(channel, param, value);
+    }
+    else
+    {
+        // Default to CC
+        status = rtpmidi_send_cc(channel, param, value);
+    }
 
     if (status == RTPMIDI_OK) {
         /* Intentionally silent here to avoid double logging.

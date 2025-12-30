@@ -801,6 +801,47 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
+					/* Get mDNS enable state */
+					else if (strncmp((char const *)buf, "GET /getMdnsEnabled", 18) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.mdns_enabled);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get RTP-MIDI mode */
+					else if (strncmp((char const *)buf, "GET /getRtpMidiMode", 19) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.rtpmidi_mode);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Get MIDI button mapping configuration */
+					else if (strncmp((char const *)buf, "GET /getMidiButtonConfig", 24) == 0)
+					{
+						char response[512];
+						int len = sprintf(response,
+								"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+								"{"
+								"\"buttons\":["
+								"{\"ch\":%u,\"cmd\":%u,\"param\":%u},"
+								"{\"ch\":%u,\"cmd\":%u,\"param\":%u},"
+								"{\"ch\":%u,\"cmd\":%u,\"param\":%u}"
+								"]"
+								"}",
+								(unsigned int)shared_config.midi_button_channel[0],
+								(unsigned int)shared_config.midi_button_command[0],
+								(unsigned int)shared_config.midi_button_param[0],
+								(unsigned int)shared_config.midi_button_channel[1],
+								(unsigned int)shared_config.midi_button_command[1],
+								(unsigned int)shared_config.midi_button_param[1],
+								(unsigned int)shared_config.midi_button_channel[2],
+								(unsigned int)shared_config.midi_button_command[2],
+								(unsigned int)shared_config.midi_button_param[2]);
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
 					/* Send 404 if no route matches */
 					else
 					{
@@ -1171,6 +1212,126 @@ static void http_server(struct netconn *conn)
 						else
 						{
 							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set mDNS enable state */
+					else if (strncmp((char const *)buf, "POST /setMdnsEnabled", 20) == 0)
+					{
+						char *value = strstr(buf, "mdns_enabled=");
+						if (value)
+						{
+							value += strlen("mdns_enabled=");
+							uint8_t newValue = (uint8_t)atoi(value);
+							shared_config.mdns_enabled = (newValue > 0U) ? 1U : 0U;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.mdns_enabled);
+							netconn_write(conn, response, len, NETCONN_COPY);
+
+							// mDNS is initialized at boot; reboot to apply change reliably.
+							reboot = true;
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set RTP-MIDI mode */
+					else if (strncmp((char const *)buf, "POST /setRtpMidiMode", 20) == 0)
+					{
+						char *value = strstr(buf, "rtpmidi_mode=");
+						if (value)
+						{
+							value += strlen("rtpmidi_mode=");
+							uint8_t newValue = (uint8_t)atoi(value);
+							shared_config.rtpmidi_mode = (newValue > 0U) ? 1U : 0U;
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.rtpmidi_mode);
+							netconn_write(conn, response, len, NETCONN_COPY);
+
+							// RTP-MIDI mode is used during initialization; reboot to apply change reliably.
+							reboot = true;
+						}
+						else
+						{
+							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+						}
+					}
+
+					/* Process POST request to set MIDI button mapping configuration */
+					else if (strncmp((char const *)buf, "POST /setMidiButtonConfig", 25) == 0)
+					{
+						char *data = strstr((char *)buf, "\r\n\r\n");
+						if (data)
+						{
+							data += 4;
+
+							unsigned int ch0, cmd0, param0;
+							unsigned int ch1, cmd1, param1;
+							unsigned int ch2, cmd2, param2;
+
+							int parsed = sscanf(data,
+									"b0_ch=%u&b0_cmd=%u&b0_param=%u&b1_ch=%u&b1_cmd=%u&b1_param=%u&b2_ch=%u&b2_cmd=%u&b2_param=%u",
+									&ch0, &cmd0, &param0,
+									&ch1, &cmd1, &param1,
+									&ch2, &cmd2, &param2);
+
+							if (parsed == 9)
+							{
+								// Clamp ranges
+								if (ch0 > 15U) ch0 = 15U;
+								if (ch1 > 15U) ch1 = 15U;
+								if (ch2 > 15U) ch2 = 15U;
+								if (cmd0 > 1U) cmd0 = 1U;
+								if (cmd1 > 1U) cmd1 = 1U;
+								if (cmd2 > 1U) cmd2 = 1U;
+								if (param0 > 127U) param0 = 127U;
+								if (param1 > 127U) param1 = 127U;
+								if (param2 > 127U) param2 = 127U;
+
+								shared_config.midi_button_channel[0] = (uint8_t)ch0;
+								shared_config.midi_button_command[0] = (uint8_t)cmd0;
+								shared_config.midi_button_param[0] = (uint8_t)param0;
+
+								shared_config.midi_button_channel[1] = (uint8_t)ch1;
+								shared_config.midi_button_command[1] = (uint8_t)cmd1;
+								shared_config.midi_button_param[1] = (uint8_t)param1;
+
+								shared_config.midi_button_channel[2] = (uint8_t)ch2;
+								shared_config.midi_button_command[2] = (uint8_t)cmd2;
+								shared_config.midi_button_param[2] = (uint8_t)param2;
+
+								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+								const char *response =
+									"HTTP/1.1 200 OK\r\n"
+									"Content-Type: text/plain\r\n\r\n"
+									"OK";
+								netconn_write(conn, response, strlen(response), NETCONN_COPY);
+							}
+							else
+							{
+								const char *errorResponse =
+									"HTTP/1.1 400 Bad Request\r\n"
+									"Content-Type: text/plain\r\n\r\n"
+									"Invalid request";
+								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
+							}
+						}
+						else
+						{
+							const char *errorResponse =
+								"HTTP/1.1 400 Bad Request\r\n"
+								"Content-Type: text/plain\r\n\r\n"
+								"Invalid request";
 							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
 						}
 					}

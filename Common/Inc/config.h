@@ -65,6 +65,31 @@
 #define DEFAULT_CIS_HANDEDNESS 					(1)
 
 #define	NUMBER_OF_BUTTONS						(3)
+
+/**************************************************************************************/
+/*******************              MIDI Button Mapping               *******************/
+/**************************************************************************************/
+
+// MIDI button command types
+// 0 = Control Change
+// 1 = Note (Note On with velocity, Note Off via velocity=0)
+#define MIDI_BUTTON_COMMAND_CC                 (0U)
+#define MIDI_BUTTON_COMMAND_NOTE               (1U)
+
+// Default MIDI mapping for the three hardware buttons.
+// Channel is 0-15 (web UI will show 1-16)
+#define DEFAULT_MIDI_BUTTON0_CHANNEL           (0U)
+#define DEFAULT_MIDI_BUTTON1_CHANNEL           (0U)
+#define DEFAULT_MIDI_BUTTON2_CHANNEL           (0U)
+
+#define DEFAULT_MIDI_BUTTON0_COMMAND           (MIDI_BUTTON_COMMAND_CC)
+#define DEFAULT_MIDI_BUTTON1_COMMAND           (MIDI_BUTTON_COMMAND_CC)
+#define DEFAULT_MIDI_BUTTON2_COMMAND           (MIDI_BUTTON_COMMAND_CC)
+
+// Default parameters match the previous hardcoded CC mapping (20-22)
+#define DEFAULT_MIDI_BUTTON0_PARAM             (20U)
+#define DEFAULT_MIDI_BUTTON1_PARAM             (21U)
+#define DEFAULT_MIDI_BUTTON2_PARAM             (22U)
 #define	NUMBER_OF_LEDS							(3)
 
 /**************************************************************************************/
@@ -186,10 +211,12 @@
 #define RTPMIDI_DEVICE_NAME             "Sp3ctra_CIS"
 
 // mDNS service configuration
-#define MDNS_ENABLED                    1  // Enable mDNS by default
+// Default mDNS enable state
+#define DEFAULT_MDNS_ENABLED            1  // Enable mDNS by default
 
 // RTP-MIDI mode configuration
-#define RTPMIDI_MODE_DEFAULT            1  // 0=SERVER (macOS), 1=CLIENT (PC/Linux)
+// Default RTP-MIDI mode
+#define DEFAULT_RTPMIDI_MODE            1  // 0=SERVER (macOS), 1=CLIENT (PC/Linux)
 
 // LED control mode (LED_MODE_SIMPLE or LED_MODE_ADVANCED)
 // LED_MODE_SIMPLE: 1 CC per LED (CC 30-32 → brightness)

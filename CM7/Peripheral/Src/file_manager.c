@@ -48,13 +48,16 @@ const struct shared_config DefaultConfig =
     .cis_handedness = DEFAULT_CIS_HANDEDNESS,
     .imu_gyro_sensitivity = DEFAULT_GYRO_SENSITIVITY,
     .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY,
+    .midi_button_channel = { DEFAULT_MIDI_BUTTON0_CHANNEL, DEFAULT_MIDI_BUTTON1_CHANNEL, DEFAULT_MIDI_BUTTON2_CHANNEL },
+    .midi_button_command = { DEFAULT_MIDI_BUTTON0_COMMAND, DEFAULT_MIDI_BUTTON1_COMMAND, DEFAULT_MIDI_BUTTON2_COMMAND },
+    .midi_button_param = { DEFAULT_MIDI_BUTTON0_PARAM, DEFAULT_MIDI_BUTTON1_PARAM, DEFAULT_MIDI_BUTTON2_PARAM },
     .gui_show_imu = DEFAULT_GUI_SHOW_IMU,
     .gui_invert_cis_image = DEFAULT_GUI_INVERT_CIS_IMAGE,
     .screensaver_timeout_sec = DEFAULT_SCREENSAVER_TIMEOUT_SEC,
     .motion_threshold_acc = DEFAULT_MOTION_THRESHOLD_ACC,
     .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO,
-    .mdns_enabled = MDNS_ENABLED,
-    .rtpmidi_mode = RTPMIDI_MODE_DEFAULT
+    .mdns_enabled = DEFAULT_MDNS_ENABLED,
+    .rtpmidi_mode = DEFAULT_RTPMIDI_MODE
 };
 
 FATFS fs;
@@ -189,6 +192,31 @@ fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shared_conf
             {
                 config->imu_accel_sensitivity = (uint8_t)strtoul(value, NULL, 10);
             }
+            else if (strncmp(token, "MIDI_BUTTON", 11) == 0)
+            {
+                int index = token[11] - '0';
+
+                if (index >= 0 && index < NUMBER_OF_BUTTONS)
+                {
+                    const char *suffix = token + 12; // Skip "MIDI_BUTTON" + digit
+
+                    if (strcmp(suffix, "_CHANNEL") == 0)
+                    {
+                        uint32_t ch = strtoul(value, NULL, 10);
+                        config->midi_button_channel[index] = (uint8_t)((ch > 15U) ? 15U : ch);
+                    }
+                    else if (strcmp(suffix, "_COMMAND") == 0)
+                    {
+                        uint32_t cmd = strtoul(value, NULL, 10);
+                        config->midi_button_command[index] = (uint8_t)((cmd > 1U) ? 1U : cmd);
+                    }
+                    else if (strcmp(suffix, "_PARAM") == 0)
+                    {
+                        uint32_t param = strtoul(value, NULL, 10);
+                        config->midi_button_param[index] = (uint8_t)((param > 127U) ? 127U : param);
+                    }
+                }
+            }
             else if (strcmp(token, "GUI_SHOW_IMU") == 0)
             {
                 config->gui_show_imu = (uint8_t)strtoul(value, NULL, 10);
@@ -273,6 +301,15 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
     f_printf(&file, "IMU_GYRO_SENSITIVITY=%u\n", config->imu_gyro_sensitivity);
     f_printf(&file, "IMU_ACCEL_SENSITIVITY=%u\n", config->imu_accel_sensitivity);
+
+    // MIDI button mapping
+    for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
+    {
+        f_printf(&file, "MIDI_BUTTON%d_CHANNEL=%u\n", i, config->midi_button_channel[i]);
+        f_printf(&file, "MIDI_BUTTON%d_COMMAND=%u\n", i, config->midi_button_command[i]);
+        f_printf(&file, "MIDI_BUTTON%d_PARAM=%u\n", i, config->midi_button_param[i]);
+    }
+
     f_printf(&file, "GUI_SHOW_IMU=%u\n", config->gui_show_imu);
     f_printf(&file, "GUI_INVERT_CIS_IMAGE=%u\n", config->gui_invert_cis_image);
     f_printf(&file, "SCREENSAVER_TIMEOUT_SEC=%u\n", config->screensaver_timeout_sec);
