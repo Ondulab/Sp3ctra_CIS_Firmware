@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Script de flash pour STM32H745 (CM4 & CM7)
-# Usage: ./scripts/flash.sh [cm4|cm7|all] [debug|release]
+# Usage: ./scripts/flash.sh [bootloader|cm4|cm7|all] [debug|release]
 
 show_help() {
     echo "Usage: $0 [target] [config]"
     echo ""
     echo "Arguments:"
-    echo "  target  : cm4, cm7, or all (default: all)"
+    echo "  target  : bootloader, cm4, cm7, or all (default: all)"
     echo "  config  : debug or release (default: release)"
     echo ""
     echo "Options:"
@@ -16,6 +16,7 @@ show_help() {
     echo "Example:"
     echo "  $0 all release"
     echo "  $0 cm7 debug"
+    echo "  $0 bootloader release"
 }
 
 if [[ "$1" == "--help" ]]; then
@@ -63,6 +64,7 @@ fi
 # Chemins des binaires (ELF)
 CM7_ELF=$(find CM7/$CONFIG -name "*.elf" | head -n 1)
 CM4_ELF=$(find CM4/$CONFIG -name "*.elf" | head -n 1)
+BOOTLOADER_ELF=$(find CM7_Bootloader/CM7/$CONFIG -name "*.elf" | head -n 1)
 
 flash_elf() {
     local elf=$1
@@ -81,6 +83,9 @@ flash_elf() {
 }
 
 case "$TARGET" in
+    bootloader)
+        flash_elf "$BOOTLOADER_ELF" "Bootloader"
+        ;;
     cm4)
         flash_elf "$CM4_ELF" "CM4"
         ;;
@@ -88,7 +93,9 @@ case "$TARGET" in
         flash_elf "$CM7_ELF" "CM7"
         ;;
     all)
-        flash_elf "$CM7_ELF" "CM7" && flash_elf "$CM4_ELF" "CM4"
+        flash_elf "$BOOTLOADER_ELF" "Bootloader" && \
+        flash_elf "$CM7_ELF" "CM7" && \
+        flash_elf "$CM4_ELF" "CM4"
         ;;
     *)
         show_help

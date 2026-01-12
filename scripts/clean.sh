@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Script de nettoyage pour STM32H745 (CM4 & CM7)
-# Usage: ./scripts/clean.sh [cm4|cm7|all] [debug|release]
+# Usage: ./scripts/clean.sh [bootloader|cm4|cm7|all] [debug|release]
 
 show_help() {
     echo "Usage: $0 [target] [config]"
     echo ""
     echo "Arguments:"
-    echo "  target  : cm4, cm7, or all (default: all)"
+    echo "  target  : bootloader, cm4, cm7, or all (default: all)"
     echo "  config  : debug or release (default: release)"
     echo ""
     echo "Options:"
@@ -16,6 +16,7 @@ show_help() {
     echo "Example:"
     echo "  $0 all"
     echo "  $0 cm4 debug"
+    echo "  $0 bootloader release"
 }
 
 if [[ "$1" == "--help" ]]; then
@@ -55,7 +56,25 @@ clean_core() {
     fi
 }
 
+clean_bootloader() {
+    local config=$1
+    local bootloader_path="CM7_Bootloader/CM7"
+
+    echo "Cleaning Bootloader (CM7) in $config mode..."
+
+    if [ -d "$bootloader_path/$config" ]; then
+        cd "$bootloader_path/$config" || return 1
+        make clean
+        cd "$PROJECT_ROOT" || return 1
+    else
+        echo "Directory $bootloader_path/$config not found, skipping."
+    fi
+}
+
 case "$TARGET" in
+    bootloader)
+        clean_bootloader "$CONFIG"
+        ;;
     cm4)
         clean_core "CM4" "$CONFIG"
         ;;
@@ -63,6 +82,7 @@ case "$TARGET" in
         clean_core "CM7" "$CONFIG"
         ;;
     all)
+        clean_bootloader "$CONFIG"
         clean_core "CM7" "$CONFIG"
         clean_core "CM4" "$CONFIG"
         ;;

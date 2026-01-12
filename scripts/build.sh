@@ -7,15 +7,22 @@ show_help() {
     echo "Usage: $0 [target] [config]"
     echo ""
     echo "Arguments:"
-    echo "  target  : cm4, cm7, or all (default: all)"
+    echo "  target  : bootloader, cm4, cm7, or all (default: all)"
     echo "  config  : debug or release (default: release)"
     echo ""
     echo "Options:"
     echo "  --help  : Show this help message"
     echo ""
+    echo "Targets:"
+    echo "  bootloader : Build CM7 bootloader only"
+    echo "  cm4        : Build CM4 firmware only"
+    echo "  cm7        : Build CM7 firmware only"
+    echo "  all        : Build bootloader + CM7 + CM4 (full system)"
+    echo ""
     echo "Example:"
     echo "  $0 all release"
     echo "  $0 cm7 debug"
+    echo "  $0 bootloader release"
 }
 
 if [[ "$1" == "--help" ]]; then
@@ -88,7 +95,36 @@ build_core() {
     fi
 }
 
+build_bootloader() {
+    local bootloader_path=$1
+    local config=$2
+    echo "================================================"
+    echo "Building Bootloader (CM7) in $config mode..."
+    echo "================================================"
+
+    if [ ! -d "$bootloader_path/$config" ]; then
+        echo "Error: Directory $bootloader_path/$config does not exist."
+        echo "Please generate the bootloader project configuration in STM32CubeIDE first."
+        return 1
+    fi
+
+    cd "$bootloader_path/$config" || return 1
+    make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4) all
+    local status=$?
+    cd "$PROJECT_ROOT" || return 1
+
+    if [ $status -eq 0 ]; then
+        echo "Bootloader build successful!"
+    else
+        echo "Bootloader build failed!"
+        return 1
+    fi
+}
+
 case "$TARGET" in
+    bootloader)
+        build_bootloader "CM7_Bootloader/CM7" "$CONFIG"
+        ;;
     cm4)
         build_core "CM4" "$CONFIG"
         ;;
@@ -96,7 +132,9 @@ case "$TARGET" in
         build_core "CM7" "$CONFIG"
         ;;
     all)
-        build_core "CM7" "$CONFIG" && build_core "CM4" "$CONFIG"
+        build_bootloader "CM7_Bootloader/CM7" "$CONFIG" && \
+        build_core "CM7" "$CONFIG" && \
+        build_core "CM4" "$CONFIG"
         ;;
     *)
         show_help
