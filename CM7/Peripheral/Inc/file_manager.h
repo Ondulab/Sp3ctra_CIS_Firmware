@@ -36,14 +36,14 @@ typedef enum {
 
 extern FATFS fs;
 
-fileManager_StatusTypeDef file_factoryReset(void);
-fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config);
-fileManager_StatusTypeDef file_readConfig(const char* filePath, volatile struct shared_config* config);
-fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile struct shared_config* config);
-fileManager_StatusTypeDef file_writeCisCals(const char* filePath, const struct cisCals* data);
-fileManager_StatusTypeDef file_readCisCals(const char* filePath, struct cisCals* data);
-fileManager_StatusTypeDef file_writeImuCals(const char* filePath, const struct imuCals* data);
-fileManager_StatusTypeDef file_readImuCals(const char* filePath, struct imuCals* data);
-fileManager_StatusTypeDef file_reliableWrite(FIL *file, const uint8_t *buffer, uint32_t length, int maxRetries);
+/*
+ * This header is kept for backwards compatibility.
+ * Public APIs are split across two headers:
+ *  - file_manager_boot.h   (stable primitives shared with bootloader)
+ *  - file_manager_config.h (configuration & persistent data, evolutive)
+ */
+
+#include "file_manager_boot.h"
+#include "file_manager_config.h"
 
 #endif // FILE_MANAGER_H
