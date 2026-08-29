@@ -13,6 +13,7 @@ CFLAGS=(
   -Wextra
   -Wno-unused-parameter
   -Wno-unused-function
+  -Wno-macro-redefined
   -I.
   -I"${ROOT_DIR}/Middlewares/Third_Party/LwIP/src/include"
   -I"${ROOT_DIR}/Middlewares/Third_Party/LwIP/src/core"

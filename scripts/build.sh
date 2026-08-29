@@ -47,22 +47,24 @@ else
 fi
 
 # --- Détection de la Toolchain ---
-if ! command -v arm-none-eabi-gcc >/dev/null 2>&1; then
-    echo "arm-none-eabi-gcc not found in PATH, searching in STM32CubeIDE paths..."
-    # Chemins typiques sur macOS
-    CUBE_IDE_PATH="/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins"
-    if [ -d "$CUBE_IDE_PATH" ]; then
-        TOOLCHAIN_BIN=$(find "$CUBE_IDE_PATH" -name "arm-none-eabi-gcc" -type f | head -n 1)
-        if [ -n "$TOOLCHAIN_BIN" ]; then
-            TOOLCHAIN_DIR=$(dirname "$TOOLCHAIN_BIN")
-            echo "Found toolchain at: $TOOLCHAIN_DIR"
-            export PATH="$TOOLCHAIN_DIR:$PATH"
-        fi
+# Les makefiles de Debug/ et Release/ sont générés par STM32CubeIDE pour SA toolchain
+# ("GNU Tools for STM32" : options ST comme -fcyclomatic-complexity, inconnues du GCC ARM
+# upstream). On la privilégie donc si elle est installée, même si un autre arm-none-eabi-gcc
+# est dans le PATH. Surcharge possible : ARM_TOOLCHAIN_BIN=/chemin/vers/bin
+CUBE_IDE_PATH="/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins"
+if [ -n "$ARM_TOOLCHAIN_BIN" ] && [ -x "$ARM_TOOLCHAIN_BIN/arm-none-eabi-gcc" ]; then
+    echo "Using toolchain from ARM_TOOLCHAIN_BIN: $ARM_TOOLCHAIN_BIN"
+    export PATH="$ARM_TOOLCHAIN_BIN:$PATH"
+elif [ -d "$CUBE_IDE_PATH" ]; then
+    TOOLCHAIN_DIR=$(ls -d "$CUBE_IDE_PATH"/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.*/tools/bin 2>/dev/null | tail -n 1)
+    if [ -n "$TOOLCHAIN_DIR" ] && [ -x "$TOOLCHAIN_DIR/arm-none-eabi-gcc" ]; then
+        echo "Using STM32CubeIDE toolchain: $TOOLCHAIN_DIR"
+        export PATH="$TOOLCHAIN_DIR:$PATH"
     fi
 fi
 
 if ! command -v arm-none-eabi-gcc >/dev/null 2>&1; then
-    echo "Error: arm-none-eabi-gcc not found. Please install it or ensure STM32CubeIDE is in /Applications."
+    echo "Error: arm-none-eabi-gcc not found. Install STM32CubeIDE in /Applications or set ARM_TOOLCHAIN_BIN."
     exit 1
 fi
 # ---------------------------------
