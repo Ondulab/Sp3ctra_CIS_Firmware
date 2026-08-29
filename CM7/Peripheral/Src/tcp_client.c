@@ -16,6 +16,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32h7xx_hal.h"
 #include "main.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #include "config.h"
 #include "globals.h"
 #include "basetypes.h"

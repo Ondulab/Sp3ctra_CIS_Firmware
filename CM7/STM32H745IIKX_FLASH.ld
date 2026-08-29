@@ -242,10 +242,12 @@ SECTIONS
   .lwip_sec (NOLOAD) :
   {
     . = ABSOLUTE(0x30040000);
-    *(.RxDecripSection) 
+    *(.RxDecripSection)
+    *(.RxDescripSection) 
     
     . = ABSOLUTE(0x30040100);
     *(.TxDecripSection)
+    *(.TxDescripSection)
     
     . = ABSOLUTE(0x30040200);
     *(.Rx_PoolSection)  

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>CISYNTH_CIS_Bootloader_CM7</name>
+	<name>Sp3ctra_CIS_Bootloader_CM7</name>
 	<comment></comment>
 	<projects>
 	</projects>
@@ -32,7 +32,7 @@
 		<link>
 			<name>Common</name>
 			<type>2</type>
-			<location>/Users/zhonx/Documents/Workspaces/Workspace_SSS/CISYNTH_CIS_Firmware/Common</location>
+			<location>/Users/zhonx/Documents/Workspaces/Workspace_Sp3ctra/Sp3ctra_CIS_Firmware/Common</location>
 		</link>
 		<link>
 			<name>Drivers/STM32H7xx_HAL_Driver/stm32h7xx_hal.c</name>

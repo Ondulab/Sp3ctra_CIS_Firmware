@@ -20,6 +20,8 @@
 #include "stm32h7xx_hal.h"
 #include "lwip/api.h"
 #include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "task.h"
 #include <string.h>
 
 // RTP-MIDI runs in a FreeRTOS task context. Avoid printf/logging here to keep

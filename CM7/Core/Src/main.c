@@ -19,10 +19,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "cmsis_os2.h"
 #include "crc.h"
 #include "dma.h"
-#include "dma2d.h"
 #include "fatfs.h"
 #include "mdma.h"
 #include "rng.h"
@@ -143,7 +143,6 @@ int main(void)
   MX_SPI2_Init();
   MX_FATFS_Init();
   MX_TIM6_Init();
-  //MX_DMA2D_Init();
   /* USER CODE BEGIN 2 */
   HSEM7_Init();
 
@@ -162,7 +161,8 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Call init function for freertos objects (in cmsis_os2.c) */
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
 
   /* Start scheduler */

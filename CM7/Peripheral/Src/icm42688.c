@@ -41,7 +41,7 @@ volatile uint32_t icm_tim_count = 0;
 volatile uint32_t icm_spi_cb_count = 0;
 
 #ifdef DEBUG_ICM42688
-static void icm42688_diag_task(void const *argument)
+static void icm42688_diag_task(void *argument)
 {
     (void) argument;
     for (;;)
@@ -50,8 +50,12 @@ static void icm42688_diag_task(void const *argument)
         osDelay(1000);
     }
 }
-osThreadDef(icm42688_diag_task, icm42688_diag_task, osPriorityLow, 1, 512);
-static osThreadId icm_diag_tid = NULL;
+static const osThreadAttr_t icm_diag_attributes = {
+    .name = "icm_diag",
+    .stack_size = 512 * 4,
+    .priority = (osPriority_t) osPriorityLow,
+};
+static osThreadId_t icm_diag_tid = NULL;
 #endif
 
 static uint8_t _bank = 0; ///< current user bank
@@ -299,7 +303,7 @@ ICM42688_StatusTypeDef icm42688_init()
     /* create diagnostic task to print counters periodically (non-blocking) */
     if (icm_diag_tid == NULL)
     {
-        icm_diag_tid = osThreadCreate(osThread(icm42688_diag_task), NULL);
+        icm_diag_tid = osThreadNew(icm42688_diag_task, NULL, &icm_diag_attributes);
     }
 #endif
 	printf("IMU initialization SUCCESS\n");

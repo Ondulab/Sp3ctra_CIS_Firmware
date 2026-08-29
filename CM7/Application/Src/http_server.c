@@ -37,6 +37,8 @@
 #include "stm32_flash.h"
 
 #include "http_server.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 TaskHandle_t http_ThreadHandle = NULL;
 

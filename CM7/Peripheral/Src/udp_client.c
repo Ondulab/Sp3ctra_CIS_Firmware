@@ -47,9 +47,8 @@
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
-/* Declaration of the global semaphore handle */
-osSemaphoreDef(udpReadySemaphore);
-osSemaphoreId udpReadySemaphoreHandle;
+/* Declaration of the global semaphore handle (CMSIS-RTOS v2) */
+osSemaphoreId_t udpReadySemaphoreHandle;
 
 struct netconn *conn;
 __IO uint32_t message_count = 0;
@@ -75,8 +74,9 @@ static UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void);
  */
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void)
 {
-    // Create the semaphore "udpReadySemaphore" with an initial count of 1.
-    udpReadySemaphoreHandle = osSemaphoreCreate(osSemaphore(udpReadySemaphore), 1);
+    // Create the binary semaphore "udpReadySemaphore" with an initial count of 0:
+    // it is released by the LwIP init once the network stack is ready.
+    udpReadySemaphoreHandle = osSemaphoreNew(1U, 0U, NULL);
 
     // Check if the semaphore was successfully created.
     if (udpReadySemaphoreHandle == NULL)
@@ -86,9 +86,6 @@ static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void)
         return UDPCLIENT_ERROR;
     }
 
-    // Immediately acquire the semaphore in a non-blocking manner (timeout = 0)
-    // to set its initial count to 0, effectively "resetting" it.
-    osSemaphoreWait(udpReadySemaphoreHandle, 0);
     printf("Semaphore initialized to 0.\n");
 
     // Return a status indicating the semaphore was initialized successfully.

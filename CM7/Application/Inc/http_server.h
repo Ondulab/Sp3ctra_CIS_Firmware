@@ -17,6 +17,8 @@
 #define __HTTP_SERVER_NETCONN_H__
 
 #include "lwip/api.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* Custom return type for HTTP server -----------------------------*/
 typedef enum {

@@ -18,7 +18,9 @@
 
 #include "stm32h7xx_hal.h"
 
-#ifdef CORE_CM7
+/* Driver IMU : firmware CM7 uniquement (le bootloader, compilé avec -DBOOTLOADER,
+ * n'embarque pas icm42688.h et n'en a pas besoin). */
+#if defined(CORE_CM7) && !defined(BOOTLOADER)
 #include "icm42688.h"
 #endif
 

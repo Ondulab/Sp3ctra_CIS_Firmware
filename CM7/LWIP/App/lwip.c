@@ -22,10 +22,11 @@
 #include "lwip.h"
 #include "lwip/init.h"
 #include "lwip/netif.h"
-#if defined ( __CC_ARM )  /* MDK ARM Compiler */
+#if (defined ( __CC_ARM ) || defined (__ARMCC_VERSION))  /* MDK ARM Compiler */
 #include "lwip/sio.h"
 #endif /* MDK ARM Compiler */
 #include "ethernetif.h"
+#include <string.h>
 
 /* USER CODE BEGIN 0 */
 #include "globals.h"
@@ -97,6 +98,10 @@ ip4_addr_t gw;
 uint8_t IP_ADDRESS[4];
 uint8_t NETMASK_ADDRESS[4];
 uint8_t GATEWAY_ADDRESS[4];
+/* USER CODE BEGIN OS_THREAD_ATTR_CMSIS_RTOS_V2 */
+#define INTERFACE_THREAD_STACK_SIZE ( 1024 )
+osThreadAttr_t attributes;
+/* USER CODE END OS_THREAD_ATTR_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN 2 */
 
@@ -158,13 +163,16 @@ void MX_LWIP_Init(void)
   netif_set_link_callback(&gnetif, ethernet_link_status_updated);
 
   /* Create the Ethernet link handler thread */
-/* USER CODE BEGIN H7_OS_THREAD_DEF_CREATE_CMSIS_RTOS_V1 */
-  osThreadDef(EthLink, ethernet_link_thread, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
-  osThreadCreate (osThread(EthLink), &gnetif);
-/* USER CODE END H7_OS_THREAD_DEF_CREATE_CMSIS_RTOS_V1 */
+/* USER CODE BEGIN H7_OS_THREAD_NEW_CMSIS_RTOS_V2 */
+  memset(&attributes, 0x0, sizeof(osThreadAttr_t));
+  attributes.name = "EthLink";
+  attributes.stack_size = INTERFACE_THREAD_STACK_SIZE;
+  attributes.priority = osPriorityBelowNormal;
+  osThreadNew(ethernet_link_thread, &gnetif, &attributes);
+/* USER CODE END H7_OS_THREAD_NEW_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN 3 */
-  // Initialize mDNS responder (official LwIP 2.1.2 implementation)
+  // Initialize mDNS responder (official LwIP 2.2.1 implementation)
   // mDNS is enabled purely based on configuration, independent of RTP-MIDI mode.
   // In RTP-MIDI CLIENT mode, advertising the _apple-midi service may be undesired,
   // but the mDNS hostname remains useful for device discovery.
@@ -173,16 +181,17 @@ void MX_LWIP_Init(void)
     mdns_resp_init();
 
     // Add network interface to mDNS (publishes hostname)
-    err_t err = mdns_resp_add_netif(&gnetif, "sp3ctra", 3600);
+    // LwIP 2.2: the TTL argument was removed (MDNS_TTL_* defaults are used)
+    err_t err = mdns_resp_add_netif(&gnetif, "sp3ctra");
     if (err == ERR_OK) {
       printf("mDNS: Network interface added successfully\n");
 
       // Advertise RTP-MIDI service regardless of RTP-MIDI mode.
       // This matches the configuration intent: if mDNS is enabled, always publish the service.
-      // Note: In LwIP 2.1.2, mdns_resp_add_service returns s8_t (slot ID), not err_t
+      // Note: mdns_resp_add_service returns s8_t (slot ID), not err_t
       s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
                                         DNSSD_PROTO_UDP, shared_config.rtpmidi_control_port,
-                                        3600, mdns_apple_midi_txt_callback, NULL);
+                                        mdns_apple_midi_txt_callback, NULL);
       if (slot >= 0) {
         printf("mDNS: RTP-MIDI service registered successfully (slot=%d)\n", slot);
       } else {
@@ -243,7 +252,7 @@ static void ethernet_link_status_updated(struct netif *netif)
   }
 }
 
-#if defined ( __CC_ARM )  /* MDK ARM Compiler */
+#if (defined ( __CC_ARM ) || defined (__ARMCC_VERSION))  /* MDK ARM Compiler */
 /**
  * Opens a serial device for communication.
  *
@@ -315,3 +324,4 @@ u32_t sio_tryread(sio_fd_t fd, u8_t *data, u32_t len)
   return recved_bytes;
 }
 #endif /* MDK ARM Compiler */
+

@@ -38,7 +38,7 @@ typedef enum {
 } UDPCLIENT_StatusTypeDef;
 
 /* Exported constants --------------------------------------------------------*/
-extern osSemaphoreId udpReadySemaphoreHandle;
+extern osSemaphoreId_t udpReadySemaphoreHandle;
 
 /* Exported macro ------------------------------------------------------------*/
 
