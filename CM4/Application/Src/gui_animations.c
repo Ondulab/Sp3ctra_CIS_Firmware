@@ -33,14 +33,15 @@
 
 /* Private defines -----------------------------------------------------------*/
 
-/* Brightest grey level of a ribbon core (0..15).
- *  - boot: readable behind the logo, a few seconds only
- *  - screensaver: deliberately dim (average panel current, burn-in) */
-#define BOOT_PEAK_LEVEL         (11)
-#define SCREENSAVER_PEAK_LEVEL  (6)
+/* Anti burn-in pixel shift: the whole wave field slides down by one line
+ * spacing every BURNIN_SHIFT_PERIOD_S. At 16 px / 60 s = 0.27 px/s the motion
+ * is invisible frame to frame, and because the shift wraps on the SPACING the
+ * field looks statistically identical at any moment - but no row keeps the
+ * same average illumination, which is what damages an OLED. */
+#define BURNIN_SHIFT_PERIOD_S   (60.0f)
 
 /* Private function prototypes -----------------------------------------------*/
-static void gui_renderWaveField(gui_overlay_callback_t overlay_callback, uint8_t peak_level);
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback);
 static void gui_drawStartupOverlay(void);
 
 /* Private functions ---------------------------------------------------------*/
@@ -57,178 +58,127 @@ float randomFloat(float min, float max)
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
-/* ---------------------------------------------------------------------------
- * Wave field - the background of both the boot screen and the screensaver.
- *
- * Five travelling ribbons. Each one owns three slow oscillators whose periods
- * are mutually prime (41/53/67/79/97 s for the vertical drift, 17/23/29/31/37 s
- * for the amplitude, 3..9 s for the travel): the pattern therefore never
- * repeats within a session and every ribbon sweeps the FULL height of the
- * panel. Nothing stays lit in one place - that is what protects the OLED
- * during a long screensaver, before the panel is switched off entirely.
- *
- * Cost: a 256-entry sine LUT replaces the double-precision sin() the previous
- * version called twice per pixel (the CM4 has no double-precision FPU).
- * ------------------------------------------------------------------------ */
-#define WAVE_UPDATE_MS      (50)     /* 20 fps */
-#define SIN_LUT_BITS        (8)
-#define SIN_LUT_SIZE        (1 << SIN_LUT_BITS)
-#define SIN_LUT_MASK        (SIN_LUT_SIZE - 1)
-
-typedef struct
-{
-    float drift_phase, drift_inc;    /* vertical position of the ribbon */
-    float wave_phase,  wave_inc;     /* travelling wave                 */
-    float amp_phase,   amp_inc;      /* amplitude breathing             */
-    float k;                         /* spatial cycles across the width */
-    float amp_min, amp_max;          /* pixels                          */
-} WaveLine;
-
-static float    sin_lut[SIN_LUT_SIZE];
-static WaveLine wave_line[NUM_LINE];
-static bool     wave_ready = false;
-
-/** sine of a phase expressed in turns, wrapped, LUT-based. */
-static inline float wave_sin(float turns)
-{
-    const uint32_t idx = (uint32_t)(int32_t)(turns * (float)SIN_LUT_SIZE);
-    return sin_lut[idx & SIN_LUT_MASK];
-}
-
-/** Advance a phase and keep it in [0, 1). */
-static inline float wave_step(float phase, float inc)
-{
-    phase += inc;
-    if (phase >= 1.0f) phase -= 1.0f;
-    if (phase < 0.0f)  phase += 1.0f;
-    return phase;
-}
-
-static void gui_initWaveField(void)
-{
-    for (int32_t i = 0; i < SIN_LUT_SIZE; i++)
-    {
-        sin_lut[i] = sinf((float)i * (2.0f * (float)M_PI / (float)SIN_LUT_SIZE));
-    }
-
-    /* Mutually prime periods (seconds) -> the field never repeats. */
-    static const float drift_period[NUM_LINE] = { 41.0f, 53.0f, 67.0f, 79.0f, 97.0f };
-    static const float amp_period[NUM_LINE]   = { 17.0f, 23.0f, 29.0f, 31.0f, 37.0f };
-    static const float travel_period[NUM_LINE]= {  3.1f, -4.3f,  5.7f, -6.9f,  8.3f };  /* sign = direction */
-    static const float spatial_k[NUM_LINE]    = {  1.3f,  0.8f,  2.1f,  1.7f,  0.6f };
-    static const float amp_lo[NUM_LINE]       = {  3.0f,  2.0f,  4.0f,  2.5f,  1.5f };
-    static const float amp_hi[NUM_LINE]       = { 10.0f,  7.0f, 12.0f,  8.0f,  6.0f };
-
-    const float frames_per_s = 1000.0f / (float)WAVE_UPDATE_MS;
-
-    for (int32_t i = 0; i < NUM_LINE; i++)
-    {
-        WaveLine *l = &wave_line[i];
-        l->drift_inc = 1.0f / (drift_period[i]  * frames_per_s);
-        l->amp_inc   = 1.0f / (amp_period[i]    * frames_per_s);
-        l->wave_inc  = 1.0f / (travel_period[i] * frames_per_s);
-        l->k         = spatial_k[i];
-        l->amp_min   = amp_lo[i];
-        l->amp_max   = amp_hi[i];
-        /* Random start phases: two units side by side never show the same frame. */
-        l->drift_phase = randomFloat(0.0f, 1.0f);
-        l->amp_phase   = randomFloat(0.0f, 1.0f);
-        l->wave_phase  = randomFloat(0.0f, 1.0f);
-    }
-
-    wave_ready = true;
-}
-
 /**
- * @brief Renders the evolving wave field, then the optional overlay on top.
+ * @brief Renders the core wave animation with optional overlay content.
  *
- * @param overlay_callback Drawn after the field (may be NULL).
- * @param peak_level       Brightest grey level of a ribbon core (0..15). Keep it
- *                         low for the screensaver, brighter for the boot screen.
+ * This function handles the wave animation rendering and calls the provided
+ * overlay callback to draw additional content on top of the animation.
+ *
+ * @param overlay_callback Function pointer to draw overlay content (can be NULL)
  */
-static void gui_renderWaveField(gui_overlay_callback_t overlay_callback, uint8_t peak_level)
+static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback)
 {
-    static uint32_t last_update_tick = 0;
-    static float    breath_phase = 0.0f;
+    static uint32_t lastUpdateTime = 0;
+    static const uint32_t updateInterval = 50; // Update every 50 ms
+    static int offset = 0;
+    static int lightOffset = 0;
+    static const uint16_t screenWidth = SSD1362_WIDTH;
+    static const uint16_t screenHeight = SSD1362_HEIGHT;
+    static const uint8_t waveHeight = 8;
+    static const float lineSpacing = 16.0f;   /* waveHeight * 2 */
+    static float burninShift = 0.0f;          /* px, wraps on lineSpacing */
 
-    if (!wave_ready)
-    {
-        gui_initWaveField();
-    }
+    // Frequency and increment min/max values
+    static const float modFreqMin[] = {0.03, 0.01, 0.03, 0.02, 0.04};
+    static const float modFreqMax[] = {0.5, 0.3, 0.5, 0.35, 0.45};
+    static const float modIncMin[] = {-0.01, -0.01, -0.03, -0.02, -0.04};
+    static const float modIncMax[] = {0.15, 0.03, 0.05, 0.08, 0.12};
 
-    const uint32_t now = HAL_GetTick();
-    if ((now - last_update_tick) < WAVE_UPDATE_MS)
-    {
-        return;
-    }
-    last_update_tick = now;
+    // Dynamic modulation frequencies and increments
+    static float modFreqLine[NUM_LINE] = {0};
+    static float modIncLine[NUM_LINE] = {0};
+    static bool initialized = false;
 
-    ssd1362_clearBuffer();
-
-    /* Global brightness breathing (13 s), 60..100 % of peak_level. */
-    const float breath = 0.8f + 0.2f * wave_sin(breath_phase);
-    breath_phase = wave_step(breath_phase, 1.0f / (13.0f * (1000.0f / (float)WAVE_UPDATE_MS)));
-
-    const float half_h = (float)SSD1362_HEIGHT * 0.5f;
-
-    for (int32_t i = 0; i < NUM_LINE; i++)
-    {
-        WaveLine *l = &wave_line[i];
-
-        /* Vertical drift: the ribbon crosses the whole panel and leans slightly
-         * beyond both edges, so no row is favoured over a long session. */
-        const float centre = half_h + (half_h + 6.0f) * wave_sin(l->drift_phase);
-        const float amp    = l->amp_min + (l->amp_max - l->amp_min) * 0.5f * (1.0f + wave_sin(l->amp_phase));
-
-        /* Ribbons far from mid-height fade out: the field breathes instead of
-         * sliding a hard edge along the borders. */
-        const float edge  = 1.0f - 0.55f * fabsf(centre - half_h) / (half_h + 6.0f);
-        const float level = (float)peak_level * breath * edge;
-        if (level < 1.0f)
-        {
-            goto next_line;
+    if (!initialized) {
+        for (int i = 0; i < NUM_LINE; i++) {
+            modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            modIncLine[i] = randomFloat(modIncMin[i], modIncMax[i]);
         }
+        initialized = true;
+    }
 
-        for (int32_t x = 0; x < SSD1362_WIDTH; x++)
+    static const float contrastFreqMin = 0.01;
+    static const float contrastFreqMax = 0.05;
+    static float contrastFreq = 0;
+    static const float contrastIncMin = -0.003;
+    static const float contrastIncMax = 0.003;
+    static float contrastInc = 0;
+    static bool contrast_initialized = false;
+
+    if (!contrast_initialized) {
+        contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        contrastInc = randomFloat(contrastIncMin, contrastIncMax);
+        contrast_initialized = true;
+    }
+
+    uint32_t currentTime = HAL_GetTick();
+
+    if (currentTime - lastUpdateTime >= updateInterval)
+    {
+        lastUpdateTime = currentTime;
+        ssd1362_clearBuffer();
+
+        // Render wave animation.
+        // The loop runs one line beyond each edge (-1 .. NUM_LINE): combined with
+        // the burn-in shift below, the field stays continuous top and bottom.
+        for (int idx = -1; idx <= NUM_LINE; idx++)
         {
-            const float u = (float)x / (float)SSD1362_WIDTH;
-            const float y = centre + amp * wave_sin(u * l->k + l->wave_phase);
+            const int i = (idx + NUM_LINE) % NUM_LINE;   /* per-line modulation set */
+            int y = (int)((float)(waveHeight * (idx + 1) * 2 - 16) + burninShift);
 
-            /* Thicker where the ribbon is flat (slower vertical speed): reads as
-             * a ribbon with a bright core rather than a plain sine curve. */
-            const float slope     = fabsf(wave_sin(u * l->k + l->wave_phase + 0.25f));
-            const int32_t half_th = 1 + (int32_t)(2.0f * slope);
-            const int32_t yc      = (int32_t)(y + 0.5f);
-
-            for (int32_t t = -half_th; t <= half_th; t++)
+            for (int x = 0; x < screenWidth; x++)
             {
-                const int32_t py = yc + t;
-                if (py < 0 || py >= SSD1362_HEIGHT)
+                int wave = (int)(waveHeight * sinf((x + offset) * 0.1f));
+                int yPos = y + wave;
+
+                int modulation = (int)(5 * sinf((x + offset) * modFreqLine[i]));
+                int thickness = 1 + abs(modulation);
+
+                uint8_t contrast = 5 + (uint8_t)(5 * (1 + sinf((x + lightOffset * i) * contrastFreq)));
+                contrast = contrast > 5 ? 5 : contrast;
+
+                if (yPos < screenHeight)
                 {
-                    continue;
-                }
-                /* Soft falloff from the core to the edges of the ribbon. */
-                const float fall = 1.0f - 0.65f * ((float)abs((int)t) / (float)(half_th + 1));
-                const int32_t c  = (int32_t)(level * fall + 0.5f);
-                if (c > 0)
-                {
-                    ssd1362_drawPixel((uint16_t)x, (uint16_t)py, (uint8_t)(c > 15 ? 15 : c), false);
+                    for (int t = -thickness; t <= thickness; t++)
+                    {
+                        if (yPos + t >= 0 && yPos + t < screenHeight)
+                        {
+                            ssd1362_drawPixel(x, yPos + t, contrast, false);
+                        }
+                    }
                 }
             }
         }
 
-    next_line:
-        l->drift_phase = wave_step(l->drift_phase, l->drift_inc);
-        l->amp_phase   = wave_step(l->amp_phase,   l->amp_inc);
-        l->wave_phase  = wave_step(l->wave_phase,  l->wave_inc);
-    }
+        // Update animation parameters
+        offset = (offset + 1) % screenWidth;
+        lightOffset = (lightOffset - 5) % screenWidth;
 
-    if (overlay_callback != NULL)
-    {
-        overlay_callback();
-    }
+        burninShift += lineSpacing / (BURNIN_SHIFT_PERIOD_S * (1000.0f / (float)updateInterval));
+        if (burninShift >= lineSpacing)
+        {
+            burninShift -= lineSpacing;
+        }
 
-    ssd1362_writeFullBuffer();
+        for (int i = 0; i < NUM_LINE; i++)
+        {
+            modFreqLine[i] += modIncLine[i];
+            if (modFreqLine[i] > modFreqMax[i] || modFreqLine[i] < modFreqMin[i]) {
+                modFreqLine[i] = randomFloat(modFreqMin[i], modFreqMax[i]);
+            }
+        }
+
+        contrastFreq += contrastInc;
+        if (contrastFreq > contrastFreqMax) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+        if (contrastFreq < contrastFreqMin) contrastFreq = randomFloat(contrastFreqMin, contrastFreqMax);
+
+        // Draw overlay content if callback provided
+        if (overlay_callback != NULL) {
+            overlay_callback();
+        }
+
+        ssd1362_writeFullBuffer();
+    }
 }
 
 /* Boot screen layout (256 x 64):
@@ -315,7 +265,7 @@ static void gui_drawStartupOverlay(void)
  */
 void gui_displayScreensaver(void)
 {
-    gui_renderWaveField(NULL, SCREENSAVER_PEAK_LEVEL);
+    gui_renderWaveAnimation(NULL);
 }
 
 /**
@@ -327,6 +277,6 @@ void gui_displayWaiting(void)
 {
     while (shared_var.cis_process_rdy != TRUE)
     {
-        gui_renderWaveField(gui_drawStartupOverlay, BOOT_PEAK_LEVEL);
+        gui_renderWaveAnimation(gui_drawStartupOverlay);
     }
 }
