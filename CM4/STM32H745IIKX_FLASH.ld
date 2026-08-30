@@ -118,6 +118,12 @@ SECTIONS
   } >FLASH
   
   /* user sections... */
+  /* Pas de "AT> FLASH" sur les sections NOLOAD : elles ne contiennent aucune
+     donnee a charger, mais un AT> leur donne quand meme une LMA en flash,
+     identique a celle de .data. STM32CubeProgrammer voit alors plusieurs
+     segments a la meme adresse physique et affiche "File corrupted. Two or
+     more segments define the same memory zone". Sans AT>, LMA = VMA (comme
+     dans le script du CM7) et le binaire produit est inchange. */
   
   .shared (NOLOAD):
   {
@@ -125,7 +131,7 @@ SECTIONS
     KEEP (*(.shared_var));  
     KEEP (*(.shared_config));
     . = ALIGN(4); 
-  } >RAM_SHARED AT> FLASH
+  } >RAM_SHARED
 
   .shared_cached (NOLOAD):
   {
@@ -133,7 +139,7 @@ SECTIONS
     KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));    
     . = ALIGN(4);    
-  } >RAM_SHARED_CACHED AT> FLASH
+  } >RAM_SHARED_CACHED
   
   .ram_d4_shared (NOLOAD):
   {

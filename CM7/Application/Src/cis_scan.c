@@ -101,13 +101,16 @@ CISSCAN_StatusTypeDef cis_scanInit(void)
     shared_var.cis_process_rdy = TRUE;
 
     // Create scanning and sending tasks
-    if (xTaskCreate(cis_scanTask, "cis_scanTask", 4096, NULL, osPriorityHigh, NULL) != pdPASS)
+    // Priorities are raw FreeRTOS values (CMSIS-RTOS v2 enums: Low=8 < Normal=24 = tcpip_thread).
+    // cis_scanTask busy-waits on the ADC DMA in cis_imageProcess(), so it MUST stay below
+    // tcpip_thread/http_thread or it starves the network stack (it was priority 2 with CMSIS v1).
+    if (xTaskCreate(cis_scanTask, "cis_scanTask", 4096, NULL, osPriorityLow, NULL) != pdPASS)
     {
         printf("Failed to create cis_scanTask.\n");
         return CISSCAN_ERROR;
     }
 
-    if (xTaskCreate(cis_sendTask, "cis_sendTask", 4096, NULL, osPriorityRealtime, NULL) != pdPASS)
+    if (xTaskCreate(cis_sendTask, "cis_sendTask", 4096, NULL, osPriorityNormal, NULL) != pdPASS)
     {
         printf("Failed to create cis_sendTask.\n");
         return CISSCAN_ERROR;

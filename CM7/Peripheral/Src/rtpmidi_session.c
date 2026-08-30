@@ -221,7 +221,7 @@ rtpmidi_status_t rtpmidi_init(const char *device_name, ip_addr_t *remote_ip, rtp
                     "rtpmidi_data_rx",
                     1024,
                     NULL,
-                    (UBaseType_t)(tskIDLE_PRIORITY + 2U),
+                    (UBaseType_t)osPriorityBelowNormal, /* above cis_scanTask (Low), below tcpip (Normal) */
                     NULL) != pdPASS) {
         RTPMIDI_LOGF("RTP-MIDI: Failed to create rtpmidi_data_rx task\n");
         return RTPMIDI_ERROR;

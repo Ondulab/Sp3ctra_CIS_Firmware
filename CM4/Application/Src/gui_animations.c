@@ -17,6 +17,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stdbool.h"
 #include "stdint.h"
+#include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include "math.h"
@@ -169,7 +170,7 @@ static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback)
 }
 
 /**
- * @brief Draws startup overlay content (logo + version number).
+ * @brief Draws startup overlay content (logo + version number + IP address).
  */
 static void gui_drawStartupOverlay(void)
 {
@@ -196,6 +197,24 @@ static void gui_drawStartupOverlay(void)
     int textWidth = strlen(shortVersion) * 8; // 8 pixels per character
     int rightAlignedX = SSD1362_WIDTH - textWidth - 2; // Screen width - text width - margin
     ssd1362_drawString(rightAlignedX, 1, (signed char *)shortVersion, 0xF, 8);
+
+    // Display the network address, bottom right aligned. The configuration is
+    // loaded from the SD card by the CM7 a few frames after boot: skip the
+    // drawing while the address is still unset.
+    if (shared_config.network_ip[0] != 0)
+    {
+        char ipString[16];
+        sprintf(ipString, "%u.%u.%u.%u",
+                (unsigned int)shared_config.network_ip[0],
+                (unsigned int)shared_config.network_ip[1],
+                (unsigned int)shared_config.network_ip[2],
+                (unsigned int)shared_config.network_ip[3]);
+
+        int ipWidth = strlen(ipString) * 8;
+        int ipX = SSD1362_WIDTH - ipWidth - 2;
+        int ipY = SSD1362_HEIGHT - 8 - 1; // Bottom margin identical to the top one
+        ssd1362_drawString(ipX, ipY, (signed char *)ipString, 0xF, 8);
+    }
 }
 
 // --- Fast hash (stable), and frame source you control elsewhere ---

@@ -66,7 +66,9 @@
 /*----- Default Value for H7 devices: 0x30004000 -----*/
 #define LWIP_RAM_HEAP_POINTER 0x30020000
 /*----- Default Value for MEMP_NUM_NETCONN: 4 ---*/
-#define MEMP_NUM_NETCONN 8
+#define MEMP_NUM_NETCONN 16
+/*----- Value in opt.h for MEMP_NUM_NETBUF: 2 -----*/
+#define MEMP_NUM_NETBUF 16
 /*----- Value supported for H7 devices: 1 -----*/
 #define LWIP_SUPPORT_CUSTOM_PBUF 1
 /*----- Value in opt.h for LWIP_ETHERNET: LWIP_ARP || PPPOE_SUPPORT -*/
@@ -82,7 +84,7 @@
 /*----- Value in opt.h for LWIP_NETIF_LINK_CALLBACK: 0 -----*/
 #define LWIP_NETIF_LINK_CALLBACK 1
 /*----- Value in opt.h for TCPIP_THREAD_STACKSIZE: 0 -----*/
-#define TCPIP_THREAD_STACKSIZE 2048
+#define TCPIP_THREAD_STACKSIZE 8192
 /*----- Value in opt.h for TCPIP_THREAD_PRIO: 1 -----*/
 #define TCPIP_THREAD_PRIO 24
 /*----- Value in opt.h for TCPIP_MBOX_SIZE: 0 -----*/
@@ -92,7 +94,7 @@
 /*----- Value in opt.h for SLIPIF_THREAD_PRIO: 1 -----*/
 #define SLIPIF_THREAD_PRIO 3
 /*----- Value in opt.h for DEFAULT_THREAD_STACKSIZE: 0 -----*/
-#define DEFAULT_THREAD_STACKSIZE 1024
+#define DEFAULT_THREAD_STACKSIZE 4096
 /*----- Value in opt.h for DEFAULT_THREAD_PRIO: 1 -----*/
 #define DEFAULT_THREAD_PRIO 3
 /*----- Value in opt.h for DEFAULT_UDP_RECVMBOX_SIZE: 0 -----*/
@@ -141,6 +143,9 @@
 #define LWIP_NUM_NETIF_CLIENT_DATA   (LWIP_MDNS_RESPONDER)
 #define MEMP_NUM_IGMP_GROUP          8   // Increase IGMP group limit for mDNS
 #define MDNS_MAX_SERVICES            2   // Support multiple services per netif
+// LwIP 2.2.1 mDNS arms up to ~6 sys_timeouts per netif on top of the internal ones (TCP/ARP/IGMP/reass):
+// the default pool (LWIP_NUM_SYS_TIMEOUT_INTERNAL = 4) was exhausted -> "MEMP_SYS_TIMEOUT is empty" and TCP timers not armed.
+#define MEMP_NUM_SYS_TIMEOUT         (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 10)
 
 #ifdef DEBUG_LWIP_STATS
 #define LWIP_STATS                   1   // Enable global statistics

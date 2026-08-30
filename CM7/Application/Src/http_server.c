@@ -40,6 +40,94 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+/* Receive timeout for an accepted connection (ms). Browsers (Safari in particular) open idle
+ * "preconnect" keep-alive sockets: without a timeout the single-threaded server blocks forever in
+ * netconn_recv(), the accept backlog fills up and every new request is answered with a TCP RST. */
+#define HTTP_RECV_TIMEOUT_MS 2000
+
+/* One complete HTTP request is assembled here before being parsed: browsers (Safari XHR in
+ * particular) send the POST headers and the body in two separate TCP segments, i.e. two netbufs.
+ * The buffer is also NUL-terminated so that strstr()/strncmp() on the request are safe. */
+#define HTTP_REQ_BUF_SIZE 2048
+static char http_reqbuf[HTTP_REQ_BUF_SIZE];
+
+/* Copy the whole netbuf chain into http_reqbuf, then for a POST keep receiving (bounded by the
+ * receive timeout) until the Content-Length body is complete. Returns the assembled length. */
+/* netconn_recv() allocates a netbuf from MEMP_NETBUF *before* waiting for data and returns
+ * ERR_MEM at once when the pool is momentarily empty (the UDP scanline sender allocates one per
+ * packet, 13 k/s): retry briefly instead of dropping the request. */
+static err_t http_recv(struct netconn *conn, struct netbuf **inbuf)
+{
+    err_t e = ERR_MEM;
+    for (int retry = 0; retry < 100 && e == ERR_MEM; retry++)
+    {
+        e = netconn_recv(conn, inbuf);
+        if (e == ERR_MEM)
+        {
+            osDelay(1);
+        }
+    }
+    return e;
+}
+
+static u16_t http_assembleRequest(struct netconn *conn, struct netbuf *inbuf)
+{
+    u16_t total = 0;
+    struct netbuf *nb = inbuf;
+    int extra = 0;
+
+    for (;;)
+    {
+        char *p;
+        u16_t l;
+        do
+        {
+            netbuf_data(nb, (void **)&p, &l);
+            if ((u32_t)total + l > HTTP_REQ_BUF_SIZE - 1)
+            {
+                l = (u16_t)(HTTP_REQ_BUF_SIZE - 1 - total);
+            }
+            memcpy(http_reqbuf + total, p, l);
+            total += l;
+        } while (netbuf_next(nb) >= 0);
+        if (nb != inbuf)
+        {
+            netbuf_delete(nb);
+        }
+        http_reqbuf[total] = '\0';
+
+        if (strncmp(http_reqbuf, "POST ", 5) != 0 || total >= HTTP_REQ_BUF_SIZE - 1 || extra >= 4)
+        {
+            break;
+        }
+        char *hdr_end = strstr(http_reqbuf, "\r\n\r\n");
+        if (hdr_end != NULL)
+        {
+            long need = 0;
+            char *cl = strstr(http_reqbuf, "Content-Length:");
+            if (cl != NULL && cl < hdr_end)
+            {
+                need = atol(cl + 15);
+            }
+            long have = (long)total - (long)((hdr_end + 4) - http_reqbuf);
+            if (have >= need)
+            {
+                break;
+            }
+        }
+        {
+            err_t e = http_recv(conn, &nb);
+            if (e != ERR_OK)
+            {
+                printf("HTTP: request body not received (err=%d, %u bytes so far)\n", (int)e, (unsigned)total);
+                break; /* timeout or connection closed: parse what we have */
+            }
+        }
+        extra++;
+    }
+    return total;
+}
+
 TaskHandle_t http_ThreadHandle = NULL;
 
 /*!
@@ -641,12 +729,14 @@ static void http_server(struct netconn *conn)
 
 	/* Read the data from the port, blocking if nothing yet there.
 	   We assume the request (the part we care about) is in one netbuf */
-	while ((recv_err = netconn_recv(conn, &inbuf)) == ERR_OK)
+	while ((recv_err = http_recv(conn, &inbuf)) == ERR_OK)
 	{
 		if (netconn_err(conn) == ERR_OK)
 		{
 			do {
-				netbuf_data(inbuf, (void**)&buf, &buflen);
+				/* Assemble headers + body (may span several netbufs) into http_reqbuf */
+				buflen = http_assembleRequest(conn, inbuf);
+				buf = http_reqbuf;
 #ifdef HTTP_SERVER_DEBUG
 				printf("# Process buffer: %p %d bytes\n", buf, buflen);
 #endif
@@ -857,7 +947,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set DPI */
 					if (strncmp((char const *)buf, "POST /setDPI", 12) == 0)
 					{
-						char *dpiValue = strstr(buf, "dpi=") + 4;  // Point to the first character of the value
+						char *dpiValue = strstr(buf, "dpi=");  // Point to the first character of the value
+						if (dpiValue) dpiValue += 4; /* keep NULL when the key is absent */
 
 						if (dpiValue)
 						{
@@ -883,7 +974,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set hand settings */
 					else if (strncmp((char const *)buf, "POST /setHand", 13) == 0)
 					{
-						char *handValue = strstr(buf, "hand=") + 5;
+						char *handValue = strstr(buf, "hand=");
+						if (handValue) handValue += 5; /* keep NULL when the key is absent */
 
 						if (handValue)
 						{
@@ -905,12 +997,13 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set oversampling */
 					else if (strncmp((char const *)buf, "POST /setOversampling", 21) == 0)
 					{
-						char *oversamplingValue = strstr(buf, "oversampling=") + 13;
+						char *oversamplingValue = strstr(buf, "oversampling=");
+						if (oversamplingValue) oversamplingValue += 13; /* keep NULL when the key is absent */
 
 						if (oversamplingValue)
 						{
 							shared_config.cis_oversampling = atoi(oversamplingValue);
-							shared_config.cis_oversampling  = shared_config.cis_oversampling  < 0 ? 0 : shared_config.cis_oversampling  > 32 ? 32 : shared_config.cis_oversampling ;
+							shared_config.cis_oversampling  = shared_config.cis_oversampling  < 1 ? 1 : shared_config.cis_oversampling  > 32 ? 32 : shared_config.cis_oversampling ; /* 0 would skip the capture wait in cis_imageProcess() */
 							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 
 							char response[100];
@@ -991,7 +1084,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set gyro sensitivity */
 					else if (strncmp((char const *)buf, "POST /setGyroSensitivity", 24) == 0)
 					{
-						char *gyroSensValue = strstr(buf, "gyro_sensitivity=") + 17;
+						char *gyroSensValue = strstr(buf, "gyro_sensitivity=");
+						if (gyroSensValue) gyroSensValue += 17; /* keep NULL when the key is absent */
 
 						if (gyroSensValue)
 						{
@@ -1041,7 +1135,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set accel sensitivity */
 					else if (strncmp((char const *)buf, "POST /setAccelSensitivity", 25) == 0)
 					{
-						char *accelSensValue = strstr(buf, "accel_sensitivity=") + 18;
+						char *accelSensValue = strstr(buf, "accel_sensitivity=");
+						if (accelSensValue) accelSensValue += 18; /* keep NULL when the key is absent */
 
 						if (accelSensValue)
 						{
@@ -1089,7 +1184,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set GUI show IMU */
 					else if (strncmp((char const *)buf, "POST /setGuiShowImu", 19) == 0)
 					{
-						char *value = strstr(buf, "gui_show_imu=") + 13;
+						char *value = strstr(buf, "gui_show_imu=");
+						if (value) value += 13; /* keep NULL when the key is absent */
 						if (value)
 						{
 							uint8_t newValue = (uint8_t)atoi(value);
@@ -1110,7 +1206,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set GUI invert CIS image */
 					else if (strncmp((char const *)buf, "POST /setGuiInvertCisImage", 26) == 0)
 					{
-						char *value = strstr(buf, "gui_invert_cis_image=") + 21;
+						char *value = strstr(buf, "gui_invert_cis_image=");
+						if (value) value += 21; /* keep NULL when the key is absent */
 						if (value)
 						{
 							uint8_t newValue = (uint8_t)atoi(value);
@@ -1131,7 +1228,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set screensaver timeout (in seconds) */
 					else if (strncmp((char const *)buf, "POST /setScreensaverTimeout", 27) == 0)
 					{
-						char *value = strstr(buf, "screensaver_timeout=") + 20;
+						char *value = strstr(buf, "screensaver_timeout=");
+						if (value) value += 20; /* keep NULL when the key is absent */
 						if (value)
 						{
 							uint16_t newValue = (uint16_t)atoi(value);
@@ -1161,7 +1259,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set motion threshold accelerometer */
 					else if (strncmp((char const *)buf, "POST /setMotionThresholdAcc", 27) == 0)
 					{
-						char *value = strstr(buf, "motion_threshold_acc=") + 21;
+						char *value = strstr(buf, "motion_threshold_acc=");
+						if (value) value += 21; /* keep NULL when the key is absent */
 						if (value)
 						{
 							float newValue = strtof(value, NULL);
@@ -1191,7 +1290,8 @@ static void http_server(struct netconn *conn)
 					/* Process POST request to set motion threshold gyroscope */
 					else if (strncmp((char const *)buf, "POST /setMotionThresholdGyro", 28) == 0)
 					{
-						char *value = strstr(buf, "motion_threshold_gyro=") + 22;
+						char *value = strstr(buf, "motion_threshold_gyro=");
+						if (value) value += 22; /* keep NULL when the key is absent */
 						if (value)
 						{
 							float newValue = strtof(value, NULL);
@@ -1569,6 +1669,10 @@ static void http_thread(void *arg)
 #endif
 
             // Handle the connection using a separate function
+#if LWIP_SO_RCVTIMEO
+            /* Never block forever on a client that sends nothing (see HTTP_RECV_TIMEOUT_MS). */
+            netconn_set_recvtimeout(newconn, HTTP_RECV_TIMEOUT_MS);
+#endif
             http_server(newconn);
 
         	// Close the connection (server closes in HTTP)
@@ -1595,7 +1699,7 @@ static void http_thread(void *arg)
 
 HTTPSERVER_StatusTypeDef http_serverInit()
 {
-	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityLow, &http_ThreadHandle) == pdPASS)
+	if (xTaskCreate(http_thread, "http_thread", 8192, NULL, osPriorityAboveNormal, &http_ThreadHandle) == pdPASS)
 	{
 		//printf("HTTP initialisation SUCCESS\n");
 		return HTTPSERVER_OK;

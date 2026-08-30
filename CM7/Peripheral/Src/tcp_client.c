@@ -162,7 +162,7 @@ static void tcpClient_task(void *arg)
 TCPCLIENT_StatusTypeDef tcpClient_init(void)
 {
 	// Create the TCP client task for LED control with a stack size of 1024 and normal priority
-	if (xTaskCreate(tcpClient_task, "TCP_LED_Control", 512, NULL, osPriorityLow, NULL) == pdPASS)
+	if (xTaskCreate(tcpClient_task, "TCP_LED_Control", 512, NULL, osPriorityAboveNormal, NULL) == pdPASS)
 	{
 		//printf("TCP initialisation SUCCESS\n");
 		return TCPCLIENT_OK;
