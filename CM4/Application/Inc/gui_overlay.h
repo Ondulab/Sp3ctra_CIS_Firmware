@@ -28,6 +28,12 @@ extern "C" {
  */
 void gui_overlay_process(void);
 
+/**
+ * @brief 1 when the host pushed a new overlay or the link state changed since
+ *        the last call - used by the main loop to wake up from the screensaver.
+ */
+uint8_t gui_overlay_hasActivity(void);
+
 #ifdef __cplusplus
 }
 #endif

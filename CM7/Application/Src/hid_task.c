@@ -39,7 +39,7 @@
 #include "hid_task.h"
 
 /* Private define ------------------------------------------------------------*/
-#define HID_TASK_STACK_BYTES    (2048)
+#define HID_TASK_STACK_BYTES    (4096)
 
 /* Private variables ---------------------------------------------------------*/
 static struct slp_hid hid_msg __attribute__((aligned(4)));

@@ -190,6 +190,28 @@ static void ovl_drawBanner(const char *text)
 
 /* Public functions ----------------------------------------------------------*/
 
+uint8_t gui_overlay_hasActivity(void)
+{
+    static uint32_t seen_overlay = 0;
+    static uint32_t seen_link = 0;
+    static uint8_t  inited = 0;
+
+    if (!inited)
+    {
+        seen_overlay = shared_feedback.overlay_seq;
+        seen_link    = shared_feedback.link_seq;
+        inited = 1;
+        return 0;
+    }
+    if (shared_feedback.overlay_seq != seen_overlay || shared_feedback.link_seq != seen_link)
+    {
+        seen_overlay = shared_feedback.overlay_seq;
+        seen_link    = shared_feedback.link_seq;
+        return 1;
+    }
+    return 0;
+}
+
 void gui_overlay_process(void)
 {
     const uint32_t now = HAL_GetTick();

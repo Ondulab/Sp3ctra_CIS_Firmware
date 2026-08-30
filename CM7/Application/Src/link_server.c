@@ -45,7 +45,7 @@
 #include "link_server.h"
 
 /* Private define ------------------------------------------------------------*/
-#define LINK_TASK_STACK_BYTES   (4096)
+#define LINK_TASK_STACK_BYTES   (16384)   /* file_writeConfig (FatFs FIL + sector buffer) and IMU calibration run here */
 #define LINK_RECV_TIMEOUT_MS    (100)
 #define LINK_REBOOT_DELAY_MS    (500)
 
@@ -68,6 +68,7 @@ static link_session_t    session;
 static volatile uint16_t hid_rate_hz = SLP_DEFAULT_HID_RATE_HZ;
 static volatile uint8_t  reboot_pending = 0;
 static uint32_t          tx_seq = 0;
+static volatile uint16_t line_rate_lps = 0;   /* measured here every second from udpClient_linesSent() */
 
 static uint8_t rx_buf[SLP_CTRL_MAX_BYTES] __attribute__((aligned(4)));
 static uint8_t tx_buf[SLP_CTRL_MAX_BYTES] __attribute__((aligned(4)));
@@ -108,13 +109,21 @@ static void link_send(const void *msg, uint16_t len, const ip_addr_t *ip, uint16
         return;
     }
 
-    if (netbuf_ref(buf, msg, len) == ERR_OK)
+    /* Copy into a pbuf owned by lwIP (DMA-safe region): the ETH driver hands
+     * pbuf payloads straight to the DMA and may transmit AFTER we return,
+     * so referencing our static buffer (netbuf_ref) is not safe. */
+    if (netbuf_alloc(buf, len) != NULL)
     {
+        netbuf_take(buf, msg, len);
         err_t err = netconn_sendto(link_conn, buf, ip, port);
         if (err != ERR_OK)
         {
             printf("LINK: sendto failed (%d)\n", (int)err);
         }
+    }
+    else
+    {
+        printf("LINK: netbuf_alloc failed\n");
     }
     netbuf_delete(buf);
 }
@@ -322,7 +331,7 @@ static void link_handlePing(const struct slp_ping *m, const ip_addr_t *src, uint
     p->host_time_ms  = m->host_time_ms;
     p->uptime_ms     = HAL_GetTick();
     p->lines_sent    = udpClient_linesSent();
-    p->line_rate_lps = (uint16_t)((shared_var.cis_freq < 0) ? 0 : (shared_var.cis_freq > 65535 ? 65535 : shared_var.cis_freq));
+    p->line_rate_lps = line_rate_lps;
     p->cal_state     = (uint8_t)shared_var.cis_cal_state;
     p->cal_progress  = (uint8_t)((shared_var.cis_cal_progressbar > 100U) ? 100U : shared_var.cis_cal_progressbar);
     p->temp_c_x10    = (int16_t)(icm42688_temp() * 10.0f);
@@ -438,7 +447,7 @@ static int cfg_read(struct slp_cfg_item *it)
         case SLP_CFG_STREAM_PORT:     it->type = SLP_CFG_U16; it->value = shared_config.network_udp_port; break;
         case SLP_CFG_STREAM_WHEN_UNBOUND: it->type = SLP_CFG_U8; it->value = shared_config.stream_when_unbound; break;
         case SLP_CFG_LINK_PORT:       it->type = SLP_CFG_U16; it->value = shared_config.network_link_port; break;
-        case SLP_CFG_LINE_RATE:       it->type = SLP_CFG_U16; it->value = (uint32_t)((shared_var.cis_freq < 0) ? 0 : shared_var.cis_freq); it->flags = SLP_CFG_F_READONLY; break;
+        case SLP_CFG_LINE_RATE:       it->type = SLP_CFG_U16; it->value = line_rate_lps; it->flags = SLP_CFG_F_READONLY; break;
         default:
             it->type = SLP_CFG_U32;
             it->value = 0;
@@ -733,8 +742,23 @@ static void linkTask(void *argument)
 
     link_unbind("startup");
 
+    uint32_t rate_tick = HAL_GetTick();
+    uint32_t rate_lines = udpClient_linesSent();
+
     for (;;)
     {
+        /* Line rate: lines sent per second (independent of the CM4 GUI state). */
+        {
+            const uint32_t now = HAL_GetTick();
+            if ((now - rate_tick) >= 1000U)
+            {
+                const uint32_t lines = udpClient_linesSent();
+                line_rate_lps = (uint16_t)(((lines - rate_lines) * 1000U) / (now - rate_tick));
+                rate_tick = now;
+                rate_lines = lines;
+            }
+        }
+
         struct netbuf *nb = NULL;
         const err_t err = netconn_recv(link_conn, &nb);
 

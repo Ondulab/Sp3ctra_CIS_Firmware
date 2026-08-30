@@ -194,7 +194,7 @@ structures sont vérifiées à l'import).
 
 | Outil | Usage |
 |---|---|
-| `slp_tool.py discover` | broadcast `HELLO`, liste les devices qui répondent |
+| `slp_tool.py discover [--ip A.B.C.D]` | `HELLO` sur le broadcast dirigé de chaque interface (`a.b.c.255` — macOS refuse `255.255.255.255`), liste les devices qui répondent ; `--ip` ajoute un unicast |
 | `slp_tool.py stat --ip A.B.C.D` | `BIND` + `PING`/`PONG` (uptime, lignes/s, calibration, température) |
 | `slp_tool.py hid --ip … [--rate 200]` | fronts de boutons + IMU, cadence et pertes |
 | `slp_tool.py lines --ip …` | débit de lignes, fragments incomplets, datagrammes perdus |
@@ -203,6 +203,22 @@ structures sont vérifiées à l'import).
 | `slp_tool.py cfg --ip … get` / `set oversampling=8` | configuration sur le lien |
 | `slp_tool.py cal --ip … cis|imu` | lance une calibration, suit la progression |
 | `slp_fake_device.py [--lps 200 --dpi 400]` | **device simulé** pour développer le VST sans matériel (clavier : `1`/`2`/`3` boutons, `a x y z`, `g x y z`) |
+
+Toutes les commandes de session acceptent `--via-broadcast a.b.c.255` : les
+datagrammes de contrôle partent vers le broadcast dirigé au lieu de l'IP du
+device (utile depuis un shell privé de la permission macOS « Réseau local »,
+qui peut diffuser mais pas émettre en unicast ; le device répond en unicast).
+
+Toutes les commandes de session acceptent `--stream-port N` : le device envoie
+LINE/HID sur ce port (défaut 55151). **Si Sp3ctra (VST/standalone) tourne, il
+détient 55151** : l'outil refuse alors de démarrer, passer `--stream-port 55152`.
+
+Test de bout en bout sans matériel (deux Terminaux) :
+
+```bash
+python3 scripts/slp/slp_fake_device.py --lps 200          # Terminal 1
+python3 scripts/slp/slp_tool.py hid --ip 127.0.0.1        # Terminal 2 (taper 1/2/3 dans le Terminal 1)
+```
 
 Le shell de l'agent n'a pas la permission macOS « Réseau local » : lancer ces
 outils depuis un Terminal.

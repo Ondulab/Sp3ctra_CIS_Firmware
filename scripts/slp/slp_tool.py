@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Sp3ctra Link (SLP v1) host-side test tool - drives a real CIS without the VST.
 
-    slp_tool.py discover [--broadcast 255.255.255.255] [--seconds 3]
+    slp_tool.py discover [--seconds 3] [--broadcast 192.168.100.255 ...] [--ip 192.168.100.1]
+                         (default: the directed broadcast of every local interface)
     slp_tool.py stat     --ip 192.168.100.1 [--seconds 3]
     slp_tool.py hid      --ip ... [--seconds 10] [--rate 200]      # buttons edges + IMU
     slp_tool.py lines    --ip ... [--seconds 10]                    # LINE datagrams, loss, rate
@@ -17,8 +18,10 @@ Every command that needs a session does HELLO -> BIND -> ... -> UNBIND.
 import argparse
 import os
 import random
+import re
 import select
 import socket
+import subprocess
 import sys
 import time
 
@@ -35,8 +38,9 @@ def now_ms():
 class Link:
     """Control channel client (one session)."""
 
-    def __init__(self, ip, port=slp.CTRL_PORT, stream_port=slp.STREAM_PORT, hid_rate=0, verbose=True):
+    def __init__(self, ip, port=slp.CTRL_PORT, stream_port=slp.STREAM_PORT, hid_rate=0, verbose=True, via=None):
         self.ip, self.port = ip, port
+        self.target_ip = via or ip      # --via-broadcast: send control datagrams to a.b.c.255 (see README)
         self.stream_port, self.hid_rate = stream_port, hid_rate
         self.seq = slp.Seq()
         self.session = random.getrandbits(32) or 1
@@ -50,7 +54,7 @@ class Link:
         self.last_ping = 0
 
     def send(self, data):
-        self.sock.sendto(data, (self.ip, self.port))
+        self.sock.sendto(data, (self.target_ip, self.port))
 
     def recv(self, want_type, timeout=0.5):
         end = time.monotonic() + timeout
@@ -140,15 +144,57 @@ def print_announce(a, ip):
     print(f"  state: {'BOUND to ' + a.bound_peer_ip if a.bound else 'free'}")
 
 
+def seq_gap(last, cur):
+    """Datagrams missing between two consecutive sequence numbers (0 when reordered or duplicated)."""
+    if last is None:
+        return 0
+    d = (cur - last) & 0xFFFFFFFF
+    return d - 1 if 1 < d < 0x80000000 else 0
+
+
 def stream_socket(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.bind(("", port))          # exclusive first: another process (the VST?) would steal unicast datagrams
+    except OSError:
+        s.close()
+        sys.exit(f"UDP port {port} is already in use (Sp3ctra running?) - pass --stream-port 55152")
+    s.close()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if hasattr(socket, "SO_REUSEPORT"):
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4 * 1024 * 1024)
     s.bind(("", port))
     s.setblocking(False)
     return s
+
+
+def local_broadcasts():
+    """IPv4 directed-broadcast address of every configured interface.
+
+    macOS refuses the limited broadcast 255.255.255.255 on sockets that are not
+    bound to one interface (EADDRNOTAVAIL), so HELLO goes to a.b.c.255 instead.
+    """
+    found = set()
+    try:
+        if sys.platform.startswith("linux"):
+            txt = subprocess.run(["ip", "-o", "-4", "addr"], capture_output=True, text=True, timeout=2).stdout
+            for m in re.finditer(r"\bbrd (\d+\.\d+\.\d+\.\d+)", txt):
+                found.add(m.group(1))
+        else:
+            txt = subprocess.run(["ifconfig"], capture_output=True, text=True, timeout=2).stdout
+            for m in re.finditer(r"\binet (\d+\.\d+\.\d+\.\d+) netmask 0x([0-9a-fA-F]{8})(?: broadcast (\d+\.\d+\.\d+\.\d+))?", txt):
+                ip, mask_hex, bcast = m.groups()
+                if ip.startswith("127."):
+                    continue
+                if bcast:
+                    found.add(bcast)
+                else:
+                    ipn = int.from_bytes(slp.ip_bytes(ip), "big")
+                    mask = int(mask_hex, 16)
+                    found.add(slp.ip_str((ipn | (~mask & 0xFFFFFFFF)).to_bytes(4, "big")))
+    except Exception:
+        pass
+    return sorted(found)
 
 
 # ---- commands ------------------------------------------------------------------
@@ -159,12 +205,22 @@ def cmd_discover(args):
     s.settimeout(0.2)
     seq = slp.Seq()
     seen = {}
+    targets = list(args.broadcast) if args.broadcast else (local_broadcasts() or ["255.255.255.255"])
+    if args.ip:
+        targets += args.ip
+    print("HELLO -> " + ", ".join(f"{t}:{slp.CTRL_PORT}" for t in targets))
     end = time.monotonic() + args.seconds
     next_hello = 0
     while time.monotonic() < end:
         if time.monotonic() >= next_hello:
-            for target in args.broadcast:
-                s.sendto(slp.build_hello(seq.next(), HOST_VERSION), (target, slp.CTRL_PORT))
+            for target in list(targets):
+                try:
+                    s.sendto(slp.build_hello(seq.next(), HOST_VERSION), (target, slp.CTRL_PORT))
+                except OSError as e:
+                    print(f"  ! cannot send to {target}: {e} (dropped)")
+                    targets.remove(target)
+            if not targets:
+                sys.exit("no usable target: pass --broadcast a.b.c.255 or --ip <device>")
             next_hello = time.monotonic() + 1.0
         try:
             data, addr = s.recvfrom(2048)
@@ -182,7 +238,7 @@ def cmd_discover(args):
 
 
 def cmd_stat(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     for _ in range(max(1, int(args.seconds * 2))):
         p = link.ping()
@@ -198,7 +254,7 @@ def cmd_stat(args):
 
 
 def cmd_hid(args):
-    link = Link(args.ip, hid_rate=args.rate)
+    link = Link(args.ip, stream_port=args.stream_port, hid_rate=args.rate, via=args.via_broadcast)
     ack = link.open()
     rx = stream_socket(link.stream_port)
     last_seq = None
@@ -219,12 +275,13 @@ def cmd_hid(args):
                 data, addr = rx.recvfrom(2048)
             except BlockingIOError:
                 break
+            if addr[0] != link.ip:
+                continue        # another device streaming to this port (unbound fallback)
             h = slp.parse_hid(data)
             if not h:
                 continue
             count += 1
-            if last_seq is not None and h.seq != ((last_seq + 1) & 0xFFFFFFFF):
-                lost += (h.seq - last_seq - 1) & 0xFFFFFFFF
+            lost += seq_gap(last_seq, h.seq)
             last_seq = h.seq
             if last_btn is None:
                 last_btn = list(h.button_seq)
@@ -246,7 +303,7 @@ def cmd_hid(args):
 
 
 def cmd_lines(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     ack = link.open()
     rx = stream_socket(link.stream_port)
     frags = {}
@@ -268,12 +325,13 @@ def cmd_lines(args):
                 data, addr = rx.recvfrom(4096)
             except BlockingIOError:
                 break
+            if addr[0] != link.ip:
+                continue        # another device streaming to this port (unbound fallback)
             f = slp.parse_line(data)
             if not f:
                 continue
             datagrams += 1
-            if last_seq is not None and f.seq != ((last_seq + 1) & 0xFFFFFFFF):
-                lost += (f.seq - last_seq - 1) & 0xFFFFFFFF
+            lost += seq_gap(last_seq, f.seq)
             last_seq = f.seq
             got = frags.setdefault(f.line_id, set())
             got.add(f.fragment_index)
@@ -297,7 +355,7 @@ def cmd_lines(args):
 
 
 def cmd_led(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     cmd = slp.LedCmd(args.b1, args.g1, args.t1, args.b2, args.g2, args.t2, args.blink,
                      slp.LED_NO_LOCAL_PRESS if args.no_local else 0)
@@ -328,7 +386,7 @@ def parse_overlay_item(text):
 
 
 def cmd_overlay(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     items = [parse_overlay_item(t) for t in args.items]
     if items and not any(i.flags & slp.OVL_HIGHLIGHT for i in items):
@@ -344,7 +402,7 @@ def cmd_overlay(args):
 
 
 def cmd_clear(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     link.send(slp.build_oled_clear(link.seq.next()))
     link.close()
@@ -352,7 +410,7 @@ def cmd_clear(args):
 
 
 def cmd_cfg(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     if args.op == "get":
         ids = [slp.CFG_IDS[n] if n in slp.CFG_IDS else int(n) for n in args.items] or sorted(slp.CFG_IDS.values())
@@ -377,7 +435,7 @@ def cmd_cfg(args):
 
 
 def cmd_cal(args):
-    link = Link(args.ip)
+    link = Link(args.ip, stream_port=args.stream_port, via=args.via_broadcast)
     link.open()
     kind = slp.CAL_CIS if args.kind == "cis" else slp.CAL_IMU
     link.send(slp.build_cal_start(link.seq.next(), kind))
@@ -396,10 +454,19 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("discover"); p.add_argument("--broadcast", nargs="+", default=["255.255.255.255"]); p.add_argument("--seconds", type=float, default=3); p.set_defaults(fn=cmd_discover)
+    p = sub.add_parser("discover")
+    p.add_argument("--broadcast", nargs="+", default=None, help="directed broadcast address(es); default: every local interface")
+    p.add_argument("--ip", nargs="+", default=None, help="unicast HELLO to these device addresses as well")
+    p.add_argument("--seconds", type=float, default=3); p.set_defaults(fn=cmd_discover)
 
     def with_ip(name):
-        q = sub.add_parser(name); q.add_argument("--ip", required=True); return q
+        q = sub.add_parser(name); q.add_argument("--ip", required=True)
+        q.add_argument("--stream-port", type=int, default=slp.STREAM_PORT,
+                       help="UDP port the device must stream to (default 55151; use another one when the VST is running)")
+        q.add_argument("--via-broadcast", metavar="A.B.C.255", default=None,
+                       help="send control datagrams to this directed broadcast instead of --ip (sandboxed shells "
+                            "without the macOS Local Network permission can broadcast but not unicast)")
+        return q
 
     p = with_ip("stat"); p.add_argument("--seconds", type=float, default=3); p.set_defaults(fn=cmd_stat)
     p = with_ip("hid"); p.add_argument("--seconds", type=float, default=10); p.add_argument("--rate", type=int, default=0); p.set_defaults(fn=cmd_hid)

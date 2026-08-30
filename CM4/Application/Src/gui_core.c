@@ -76,7 +76,7 @@ int gui_mainLoop(void)
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
         // Check for significant motion or button activity and update screensaver state
-        if (gui_isSignificantMotion() || gui_checkButtonActivity()) {
+        if (gui_isSignificantMotion() || gui_checkButtonActivity() || gui_overlay_hasActivity()) {
             last_significant_motion_tick = current_tick;
             screensaver_active = false;  // Wake up from screensaver
         }
