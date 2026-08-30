@@ -34,23 +34,4 @@ void gui_displayScreensaver(void);
 float randomFloat(float min, float max);
 
 // Enhanced bitmap drawing with noise effects
-void ssd1362_drawBmpScaledNoisyFx(const uint8_t *bitmap,
-                                  int16_t x, int16_t y, uint16_t w, uint16_t h,
-                                  uint16_t num, uint16_t den,
-                                  uint8_t base_color, uint8_t amp, int8_t bias,
-                                  uint8_t density, uint8_t temporal_strength,
-                                  uint32_t frame);
-void ssd1362_drawBmpNoisyFx(const uint8_t *bitmap,
-                            uint16_t x,
-                            uint16_t y,
-                            uint16_t w,
-                            uint16_t h,
-                            uint8_t base_color,
-                            uint8_t amp,
-                            int8_t  bias,
-                            uint8_t density,
-                            uint8_t temporal_strength,
-                            uint32_t frame,
-                            bool display);
-
 #endif /* __GUI_ANIMATIONS_H */
