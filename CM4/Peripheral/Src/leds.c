@@ -48,6 +48,34 @@ static struct led_State ledCommands[NUMBER_OF_LEDS];
 static struct ledStateExtended ledState[NUMBER_OF_LEDS];
 static volatile uint32_t system_time = 0; // Global timer in milliseconds
 
+/* -- Screensaver breathing -------------------------------------------------
+ * While the OLED sleeps the three button backlights keep a slow wave running:
+ * the instrument stays visibly alive in a dark room. Dim on purpose (28 duty
+ * percent at the peak), with a phase offset of a third of a period per button
+ * so the light travels from SW1 to SW3.
+ * The host (VST) always wins: any LED command received over the link cancels
+ * the breathing until the next time the screensaver starts. */
+#define LEDS_SAVER_PERIOD_MS    (6000U)
+#define LEDS_SAVER_PEAK         (28)     /* duty, PWM window is 0..100 */
+#define LEDS_SAVER_FLOOR        (2)      /* never fully dark: the buttons stay findable */
+#define LEDS_SAVER_STEP_TICKS   (100U)   /* recompute every 10 ms (timer runs at 10 kHz) */
+
+static volatile bool saver_active = false;
+static volatile int32_t saver_brightness[NUMBER_OF_LEDS] = {0};
+
+/* Raised cosine, 0..255 (generated: 127.5 * (1 - cos(2*pi*i/64))). */
+static const uint8_t saver_lut[64] =
+{
+	  0,   1,   2,   5,  10,  15,  21,  29,
+	 37,  47,  57,  67,  79,  90, 103, 115,
+	127, 140, 152, 165, 176, 188, 198, 208,
+	218, 226, 234, 240, 245, 250, 253, 254,
+	255, 254, 253, 250, 245, 240, 234, 226,
+	218, 208, 198, 188, 176, 165, 152, 140,
+	128, 115, 103,  90,  79,  67,  57,  47,
+	 37,  29,  21,  15,  10,   5,   2,   1
+};
+
 // Global variables for button and LED states
 int32_t led_states[NUMBER_OF_LEDS];    // Array to store the state of each LED (0 = OFF, 1 = ON)
 int32_t button_states[NUMBER_OF_BUTTONS]; // Array to store the state of each button (0 = Released, 1 = Pressed)
@@ -113,6 +141,20 @@ static void leds_handle(struct led_State *cmd, struct ledStateExtended *state, G
 		state->led_state = 1;  // Force LED ON
 		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED
 		return;  // Skip normal LED handling if the button is pressed
+	}
+
+	// Screensaver breathing: replaces the command engine, keeps the PWM window.
+	if (saver_active)
+	{
+		if ((system_time % 100) < (uint32_t)saver_brightness[button_id])
+		{
+			HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);   // on
+		}
+		else
+		{
+			HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);     // off
+		}
+		return;
 	}
 
 	if (state->remaining_blinks == 0)
@@ -212,6 +254,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
             leds_handle(&ledCommands[i], &ledState[i], ledPort, ledPin, i);
         }
+
+        if (saver_active)
+        {
+            /* Cheap: one LUT lookup per LED every 10 ms, nothing in between. */
+            static uint32_t saver_tick = 0;
+            if (++saver_tick >= LEDS_SAVER_STEP_TICKS)
+            {
+                saver_tick = 0;
+                const uint32_t ms = system_time / 10U;   /* 10 kHz ticks -> ms */
+                const uint32_t base = (ms % LEDS_SAVER_PERIOD_MS) * 64U / LEDS_SAVER_PERIOD_MS;
+                for (int32_t i = 0; i < NUMBER_OF_LEDS; i++)
+                {
+                    const uint8_t w = saver_lut[(base + (uint32_t)i * (64U / NUMBER_OF_LEDS)) & 63U];
+                    saver_brightness[i] = LEDS_SAVER_FLOOR
+                                        + ((LEDS_SAVER_PEAK - LEDS_SAVER_FLOOR) * (int32_t)w) / 255;
+                }
+            }
+        }
+
 		system_time++; // Increment global system time for PWM
 	}
 }
@@ -232,6 +293,28 @@ void leds_pressFeedback(buttonIdTypeDef button_id, buttonStateTypeDef is_pressed
 	}
 }
 
+void leds_setScreensaverMode(bool active)
+{
+	if (saver_active == active)
+	{
+		return;
+	}
+	saver_active = active;
+
+	if (!active)
+	{
+		/* Leaving the breathing: restart the stored command from its first
+		 * phase, otherwise the engine resumes with a stale elapsed time. */
+		for (int32_t i = 0; i < NUMBER_OF_LEDS; i++)
+		{
+			ledState[i].start_time = system_time;
+			ledState[i].phase = 1;
+			ledState[i].remaining_blinks = (ledCommands[i].blink_count > 0)
+			                             ? (int32_t)ledCommands[i].blink_count : -1;
+		}
+	}
+}
+
 void leds_check_update_state(void)
 {
 	for (int i = 0; i < NUMBER_OF_LEDS; i++)
@@ -239,6 +322,9 @@ void leds_check_update_state(void)
 		// Check if an update was requested for this LED
 		if (shared_var.led_update_requested[i] == TRUE)
 		{
+			// The host drives the LEDs: it wins over the screensaver breathing
+			// until the screensaver starts again.
+			saver_active = false;
 			// Update the LED state
 			leds_initCommand(i,
 					shared_var.ledState[i].brightness_1,

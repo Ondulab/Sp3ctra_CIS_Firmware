@@ -81,6 +81,7 @@ int gui_mainLoop(void)
         if (gui_isSignificantMotion() || gui_checkButtonActivity() || gui_overlay_hasActivity()) {
             last_significant_motion_tick = current_tick;
             screensaver_active = false;  // Wake up from screensaver
+            leds_setScreensaverMode(false);
             if (display_off) {
                 ssd1362_displayOn(true);
                 display_off = false;
@@ -93,6 +94,7 @@ int gui_mainLoop(void)
             (current_tick - last_significant_motion_tick) >= screensaver_timeout_ms) {
             screensaver_active = true;
             screensaver_start_tick = current_tick;
+            leds_setScreensaverMode(true);    // buttons keep breathing while the panel sleeps
         }
 
         // Display appropriate screen

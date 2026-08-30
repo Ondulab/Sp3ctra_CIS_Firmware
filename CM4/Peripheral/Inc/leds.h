@@ -24,6 +24,8 @@
 void leds_timerInit(void);
 void leds_pressFeedback(buttonIdTypeDef button_id, buttonStateTypeDef is_pressed);
 void leds_check_update_state(void);
+/** Slow breathing of the three backlights while the OLED sleeps (edge-triggered). */
+void leds_setScreensaverMode(bool active);
 void led_test(void);
 
 #endif /* __GUI_H */
