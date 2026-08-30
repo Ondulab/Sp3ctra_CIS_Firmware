@@ -23,7 +23,17 @@ DEFAULT_HOST = "192.168.100.1"
 BOUNDARY = "----Sp3ctraOtaBoundary7d91f4"
 
 
-def build_request(host, path):
+def basic_auth_header(user, password):
+    """En-tete Authorization: Basic, ou chaine vide si aucun identifiant."""
+    import base64
+
+    if not password:
+        return ""
+    token = base64.b64encode(("%s:%s" % (user, password)).encode()).decode()
+    return "Authorization: Basic %s\r\n" % token
+
+
+def build_request(host, path, user="admin", password=None):
     """En-tete HTTP et corps multipart attendus par fwupdate_multipart_state_machine().
 
     L'analyseur embarque est litteral : il cherche exactement
@@ -48,17 +58,18 @@ def build_request(host, path):
     header = (
         "POST /upload HTTP/1.1\r\n"
         "Host: %s\r\n"
+        "%s"
         "Content-Type: multipart/form-data; boundary=%s\r\n"
         "Content-Length: %d\r\n"
         "Connection: close\r\n"
-        "\r\n" % (host, BOUNDARY, len(body))
+        "\r\n" % (host, basic_auth_header(user, password), BOUNDARY, len(body))
     ).encode()
 
     return header, body
 
 
 def upload(args):
-    header, body = build_request(args.host, args.package)
+    header, body = build_request(args.host, args.package, args.user, args.password)
     total = len(body)
 
     print("paquet   : %s (%d o)" % (args.package, os.path.getsize(args.package)))
@@ -81,7 +92,30 @@ def upload(args):
                 return 2
 
             end = min(sent + chunk, total)
-            sock.sendall(body[sent:end])
+            try:
+                sock.sendall(body[sent:end])
+            except (BrokenPipeError, ConnectionResetError):
+                # L'appareil a repondu et ferme avant la fin de l'envoi : c'est
+                # le cas nominal d'un refus (401 sans identifiants, en-tete
+                # invalide). La reponse est peut-etre deja dans le tampon de
+                # reception -- la lire vaut mieux que rapporter un tuyau casse.
+                early = b""
+                try:
+                    sock.settimeout(2.0)
+                    while True:
+                        data = sock.recv(4096)
+                        if not data:
+                            break
+                        early += data
+                except OSError:
+                    pass
+                if early:
+                    text = early.decode("utf-8", errors="replace")
+                    print("rejete apres %d/%d o envoyes" % (sent, total))
+                    print("--- reponse ---")
+                    print(text.strip())
+                    return 0 if " 200 " in text.split("\r\n", 1)[0] else 1
+                raise
             sent = end
 
             if args.throttle:
@@ -127,6 +161,9 @@ def main(argv):
                         help="fermer la connexion apres PCT %% du corps")
     parser.add_argument("--throttle", type=float, default=0.0,
                         help="pause en secondes entre deux blocs")
+    parser.add_argument("--user", default="admin", help="utilisateur HTTP Basic")
+    parser.add_argument("--password", help="mot de passe d'administration (affiche a l'ecran "
+                                           "de demarrage et sur la trace UART jusqu'au premier usage)")
     args = parser.parse_args(argv)
 
     if not os.path.isfile(args.package):

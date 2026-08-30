@@ -90,12 +90,33 @@ Name, serial number, MAC address and host link state (bound / streaming), refres
 
 > **Note**: After modifying network settings, click **Apply Network Settings** (the device reboots).
 
+#### Administrator password
+
+Every request that **changes** the device -- firmware upload, network settings,
+factory reset, CIS/IMU/GUI settings -- requires HTTP Basic credentials, user
+`admin`. Read-only `GET` endpoints stay open so passive monitoring is not
+disturbed. The same password guards the FTP server.
+
+The password is **drawn at random on first boot**: there is no factory default,
+so no device ships with a credential that is printed in this file. It is shown
+on the boot screen, second line, until it is first used -- and nowhere else. It
+is never served over the network, since a password the network can read would
+protect nothing. If it is lost, a **Factory Reset** generates and displays a new
+one.
+
 #### Firmware Update
 
 To update the firmware via the HTTP interface:
 
 1. Select the firmware file from your local machine.
-2. Click **Upload Firmware** to initiate the update process.
+2. Click **Upload Firmware** and enter the administrator credentials.
+
+The device verifies the package (header bounds and CRC-32) *before* rebooting:
+an invalid package is answered `400` with the reason and costs no restart. Once
+applied, the new image runs **on trial** -- it must prove the configuration was
+read and the HTTP server is listening, and hold for 30 s, or the bootloader
+restores the previous version automatically. See
+[docs/PLAN_FIRMWARE_UPDATE.md](docs/PLAN_FIRMWARE_UPDATE.md).
 
 #### Advanced Settings
 
@@ -122,15 +143,19 @@ The CISYNTH device is also equipped with an FTP server, allowing file transfers 
   The FTP connection used is non-encrypted (FTP simple).
 
 - **Authentication Type**:  
-  - **Anonymous**:  
-    By default, the server allows anonymous access, meaning no username or password is required to connect to the FTP server.  
-    You can adjust this setting for added security if needed.
+  - User `admin`, with the administrator password described above. Anonymous
+    access is refused, and no command other than `USER`, `PASS` and `QUIT` is
+    served before login.
+
+    > This used to accept any credentials. Since `CONFIG.TXT` lives on the same
+    > flash and now carries the administrator password, an anonymous FTP read
+    > was enough to recover it and bypass the HTTP authentication entirely.
 
 #### Using an FTP Client
 
 1. Open your preferred FTP client (e.g., FileZilla).
 2. Enter the connection details as described above (IP address, protocol, etc.).
-3. Connect to the server. For anonymous access, leave the username and password fields blank.
+3. Connect to the server with user `admin` and the administrator password.
 4. Once connected, you can upload or download files to and from the device.
 
 ## Using MAX8

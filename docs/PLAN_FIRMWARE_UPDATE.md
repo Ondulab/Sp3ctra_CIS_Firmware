@@ -380,6 +380,36 @@ Nettement moins cher qu'Ed25519 + SHA-256 + gestion de clé, et sans rien retire
 au propriétaire. La signature garde du sens pour prouver qu'un paquet vient bien
 d'Ondulab, mais c'est un problème de distribution, traitable par une signature
 détachée vérifiée côté hôte — pas par le bootloader.
+
+**Réalisé le 2026-08-30.** Mot de passe de 12 caractères tiré au sort par le RNG
+au premier démarrage (aucune valeur d'usine), alphabet sans caractères ambigus
+puisqu'il se lit sur l'OLED et se retape à la main. Affiché sur l'écran de
+démarrage jusqu'à son premier usage, jamais servi par le réseau. Un factory
+reset formate la NOR, donc régénère et réaffiche.
+
+**Le FTP fermait la boucle.** `cmd_user()` et `cmd_pass()` ignoraient purement
+leurs arguments et répondaient toujours « connecté » ; comme `CONFIG.TXT` réside
+sur la même NOR et porte désormais `ADMIN_PASSWORD`, un seul `GET` FTP anonyme
+suffisait à récupérer le mot de passe et à contourner toute l'authentification
+HTTP. Le répartiteur de commandes n'appliquait par ailleurs aucun filtre d'état,
+donc vérifier le mot de passe sans filtrer les commandes n'aurait rien changé.
+Les deux sont corrigés, le même secret garde les deux services.
+
+C'est le genre de défaut qui survit à une relecture : le code d'authentification
+HTTP est correct isolément, et sa vacuité n'apparaît qu'en regardant **où le
+secret est rangé et qui d'autre peut lire cet endroit**.
+
+Vérifié sur cible :
+
+| Requête | Sans identifiants | Mauvais mdp | Bon mdp |
+|---|---|---|---|
+| `GET /getFirmwareVersion` | 200 | — | — |
+| `POST /setDPI` | 401 | 401 | 200 |
+| `POST /factoryReset` | 401 | — | — |
+| `POST /upload` | 401 avant toute écriture NOR | 401 | 200, mise à jour complète |
+| FTP | refusé | refusé | `230`, `PWD` opérationnel |
+
+Scénarios T14 et T15 ajoutés à la matrice.
 ### Étape 2 — Slots A/B (§3)
 
 **À faire maintenant.** Le parc compte 5 machines, toutes sous contrôle : la
