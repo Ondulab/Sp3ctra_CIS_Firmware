@@ -253,8 +253,17 @@ broche BOOT0, qui sélectionne `BOOT_ADD1` — resté à `0x1FF0`, soit le bootl
 > est tirée à la masse par R4 (10k, montée) et le pull-up **R52 est marqué NC**. Il n'y a donc
 > aujourd'hui aucune échappatoire matérielle : il faut souder R52 ou passer par le SWD.
 >
-> **Recommandation** : sortir BOOT0 sur un cavalier ou un testpoint accessible à la prochaine
-> révision. Quelques centimes, et le produit devient non-briquable en usine comme en SAV.
+> **Portée réelle, à ne pas surestimer** : un cavalier sous le capot sert en usine et en SAV,
+> pas à quelqu'un devant sa machine. Il ne supprime pas la brique du point de vue de
+> l'utilisateur.
+>
+> Ce qui serait vraiment accessible à l'utilisateur : une combinaison de boutons à la mise sous
+> tension. Le bootloader tourne toujours, même application morte, et dispose déjà de FatFs, de la
+> NOR et de l'écran ; « maintenir deux boutons au démarrage → restaurer la version précédente »
+> réutiliserait `update_restoreBackupFirmwares()` tel quel. À garder en réserve : depuis
+> l'étape 0, le rollback automatique couvre les plantages, les figeages et les images
+> vivantes-mais-cassées, si bien que ce recours ne servirait que si la restauration elle-même
+> échoue.
 
 Sans ce pontet, l'OTA bootloader reste envisageable mais doit être réservé aux mises à jour
 réellement nécessaires, et jamais combiné à une mise à jour applicative.
@@ -351,8 +360,36 @@ Après quoi les mises à jour réseau reprennent normalement.
   `Reset cause: ... IWDG` du scénario T2 donnera la réponse). Le code est écrit
   pour être correct dans les deux cas.
 
-### Étape 1 — Manifeste signé (E)
-### Étape 2 — Slots A/B (§3) — impose **une passe de reflashage SWD sur tout le parc existant**
+### Étape 1 — Authentifier le canal, pas l'image (E)
+
+**Révisé.** Le projet est open source : signer les images verrouillerait le
+propriétaire hors de son propre matériel, ce qui est un contresens ici, et
+imposerait de garder une clé privée pour la vie du produit.
+
+Or la menace réelle n'est pas « quelqu'un fait tourner son propre firmware sur
+sa machine » — c'est une fonctionnalité — mais « quelqu'un sur le même réseau
+pousse un firmware sur MA machine sans mon accord ». Le remède proportionné est
+donc d'authentifier le canal :
+
+- mot de passe administrateur sur `POST /upload` et sur les POST de
+  configuration ;
+- ou restriction de `/upload` à l'hôte actuellement lié en session SLP ;
+- fermeture de l'écriture FTP anonyme, aujourd'hui grande ouverte.
+
+Nettement moins cher qu'Ed25519 + SHA-256 + gestion de clé, et sans rien retirer
+au propriétaire. La signature garde du sens pour prouver qu'un paquet vient bien
+d'Ondulab, mais c'est un problème de distribution, traitable par une signature
+détachée vérifiée côté hôte — pas par le bootloader.
+### Étape 2 — Slots A/B (§3)
+
+**À faire maintenant.** Le parc compte 5 machines, toutes sous contrôle : la
+passe de reflashage SWD qu'impose la migration est gratuite aujourd'hui et ne le
+sera plus jamais autant. C'est le dernier moment économique, avant les premières
+livraisons.
+
+Ce qu'on y gagne : rollback instantané (plus d'aller-retour de 1,5 Mo vers la
+NOR), mise à jour environ deux fois plus rapide, recouvrement qui ne dépend plus
+du système de fichiers de la NOR, et le préalable indispensable à l'étape 3.
 ### Étape 3 — OTA bootloader via `BOOT_ADD0` (§4)
 ### Étape 4 — OTA via SLP depuis le VST (opcodes `0x30-0x7F` libres)
 
