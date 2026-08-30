@@ -140,6 +140,17 @@ static void otaApp_task(void *argument)
         {
             const bool healthy = (otaApp_health & OTA_HEALTH_REQUIRED) == OTA_HEALTH_REQUIRED;
 
+            if (osKernelGetTickCount() >= OTA_TRIAL_DEADLINE_MS)
+            {
+                /* L'image tourne mais ne s'est jamais declaree saine. Seul un
+                 * reset fait avancer le compteur d'essais du bootloader, donc
+                 * on le provoque : sans cela, une version cassant le serveur
+                 * HTTP resterait en place indefiniment. */
+                printf("OTA: trial deadline elapsed without confirmation (health 0x%02lX), resetting\n",
+                       (unsigned long)otaApp_health);
+                System_SafeReset();
+            }
+
             if (!healthy)
             {
                 healthySince = 0;

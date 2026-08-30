@@ -46,6 +46,20 @@ extern "C" {
  * precoce (rattrapee) et une panne tardive (non rattrapee). */
 #define OTA_CONFIRM_SETTLE_MS 30000u
 
+/* Delai maximal, depuis la mise sous tension, accorde a une image a l'essai
+ * pour se confirmer.
+ *
+ * Le chien de garde ne rattrape qu'une image figee. Une image qui demarre,
+ * tourne, mais n'atteint jamais ses criteres de sante -- serveur HTTP casse,
+ * par exemple -- ne provoquerait aucun reset : le compteur d'essais n'avancerait
+ * pas et le rollback ne se declencherait jamais. Passe ce delai, l'image se
+ * reinitialise donc d'elle-meme pour laisser le bootloader compter la tentative.
+ *
+ * Doit rester confortablement au-dessus du plus long chemin legitime jusqu'a la
+ * confirmation : jusqu'a 60 s d'attente du lien reseau, l'initialisation, puis
+ * OTA_CONFIRM_SETTLE_MS. */
+#define OTA_TRIAL_DEADLINE_MS 180000u
+
 /* API ----------------------------------------------------------------------*/
 
 /* Recharge le chien de garde. Sans effet s'il n'a pas ete arme par le
