@@ -154,6 +154,7 @@ int main(void)
   	Sp3ctra_ascii_preview();
 
 	shared_var.cis_process_rdy = FALSE;
+	memset((void *)&shared_feedback, 0, sizeof(shared_feedback));   /* NOLOAD shared region: define a baseline for the CM4 */
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);

@@ -208,10 +208,10 @@ static CIS_StatusTypeDef cis_configure(void)
     for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
     {
         // Initialize first buffer (scanline_buff1)
-        buffers_Scanline.scanline_buff1[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+        buffers_Scanline.scanline_buff1[packet].h.fragment_count = (uint8_t)cisConfig.udp_nb_packet_per_line;
 
         // Initialize second buffer (scanline_buff2)
-        buffers_Scanline.scanline_buff2[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
+        buffers_Scanline.scanline_buff2[packet].h.fragment_count = (uint8_t)cisConfig.udp_nb_packet_per_line;
     }
 
     return CIS_OK;
@@ -275,7 +275,7 @@ CIS_StatusTypeDef cis_reConfigure(void)
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
+void cis_imageProcess(int32_t *cisDataCpy, struct slp_line_cis *imageBuffers)
 {
     int32_t lane, i, packet, iteration;
     uint32_t startTick;
@@ -331,22 +331,22 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
 
                     if (curIter == 1)
                     {
-                        imageBuffers[packet].imageData_R[offsetIndex] = sample_R;
-                        imageBuffers[packet].imageData_G[offsetIndex] = sample_G;
-                        imageBuffers[packet].imageData_B[offsetIndex] = sample_B;
+                        imageBuffers[packet].r[offsetIndex] = sample_R;
+                        imageBuffers[packet].g[offsetIndex] = sample_G;
+                        imageBuffers[packet].b[offsetIndex] = sample_B;
                     }
                     else
                     {
-                        imageBuffers[packet].imageData_R[offsetIndex] += (sample_R - imageBuffers[packet].imageData_R[offsetIndex]) / curIter;
-                        imageBuffers[packet].imageData_G[offsetIndex] += (sample_G - imageBuffers[packet].imageData_G[offsetIndex]) / curIter;
-                        imageBuffers[packet].imageData_B[offsetIndex] += (sample_B - imageBuffers[packet].imageData_B[offsetIndex]) / curIter;
+                        imageBuffers[packet].r[offsetIndex] += (sample_R - imageBuffers[packet].r[offsetIndex]) / curIter;
+                        imageBuffers[packet].g[offsetIndex] += (sample_G - imageBuffers[packet].g[offsetIndex]) / curIter;
+                        imageBuffers[packet].b[offsetIndex] += (sample_B - imageBuffers[packet].b[offsetIndex]) / curIter;
                     }
                 }
 
                 if (curIter == shared_config.cis_oversampling)
                 {
-                    imageBuffers[packet].fragment_id = packet;
-                    imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+                    imageBuffers[packet].h.fragment_index = packet;
+                    imageBuffers[packet].h.line_id = shared_var.cis_process_cnt;
                 }
             }
         }
@@ -374,22 +374,22 @@ void cis_imageProcess(int32_t *cisDataCpy, struct packet_Scanline *imageBuffers)
 
         	        if (curIter == 1)
         	        {
-        	            imageBuffers[destPacket].imageData_R[offsetIndex] = sample_R;
-        	            imageBuffers[destPacket].imageData_G[offsetIndex] = sample_G;
-        	            imageBuffers[destPacket].imageData_B[offsetIndex] = sample_B;
+        	            imageBuffers[destPacket].r[offsetIndex] = sample_R;
+        	            imageBuffers[destPacket].g[offsetIndex] = sample_G;
+        	            imageBuffers[destPacket].b[offsetIndex] = sample_B;
         	        }
         	        else
         	        {
-        	            imageBuffers[destPacket].imageData_R[offsetIndex] += (sample_R - imageBuffers[destPacket].imageData_R[offsetIndex]) / curIter;
-        	            imageBuffers[destPacket].imageData_G[offsetIndex] += (sample_G - imageBuffers[destPacket].imageData_G[offsetIndex]) / curIter;
-        	            imageBuffers[destPacket].imageData_B[offsetIndex] += (sample_B - imageBuffers[destPacket].imageData_B[offsetIndex]) / curIter;
+        	            imageBuffers[destPacket].r[offsetIndex] += (sample_R - imageBuffers[destPacket].r[offsetIndex]) / curIter;
+        	            imageBuffers[destPacket].g[offsetIndex] += (sample_G - imageBuffers[destPacket].g[offsetIndex]) / curIter;
+        	            imageBuffers[destPacket].b[offsetIndex] += (sample_B - imageBuffers[destPacket].b[offsetIndex]) / curIter;
         	        }
         	    }
 
         	    if (curIter == shared_config.cis_oversampling)
         	    {
-        	        imageBuffers[packet].fragment_id = packet;
-        	        imageBuffers[packet].line_id = shared_var.cis_process_cnt;
+        	        imageBuffers[packet].h.fragment_index = packet;
+        	        imageBuffers[packet].h.line_id = shared_var.cis_process_cnt;
         	    }
         	}
         }

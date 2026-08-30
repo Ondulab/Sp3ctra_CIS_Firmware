@@ -1,6 +1,7 @@
 /**
  ******************************************************************************
- * @file           : udpClient_.c
+ * @file           : udp_client.c
+ * @brief          : SLP STREAM flow sender (LINE + HID datagrams)
  ******************************************************************************
  * @attention
  *
@@ -11,61 +12,41 @@
  * in the root directory of this software component.
  *
  ******************************************************************************
+ *
+ * One connected UDP netconn shared by cis_sendTask (LINE) and hidTask (HID):
+ * netconn_send() is serialised by the tcpip thread, so both may call it.
+ * The target is set by the link server (BIND -> host, expiry -> fallback).
  */
-
 /* Includes ------------------------------------------------------------------*/
-#include "stm32h7xx_hal.h"
-#include "main.h"
-#include "config.h"
 #include "globals.h"
+#include "config.h"
 
 #include "lwip/opt.h"
 #include "lwip/arch.h"
 #include "lwip/api.h"
-#include "lwip/apps/fs.h"
 #include "lwip/netif.h"
-
-#include "lwip/udp.h"
-#include "lwip/api.h"
 #include "lwip/err.h"
 
-#include "stm32h7xx_hal_eth.h"
-#include "lan8742.h"
-
 #include <stdio.h>
-#include "icm42688.h"
+#include <string.h>
 
-#include "arm_math.h"
-
-/* Private includes ----------------------------------------------------------*/
+#include "sp3ctra_link.h"
 #include "udp_client.h"
 
-/* Private typedef -----------------------------------------------------------*/
-
-/* Private define ------------------------------------------------------------*/
-
-/* Private macro -------------------------------------------------------------*/
-
 /* Private variables ---------------------------------------------------------*/
-/* Declaration of the global semaphore handle (CMSIS-RTOS v2) */
 osSemaphoreId_t udpReadySemaphoreHandle;
 
-struct netconn *conn;
-__IO uint32_t message_count = 0;
-
-static struct packet_StartupInfo packet_StartupInfo = {0};
-static struct packet_Button packet_Button = {0};
-
-static uint32_t packetsCounter = 0;
+static struct netconn *conn = NULL;
+static volatile uint8_t streamEnabled = 0;
+static uint32_t lineSeq = 0;
+static uint32_t linesSent = 0;
+static uint32_t lastLineTick = 0;
 
 volatile uint32_t isConnected = 0;
-volatile uint8_t startupPacketSent = 0;
-volatile uint8_t udpConnectionEstablished = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void);
-static UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length);
-static UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void);
+static void udpClient_initLineHeaders(struct slp_line_cis *buf);
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -74,22 +55,36 @@ static UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void);
  */
 static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void)
 {
-    // Create the binary semaphore "udpReadySemaphore" with an initial count of 0:
-    // it is released by the LwIP init once the network stack is ready.
+    // Released by the lwIP link callback once the stack is ready.
     udpReadySemaphoreHandle = osSemaphoreNew(1U, 0U, NULL);
 
-    // Check if the semaphore was successfully created.
     if (udpReadySemaphoreHandle == NULL)
     {
-        // Log an error message if the semaphore creation failed.
         printf("Failed to create UDP ready semaphore.\n");
         return UDPCLIENT_ERROR;
     }
 
-    printf("Semaphore initialized to 0.\n");
-
-    // Return a status indicating the semaphore was initialized successfully.
     return UDPCLIENT_OK;
+}
+
+/**
+ * @brief Pre-fill the constant part of every LINE fragment header of one buffer set.
+ */
+static void udpClient_initLineHeaders(struct slp_line_cis *buf)
+{
+	for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
+	{
+		buf[packet].h.hdr.magic      = SLP_MAGIC;
+		buf[packet].h.hdr.version    = SLP_VERSION;
+		buf[packet].h.hdr.type       = SLP_LINE;
+		buf[packet].h.hdr.length     = (uint16_t)sizeof(struct slp_line_cis);
+		buf[packet].h.hdr.flags      = 0;
+		buf[packet].h.pixel_offset   = (uint16_t)(packet * UDP_LINE_FRAGMENT_SIZE);
+		buf[packet].h.pixel_count    = UDP_LINE_FRAGMENT_SIZE;
+		buf[packet].h.fragment_index = (uint8_t)packet;
+		buf[packet].h.fragment_count = (uint8_t)UDP_MAX_NB_PACKET_PER_LINE;   /* refined by cis_init() */
+		buf[packet].h.line_period_us = 0;
+	}
 }
 
 /**
@@ -97,211 +92,163 @@ static UDPCLIENT_StatusTypeDef udpClient_initUdpSemaphore(void)
  */
 UDPCLIENT_StatusTypeDef udpClient_init(void)
 {
-	ip_addr_t destIPaddr;
-
 	udpClient_initUdpSemaphore();
 
-	/* Create a new UDP connection */
 	conn = netconn_new(NETCONN_UDP);
-	if (conn != NULL)
-	{
-		//netconn_set_sendtimeout(conn, 100);
-
-		IP4_ADDR(&destIPaddr, shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
-		netconn_bind(conn, NULL, 0);
-		netconn_connect(conn, &destIPaddr, shared_config.network_udp_port);
-
-	}
-	else
+	if (conn == NULL)
 	{
 		printf("Failed to initialize UDP\n");
 		return UDPCLIENT_ERROR;
 	}
+	netconn_bind(conn, NULL, 0);   /* ephemeral source port */
 
     memset((uint32_t *)&buffers_Scanline, 0, sizeof(buffers_Scanline));
+	udpClient_initLineHeaders(buffers_Scanline.scanline_buff1);
+	udpClient_initLineHeaders(buffers_Scanline.scanline_buff2);
 
-	/* Initialize the packet_Image array based on cisConfig.pixels_nb */
-	for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
-	{
-		// Initialize first buffer (scanline_buff1)
-		buffers_Scanline.scanline_buff1[packet].type = IMAGE_DATA_HEADER;
-		buffers_Scanline.scanline_buff1[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
-		buffers_Scanline.scanline_buff1[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
-		buffers_Scanline.scanline_buff1[packet].fragment_id = packet;
-
-		// Initialize second buffer (scanline_buff2)
-		buffers_Scanline.scanline_buff2[packet].type = IMAGE_DATA_HEADER;
-		buffers_Scanline.scanline_buff2[packet].fragment_size = UDP_LINE_FRAGMENT_SIZE;
-		buffers_Scanline.scanline_buff2[packet].total_fragments = cisConfig.udp_nb_packet_per_line;
-		buffers_Scanline.scanline_buff2[packet].fragment_id = packet;
-	}
-
-	packet_StartupInfo.type = STARTUP_INFO_HEADER;
-	packet_Button.type = BUTTON_DATA_HEADER;
-	packet_IMU.type = IMU_DATA_HEADER;
-
-	sprintf((char *)packet_StartupInfo.version_info, "Sp3ctra v%s RESO-NANCE", FW_VERSION);
-
-    //osThreadDef(udpStartupTask, udpStartupTask, osPriorityHigh, 0, configMINIMAL_STACK_SIZE * 2);
-    //osThreadCreate(osThread(udpStartupTask), NULL);
+	udpClient_applyDefaultTarget();
 
 	return UDPCLIENT_OK;
 }
 
+UDPCLIENT_StatusTypeDef udpClient_setTarget(const ip_addr_t *ip, uint16_t port)
+{
+	if (conn == NULL)
+	{
+		return UDPCLIENT_ERROR;
+	}
+
+	if (ip == NULL || port == 0U)
+	{
+		streamEnabled = 0;
+		printf("STREAM: off\n");
+		return UDPCLIENT_OK;
+	}
+
+	const err_t err = netconn_connect(conn, ip, port);
+	if (err != ERR_OK)
+	{
+		streamEnabled = 0;
+		printf("STREAM: connect to %s:%u failed (%d)\n", ipaddr_ntoa(ip), (unsigned)port, (int)err);
+		return UDPCLIENT_ERROR;
+	}
+
+	streamEnabled = 1;
+	printf("STREAM: -> %s:%u\n", ipaddr_ntoa(ip), (unsigned)port);
+	return UDPCLIENT_OK;
+}
+
+void udpClient_applyDefaultTarget(void)
+{
+	if (shared_config.stream_when_unbound)
+	{
+		ip_addr_t dest;
+		IP4_ADDR(ip_2_ip4(&dest), shared_config.network_dest_ip[0], shared_config.network_dest_ip[1],
+		         shared_config.network_dest_ip[2], shared_config.network_dest_ip[3]);
+		udpClient_setTarget(&dest, shared_config.network_udp_port);
+	}
+	else
+	{
+		udpClient_setTarget(NULL, 0);
+	}
+}
+
+uint8_t udpClient_isStreaming(void)
+{
+	return (streamEnabled && isConnected) ? 1U : 0U;
+}
+
+uint32_t udpClient_linesSent(void)
+{
+	return linesSent;
+}
+
 /**
  * @brief Send data over UDP with simple retry mechanism.
- * @param data Pointer to the data to send.
- * @param length Length of the data in bytes.
  */
-UDPCLIENT_StatusTypeDef udpClient_sendData(void *data, uint16_t length)
+UDPCLIENT_StatusTypeDef udpClient_sendData(const void *data, uint16_t length)
 {
-	if (isConnected == 0)
+	if (isConnected == 0 || streamEnabled == 0)
 	{
 		return UDPCLIENT_NOT_CONNECTED;
 	}
 
 	if (conn == NULL)
 	{
-		printf("UDP connection not initialized\n");
 		return UDPCLIENT_ERROR;
 	}
 
-	// Simple retry mechanism - try up to 3 times.
-	// If netbuf allocation fails it usually means LwIP pools/heaps are under pressure.
-	// Avoid hammering the allocator: use a small exponential backoff.
+	// Up to 3 attempts with a small exponential backoff: a failed netbuf
+	// allocation means the lwIP pools are under pressure, don't hammer them.
 	for (int retry = 0; retry < 3; retry++)
 	{
-		// Create a new netbuf
 		struct netbuf *buf = netbuf_new();
 		if (buf == NULL)
 		{
-			if (retry == 2) {
-				printf("Failed to allocate netbuf after %d retries\n", retry + 1);
-			}
 			osDelay((uint32_t)(10U << (uint32_t)retry));
 			continue;
 		}
 
-		// Allocate space in the netbuf
 		if (netbuf_alloc(buf, length) == NULL)
 		{
-			if (retry == 2) {
-				printf("Failed to allocate buffer in netbuf after %d retries\n", retry + 1);
-			}
 			netbuf_delete(buf);
 			osDelay((uint32_t)(10U << (uint32_t)retry));
 			continue;
 		}
 
-		// Copy data into the netbuf
 		netbuf_take(buf, data, length);
 
-		// Send the data
 		err_t err = netconn_send(conn, buf);
 		netbuf_delete(buf);
 
 		if (err == ERR_OK)
 		{
-			// Success
 			return UDPCLIENT_OK;
 		}
-		else
+
+		if (retry == 2)
 		{
-			// Log error only on final retry
-			if (retry == 2)
-			{
-				printf("Failed to send UDP data after %d retries: %d\n", retry + 1, err);
-				return UDPCLIENT_ERROR;
-			}
-			// Small delay before retry
-			osDelay((uint32_t)(10U << (uint32_t)retry));
+			printf("Failed to send UDP data after %d retries: %d\n", retry + 1, err);
+			return UDPCLIENT_ERROR;
 		}
+		osDelay((uint32_t)(10U << (uint32_t)retry));
 	}
 
 	return UDPCLIENT_ERROR;
 }
 
 /**
- * @brief Send startup information packet.
- */
-UDPCLIENT_StatusTypeDef udpClient_sendStartupInfoPacket(void)
-{
-	packet_StartupInfo.packet_id = packetsCounter = 1;
-	if (udpClient_sendData(&packet_StartupInfo, sizeof(struct packet_StartupInfo)) != UDPCLIENT_OK)
-	{
-		return UDPCLIENT_ERROR;
-	}
-	return UDPCLIENT_OK;
-}
-
-
-/**
- * @brief Send multiple packets, including IMU and button states.
- * @param rgbBuffers Pointer to array of image packets.
+ * @brief Send the fragments of one scan line, in natural order.
+ * @param rgbBuffers Array of UDP_MAX_NB_PACKET_PER_LINE fragments (line_id / fragment_count set by cis_imageProcess).
  */
 #pragma GCC push_options
 #pragma GCC optimize ("unroll-loops")
-UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers)
+UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct slp_line_cis *rgbBuffers)
 {
-    static int32_t packet = 0;
-    if (isConnected == 0)
+    if (!udpClient_isStreaming())
     {
         return UDPCLIENT_NOT_CONNECTED;
     }
 
-    for (packet = cisConfig.udp_nb_packet_per_line; --packet >= 0;)
+    const uint32_t now = HAL_GetTick();
+    uint32_t period_us = (lastLineTick != 0U) ? (now - lastLineTick) * 1000U : 0U;
+    if (period_us > 65535U)
     {
-        rgbBuffers[packet].packet_id = packetsCounter++;
-        if (udpClient_sendData(&rgbBuffers[packet], sizeof(struct packet_Scanline)) != UDPCLIENT_OK)
+        period_us = 65535U;
+    }
+    lastLineTick = now;
+
+    for (int32_t packet = 0; packet < cisConfig.udp_nb_packet_per_line; packet++)
+    {
+        rgbBuffers[packet].h.hdr.seq = lineSeq++;
+        rgbBuffers[packet].h.line_period_us = (uint16_t)period_us;
+        if (udpClient_sendData(&rgbBuffers[packet], sizeof(struct slp_line_cis)) != UDPCLIENT_OK)
         {
             return UDPCLIENT_ERROR;
         }
     }
 
-	packet_IMU.packet_id = packetsCounter++;
-
-	// Keep accelerometer values in G (not m/s²) for consistency with GUI display
-	packet_IMU.acc[0] = icm42688_accX();
-	packet_IMU.acc[1] = icm42688_accY();
-	packet_IMU.acc[2] = icm42688_accZ();
-
-	// Gyroscope values are already in dps (degrees per second)
-	packet_IMU.gyro[0] = icm42688_gyrX();
-	packet_IMU.gyro[1] = icm42688_gyrY();
-	packet_IMU.gyro[2] = icm42688_gyrZ();
-
-	SCB_CleanDCache_by_Addr((uint32_t *)&packet_IMU, sizeof(packet_IMU));
-
-	if (udpClient_sendData((void *)&packet_IMU, sizeof(struct packet_IMU)) != UDPCLIENT_OK)
-	{
-		return UDPCLIENT_ERROR;
-	}
-
-	icm42688_TIM_Callback();
-
-	// BUTTON UDP PACKETS DISABLED - Buttons are now handled exclusively via RTP-MIDI
-	// This eliminates redundancy and simplifies the architecture
-	/*
-	for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
-	{
-		// Check if an update was requested for this Button
-		if (shared_var.button_update_requested[i] == TRUE)
-		{
-			packet_Button.packet_id = packetsCounter++;
-			// Update the LED state
-			packet_Button.button_id = i;
-			packet_Button.button_state = shared_var.buttonState[i];
-			// Clear the update request flag after processing
-			shared_var.button_update_requested[i] = FALSE;
-		}
-	}
-
-	if (udpClient_sendData(&packet_Button, sizeof(struct packet_Button)) != UDPCLIENT_OK)
-	{
-		return UDPCLIENT_ERROR;
-	}
-	*/
-
+    linesSent++;
 	return UDPCLIENT_OK;
 }
 #pragma GCC pop_options

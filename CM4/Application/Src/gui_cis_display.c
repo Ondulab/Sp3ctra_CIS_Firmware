@@ -78,9 +78,9 @@ void gui_displayImage(void)
             index = (packet - (uint32_t)packet) * (CIS_200DPI_PIXELS_NB / (UDP_MAX_NB_PACKET_PER_LINE / 2));
         }
 
-        cis_rgb[0] = scanline_CM4[(uint32_t)packet].imageData_R[(uint32_t)index];
-        cis_rgb[1] = scanline_CM4[(uint32_t)packet].imageData_G[(uint32_t)index];
-        cis_rgb[2] = scanline_CM4[(uint32_t)packet].imageData_B[(uint32_t)index];
+        cis_rgb[0] = scanline_CM4[(uint32_t)packet].r[(uint32_t)index];
+        cis_rgb[1] = scanline_CM4[(uint32_t)packet].g[(uint32_t)index];
+        cis_rgb[2] = scanline_CM4[(uint32_t)packet].b[(uint32_t)index];
 
         // Convert the RGB values to a single brightness value. The numbers 299, 587, and 114
         // are weights given to the R, G, and B components respectively,

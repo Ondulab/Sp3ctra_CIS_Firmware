@@ -137,14 +137,13 @@
 
 #define LWIP_DEBUG 0
 
-// mDNS support for RTP-MIDI discovery (using official LwIP module)
-#define LWIP_MDNS_RESPONDER          1
+// mDNS responder disabled (2026-08-30): RTP-MIDI is gone, discovery is SLP HELLO/ANNOUNCE
+// (broadcast UDP). IGMP stays enabled for the optional multicast stream target.
+#define LWIP_MDNS_RESPONDER          0
 #define LWIP_IGMP                    1
 #define LWIP_NUM_NETIF_CLIENT_DATA   (LWIP_MDNS_RESPONDER)
-#define MEMP_NUM_IGMP_GROUP          8   // Increase IGMP group limit for mDNS
-#define MDNS_MAX_SERVICES            2   // Support multiple services per netif
-// LwIP 2.2.1 mDNS arms up to ~6 sys_timeouts per netif on top of the internal ones (TCP/ARP/IGMP/reass):
-// the default pool (LWIP_NUM_SYS_TIMEOUT_INTERNAL = 4) was exhausted -> "MEMP_SYS_TIMEOUT is empty" and TCP timers not armed.
+#define MEMP_NUM_IGMP_GROUP          8
+// Keep the enlarged sys_timeout pool: TCP/ARP/IGMP/reass plus the HTTP + link timers.
 #define MEMP_NUM_SYS_TIMEOUT         (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 10)
 
 #ifdef DEBUG_LWIP_STATS

@@ -77,8 +77,8 @@ static void cis_start_MDMA_Transfer(uint32_t *src, uint32_t *dst, uint32_t lengt
 CISSCAN_StatusTypeDef cis_scanInit(void)
 {
     // Create queues for free and ready buffers
-    freeBufferQueue = xQueueCreate(2, sizeof(struct packet_Scanline *));
-    readyBufferQueue = xQueueCreate(2, sizeof(struct packet_Scanline *));
+    freeBufferQueue = xQueueCreate(2, sizeof(struct slp_line_cis *));
+    readyBufferQueue = xQueueCreate(2, sizeof(struct slp_line_cis *));
 
     if (freeBufferQueue == NULL || readyBufferQueue == NULL)
     {
@@ -87,8 +87,8 @@ CISSCAN_StatusTypeDef cis_scanInit(void)
     }
 
     // Allocate buffer pointers
-    struct packet_Scanline *pBufA = buffers_Scanline.scanline_buff1;
-    struct packet_Scanline *pBufB = buffers_Scanline.scanline_buff2;
+    struct slp_line_cis *pBufA = buffers_Scanline.scanline_buff1;
+    struct slp_line_cis *pBufB = buffers_Scanline.scanline_buff2;
     xQueueSend(freeBufferQueue, &pBufA, 0);
     xQueueSend(freeBufferQueue, &pBufB, 0);
 
@@ -158,7 +158,7 @@ static void cis_userCal(void)
  */
 static void cis_scanTask(void *argument)
 {
-    struct packet_Scanline *pCurrentBuffer = NULL;
+    struct slp_line_cis *pCurrentBuffer = NULL;
 
     while (1)
     {
@@ -181,7 +181,7 @@ static void cis_scanTask(void *argument)
  */
 static void cis_sendTask(void *argument)
 {
-    struct packet_Scanline *pSendBuffer = NULL;
+    struct slp_line_cis *pSendBuffer = NULL;
 
     while (1)
     {
@@ -189,10 +189,10 @@ static void cis_sendTask(void *argument)
         xQueueReceive(readyBufferQueue, &pSendBuffer, portMAX_DELAY);
 
         // 2) Clean the cache
-        SCB_CleanDCache_by_Addr((uint32_t *)pSendBuffer, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
+        SCB_CleanDCache_by_Addr((uint32_t *)pSendBuffer, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct slp_line_cis));
 
         // 3) Start MDMA transfer for CM4 display
-        cis_start_MDMA_Transfer((uint32_t *)pSendBuffer, (uint32_t *)scanline_CM4, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct packet_Scanline));
+        cis_start_MDMA_Transfer((uint32_t *)pSendBuffer, (uint32_t *)scanline_CM4, UDP_MAX_NB_PACKET_PER_LINE * sizeof(struct slp_line_cis));
 
         // 4) Send the buffer
         udpClient_sendPackets(pSendBuffer);

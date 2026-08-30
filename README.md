@@ -4,7 +4,12 @@
 
 ## Description
 
-The CYSINTH is an innovative tangible interface for creating music and visuals. Utilizing our CIS instrument, the CISYNTH generates a UDP stream containing thousands of values captured by both the contact image sensor and the inertial measurement unit, transmitted at frequencies of up to 1kHz. This stream can be used to generate music or display image streams in Max/MSP, Pure Data, and our [Viewer](https://github.com/Ondulab/CISYNTH_Viewer).
+The CIS is a tangible interface for creating music and visuals: a contact image
+sensor scanned at up to 1 kHz, an inertial measurement unit, three buttons with
+backlight and a 256x64 OLED, all on a PoE Ethernet link. Since firmware 4.0 the
+device talks to the Sp3ctra VST through **Sp3ctra Link (SLP)**, a small UDP
+protocol with discovery, an exclusive host session, a negotiated image stream,
+a buttons + IMU stream and host -> device feedback (LEDs, OLED overlay).
 
 ## Project Status
 
@@ -20,9 +25,40 @@ Our device supports Power over Ethernet (PoE), which simplifies cabling and inst
 
 The integration of an inertial measurement unit enables precise 3D gesture tracking, allowing for detailed interaction.
 
+### Sp3ctra Link (SLP v1)
+
+The wire contract is `Common/Inc/sp3ctra_link.h` (copied byte-for-byte into the
+VST). Two UDP flows:
+
+| Flow | Port | Direction | Content |
+|---|---|---|---|
+| CONTROL | **55150** (device listens) | host <-> device | `HELLO` -> `ANNOUNCE` (identity + capabilities), `BIND` -> `BIND_ACK` (negotiated stream layout), `PING`/`PONG` every 500 ms, `LED_SET`, `OLED_OVERLAY`/`OLED_CLEAR`, `CFG_GET`/`CFG_SET`/`CFG_REPLY`, `CAL_START`, `ERROR` |
+| STREAM | **55151** (chosen by the host in `BIND`) | device -> host | `LINE` (one datagram per 288-pixel fragment, 12 fragments at 400 DPI / 6 at 200 DPI) and `HID` (buttons + accelerometer in g + gyroscope in dps + temperature, 200 Hz by default and immediately on every button edge) |
+
+- Discovery: the host broadcasts `HELLO` on the subnet; every device answers
+  `ANNOUNCE` with its unique name (`Sp3ctra-XXXX`), serial, MAC, firmware and
+  capabilities. No mDNS, no static host address needed.
+- Session: one host at a time (`BIND` from another peer is answered `BUSY`).
+  The stream goes to the address the `BIND` came from (or a multicast group).
+  Without `PING` for 3 s the session expires and the device falls back to the
+  static *Dest IP / Stream Port* configured on the web page ("Stream w/o host",
+  can be turned off).
+- Identity: the MAC (`02:53:33:xx:xx:xx`), name and serial derive from the MCU
+  unique id (`Common/Src/sys_identity.c`).
+
+Test without the VST: `scripts/slp/slp_tool.py discover | stat | hid | lines |
+led | overlay | cfg | cal` (see `scripts/README.md`). A simulated device for the
+VST side lives in `scripts/slp/slp_fake_device.py`.
+
 ### HTTP Server
 
-The CISYNTH device comes with a built-in HTTP server that allows for easy configuration via a web browser. Access the web interface by navigating to the device's IP address (default: [192.168.0.10](http://192.168.0.10/config.html)). Below are the key sections and functionalities of the interface:
+The device also runs an HTTP server for configuration from a browser and
+firmware upload. Navigate to the device IP address (default:
+[192.168.100.1](http://192.168.100.1/config.html)). Sections:
+
+#### Device
+
+Name, serial number, MAC address and host link state (bound / streaming), refreshed every second.
 
 #### CIS Parameters
 
@@ -45,19 +81,14 @@ The CISYNTH device comes with a built-in HTTP server that allows for easy config
 
 #### Network Settings
 
-- **IP Address/Subnet Mask/Gateway**:  
-  Allows the configuration of the Ethernet network settings, including:
-  - IP Address (default: `192.168.0.10`)
-  - Subnet Mask (default: `255.255.255.0`)
-  - Gateway (default: `0.0.0.0`)
+- **IP Address/Subnet Mask/Gateway**: static IPv4 configuration of the device
+  (default `192.168.100.1` / `255.255.255.0` / `0.0.0.0`).
+- **Dest IP Address / Stream Port**: where `LINE`/`HID` datagrams go while no
+  host session is bound (default `192.168.100.10:55151`).
+- **Link Port (SLP)**: control channel port the device listens on (default `55150`).
+- **Stream w/o host**: keep streaming to *Dest IP* without a host session (ON by default).
 
-- **Destination IP Address (UDP)**:  
-  Specifies the IP address of the target machine that will receive the UDP data packets.
-
-- **UDP Port**:  
-  Defines the port number for UDP packet transmission (default: `55151`).
-
-> **Note**: After modifying network settings, click **Apply Network Settings** to apply the changes.
+> **Note**: After modifying network settings, click **Apply Network Settings** (the device reboots).
 
 #### Firmware Update
 

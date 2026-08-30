@@ -55,3 +55,7 @@ dependencies/
 *.seed
 #*.svg
 nbproject/
+
+# Python
+__pycache__/
+*.pyc

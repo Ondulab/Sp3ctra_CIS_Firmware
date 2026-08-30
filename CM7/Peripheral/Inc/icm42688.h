@@ -236,6 +236,11 @@ typedef struct {
     float icm42688_accY();
     float icm42688_accZ();
 
+    /** Acceleration in g (no gravity scaling), for the SLP HID stream. */
+    void icm42688_getAccG(float out[3]);
+    /** Angular rate in dps, for the SLP HID stream. */
+    void icm42688_getGyroDps(float out[3]);
+
     /**
      * @brief      Get gyro data, per axis
      *

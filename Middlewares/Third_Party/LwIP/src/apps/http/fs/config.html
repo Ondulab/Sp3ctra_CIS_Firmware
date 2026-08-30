@@ -407,6 +407,27 @@
                 style="width:256px; height:64px; display:block; margin-right:auto;">
         </div>
 
+        <!-- Device identity + host link (Sp3ctra Link) -->
+        <div class="container">
+            <span class="title">DEVICE</span>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="devName" disabled>
+            </div>
+            <div class="form-group">
+                <label>Serial</label>
+                <input type="text" id="devSerial" disabled>
+            </div>
+            <div class="form-group">
+                <label>MAC</label>
+                <input type="text" id="devMac" disabled>
+            </div>
+            <div class="form-group">
+                <label>Host link</label>
+                <input type="text" id="devLink" disabled>
+            </div>
+        </div>
+
         <!-- CIS Parameters -->
         <div class="container">
             <span class="title">CIS PARAMETERS</span>
@@ -522,45 +543,6 @@
             </div>
         </div>
 
-        <!-- MIDI Channels / Button Mapping -->
-        <div class="container">
-            <span class="title">MIDI CHANNELS</span>
-
-            <div class="form-group">
-                <label>SW1</label>
-                <select id="midiBtn0Channel"></select>
-                <select id="midiBtn0Command">
-                    <option value="0">CC</option>
-                    <option value="1">NOTE</option>
-                </select>
-                <input type="number" id="midiBtn0Param" min="0" max="127">
-            </div>
-
-            <div class="form-group">
-                <label>SW2</label>
-                <select id="midiBtn1Channel"></select>
-                <select id="midiBtn1Command">
-                    <option value="0">CC</option>
-                    <option value="1">NOTE</option>
-                </select>
-                <input type="number" id="midiBtn1Param" min="0" max="127">
-            </div>
-
-            <div class="form-group">
-                <label>SW3</label>
-                <select id="midiBtn2Channel"></select>
-                <select id="midiBtn2Command">
-                    <option value="0">CC</option>
-                    <option value="1">NOTE</option>
-                </select>
-                <input type="number" id="midiBtn2Param" min="0" max="127">
-            </div>
-
-            <div class="button-container">
-                <button id="applyMidiBtn" onclick="applyMidiButtonSettings()">Apply MIDI Settings</button>
-            </div>
-        </div>
-
         <!-- Network Configuration -->
         <div class="container">
             <span class="title">NETWORK SETTINGS</span>
@@ -593,29 +575,18 @@
                 <input type="number" id="ipDestPart4" min="0" max="255">
             </div>
             <div class="form-group">
-                <label for="udp_port">CIS UDP Port</label>
-                <input type="number" id="udp_port" name="udp_port" value="%udp_port%" min="1" max="65535" required>
+                <label for="udp_port">Stream Port (UDP)</label>
+                <input type="number" id="udp_port" name="udp_port" min="1" max="65535" required>
             </div>
 
             <div class="form-group">
-                <label for="mdnsEnabled">mDNS</label>
-                <button id="mdnsOff" class="hand-button" onclick="updateMdnsEnabled('0')">OFF</button>
-                <button id="mdnsOn" class="hand-button" onclick="updateMdnsEnabled('1')">ON</button>
-            </div>
-
-            <div class="form-group">
-                <label for="rtpmidiMode">RTP-MIDI</label>
-                <button id="rtpmidiServer" class="hand-button" onclick="updateRtpMidiMode('0')">SERVER</button>
-                <button id="rtpmidiClient" class="hand-button" onclick="updateRtpMidiMode('1')">CLIENT</button>
-            </div>
-
-            <div class="form-group">
-                <label for="midiControlPort">MIDI Control Port</label>
-                <input type="number" id="midiControlPort" min="0" max="65535" onchange="updateMidiDataPortDisplay()">
+                <label for="link_port">Link Port (SLP)</label>
+                <input type="number" id="link_port" name="link_port" min="1" max="65535" required>
             </div>
             <div class="form-group">
-                <label for="midiDataPort">MIDI Data Port</label>
-                <input type="number" id="midiDataPort" disabled />
+                <label for="streamWhenUnbound">Stream w/o host</label>
+                <button id="streamUnboundOff" class="hand-button" onclick="setStreamWhenUnbound('0')">OFF</button>
+                <button id="streamUnboundOn" class="hand-button" onclick="setStreamWhenUnbound('1')">ON</button>
             </div>
             <div class="button-container">
                 <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply Network Settings</button>
@@ -680,234 +651,23 @@
                 .then(() => loadMotionThresholdGyro())
                 .then(() => loadGyroSensitivity())
                 .then(() => loadAccelSensitivity())
-                .then(() => loadMidiButtonConfig())
                 .then(() => loadNetworkConfig())
-                .then(() => loadMdnsEnabled())
-                .then(() => loadRtpMidiMode())
+                .then(() => loadDeviceInfo())
                 .then(() => timer())
                 .catch(error => {
                     console.error("Initialization failed:", error);
                 });
         }
 
-        function initMidiChannelSelects() {
-            for (let i = 0; i < 3; i++) {
-                const sel = document.getElementById(`midiBtn${i}Channel`);
-                if (!sel) continue;
-                sel.innerHTML = '';
-                for (let ch = 1; ch <= 16; ch++) {
-                    const opt = document.createElement('option');
-                    opt.value = (ch - 1).toString(); // firmware uses 0-15
-                    opt.textContent = ch.toString();
-                    sel.appendChild(opt);
-                }
-            }
-        }
 
-        function loadMidiButtonConfig() {
-            initMidiChannelSelects();
-            return new Promise((resolve, reject) => {
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", "/getMidiButtonConfig", true);
-                xhr.onload = function () {
-                    if (xhr.status === 200) {
-                        try {
-                            const cfg = JSON.parse(xhr.responseText);
-                            if (cfg && cfg.buttons && cfg.buttons.length === 3) {
-                                for (let i = 0; i < 3; i++) {
-                                    document.getElementById(`midiBtn${i}Channel`).value = cfg.buttons[i].ch.toString();
-                                    document.getElementById(`midiBtn${i}Command`).value = cfg.buttons[i].cmd.toString();
-                                    document.getElementById(`midiBtn${i}Param`).value = cfg.buttons[i].param.toString();
-                                }
-                            }
-                            resolve();
-                        } catch (e) {
-                            reject(new Error("Failed to parse MIDI button config"));
-                        }
-                    } else {
-                        reject(new Error("Failed to load MIDI button config"));
-                    }
-                };
-                xhr.onerror = () => reject(new Error("Network request failed"));
-                xhr.send();
-            });
-        }
 
-        function applyMidiButtonSettings() {
-            return new Promise((resolve, reject) => {
-                var applyButton = document.getElementById('applyMidiBtn');
-                applyButton.classList.add('button-loading');
-
-                const b0_ch = document.getElementById('midiBtn0Channel').value;
-                const b0_cmd = document.getElementById('midiBtn0Command').value;
-                const b0_param = document.getElementById('midiBtn0Param').value;
-
-                const b1_ch = document.getElementById('midiBtn1Channel').value;
-                const b1_cmd = document.getElementById('midiBtn1Command').value;
-                const b1_param = document.getElementById('midiBtn1Param').value;
-
-                const b2_ch = document.getElementById('midiBtn2Channel').value;
-                const b2_cmd = document.getElementById('midiBtn2Command').value;
-                const b2_param = document.getElementById('midiBtn2Param').value;
-
-                const data = `b0_ch=${b0_ch}&b0_cmd=${b0_cmd}&b0_param=${b0_param}` +
-                    `&b1_ch=${b1_ch}&b1_cmd=${b1_cmd}&b1_param=${b1_param}` +
-                    `&b2_ch=${b2_ch}&b2_cmd=${b2_cmd}&b2_param=${b2_param}`;
-
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/setMidiButtonConfig", true);
-                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                xhr.onload = function () {
-                    applyButton.classList.remove('button-loading');
-                    if (xhr.status === 200) {
-                        alert("✓ MIDI settings saved");
-                        resolve();
-                    } else {
-                        alert("✗ Failed to save MIDI settings\n\n" + xhr.responseText);
-                        reject(new Error("Failed to save MIDI settings"));
-                    }
-                };
-                xhr.onerror = () => {
-                    applyButton.classList.remove('button-loading');
-                    alert("✗ Network Error!\n\nUnable to communicate with device.");
-                    reject(new Error("Network request failed"));
-                };
-
-                xhr.send(data);
-            });
-        }
 
         // mDNS enable/disable
-        function setMdnsEnabled(value) {
-            var buttons = [document.getElementById('mdnsOff'), document.getElementById('mdnsOn')];
-            buttons.forEach(btn => btn.classList.remove('selected'));
-            if (value === "1") {
-                document.getElementById('mdnsOn').classList.add('selected');
-            } else {
-                document.getElementById('mdnsOff').classList.add('selected');
-            }
-        }
 
-        function loadMdnsEnabled() {
-            return new Promise((resolve, reject) => {
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", "/getMdnsEnabled", true);
-                xhr.onload = function () {
-                    if (xhr.status === 200) {
-                        setMdnsEnabled(xhr.responseText.trim());
-                        console.log("mDNS enabled loaded:", xhr.responseText);
-                        resolve();
-                    } else {
-                        console.error("Failed to load mDNS enabled:", xhr.statusText);
-                        reject(new Error("Failed to load mDNS enabled"));
-                    }
-                };
-                xhr.onerror = () => reject(new Error("Network request failed"));
-                xhr.send();
-            });
-        }
 
-        function updateMdnsEnabled(newValue) {
-            return new Promise((resolve, reject) => {
-                var buttons = [document.getElementById('mdnsOff'), document.getElementById('mdnsOn')];
-                buttons.forEach(btn => btn.classList.add('button-loading'));
 
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/setMdnsEnabled", true);
-                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                xhr.onload = function () {
-                    buttons.forEach(btn => btn.classList.remove('button-loading'));
-                    if (xhr.status === 200) {
-                        console.log("mDNS enabled updated to:", newValue);
 
-                        // Device will reboot, stop timers and show overlay
-                        stopTimers();
-                        overlay.style.display = 'block';
-                        showReconnectNotification("Applying mDNS setting\nDevice rebooting\nWaiting for reconnection...");
-                        waitForDeviceAndReload(document.getElementById('dpi200').classList.contains('selected') ? '200' : '400');
 
-                        resolve();
-                    } else {
-                        console.error("Failed to update mDNS enabled:", xhr.statusText);
-                        overlay.style.display = 'none';
-                        reject(new Error("Failed to update mDNS enabled"));
-                    }
-                };
-                xhr.onerror = () => {
-                    buttons.forEach(btn => btn.classList.remove('button-loading'));
-                    overlay.style.display = 'none';
-                    reject(new Error("Network request failed"));
-                };
-
-                xhr.send("mdns_enabled=" + newValue);
-            });
-        }
-
-        // RTP-MIDI mode (SERVER/CLIENT)
-        function setRtpMidiMode(value) {
-            var buttons = [document.getElementById('rtpmidiServer'), document.getElementById('rtpmidiClient')];
-            buttons.forEach(btn => btn.classList.remove('selected'));
-            if (value === "1") {
-                document.getElementById('rtpmidiClient').classList.add('selected');
-            } else {
-                document.getElementById('rtpmidiServer').classList.add('selected');
-            }
-        }
-
-        function loadRtpMidiMode() {
-            return new Promise((resolve, reject) => {
-                var xhr = new XMLHttpRequest();
-                xhr.open("GET", "/getRtpMidiMode", true);
-                xhr.onload = function () {
-                    if (xhr.status === 200) {
-                        setRtpMidiMode(xhr.responseText.trim());
-                        console.log("RTP-MIDI mode loaded:", xhr.responseText);
-                        resolve();
-                    } else {
-                        console.error("Failed to load RTP-MIDI mode:", xhr.statusText);
-                        reject(new Error("Failed to load RTP-MIDI mode"));
-                    }
-                };
-                xhr.onerror = () => reject(new Error("Network request failed"));
-                xhr.send();
-            });
-        }
-
-        function updateRtpMidiMode(newValue) {
-            return new Promise((resolve, reject) => {
-                var buttons = [document.getElementById('rtpmidiServer'), document.getElementById('rtpmidiClient')];
-                buttons.forEach(btn => btn.classList.add('button-loading'));
-
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/setRtpMidiMode", true);
-                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-                xhr.onload = function () {
-                    buttons.forEach(btn => btn.classList.remove('button-loading'));
-                    if (xhr.status === 200) {
-                        console.log("RTP-MIDI mode updated to:", newValue);
-
-                        // Device will reboot, stop timers and show overlay
-                        stopTimers();
-                        overlay.style.display = 'block';
-                        showReconnectNotification("Applying RTP-MIDI mode\nDevice rebooting\nWaiting for reconnection...");
-                        waitForDeviceAndReload(document.getElementById('dpi200').classList.contains('selected') ? '200' : '400');
-
-                        resolve();
-                    } else {
-                        console.error("Failed to update RTP-MIDI mode:", xhr.statusText);
-                        overlay.style.display = 'none';
-                        reject(new Error("Failed to update RTP-MIDI mode"));
-                    }
-                };
-                xhr.onerror = () => {
-                    buttons.forEach(btn => btn.classList.remove('button-loading'));
-                    overlay.style.display = 'none';
-                    reject(new Error("Network request failed"));
-                };
-
-                xhr.send("rtpmidi_mode=" + newValue);
-            });
-        }
 
         function setupInputListeners() {
             return new Promise(resolve => {
@@ -951,6 +711,55 @@
 
         var timerId;  // Déclaration au niveau global ou dans une portée accessible
 
+        let streamWhenUnbound = 1;
+
+        function setStreamWhenUnbound(value) {
+            streamWhenUnbound = (value === '1') ? 1 : 0;
+            document.getElementById('streamUnboundOn').classList.toggle('selected', streamWhenUnbound === 1);
+            document.getElementById('streamUnboundOff').classList.toggle('selected', streamWhenUnbound === 0);
+        }
+
+        function applyDeviceInfo(info) {
+            document.getElementById("devName").value = info.name || "";
+            document.getElementById("devSerial").value = info.serial || "";
+            document.getElementById("devMac").value = info.mac || "";
+            let link;
+            if (info.bound) {
+                link = "bound to " + info.peer + (info.streaming ? " (streaming)" : "");
+            } else {
+                link = "no host" + (info.streaming ? " - streaming to Dest IP" : "");
+            }
+            document.getElementById("devLink").value = link + " - SLP v" + info.protocol + " on UDP " + info.link_port;
+        }
+
+        function loadDeviceInfo() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getDeviceInfo", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        try { applyDeviceInfo(JSON.parse(xhr.responseText)); } catch (e) { console.error(e); }
+                        resolve();
+                    } else {
+                        reject(new Error("Failed to load device info"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+
+        function refreshDeviceInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    try { applyDeviceInfo(JSON.parse(this.responseText)); } catch (e) { }
+                }
+            };
+            xhr.open("GET", "getDeviceInfo?_=" + new Date().getTime(), true);
+            xhr.send();
+        }
+
         function timer() {
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function () {
@@ -960,6 +769,7 @@
             };
             xhr.open("GET", "getFreq?_=" + new Date().getTime(), true);
             xhr.send();
+            refreshDeviceInfo();
             timerId = setTimeout(timer, 1000);  // Stockage de l'identifiant de timeout
         }
 
@@ -1836,11 +1646,8 @@
                         document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
                         document.getElementById("udp_port").value = config.udp_port;
 
-                        // RTP-MIDI ports
-                        if (config.rtpmidi_control_port !== undefined) {
-                            document.getElementById("midiControlPort").value = config.rtpmidi_control_port;
-                        }
-                        updateMidiDataPortDisplay();
+                        document.getElementById("link_port").value = config.link_port;
+                        setStreamWhenUnbound(String(config.stream_when_unbound));
                         resolve();
                     } else {
                         console.error("Failed to load network settings:", xhr.statusText);
@@ -1852,18 +1659,6 @@
             });
         }
 
-        function updateMidiDataPortDisplay() {
-            var controlPort = parseInt(document.getElementById("midiControlPort").value, 10);
-            if (isNaN(controlPort)) {
-                document.getElementById("midiDataPort").value = "";
-                return;
-            }
-            var dataPort = controlPort + 1;
-            if (dataPort > 65535) {
-                dataPort = 65535;
-            }
-            document.getElementById("midiDataPort").value = dataPort;
-        }
 
         function updateNetworkConfig() {
             return new Promise((resolve, reject) => {
@@ -1902,10 +1697,10 @@
 
                 const udpPort = document.getElementById("udp_port").value;
 
-                const rtpmidiControlPort = document.getElementById("midiControlPort").value;
+                const linkPort = document.getElementById("link_port").value;
 
                 // Construct the POST request data
-                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}&rtpmidi_control_port=${rtpmidiControlPort}`;
+                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}&link_port=${linkPort}&stream_when_unbound=${streamWhenUnbound}`;
 
                 // Create and send the HTTP POST request
                 var xhr = new XMLHttpRequest();

@@ -53,13 +53,13 @@ void update_IMU_average(void)
     {
         // Update the accelerometer
         acc_sum[i] -= acc_values[i][imuIndex[i]];
-        acc_sum[i] += packet_IMU.acc[i];
-        acc_values[i][imuIndex[i]] = packet_IMU.acc[i];
+        acc_sum[i] += (shared_imu.acc[i] * 9.81f);
+        acc_values[i][imuIndex[i]] = (shared_imu.acc[i] * 9.81f);
 
         // Update the gyroscope
         gyro_sum[i] -= gyro_values[i][imuIndex[i]];
-        gyro_sum[i] += packet_IMU.gyro[i];
-        gyro_values[i][imuIndex[i]] = packet_IMU.gyro[i];
+        gyro_sum[i] += shared_imu.gyro[i];
+        gyro_values[i][imuIndex[i]] = shared_imu.gyro[i];
 
         // Calculate the averages
         IMU_average.acc[i] = acc_sum[i] / WINDOW_IMU_AVERAGE_SIZE;
@@ -202,25 +202,25 @@ bool gui_isSignificantMotion(void)
 
     // Skip first run to initialize baseline values
     if (first_run) {
-        memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
-        memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+        memcpy(last_acc, (const void*)shared_imu.acc, sizeof(last_acc));
+        memcpy(last_gyro, (const void*)shared_imu.gyro, sizeof(last_gyro));
         first_run = false;
         return false;
     }
 
     // Calculate delta for accelerometer
-    float acc_delta = fabsf(packet_IMU.acc[0] - last_acc[0]) +
-                      fabsf(packet_IMU.acc[1] - last_acc[1]) +
-                      fabsf(packet_IMU.acc[2] - last_acc[2]);
+    float acc_delta = fabsf(shared_imu.acc[0] - last_acc[0]) +
+                      fabsf(shared_imu.acc[1] - last_acc[1]) +
+                      fabsf(shared_imu.acc[2] - last_acc[2]);
 
     // Calculate delta for gyroscope
-    float gyro_delta = fabsf(packet_IMU.gyro[0] - last_gyro[0]) +
-                       fabsf(packet_IMU.gyro[1] - last_gyro[1]) +
-                       fabsf(packet_IMU.gyro[2] - last_gyro[2]);
+    float gyro_delta = fabsf(shared_imu.gyro[0] - last_gyro[0]) +
+                       fabsf(shared_imu.gyro[1] - last_gyro[1]) +
+                       fabsf(shared_imu.gyro[2] - last_gyro[2]);
 
     // Update last values for next comparison
-    memcpy(last_acc, (const void*)packet_IMU.acc, sizeof(last_acc));
-    memcpy(last_gyro, (const void*)packet_IMU.gyro, sizeof(last_gyro));
+    memcpy(last_acc, (const void*)shared_imu.acc, sizeof(last_acc));
+    memcpy(last_gyro, (const void*)shared_imu.gyro, sizeof(last_gyro));
 
     // Return true if motion exceeds thresholds (use shared_config values)
     return (acc_delta > shared_config.motion_threshold_acc || gyro_delta > shared_config.motion_threshold_gyro);

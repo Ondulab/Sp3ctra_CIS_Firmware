@@ -1,18 +1,18 @@
 /**
  ******************************************************************************
- * @file           : udpClient_.h
+ * @file           : udp_client.h
+ * @brief          : SLP STREAM flow sender (LINE + HID datagrams)
  ******************************************************************************
  * @attention
  *
  * Copyright (C) 2018-present Reso-nance Numerique.
  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
  *
  ******************************************************************************
  */
-
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __UDP_CLIENT_H__
 #define __UDP_CLIENT_H__
@@ -23,14 +23,11 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "globals.h"
-
-/* Private includes ----------------------------------------------------------*/
+#include "lwip/ip_addr.h"
 
 /* Exported types ------------------------------------------------------------*/
 extern volatile uint32_t isConnected;
-extern volatile uint8_t startupPacketSent;
 
-/* Custom return type for UDP client -----------------------------*/
 typedef enum {
 	UDPCLIENT_OK = 0,
 	UDPCLIENT_ERROR = 1,
@@ -40,13 +37,27 @@ typedef enum {
 /* Exported constants --------------------------------------------------------*/
 extern osSemaphoreId_t udpReadySemaphoreHandle;
 
-/* Exported macro ------------------------------------------------------------*/
-
 /* Exported functions prototypes ---------------------------------------------*/
+/** Create the UDP netconn and pre-fill the LINE headers. Applies the default target. */
 UDPCLIENT_StatusTypeDef udpClient_init(void);
-UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct packet_Scanline *rgbBuffers);
 
-/* Private defines -----------------------------------------------------------*/
+/** Point the STREAM flow at ip:port (NULL / 0 = stop streaming). Any task. */
+UDPCLIENT_StatusTypeDef udpClient_setTarget(const ip_addr_t *ip, uint16_t port);
+
+/** Unbound fallback: shared_config.network_dest_ip:network_udp_port when stream_when_unbound, else off. */
+void udpClient_applyDefaultTarget(void);
+
+/** 1 when a target is set and the Ethernet link is up. */
+uint8_t udpClient_isStreaming(void);
+
+/** Send one raw datagram on the STREAM flow (retries on netbuf pressure). */
+UDPCLIENT_StatusTypeDef udpClient_sendData(const void *data, uint16_t length);
+
+/** Send the fragments of one scan line (called by cis_sendTask). */
+UDPCLIENT_StatusTypeDef udpClient_sendPackets(struct slp_line_cis *rgbBuffers);
+
+/** Lines sent since boot (PONG statistics). */
+uint32_t udpClient_linesSent(void);
 
 #ifdef __cplusplus
 }

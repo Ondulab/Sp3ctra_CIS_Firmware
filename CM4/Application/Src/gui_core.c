@@ -36,6 +36,7 @@
 #include "gui_animations.h"
 #include "gui_interaction.h"
 #include "gui_calibration.h"
+#include "gui_overlay.h"
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -54,9 +55,9 @@ int gui_mainLoop(void)
 
     for (int32_t packet = 0; packet < UDP_MAX_NB_PACKET_PER_LINE; packet++)
     {
-        memset((void *) scanline_CM4[packet].imageData_R, 0, sizeof(scanline_CM4[packet].imageData_R));
-        memset((void *) scanline_CM4[packet].imageData_G, 0, sizeof(scanline_CM4[packet].imageData_G));
-        memset((void *) scanline_CM4[packet].imageData_B, 0, sizeof(scanline_CM4[packet].imageData_B));
+        memset((void *) scanline_CM4[packet].r, 0, sizeof(scanline_CM4[packet].r));
+        memset((void *) scanline_CM4[packet].g, 0, sizeof(scanline_CM4[packet].g));
+        memset((void *) scanline_CM4[packet].b, 0, sizeof(scanline_CM4[packet].b));
     }
 
     gui_displayWaiting();
@@ -93,6 +94,7 @@ int gui_mainLoop(void)
         } else {
             // Normal operation - update the interface
             gui_displayImage();
+            gui_overlay_process();   // host overlay + link banner, drawn over the waterfall
             leds_check_update_state();
 
             if ((current_tick - last_refresh_tick) >= 200)

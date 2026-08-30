@@ -113,6 +113,21 @@ float icm42688_accZ()
 	return _acc[2] * GRAVITY_MS2;
 }
 
+/* Raw units for the SLP HID stream: acc in g, gyro in dps (no gravity scaling). */
+void icm42688_getAccG(float out[3])
+{
+	out[0] = _acc[0];
+	out[1] = _acc[1];
+	out[2] = _acc[2];
+}
+
+void icm42688_getGyroDps(float out[3])
+{
+	out[0] = _gyr[0];
+	out[1] = _gyr[1];
+	out[2] = _gyr[2];
+}
+
 /**
  * @brief      Get gyro data, per axis
  *

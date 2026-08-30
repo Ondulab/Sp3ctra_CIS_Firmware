@@ -170,3 +170,39 @@ Options utiles :
 - `-- <options>` : options passées à `makefsdata` (`-11`, `-e`, `-c`, `-m`, `-svr:<nom>`, `-xc:<ext>`…)
 
 `fsdata.c` est versionné : penser à le committer avec les pages modifiées.
+
+## Après avoir ajouté, renommé ou supprimé un fichier source
+
+Les makefiles de `CM7/Release`, `CM4/Release` (…) sont générés par STM32CubeIDE
+et listent **explicitement** chaque `.c`. Pour que `./scripts/build.sh` suive
+sans repasser par l'IDE :
+
+```bash
+./scripts/sync_subdir_mk.py            # resynchronise subdir.mk + objects.list (Release)
+./scripts/sync_subdir_mk.py --check    # ne modifie rien, retourne 1 si quelque chose est périmé
+./scripts/sync_subdir_mk.py --config Debug cm7
+```
+
+Le script conserve les règles par fichier (niveaux d'optimisation personnalisés)
+et clone la règle explicite des dossiers liés (`Common/Src`). CubeIDE régénère
+ensuite exactement les mêmes listes.
+
+## Outils Sp3ctra Link (`scripts/slp/`)
+
+`slp.py` est le miroir Python de `Common/Inc/sp3ctra_link.h` (les tailles des
+structures sont vérifiées à l'import).
+
+| Outil | Usage |
+|---|---|
+| `slp_tool.py discover` | broadcast `HELLO`, liste les devices qui répondent |
+| `slp_tool.py stat --ip A.B.C.D` | `BIND` + `PING`/`PONG` (uptime, lignes/s, calibration, température) |
+| `slp_tool.py hid --ip … [--rate 200]` | fronts de boutons + IMU, cadence et pertes |
+| `slp_tool.py lines --ip …` | débit de lignes, fragments incomplets, datagrammes perdus |
+| `slp_tool.py led --ip … --led 0 --b1 100 --t1 200 --b2 0 --t2 200 --blink 3` | animation d'une LED |
+| `slp_tool.py overlay --ip … "Speed=12 ms:0.6" "!Gain=-3 dB:0.5b"` | bandeau OLED (`:x` = barre, `b` = bipolaire, `!` = surligné) |
+| `slp_tool.py cfg --ip … get` / `set oversampling=8` | configuration sur le lien |
+| `slp_tool.py cal --ip … cis|imu` | lance une calibration, suit la progression |
+| `slp_fake_device.py [--lps 200 --dpi 400]` | **device simulé** pour développer le VST sans matériel (clavier : `1`/`2`/`3` boutons, `a x y z`, `g x y z`) |
+
+Le shell de l'agent n'a pas la permission macOS « Réseau local » : lancer ces
+outils depuis un Terminal.

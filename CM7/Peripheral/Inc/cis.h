@@ -45,7 +45,7 @@ typedef enum
 CIS_StatusTypeDef cis_init(void);
 CIS_StatusTypeDef cis_Power(bool powerOn);
 CIS_StatusTypeDef cis_reConfigure(void);
-void cis_imageProcess(int32_t* cisDataCpy_int, struct packet_Scanline *imageBuffers);
+void cis_imageProcess(int32_t* cisDataCpy_int, struct slp_line_cis *imageBuffers);
 void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb);
 void cis_startCapture(void);
 void cis_stopCapture(void);

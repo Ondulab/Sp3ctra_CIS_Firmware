@@ -107,7 +107,8 @@ static void leds_handle(struct led_State *cmd, struct ledStateExtended *state, G
 	int32_t brightness_start, brightness_end, time, glide;
 
 	// Check if the button associated with the LED is pressed
-	if (button_states[button_id] == 1)
+	// Local press feedback, unless the host asked for full control of this LED (SLP_LED_NO_LOCAL_PRESS)
+	if (button_states[button_id] == 1 && ((shared_feedback.led_no_local_press & (1U << button_id)) == 0U))
 	{
 		state->led_state = 1;  // Force LED ON
 		HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);  // Turn on the LED

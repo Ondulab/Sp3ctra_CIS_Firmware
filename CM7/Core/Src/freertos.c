@@ -33,14 +33,13 @@
 #include "file_manager.h"
 #include "ftpd.h"
 #include "http_server.h"
-#include "tcp_client.h"
 #include "udp_client.h"
 #include "tim.h"
 #include "stm32_flash.h"
 #include "lwip.h"
-#include "rtpmidi.h"
-#include "midi_led_mapper.h"
-#include "midi_button_mapper.h"
+#include "link_server.h"
+#include "hid_task.h"
+#include "sys_identity.h"
 
 /* Enable to log button->MIDI events (verbose, for debugging only). */
 /* #define DEBUG_MIDI_BUTTONS */
@@ -64,13 +63,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-/* Definitions for midiTask (CMSIS-RTOS v2) */
-osThreadId_t midiTaskHandle;
-const osThreadAttr_t midiTask_attributes = {
-  .name = "midiTask",
-  .stack_size = 2048 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
+
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -82,7 +75,6 @@ const osThreadAttr_t defaultTask_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-void StartMidiTask(void *argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -155,7 +147,6 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	midiTaskHandle = osThreadNew(StartMidiTask, NULL, &midiTask_attributes);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -261,64 +252,20 @@ void StartDefaultTask(void *argument)
     printf("Waiting for network interface to be fully ready...\n");
     osDelay(200);  // 200ms delay to ensure LwIP is stable
 
-    // Verify network interface has valid IP
-    struct netif *netif = netif_default;
-    if (!netif || ip_addr_isany(&netif->ip_addr)) {
-        printf("Network interface not ready - RTP-MIDI initialization skipped\n");
-    } else {
-        printf("--- RTP-MIDI INITIALIZATIONS --\n");
+    {
+        char name[SYS_IDENTITY_NAME_LEN], serial[SYS_IDENTITY_SERIAL_LEN];
+        uint8_t mac[6];
+        sys_identity_name(name);
+        sys_identity_serial(serial);
+        sys_identity_mac(mac);
+        printf("Device %s, serial %s, MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+               name, serial, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    }
 
-        // Convert config destination IP to LwIP ip_addr_t
-        ip_addr_t remote_ip;
-        IP4_ADDR(&remote_ip,
-                 shared_config.network_dest_ip[0],
-                 shared_config.network_dest_ip[1],
-                 shared_config.network_dest_ip[2],
-                 shared_config.network_dest_ip[3]);
-
-        // Determine RTP-MIDI mode from configuration
-        rtpmidi_mode_t mode = (rtpmidi_mode_t)shared_config.rtpmidi_mode;
-        const char* mode_str = (mode == RTPMIDI_MODE_SERVER) ? "SERVER" : "CLIENT";
-
-        printf("RTP-MIDI: Mode=%s, Destination IP=%d.%d.%d.%d\n",
-               mode_str,
-               shared_config.network_dest_ip[0],
-               shared_config.network_dest_ip[1],
-               shared_config.network_dest_ip[2],
-               shared_config.network_dest_ip[3]);
-
-        // Initialize RTP-MIDI with mode from configuration
-        // SERVER mode (0): Passive, waits for INVITE from macOS (uses mDNS for discovery)
-        // CLIENT mode (1): Active, initiates connection to remote IP from config
-        if (rtpmidi_init("Sp3ctra_CIS", &remote_ip, mode) != RTPMIDI_OK)
-        {
-            printf("RTP-MIDI initialization ERROR\n");
-        }
-        else
-        {
-            // Initialize mappers
-            midi_button_mapper_init();
-            midi_led_mapper_init(LED_MODE_SIMPLE);
-
-            // Register LED callback for incoming MIDI
-            rtpmidi_register_rx_callback(midi_led_mapper_handle_cc);
-
-            // In CLIENT mode, initiate connection to remote server
-            if (mode == RTPMIDI_MODE_CLIENT) {
-                if (rtpmidi_connect() != RTPMIDI_OK)
-                {
-                    printf("RTP-MIDI: Failed to initiate connection\n");
-                }
-                else
-                {
-                    printf("RTP-MIDI: Initialized in CLIENT mode (connecting to remote)\n");
-                    printf("RTP-MIDI initialization SUCCESS\n");
-                }
-            } else {
-                printf("RTP-MIDI: Initialized in SERVER mode (waiting for macOS invitation)\n");
-                printf("RTP-MIDI initialization SUCCESS\n");
-            }
-        }
+    printf("---- LINK INITIALIZATIONS -----\n");
+    if (link_serverInit() != LINKSERVER_OK)
+    {
+        printf("Link server initialization ERROR\n");
     }
 
     printf("----- IMU INITIALIZATIONS -----\n");
@@ -326,6 +273,12 @@ void StartDefaultTask(void *argument)
 	{
 		printf("IMU initialization ERROR\n");
 	}
+
+    printf("----- HID INITIALIZATIONS -----\n");
+    if (hid_taskInit() != HIDTASK_OK)
+    {
+        printf("HID task initialization ERROR\n");
+    }
 
     printf("----- CIS INITIALIZATIONS -----\n");
 	if (cis_scanInit() != CISSCAN_OK)
@@ -359,82 +312,6 @@ void StartDefaultTask(void *argument)
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 
-/* USER CODE BEGIN Header_StartMidiTask */
-/**
- * @brief  Function implementing the MIDI task.
- * @param  argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartMidiTask */
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
-void StartMidiTask(void *argument)
-{
-    /* USER CODE BEGIN StartMidiTask */
-
-    // Wait for system to be fully initialized
-    printf("--- MIDI TASK: Waiting for system init ---\n");
-    while(systemFullyInitialized == 0)
-    {
-        osDelay(100);
-    }
-
-    printf("--- MIDI TASK: Starting RTP-MIDI processing ---\n");
-
-    // mDNS is now initialized in MX_LWIP_Init() in lwip.c
-    // RTP-MIDI is initialized in StartDefaultTask where it worked before
-    // Track last processed sequence numbers for each button
-    static uint32_t last_processed_sequence[NUMBER_OF_BUTTONS] = {0};
-
-    // Main loop
-    for(;;)
-    {
-        // Process RTP-MIDI (handles session, RX, timeouts)
-        rtpmidi_process();
-
-        // mDNS is now handled automatically by LwIP
-
-        // Check for button events using sequence numbers (edge-triggered)
-        for (uint8_t i = 0; i < NUMBER_OF_BUTTONS; i++)
-        {
-            // Read current sequence number (atomic operation)
-            uint32_t current_sequence = shared_var.button_events[i].sequence_number;
-
-            // Check if sequence has changed (new event available)
-            if (current_sequence != last_processed_sequence[i])
-            {
-                // Get button state from shared memory
-                buttonStateTypeDef state = shared_var.button_events[i].state;
-
-                // Send MIDI message
-                uint8_t pressed = (state == SWITCH_PRESSED) ? 1 : 0;
-                midi_button_mapper_on_change(i, pressed);
-
-#ifdef DEBUG_MIDI_BUTTONS
-                /* Keep logs out of critical paths by default.
-                 * This task runs at 1ms period, so printing here can spam.
-                 */
-                uint8_t cc = (i == 0U) ? MIDI_BUTTON1_CC : (i == 1U) ? MIDI_BUTTON2_CC : MIDI_BUTTON3_CC;
-                uint8_t value = pressed ? 127U : 0U;
-                printf("MIDI: Button %u %s (seq=%lu) -> CC %u = %u\n",
-                       (unsigned)i,
-                       pressed ? "PRESSED" : "RELEASED",
-                       (unsigned long)current_sequence,
-                       (unsigned)cc,
-                       (unsigned)value);
-#endif
-
-                // Update last processed sequence
-                last_processed_sequence[i] = current_sequence;
-            }
-        }
-
-        osDelay(1);  // 1ms task period
-    }
-
-    /* USER CODE END StartMidiTask */
-}
-#pragma GCC pop_options
 
 /* USER CODE END Application */
 

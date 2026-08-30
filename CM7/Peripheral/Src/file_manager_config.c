@@ -34,30 +34,24 @@
 /* Private variables ---------------------------------------------------------*/
 const struct shared_config DefaultConfig =
 {
-    .ui_button_delay = DEFAULT_UI_BUTTON_DELAY,
     .network_ip = DEFAULT_NETWORK_IP,
     .network_netmask = DEFAULT_NETWORK_NETMASK,
     .network_gw = DEFAULT_NETWORK_GW,
     .network_dest_ip = DEFAULT_NETWORK_DEST_IP,
-    .rtpmidi_control_port = DEFAULT_RTPMIDI_CONTROL_PORT,
+    .network_link_port = DEFAULT_NETWORK_LINK_PORT,
     .network_udp_port = DEFAULT_NETWORK_CIS_UDP_PORT,
-    .network_tcp_port = DEFAULT_NETWORK_TCP_PORT,
+    .stream_when_unbound = DEFAULT_STREAM_WHEN_UNBOUND,
     .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
     .cis_dpi = DEFAULT_CIS_DPI,
     .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
     .cis_handedness = DEFAULT_CIS_HANDEDNESS,
     .imu_gyro_sensitivity = DEFAULT_GYRO_SENSITIVITY,
     .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY,
-    .midi_button_channel = { DEFAULT_MIDI_BUTTON0_CHANNEL, DEFAULT_MIDI_BUTTON1_CHANNEL, DEFAULT_MIDI_BUTTON2_CHANNEL },
-    .midi_button_command = { DEFAULT_MIDI_BUTTON0_COMMAND, DEFAULT_MIDI_BUTTON1_COMMAND, DEFAULT_MIDI_BUTTON2_COMMAND },
-    .midi_button_param = { DEFAULT_MIDI_BUTTON0_PARAM, DEFAULT_MIDI_BUTTON1_PARAM, DEFAULT_MIDI_BUTTON2_PARAM },
     .gui_show_imu = DEFAULT_GUI_SHOW_IMU,
     .gui_invert_cis_image = DEFAULT_GUI_INVERT_CIS_IMAGE,
     .screensaver_timeout_sec = DEFAULT_SCREENSAVER_TIMEOUT_SEC,
     .motion_threshold_acc = DEFAULT_MOTION_THRESHOLD_ACC,
     .motion_threshold_gyro = DEFAULT_MOTION_THRESHOLD_GYRO,
-    .mdns_enabled = DEFAULT_MDNS_ENABLED,
-    .rtpmidi_mode = DEFAULT_RTPMIDI_MODE
 };
 
 FATFS fs;
@@ -95,11 +89,7 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
         char* value = strtok(NULL, "\r\n");
         if (value != NULL)
         {
-            if (strcmp(token, "UI_BUTTON_DELAY") == 0)
-            {
-                config->ui_button_delay = strtoul(value, NULL, 10);
-            }
-            else if (strncmp(token, "NETWORK_IP_ADDR", 15) == 0)
+            if (strncmp(token, "NETWORK_IP_ADDR", 15) == 0)
             {
                 int index = token[15] - '0';
                 if (index >= 0 && index < 4)
@@ -135,13 +125,13 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
             {
                 config->network_udp_port = (uint16_t)strtoul(value, NULL, 10);
             }
-            else if (strcmp(token, "NETWORK_TCP_PORT") == 0)
+            else if (strcmp(token, "NETWORK_LINK_PORT") == 0)
             {
-                config->network_tcp_port = (uint16_t)strtoul(value, NULL, 10);
+                config->network_link_port = (uint16_t)strtoul(value, NULL, 10);
             }
-            else if (strcmp(token, "RTPMIDI_CONTROL_PORT") == 0)
+            else if (strcmp(token, "STREAM_WHEN_UNBOUND") == 0)
             {
-                config->rtpmidi_control_port = (uint16_t)strtoul(value, NULL, 10);
+                config->stream_when_unbound = (strtoul(value, NULL, 10) > 0UL) ? 1U : 0U;
             }
             else if (strcmp(token, "CIS_PRINT_CALIBRATION") == 0)
             {
@@ -167,29 +157,6 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
             {
                 config->imu_accel_sensitivity = (uint8_t)strtoul(value, NULL, 10);
             }
-            else if (strncmp(token, "MIDI_BUTTON", 11) == 0)
-            {
-                int index = token[11] - '0';
-                if (index >= 0 && index < NUMBER_OF_BUTTONS)
-                {
-                    const char *suffix = token + 12;
-                    if (strcmp(suffix, "_CHANNEL") == 0)
-                    {
-                        uint32_t ch = strtoul(value, NULL, 10);
-                        config->midi_button_channel[index] = (uint8_t)((ch > 15U) ? 15U : ch);
-                    }
-                    else if (strcmp(suffix, "_COMMAND") == 0)
-                    {
-                        uint32_t cmd = strtoul(value, NULL, 10);
-                        config->midi_button_command[index] = (uint8_t)((cmd > 1U) ? 1U : cmd);
-                    }
-                    else if (strcmp(suffix, "_PARAM") == 0)
-                    {
-                        uint32_t param = strtoul(value, NULL, 10);
-                        config->midi_button_param[index] = (uint8_t)((param > 127U) ? 127U : param);
-                    }
-                }
-            }
             else if (strcmp(token, "GUI_SHOW_IMU") == 0)
             {
                 config->gui_show_imu = (uint8_t)strtoul(value, NULL, 10);
@@ -210,14 +177,6 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
             {
                 config->motion_threshold_gyro = strtof(value, NULL);
             }
-            else if (strcmp(token, "MDNS_ENABLED") == 0)
-            {
-                config->mdns_enabled = (uint8_t)strtoul(value, NULL, 10);
-            }
-            else if (strcmp(token, "RTPMIDI_MODE") == 0)
-            {
-                config->rtpmidi_mode = (uint8_t)strtoul(value, NULL, 10);
-            }
         }
 
         token = strtok(NULL, "=");
@@ -237,7 +196,6 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
         return FILEMANAGER_ERROR;
     }
 
-    f_printf(&file, "UI_BUTTON_DELAY=%lu\n", config->ui_button_delay);
     f_printf(&file, "NETWORK_IP_ADDR0=%u\n", config->network_ip[0]);
     f_printf(&file, "NETWORK_IP_ADDR1=%u\n", config->network_ip[1]);
     f_printf(&file, "NETWORK_IP_ADDR2=%u\n", config->network_ip[2]);
@@ -255,21 +213,14 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "NETWORK_DEST_IP_ADDR2=%u\n", config->network_dest_ip[2]);
     f_printf(&file, "NETWORK_DEST_IP_ADDR3=%u\n", config->network_dest_ip[3]);
     f_printf(&file, "NETWORK_UDP_PORT=%u\n", config->network_udp_port);
-    f_printf(&file, "NETWORK_TCP_PORT=%u\n", config->network_tcp_port);
-    f_printf(&file, "RTPMIDI_CONTROL_PORT=%u\n", config->rtpmidi_control_port);
+    f_printf(&file, "NETWORK_LINK_PORT=%u\n", config->network_link_port);
+    f_printf(&file, "STREAM_WHEN_UNBOUND=%u\n", config->stream_when_unbound);
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
     f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
     f_printf(&file, "CIS_OVERSAMPLING=%u\n", config->cis_oversampling);
     f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
     f_printf(&file, "IMU_GYRO_SENSITIVITY=%u\n", config->imu_gyro_sensitivity);
     f_printf(&file, "IMU_ACCEL_SENSITIVITY=%u\n", config->imu_accel_sensitivity);
-
-    for (int i = 0; i < NUMBER_OF_BUTTONS; i++)
-    {
-        f_printf(&file, "MIDI_BUTTON%d_CHANNEL=%u\n", i, config->midi_button_channel[i]);
-        f_printf(&file, "MIDI_BUTTON%d_COMMAND=%u\n", i, config->midi_button_command[i]);
-        f_printf(&file, "MIDI_BUTTON%d_PARAM=%u\n", i, config->midi_button_param[i]);
-    }
 
     f_printf(&file, "GUI_SHOW_IMU=%u\n", config->gui_show_imu);
     f_printf(&file, "GUI_INVERT_CIS_IMAGE=%u\n", config->gui_invert_cis_image);
@@ -280,8 +231,6 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_puts(float_buffer, &file);
     sprintf(float_buffer, "MOTION_THRESHOLD_GYRO=%.2f\n", config->motion_threshold_gyro);
     f_puts(float_buffer, &file);
-    f_printf(&file, "MDNS_ENABLED=%u\n", config->mdns_enabled);
-    f_printf(&file, "RTPMIDI_MODE=%u\n", config->rtpmidi_mode);
 
     (void)f_close(&file);
     return FILEMANAGER_OK;
@@ -290,7 +239,6 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
 static fileManager_StatusTypeDef print_shared_config(struct shared_config config)
 {
     printf("=========== CONFIG ============\n");
-    printf("Button Delay: %u ms\n", (unsigned int)config.ui_button_delay);
 
     printf("Network IP: %u.%u.%u.%u\n",
            config.network_ip[0], config.network_ip[1],
@@ -309,7 +257,8 @@ static fileManager_StatusTypeDef print_shared_config(struct shared_config config
            config.network_dest_ip[2], config.network_dest_ip[3]);
 
     printf("Network UDP Port: %u\n", config.network_udp_port);
-    printf("Network TCP Port: %u\n", config.network_tcp_port);
+    printf("Network Link Port: %u\n", config.network_link_port);
+    printf("Stream when unbound: %u\n", config.stream_when_unbound);
     printf("CIS Print Calibration: %u\n", config.cis_print_calibration);
     printf("CIS DPI: %u\n", config.cis_dpi);
     printf("CIS Oversampling: %u\n", config.cis_oversampling);
@@ -377,7 +326,7 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
     fileManager_StatusTypeDef rv = FILEMANAGER_ERROR;
 
     // Always start from DefaultConfig so that older CONFIG.TXT files missing
-    // newer fields (e.g. RTPMIDI_CONTROL_PORT / RTPMIDI_MODE) still get sane
+    // newer fields (e.g. NETWORK_LINK_PORT / STREAM_WHEN_UNBOUND) still get sane
     // defaults.
     //
     // Without this, missing keys would leave fields uninitialized (typically 0)
@@ -447,15 +396,16 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         (void)print_shared_config(*config);
     }
 
-    // Post-load validation (keep ranges bounded; avoid invalid persistent values)
-    // NOTE: this is not an exhaustive validation of all fields, only the ones
-    // most likely to impact connectivity and that were recently introduced.
-    if (config->rtpmidi_mode > 1U) {
-        config->rtpmidi_mode = DEFAULT_RTPMIDI_MODE;
+    // Post-load validation: a zero port means "use default" (older CONFIG.TXT
+    // files, or a value cleared by hand).
+    if (config->network_link_port == 0U) {
+        config->network_link_port = DEFAULT_NETWORK_LINK_PORT;
     }
-    // If user stored 0 in config, treat as "use default".
-    if (config->rtpmidi_control_port == 0U) {
-        config->rtpmidi_control_port = DEFAULT_RTPMIDI_CONTROL_PORT;
+    if (config->network_udp_port == 0U) {
+        config->network_udp_port = DEFAULT_NETWORK_CIS_UDP_PORT;
+    }
+    if (config->stream_when_unbound > 1U) {
+        config->stream_when_unbound = DEFAULT_STREAM_WHEN_UNBOUND;
     }
 
     return rv;

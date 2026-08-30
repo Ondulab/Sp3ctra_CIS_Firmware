@@ -25,6 +25,7 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 #include "stdint.h"
 #include "config.h"
+#include "sp3ctra_link.h"
 #include "arm_math.h"
 
 /* Exported types ------------------------------------------------------------*/
@@ -53,14 +54,6 @@ typedef enum
 	LED_3,
 }ledIdTypeDef;
 
-typedef enum
-{
-    STARTUP_INFO_HEADER = 0x11,
-    IMAGE_DATA_HEADER = 0x12,
-    IMU_DATA_HEADER = 0x13,
-    BUTTON_DATA_HEADER= 0x14,
-    LED_DATA_HEADER = 0x15,
-}CIS_Packet_HeaderTypeDef;
 
 typedef enum
 {
@@ -85,31 +78,21 @@ typedef enum
 }CIS_Calibration_StateTypeDef;
 
 // Packet header structure defining the common header for all packet types// Structure for packets containing startup information like version info
-struct __attribute__((aligned(4))) packet_StartupInfo
-{
-	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
-	uint32_t packet_id;               				// Sequence number, useful for ordering packets
-	uint8_t version_info[32]; 						// Information about the version, and other startup details
-};
 
-// Structure for image data packets, including metadata for image fragmentation
-struct __attribute__((aligned(4))) packet_Scanline
+// One LINE fragment as sent on the wire (SLP v1): negotiated header + planar RGB.
+// sizeof == SLP_LINE_BYTES(UDP_LINE_FRAGMENT_SIZE); the whole struct is the datagram.
+struct __attribute__((aligned(4))) slp_line_cis
 {
-	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
-	uint32_t packet_id;               				// Sequence number, useful for ordering packets
-	uint32_t line_id;      							// Line identifier
-	uint8_t fragment_id;      						// Fragment position
-	uint8_t total_fragments;  						// Total number of fragments for the complete image
-	uint16_t fragment_size;   						// Size of this particular fragment
-	uint8_t imageData_R[UDP_LINE_FRAGMENT_SIZE];   	// Pointer to the fragmented red image data
-	uint8_t imageData_G[UDP_LINE_FRAGMENT_SIZE];  	// Pointer to the fragmented green image data
-	uint8_t imageData_B[UDP_LINE_FRAGMENT_SIZE];	// Pointer to the fragmented blue image data
+	struct slp_line_hdr h;
+	uint8_t r[UDP_LINE_FRAGMENT_SIZE];
+	uint8_t g[UDP_LINE_FRAGMENT_SIZE];
+	uint8_t b[UDP_LINE_FRAGMENT_SIZE];
 };
 
 struct __attribute__((aligned(4))) buffers_Scanline
 {
-	struct packet_Scanline scanline_buff1[UDP_MAX_NB_PACKET_PER_LINE];
-	struct packet_Scanline scanline_buff2[UDP_MAX_NB_PACKET_PER_LINE];
+	struct slp_line_cis scanline_buff1[UDP_MAX_NB_PACKET_PER_LINE];
+	struct slp_line_cis scanline_buff2[UDP_MAX_NB_PACKET_PER_LINE];
 };
 
 struct __attribute__((aligned(4))) button_Event
@@ -120,13 +103,6 @@ struct __attribute__((aligned(4))) button_Event
 };
 
 // Structure for packets containing button state information
-struct __attribute__((aligned(4))) packet_Button
-{
-	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
-	uint32_t packet_id;               				// Sequence number, useful for ordering packets
-	buttonIdTypeDef button_id;     					// Id of the button
-	struct button_Event button_state;     			// State of the button
-};
 
 struct __attribute__((aligned(4))) led_State
 {
@@ -140,23 +116,16 @@ struct __attribute__((aligned(4))) led_State
 };
 
 // Structure for packets containing leds state
-struct __attribute__((aligned(4))) packet_Leds
-{
-	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
-	uint32_t packet_id;               				// Sequence number, useful for ordering packets
-	ledIdTypeDef led_id;     						// Id of the led
-	struct led_State led_state;     				// State of the selected led
-};
 
 // Structure for packets containing sensor data (accelerometer and gyroscope)
-struct __attribute__((aligned(4))) packet_IMU
+// Latest IMU sample published by the CM7 HID task for the CM4 (IMU strip, screensaver).
+// Lives in the CACHED shared region: the CM7 cleans the D-cache after each write.
+struct __attribute__((aligned(4))) shared_imu
 {
-	CIS_Packet_HeaderTypeDef type; 					// Identifies the data type
-	uint32_t packet_id;               				// Sequence number, useful for ordering packets
-	float_t acc[3];           						// Accelerometer data: x, y, and z axis
-	float_t gyro[3];          						// Gyroscope data: x, y, and z axis
-	float_t integrated_acc[3];        				// Accelerometer data: x, y, and z axis
-	float_t integrated_gyro[3];       				// Gyroscope data: x, y, and z axis
+	float_t acc[3];           						// g
+	float_t gyro[3];          						// dps
+	float_t temp_c;
+	uint32_t seq;                                   // +1 per sample
 };
 
 struct __attribute__((aligned(4))) cisRgbBuffers
@@ -218,35 +187,38 @@ struct __attribute__((aligned(4))) shared_var
 
 struct __attribute__((aligned(4))) shared_config
 {
-	uint32_t ui_button_delay;
 	uint8_t network_ip[4];
 	uint8_t network_netmask[4];
 	uint8_t network_gw[4];
-	uint8_t network_dest_ip[4];
-	uint16_t network_udp_port;
-	uint16_t network_tcp_port;
-	uint16_t rtpmidi_control_port;
+	uint8_t network_dest_ip[4];     // STREAM target while no host session is bound
+	uint16_t network_udp_port;      // STREAM port while no host session is bound
+	uint16_t network_link_port;     // SLP CONTROL port (device listens)
+	uint8_t stream_when_unbound;    // 1 = keep streaming to network_dest_ip without a session
 	uint8_t cis_print_calibration;
 	uint16_t cis_dpi;
 	uint8_t cis_oversampling;
 	uint8_t cis_handedness;
 	uint8_t imu_gyro_sensitivity;   // GyroFS enum value (0x00-0x07)
 	uint8_t imu_accel_sensitivity;  // AccelFS enum value (0x00-0x03)
-	// MIDI mapping for the three hardware buttons
-	// channel: 0-15
-	// command: 0=CC, 1=NOTE
-	// param: 0-127 (CC number or note number)
-	uint8_t midi_button_channel[NUMBER_OF_BUTTONS];
-	uint8_t midi_button_command[NUMBER_OF_BUTTONS];
-	uint8_t midi_button_param[NUMBER_OF_BUTTONS];
 	// GUI and screensaver configuration
 	uint8_t gui_show_imu;           // 0=hide IMU panel, 1=show IMU panel
 	uint8_t gui_invert_cis_image;   // 0=normal, 1=inverted CIS image colors
 	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
-	uint8_t mdns_enabled;           // mDNS service enabled (0=disabled, 1=enabled)
-	uint8_t rtpmidi_mode;           // RTP-MIDI mode (0=SERVER, 1=CLIENT)
+};
+
+// Host -> device feedback published by the CM7 link server for the CM4.
+// NOLOAD shared region: consumers must react to *_seq CHANGES only (boot-time garbage).
+struct __attribute__((aligned(4))) shared_feedback
+{
+	uint32_t overlay_seq;                 // +1 after overlay is written
+	struct slp_oled_overlay overlay;      // last OLED_OVERLAY datagram (count == 0 -> clear)
+	uint32_t link_seq;                    // +1 after link_state / peer_ip are written
+	uint32_t link_state;                  // 0 = no host session, 1 = bound
+	uint8_t peer_ip[4];
+	uint8_t led_no_local_press;           // bit i = LED i must NOT light while its button is pressed
+	uint8_t reserved[3];
 };
 
 /**************************************************************************************/
@@ -255,8 +227,9 @@ struct __attribute__((aligned(4))) shared_config
 
 extern volatile struct shared_var shared_var;
 extern volatile struct shared_config shared_config;
-extern volatile struct packet_Scanline scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE];
-extern volatile struct packet_IMU packet_IMU;
+extern volatile struct slp_line_cis scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE];
+extern volatile struct shared_imu shared_imu;
+extern volatile struct shared_feedback shared_feedback;
 extern int params_size;
 
 

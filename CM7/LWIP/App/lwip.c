@@ -34,8 +34,6 @@
 #include "udp_client.h"
 #include "http_server.h"
 #include "lwip/netifapi.h"
-#include "lwip/apps/mdns.h"
-#include "rtpmidi.h"
 
 /* Global variable to track system initialization state */
 volatile uint8_t systemFullyInitialized = 0;
@@ -61,31 +59,6 @@ static void performAutomaticReset(void)
     osDelay(2000);
 
     System_SafeReset();
-}
-
-/**
- * @brief mDNS TXT callback for Apple MIDI service
- * @note Adds required TXT records for Apple MIDI (RTP-MIDI) discovery
- */
-static void mdns_apple_midi_txt_callback(struct mdns_service *service, void *txt_userdata)
-{
-    err_t res;
-
-    // Add txtvers=1 (required by Apple MIDI spec)
-    res = mdns_resp_add_service_txtitem(service, "txtvers=1", 9);
-    if (res != ERR_OK) {
-        printf("mDNS: Failed to add txtvers TXT record\n");
-        return;
-    }
-
-    // Add protovers=2 (required by Apple MIDI spec - RTP-MIDI protocol version)
-    res = mdns_resp_add_service_txtitem(service, "protovers=2", 11);
-    if (res != ERR_OK) {
-        printf("mDNS: Failed to add protovers TXT record\n");
-        return;
-    }
-
-    printf("mDNS: Apple MIDI TXT records added (txtvers=1, protovers=2)\n");
 }
 
 /* USER CODE END 1 */
@@ -172,37 +145,7 @@ void MX_LWIP_Init(void)
 /* USER CODE END H7_OS_THREAD_NEW_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN 3 */
-  // Initialize mDNS responder (official LwIP 2.2.1 implementation)
-  // mDNS is enabled purely based on configuration, independent of RTP-MIDI mode.
-  // In RTP-MIDI CLIENT mode, advertising the _apple-midi service may be undesired,
-  // but the mDNS hostname remains useful for device discovery.
-  if (shared_config.mdns_enabled) {
-    printf("--- mDNS INITIALIZATIONS ---\n");
-    mdns_resp_init();
-
-    // Add network interface to mDNS (publishes hostname)
-    // LwIP 2.2: the TTL argument was removed (MDNS_TTL_* defaults are used)
-    err_t err = mdns_resp_add_netif(&gnetif, "sp3ctra");
-    if (err == ERR_OK) {
-      printf("mDNS: Network interface added successfully\n");
-
-      // Advertise RTP-MIDI service regardless of RTP-MIDI mode.
-      // This matches the configuration intent: if mDNS is enabled, always publish the service.
-      // Note: mdns_resp_add_service returns s8_t (slot ID), not err_t
-      s8_t slot = mdns_resp_add_service(&gnetif, "sp3ctra", "_apple-midi",
-                                        DNSSD_PROTO_UDP, shared_config.rtpmidi_control_port,
-                                        mdns_apple_midi_txt_callback, NULL);
-      if (slot >= 0) {
-        printf("mDNS: RTP-MIDI service registered successfully (slot=%d)\n", slot);
-      } else {
-        printf("mDNS: Failed to register RTP-MIDI service (slot=%d)\n", slot);
-      }
-    } else {
-      printf("mDNS: Failed to add network interface (err=%d)\n", err);
-    }
-  } else {
-    printf("mDNS: Service disabled in configuration\n");
-  }
+  /* mDNS removed with RTP-MIDI (2026-08-30): discovery is SLP HELLO/ANNOUNCE. */
 /* USER CODE END 3 */
 }
 
@@ -236,7 +179,6 @@ static void ethernet_link_status_updated(struct netif *netif)
       /* Lien Ethernet inactif */
       printf("Ethernet link is DOWN\n");
       isConnected = 0;
-      startupPacketSent = 0;
 
       /* Check if system was fully initialized before disconnection */
       if (systemFullyInitialized == 1)

@@ -120,6 +120,22 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════════════
+section "FIRMWARE — adresse MAC par unité (CM7/LWIP/Target/ethernetif.c)"
+# CubeMX régénère low_level_init() avec la MAC codée en dur 00:80:E1:00:00:00,
+# identique sur toutes les unités. Le firmware dérive une MAC administrée
+# localement (02:53:33:xx:xx:xx) de l'UID du MCU (Common/Src/sys_identity.c).
+# ═══════════════════════════════════════════════════════════════════════
+ETHIF="$FW_ROOT/CM7/LWIP/Target/ethernetif.c"
+
+patch_file "ethernetif.c : include sys_identity.h" "$ETHIF" \
+    '#include "ethernetif\.h"\R(?!#include "sys_identity\.h")' \
+    's/(#include "ethernetif\.h")(\R)/${1}${2}#include "sys_identity.h"${2}/'
+
+patch_file "ethernetif.c : MAC dérivée de l'UID (sys_identity_mac)" "$ETHIF" \
+    'MACAddr\[0\] = 0x00;\R\s*MACAddr\[1\] = 0x80;' \
+    's/(\s*)MACAddr\[0\] = 0x00;\R\s*MACAddr\[1\] = 0x80;\R\s*MACAddr\[2\] = 0xE1;\R\s*MACAddr\[3\] = 0x00;\R\s*MACAddr\[4\] = 0x00;\R\s*MACAddr\[5\] = 0x00;/${1}sys_identity_mac(MACAddr);   \/* per-unit locally administered MAC (see post_cubemx_restore.sh) *\//'
+
+# ═══════════════════════════════════════════════════════════════════════
 section "FIRMWARE — HAL fournisseur (écrasé à chaque mise à jour du HAL)"
 # ═══════════════════════════════════════════════════════════════════════
 # HAL_Init() configure l'ART accelerator du Cortex-M4 (son SEUL cache

@@ -40,10 +40,13 @@ __attribute__ ((section(".shared_config")))
 volatile struct shared_config shared_config = {0};
 
 __attribute__((section(".scanline_CM4")))
-volatile struct packet_Scanline scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE] = {0};
+volatile struct slp_line_cis scanline_CM4[UDP_MAX_NB_PACKET_PER_LINE] = {0};
 
-__attribute__ ((section(".imuData")))
-volatile struct packet_IMU packet_IMU = {0};
+__attribute__ ((section(".imuData"), aligned(32)))
+volatile struct shared_imu shared_imu = {0};
+
+__attribute__ ((section(".shared_var")))
+volatile struct shared_feedback shared_feedback = {0};
 
 //#pragma GCC pop_options
 

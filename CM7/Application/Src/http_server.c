@@ -37,6 +37,10 @@
 #include "stm32_flash.h"
 
 #include "http_server.h"
+#include "link_server.h"
+#include "sys_identity.h"
+#include "udp_client.h"
+#include "sp3ctra_link.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -817,14 +821,16 @@ static void http_server(struct netconn *conn)
 								"\"gw\":\"%d.%d.%d.%d\","
 								"\"dest_ip\":\"%d.%d.%d.%d\","
 								"\"udp_port\":%d,"
-								"\"rtpmidi_control_port\":%d"
+								"\"link_port\":%d,"
+								"\"stream_when_unbound\":%d"
 								"}",
 								shared_config.network_ip[0], shared_config.network_ip[1], shared_config.network_ip[2], shared_config.network_ip[3],
 								shared_config.network_netmask[0], shared_config.network_netmask[1], shared_config.network_netmask[2], shared_config.network_netmask[3],
 								shared_config.network_gw[0], shared_config.network_gw[1], shared_config.network_gw[2], shared_config.network_gw[3],
 								shared_config.network_dest_ip[0], shared_config.network_dest_ip[1], shared_config.network_dest_ip[2], shared_config.network_dest_ip[3],
 								shared_config.network_udp_port,
-								shared_config.rtpmidi_control_port);
+								shared_config.network_link_port,
+								shared_config.stream_when_unbound);
 
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
@@ -893,46 +899,43 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
-					/* Get mDNS enable state */
-					else if (strncmp((char const *)buf, "GET /getMdnsEnabled", 18) == 0)
+					/* Device identity + link state (JSON) */
+					else if (strncmp((char const *)buf, "GET /getDeviceInfo", 18) == 0)
 					{
-						char response[100];
-						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.mdns_enabled);
-						netconn_write(conn, response, len, NETCONN_COPY);
-					}
+						char name[SYS_IDENTITY_NAME_LEN], serial[SYS_IDENTITY_SERIAL_LEN];
+						uint8_t mac[6], peer[4];
+						sys_identity_name(name);
+						sys_identity_serial(serial);
+						sys_identity_mac(mac);
+						link_getPeerIp(peer);
 
-					/* Get RTP-MIDI mode */
-					else if (strncmp((char const *)buf, "GET /getRtpMidiMode", 19) == 0)
-					{
-						char response[100];
-						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.rtpmidi_mode);
-						netconn_write(conn, response, len, NETCONN_COPY);
-					}
-
-					/* Get MIDI button mapping configuration */
-					else if (strncmp((char const *)buf, "GET /getMidiButtonConfig", 24) == 0)
-					{
-						char response[512];
+						char response[400];
 						int len = sprintf(response,
-								"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n"
+								"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-cache\r\n\r\n"
 								"{"
-								"\"buttons\":["
-								"{\"ch\":%u,\"cmd\":%u,\"param\":%u},"
-								"{\"ch\":%u,\"cmd\":%u,\"param\":%u},"
-								"{\"ch\":%u,\"cmd\":%u,\"param\":%u}"
-								"]"
+								"\"name\":\"%s\","
+								"\"serial\":\"%s\","
+								"\"mac\":\"%02X:%02X:%02X:%02X:%02X:%02X\","
+								"\"fw\":\"%s\","
+								"\"hw\":%d,"
+								"\"protocol\":%d,"
+								"\"link_port\":%d,"
+								"\"bound\":%d,"
+								"\"peer\":\"%d.%d.%d.%d\","
+								"\"streaming\":%d,"
+								"\"lps\":%d"
 								"}",
-								(unsigned int)shared_config.midi_button_channel[0],
-								(unsigned int)shared_config.midi_button_command[0],
-								(unsigned int)shared_config.midi_button_param[0],
-								(unsigned int)shared_config.midi_button_channel[1],
-								(unsigned int)shared_config.midi_button_command[1],
-								(unsigned int)shared_config.midi_button_param[1],
-								(unsigned int)shared_config.midi_button_channel[2],
-								(unsigned int)shared_config.midi_button_command[2],
-								(unsigned int)shared_config.midi_button_param[2]);
+								name, serial,
+								mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+								FW_VERSION, (int)HW_REVISION, (int)SLP_VERSION,
+								(int)shared_config.network_link_port,
+								(int)link_isBound(),
+								peer[0], peer[1], peer[2], peer[3],
+								(int)udpClient_isStreaming(),
+								(int)shared_var.cis_freq);
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
+
 
 					/* Send 404 if no route matches */
 					else
@@ -1318,125 +1321,6 @@ static void http_server(struct netconn *conn)
 						}
 					}
 
-					/* Process POST request to set mDNS enable state */
-					else if (strncmp((char const *)buf, "POST /setMdnsEnabled", 20) == 0)
-					{
-						char *value = strstr(buf, "mdns_enabled=");
-						if (value)
-						{
-							value += strlen("mdns_enabled=");
-							uint8_t newValue = (uint8_t)atoi(value);
-							shared_config.mdns_enabled = (newValue > 0U) ? 1U : 0U;
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.mdns_enabled);
-							netconn_write(conn, response, len, NETCONN_COPY);
-
-							// mDNS is initialized at boot; reboot to apply change reliably.
-							reboot = true;
-						}
-						else
-						{
-							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
-						}
-					}
-
-					/* Process POST request to set RTP-MIDI mode */
-					else if (strncmp((char const *)buf, "POST /setRtpMidiMode", 20) == 0)
-					{
-						char *value = strstr(buf, "rtpmidi_mode=");
-						if (value)
-						{
-							value += strlen("rtpmidi_mode=");
-							uint8_t newValue = (uint8_t)atoi(value);
-							shared_config.rtpmidi_mode = (newValue > 0U) ? 1U : 0U;
-							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-							char response[100];
-							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%u", (unsigned int)shared_config.rtpmidi_mode);
-							netconn_write(conn, response, len, NETCONN_COPY);
-
-							// RTP-MIDI mode is used during initialization; reboot to apply change reliably.
-							reboot = true;
-						}
-						else
-						{
-							char *errorResponse = "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nValue not found";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
-						}
-					}
-
-					/* Process POST request to set MIDI button mapping configuration */
-					else if (strncmp((char const *)buf, "POST /setMidiButtonConfig", 25) == 0)
-					{
-						char *data = strstr((char *)buf, "\r\n\r\n");
-						if (data)
-						{
-							data += 4;
-
-							unsigned int ch0, cmd0, param0;
-							unsigned int ch1, cmd1, param1;
-							unsigned int ch2, cmd2, param2;
-
-							int parsed = sscanf(data,
-									"b0_ch=%u&b0_cmd=%u&b0_param=%u&b1_ch=%u&b1_cmd=%u&b1_param=%u&b2_ch=%u&b2_cmd=%u&b2_param=%u",
-									&ch0, &cmd0, &param0,
-									&ch1, &cmd1, &param1,
-									&ch2, &cmd2, &param2);
-
-							if (parsed == 9)
-							{
-								// Clamp ranges
-								if (ch0 > 15U) ch0 = 15U;
-								if (ch1 > 15U) ch1 = 15U;
-								if (ch2 > 15U) ch2 = 15U;
-								if (cmd0 > 1U) cmd0 = 1U;
-								if (cmd1 > 1U) cmd1 = 1U;
-								if (cmd2 > 1U) cmd2 = 1U;
-								if (param0 > 127U) param0 = 127U;
-								if (param1 > 127U) param1 = 127U;
-								if (param2 > 127U) param2 = 127U;
-
-								shared_config.midi_button_channel[0] = (uint8_t)ch0;
-								shared_config.midi_button_command[0] = (uint8_t)cmd0;
-								shared_config.midi_button_param[0] = (uint8_t)param0;
-
-								shared_config.midi_button_channel[1] = (uint8_t)ch1;
-								shared_config.midi_button_command[1] = (uint8_t)cmd1;
-								shared_config.midi_button_param[1] = (uint8_t)param1;
-
-								shared_config.midi_button_channel[2] = (uint8_t)ch2;
-								shared_config.midi_button_command[2] = (uint8_t)cmd2;
-								shared_config.midi_button_param[2] = (uint8_t)param2;
-
-								file_writeConfig(CONFIG_FILE_PATH, &shared_config);
-
-								const char *response =
-									"HTTP/1.1 200 OK\r\n"
-									"Content-Type: text/plain\r\n\r\n"
-									"OK";
-								netconn_write(conn, response, strlen(response), NETCONN_COPY);
-							}
-							else
-							{
-								const char *errorResponse =
-									"HTTP/1.1 400 Bad Request\r\n"
-									"Content-Type: text/plain\r\n\r\n"
-									"Invalid request";
-								netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
-							}
-						}
-						else
-						{
-							const char *errorResponse =
-								"HTTP/1.1 400 Bad Request\r\n"
-								"Content-Type: text/plain\r\n\r\n"
-								"Invalid request";
-							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_COPY);
-						}
-					}
 
 					/* Handler for updating network settings */
 					else if (strncmp((char const *)buf, "POST /updateNetworkConfig", 25) == 0)
@@ -1445,16 +1329,20 @@ static void http_server(struct netconn *conn)
 						if (data)
 						{
 							int ip[4], mask[4], gw[4], dest_ip[4], udp_port;
-							int rtpmidi_control_port = (int)shared_config.rtpmidi_control_port;
+							int link_port = (int)shared_config.network_link_port;
+							int stream_when_unbound = (int)shared_config.stream_when_unbound;
 
 							// Parsing POST data
-							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d&rtpmidi_control_port=%d",
+							sscanf(data, "ip=%d.%d.%d.%d&mask=%d.%d.%d.%d&gateway=%d.%d.%d.%d&dest_ip=%d.%d.%d.%d&udp_port=%d&link_port=%d&stream_when_unbound=%d",
 									&ip[0], &ip[1], &ip[2], &ip[3],
 									&mask[0], &mask[1], &mask[2], &mask[3],
 									&gw[0], &gw[1], &gw[2], &gw[3],
 									&dest_ip[0], &dest_ip[1], &dest_ip[2], &dest_ip[3],
 									&udp_port,
-									&rtpmidi_control_port);
+									&link_port,
+									&stream_when_unbound);
+							if (link_port < 1 || link_port > 65535) link_port = (int)shared_config.network_link_port;
+							if (udp_port < 1 || udp_port > 65535) udp_port = (int)shared_config.network_udp_port;
 
 							// Updating shared configuration
 							for (int i = 0; i < 4; i++)
@@ -1464,8 +1352,9 @@ static void http_server(struct netconn *conn)
 								shared_config.network_gw[i] = gw[i];
 								shared_config.network_dest_ip[i] = dest_ip[i];
 							}
-							shared_config.network_udp_port = udp_port;
-							shared_config.rtpmidi_control_port = (uint16_t)rtpmidi_control_port;
+							shared_config.network_udp_port = (uint16_t)udp_port;
+							shared_config.network_link_port = (uint16_t)link_port;
+							shared_config.stream_when_unbound = (stream_when_unbound > 0) ? 1U : 0U;
 
 							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
 

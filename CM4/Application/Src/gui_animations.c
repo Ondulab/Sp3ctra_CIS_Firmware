@@ -30,6 +30,7 @@
 #include "pictures.h"
 #include "ssd1362.h"
 #include "gui_animations.h"
+#include "sys_identity.h"
 
 /* Private defines -----------------------------------------------------------*/
 
@@ -214,6 +215,13 @@ static void gui_drawStartupOverlay(void)
         int ipX = SSD1362_WIDTH - ipWidth - 2;
         int ipY = SSD1362_HEIGHT - 8 - 1; // Bottom margin identical to the top one
         ssd1362_drawString(ipX, ipY, (signed char *)ipString, 0xF, 8);
+    }
+
+    // Device name (unique per unit, derived from the MCU id), bottom left.
+    {
+        char name[SYS_IDENTITY_NAME_LEN];
+        sys_identity_name(name);
+        ssd1362_drawString(2, SSD1362_HEIGHT - 8 - 1, (signed char *)name, 0xF, 8);
     }
 }
 
