@@ -33,7 +33,7 @@
 // buffer for reading from sensor
 static uint8_t _buffer[15] = {};
 
-static volatile uint8_t _bufferDMA[16] = {};
+static volatile uint8_t _bufferDMA[32] __attribute__((aligned(32))) = {};   /* one full D-cache line: invalidation must not touch neighbours */
 static volatile IMU_StateTypeDef  IMU_State = IMU_INIT_NOK;
 
 /* Diagnostic counters for timer and SPI callback invocations */
@@ -692,11 +692,31 @@ void icm42688_FIFO_getFifoTemperature_C(int32_t *size,float* data)
 }
 
 /* estimates the gyro biases */
+/**
+ * @brief Block the periodic DMA sampling and wait for any in-flight SPI/DMA
+ *        transfer to finish before touching the bus in polled mode.
+ *        Caller must have set IMU_State = IMU_INIT_NOK first.
+ */
+static void icm42688_waitSpiIdle(void)
+{
+	const uint32_t t0 = HAL_GetTick();
+	while (HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY && (HAL_GetTick() - t0) < 20U)
+	{
+		osDelay(1);
+	}
+	if (HAL_SPI_GetState(&hspi2) != HAL_SPI_STATE_READY)
+	{
+		printf("IMU: SPI busy, aborting pending transfer\n");
+		HAL_SPI_Abort(&hspi2);
+	}
+}
+
 ICM42688_StatusTypeDef icm42688_calibrateGyro()
 {
 	// Prevent concurrent DMA transfers during calibration
 	IMU_StateTypeDef saved_state = IMU_State;
 	IMU_State = IMU_INIT_NOK;
+	icm42688_waitSpiIdle();
 
 	// set at a lower range (more resolution) since IMU not moving
 	const GyroFS current_fssel = _gyroFS;
@@ -786,6 +806,7 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	// Prevent concurrent DMA transfers during calibration
 	IMU_StateTypeDef saved_state = IMU_State;
 	IMU_State = IMU_INIT_NOK;
+	icm42688_waitSpiIdle();
 
 	// set at a lower range (more resolution) since IMU not moving
 	const AccelFS current_fssel = _accelFS;
@@ -812,9 +833,12 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	for (int32_t i = 0; i < NUM_CALIB_SAMPLES; i++)
 	{
 		icm42688_getAGT();
-		_accBD[0] += icm42688_accX();
-		_accBD[1] += icm42688_accY();
-		_accBD[2] += icm42688_accZ();
+		/* Accumulate in g (_acc), NOT the m/s2 getters: the bias below is
+		 * subtracted from _acc in g. Using icm42688_accX() (x 9.81) produced
+		 * biases 9.81x too large (Z at rest read +7.5 g instead of -1 g). */
+		_accBD[0] += _acc[0];
+		_accBD[1] += _acc[1];
+		_accBD[2] += _acc[2];
 
 		// Wait for ~5ms between samples to preserve temporal spacing
 		// Safe to use osDelay during initialization since IMU_State = IMU_INIT_NOK prevents DMA conflicts
@@ -857,6 +881,7 @@ ICM42688_StatusTypeDef icm42688_calibrateAccel()
 	osDelay(20);
 
 	// Reinitialize SPI interface to clear any potential HAL state corruption
+	HAL_SPI_Abort(&hspi2);
 	HAL_SPI_DeInit(&hspi2);
 	MX_SPI2_Init();
 
@@ -1260,7 +1285,18 @@ void icm42688_TIM_Callback()
 
 	if ( IMU_State == IMU_INIT_OK)
 	{
-		HAL_SPI_TransmitReceive_DMA(&hspi2, tx, (uint8_t *)_bufferDMA, 15);
+		static uint32_t busy_count = 0;
+		if (HAL_SPI_TransmitReceive_DMA(&hspi2, tx, (uint8_t *)_bufferDMA, 15) == HAL_OK)
+		{
+			busy_count = 0;
+		}
+		else if (++busy_count >= 100U)
+		{
+			/* 100 consecutive refusals (~100 ms at 1 kHz): the HAL is stuck in a
+			 * BUSY state (transfer aborted mid-way, re-init race) - reset it. */
+			busy_count = 0;
+			HAL_SPI_Abort(&hspi2);
+		}
 	}
 }
 
