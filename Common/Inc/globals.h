@@ -219,6 +219,8 @@ struct __attribute__((aligned(4))) shared_feedback
 	uint8_t peer_ip[4];
 	uint8_t led_no_local_press;           // bit i = LED i must NOT light while its button is pressed
 	uint8_t reserved[3];
+	char device_name[16];                 // "Sp3ctra-XXXX", written by the CM7 BEFORE it releases the CM4
+	                                      // (the MCU unique-id region 0x1FF1E800 bus-faults when read from the CM4)
 };
 
 /**************************************************************************************/

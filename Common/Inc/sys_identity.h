@@ -1,7 +1,8 @@
 /**
  ******************************************************************************
  * @file           : sys_identity.h
- * @brief          : Per-unit identity derived from the MCU unique id
+ * @brief          : Per-unit identity derived from the MCU unique id (CM7 ONLY:
+ *                   the UID region bus-faults on the CM4 - use shared_feedback.device_name there)
  ******************************************************************************
  * @attention
  *

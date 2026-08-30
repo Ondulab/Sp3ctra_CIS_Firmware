@@ -30,7 +30,6 @@
 #include "pictures.h"
 #include "ssd1362.h"
 #include "gui_animations.h"
-#include "sys_identity.h"
 
 /* Private defines -----------------------------------------------------------*/
 
@@ -217,10 +216,13 @@ static void gui_drawStartupOverlay(void)
         ssd1362_drawString(ipX, ipY, (signed char *)ipString, 0xF, 8);
     }
 
-    // Device name (unique per unit, derived from the MCU id), bottom left.
+    // Device name, published by the CM7 before the CM4 is released. NEVER call
+    // sys_identity_*() here: the MCU unique-id region bus-faults on the CM4.
+    if (shared_feedback.device_name[0] == 'S')
     {
-        char name[SYS_IDENTITY_NAME_LEN];
-        sys_identity_name(name);
+        char name[sizeof(shared_feedback.device_name) + 1];
+        memcpy(name, (const void *)shared_feedback.device_name, sizeof(shared_feedback.device_name));
+        name[sizeof(shared_feedback.device_name)] = '\0';
         ssd1362_drawString(2, SSD1362_HEIGHT - 8 - 1, (signed char *)name, 0xF, 8);
     }
 }

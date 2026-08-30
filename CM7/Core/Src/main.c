@@ -33,6 +33,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sys_identity.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
@@ -148,13 +149,17 @@ int main(void)
 
   printf("CM7 BOOT\n");
 
+	/* Shared-memory baseline for the CM4 (NOLOAD region) - MUST be in place before
+	 * the CM4 is released: it reads device_name on its very first frame, and the
+	 * unique-id region is not readable from the CM4 (bus fault). */
+	shared_var.cis_process_rdy = FALSE;
+	memset((void *)&shared_feedback, 0, sizeof(shared_feedback));
+	sys_identity_name((char *)shared_feedback.device_name);
+
   // Start core CM4
   HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);
 
   	Sp3ctra_ascii_preview();
-
-	shared_var.cis_process_rdy = FALSE;
-	memset((void *)&shared_feedback, 0, sizeof(shared_feedback));   /* NOLOAD shared region: define a baseline for the CM4 */
 
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
 	HAL_Delay(1000);

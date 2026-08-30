@@ -16,8 +16,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "main.h"          /* HAL: HAL_GetUIDw0/1/2 (available on both cores) */
+#include "main.h"
 #include "sys_identity.h"
+
+/* CM7 ONLY. The unique-id region (UID_BASE 0x1FF1E800) is on the D1 AXI bus and
+ * raises a precise bus fault when read from the Cortex-M4: the CM7 derives the
+ * identity once and publishes what the CM4 needs (shared_feedback.device_name). */
+#if defined(CORE_CM7)
 
 void sys_identity_uid(uint8_t out[12])
 {
@@ -60,3 +65,7 @@ void sys_identity_serial(char out[SYS_IDENTITY_SERIAL_LEN])
 {
     snprintf(out, SYS_IDENTITY_SERIAL_LEN, "S3-%08lX", (unsigned long)sys_identity_hash32());
 }
+
+#else
+typedef int sys_identity_not_available_on_cm4_t;
+#endif /* CORE_CM7 */
