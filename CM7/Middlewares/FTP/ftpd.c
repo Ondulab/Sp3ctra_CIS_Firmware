@@ -36,6 +36,7 @@
 #include "lwip/stats.h"
 
 #include "ftpd.h"
+#include "globals.h"
 
 #include "lwip/tcp.h"
 
@@ -337,6 +338,7 @@ struct ftpd_msgstate {
 	struct ftpd_datastate *datafs;
 	int passive;
 	char *renamefrom;
+	int authenticated;      /* voir cmd_pass() : rien ne passe avant */
 };
 
 static void send_msg(struct tcp_pcb *pcb, struct ftpd_msgstate *fsm, char *msg, ...);
@@ -691,25 +693,34 @@ static int open_dataconnection(struct tcp_pcb *pcb, struct ftpd_msgstate *fsm)
 
 static void cmd_user(const char *arg, struct tcp_pcb *pcb, struct ftpd_msgstate *fsm)
 {
-	(void) arg; /* suppress unused warning */
+	(void) arg; /* le nom d'utilisateur n'est pas le secret, cf. cmd_pass() */
 
 	send_msg(pcb, fsm, msg331);
 	fsm->state = FTPD_PASS;
-	/*
-	   send_msg(pcb, fs, msgLoginFailed);
-	   fs->state = FTPD_QUIT;
-	 */
 }
 
+/**
+ * Verifie le mot de passe d'administration.
+ *
+ * Ce serveur acceptait auparavant n'importe quels identifiants. Or CONFIG.TXT
+ * reside sur la meme NOR et contient desormais ADMIN_PASSWORD : un acces FTP
+ * anonyme suffisait donc a lire le mot de passe et a contourner entierement
+ * l'authentification HTTP. Le meme secret garde les deux services.
+ */
 static void cmd_pass(const char *arg, struct tcp_pcb *pcb, struct ftpd_msgstate *fsm)
 {
-	(void) arg; /* suppress unused warning */
-	send_msg(pcb, fsm, msg230);
-	fsm->state = FTPD_IDLE;
-	/*
-	   send_msg(pcb, fs, msgLoginFailed);
-	   fs->state = FTPD_QUIT;
-	 */
+	const char *expected = (const char *) shared_config.admin_password;
+
+	if (expected[0] != '\0' && arg != NULL && !strcmp(arg, expected)) {
+		fsm->authenticated = 1;
+		send_msg(pcb, fsm, msg230);
+		fsm->state = FTPD_IDLE;
+		return;
+	}
+
+	fsm->authenticated = 0;
+	send_msg(pcb, fsm, msg530);
+	fsm->state = FTPD_QUIT;
 }
 
 static void cmd_port(const char *arg, struct tcp_pcb *pcb, struct ftpd_msgstate *fsm)
@@ -1289,7 +1300,15 @@ static err_t ftpd_msgrecv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t 
 			else
 				pt = &text[strlen(cmd) + 1];
 
-			if (ftpd_cmd->func)
+			/* Tant que la session n'est pas authentifiee, seules les commandes
+			 * de connexion et de deconnexion sont servies. Sans ce filtre, la
+			 * verification du mot de passe ne servirait a rien : le
+			 * repartiteur executait chaque commande quel que soit l'etat. */
+			if (!fsm->authenticated && ftpd_cmd->cmd != NULL &&
+			    strcmp(ftpd_cmd->cmd, "USER") && strcmp(ftpd_cmd->cmd, "PASS") &&
+			    strcmp(ftpd_cmd->cmd, "QUIT"))
+				send_msg(pcb, fsm, msg530);
+			else if (ftpd_cmd->func)
 				ftpd_cmd->func(pt, pcb, fsm);
 			else
 				send_msg(pcb, fsm, msg502);
