@@ -155,6 +155,7 @@ int main(void)
 	shared_var.cis_process_rdy = FALSE;
 	memset((void *)&shared_feedback, 0, sizeof(shared_feedback));
 	sys_identity_name((char *)shared_feedback.device_name);
+	shared_feedback.boot_stage = BOOT_STAGE_STARTING;
 
   // Start core CM4
   HAL_RCCEx_EnableBootCore(RCC_BOOT_C2);

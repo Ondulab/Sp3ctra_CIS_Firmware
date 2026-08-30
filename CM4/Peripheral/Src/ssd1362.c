@@ -423,6 +423,30 @@ void ssd1362_drawBmp(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, 
 	}
 }
 
+/* Nearest-neighbour downscale (num/den <= 1) of a 1-bpp bitmap (data horizontal, bits vertical). */
+void ssd1362_drawBmpScaled(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                           uint16_t num, uint16_t den, uint8_t color)
+{
+	const uint16_t dw = (uint16_t)((uint32_t)w * num / den);
+	const uint16_t dh = (uint16_t)((uint32_t)h * num / den);
+
+	for (uint16_t dj = 0; dj < dh; dj++)
+	{
+		const uint16_t sj = (uint16_t)((uint32_t)dj * den / num);
+		const uint8_t *row = bitmap + (sj / 8u) * w;
+		const uint8_t  bit = (uint8_t)(1u << (sj & 7u));
+
+		for (uint16_t di = 0; di < dw; di++)
+		{
+			const uint16_t si = (uint16_t)((uint32_t)di * den / num);
+			if (row[si] & bit)
+			{
+				ssd1362_drawPixel(x + di, y + dj, color, false);
+			}
+		}
+	}
+}
+
 void ssd1362_progressBar(uint16_t x, uint16_t y, uint8_t state, uint8_t color)
 {
 	//sanity check
@@ -554,6 +578,14 @@ void ssd1362_screenRotation(uint32_t val)
 		ssd1362_writeCmd(0XA0); //Set Remap
 		ssd1362_writeCmd(0X52);
 	}
+}
+
+/* Panel on/off. The display RAM (and our frame buffer) are preserved, so a
+ * plain ON restores the last picture; OFF is the burn-in protection of the
+ * screensaver. */
+void ssd1362_displayOn(bool on)
+{
+	ssd1362_writeCmd(on ? 0xAF : 0xAE);
 }
 
 void ssd1362_setContrast(uint8_t contrast)

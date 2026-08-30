@@ -64,6 +64,7 @@
 #define DEFAULT_GUI_SHOW_IMU                    (0)      // Set to 0 to hide IMU panel and use full image area
 #define DEFAULT_GUI_INVERT_CIS_IMAGE            (1)      // Set to 1 to invert CIS image colors (white background, dark content)
 #define DEFAULT_SCREENSAVER_TIMEOUT_SEC         (60)     // Screensaver timeout in seconds (default: 60s)
+#define DEFAULT_SCREENSAVER_DISPLAY_OFF_SEC     (600)    // OLED switched OFF this long after the screensaver started (burn-in protection)
 #define DEFAULT_MOTION_THRESHOLD_ACC            (0.08f)  // Accelerometer motion threshold in g (default: 0.08g)
 #define DEFAULT_MOTION_THRESHOLD_GYRO           (2.0f)   // Gyroscope motion threshold in dps (default: 2.0 dps)
 

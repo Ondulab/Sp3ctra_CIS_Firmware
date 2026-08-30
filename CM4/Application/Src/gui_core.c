@@ -65,7 +65,9 @@ int gui_mainLoop(void)
 
     // Screensaver variables
     static uint32_t last_significant_motion_tick = 0;
+    static uint32_t screensaver_start_tick = 0;
     static bool screensaver_active = false;
+    static bool display_off = false;   // OLED panel switched off (burn-in protection)
 
     // Initialize motion timer
     last_significant_motion_tick = HAL_GetTick();
@@ -79,6 +81,10 @@ int gui_mainLoop(void)
         if (gui_isSignificantMotion() || gui_checkButtonActivity() || gui_overlay_hasActivity()) {
             last_significant_motion_tick = current_tick;
             screensaver_active = false;  // Wake up from screensaver
+            if (display_off) {
+                ssd1362_displayOn(true);
+                display_off = false;
+            }
         }
 
         // Check if we should activate screensaver (timeout in seconds converted to ms)
@@ -86,11 +92,20 @@ int gui_mainLoop(void)
         if (!screensaver_active &&
             (current_tick - last_significant_motion_tick) >= screensaver_timeout_ms) {
             screensaver_active = true;
+            screensaver_start_tick = current_tick;
         }
 
         // Display appropriate screen
         if (screensaver_active) {
-            gui_displayScreensaver();
+            // Drifting, dimmed logo first; then the panel itself goes dark (OLED burn-in).
+            if (!display_off &&
+                (current_tick - screensaver_start_tick) >= (uint32_t)DEFAULT_SCREENSAVER_DISPLAY_OFF_SEC * 1000U) {
+                ssd1362_displayOn(false);
+                display_off = true;
+            }
+            if (!display_off) {
+                gui_displayScreensaver();
+            }
         } else {
             // Normal operation - update the interface
             gui_displayImage();

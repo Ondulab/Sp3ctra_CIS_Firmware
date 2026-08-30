@@ -169,62 +169,78 @@ static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback)
     }
 }
 
+/* Boot screen layout (256 x 64):
+ *   y  0..45  wave animation + logo scaled 250x64 -> 180x46, centred
+ *   y 46      separator
+ *   y 47..54  device name (left)                     firmware version (right)
+ *   y 55..63  IP address (left, once configured)     CM7 boot stage + dots (right)
+ */
+#define BOOT_LOGO_NUM       (18)
+#define BOOT_LOGO_DEN       (25)
+#define BOOT_LOGO_W         (250 * BOOT_LOGO_NUM / BOOT_LOGO_DEN)   /* 180 */
+#define BOOT_BAND_Y         (46)
+#define BOOT_LINE1_Y        (47)
+#define BOOT_LINE2_Y        (56)
+#define BOOT_COL_ID         (11)
+#define BOOT_COL_DIM        (7)
+#define BOOT_COL_STAGE      (15)
+
+static const char *gui_bootStageLabel(uint8_t stage)
+{
+    switch (stage)
+    {
+        case BOOT_STAGE_STARTING: return "STARTING";
+        case BOOT_STAGE_CONFIG:   return "CONFIG";
+        case BOOT_STAGE_NETWORK:  return "NETWORK";
+        case BOOT_STAGE_LINK:     return "LINK";
+        case BOOT_STAGE_IMU:      return "IMU";
+        case BOOT_STAGE_CIS:      return "SENSOR";
+        case BOOT_STAGE_READY:    return "READY";
+        default:                  return "BOOT";
+    }
+}
+
 /**
- * @brief Draws startup overlay content (logo + version number + IP address).
+ * @brief Draws the boot screen overlay: scaled logo, identity band and CM7 boot stage.
  */
 static void gui_drawStartupOverlay(void)
 {
-    char shortVersion[8];
-    strcpy(shortVersion, FW_VERSION);
+    char text[24];
 
-    // Locate the first dot
-    char *p = strchr(shortVersion, '.');
-    if (p != NULL)
-    {
-        // From there, look for the second dot
-        p = strchr(p + 1, '.');
-        if (p != NULL)
-        {
-            // Truncate at the second dot
-            *p = '\0';
-        }
-    }
+    ssd1362_drawBmpScaled(Sp3ctra_img, (SSD1362_WIDTH - BOOT_LOGO_W) / 2, 0, 250, 64,
+                          BOOT_LOGO_NUM, BOOT_LOGO_DEN, 0xF);
 
-    // Display logo
-    ssd1362_drawBmp(Sp3ctra_img, 2, 0, 250, 64, 0xF, 0);
+    // Opaque band: the waves never run through the text
+    ssd1362_fillRect(0, BOOT_BAND_Y, SSD1362_WIDTH - 1, SSD1362_HEIGHT - 1, 0, false);
+    ssd1362_drawHLine(0, BOOT_BAND_Y, SSD1362_WIDTH, 3, false);
 
-    // Calculate position for right-aligned version number
-    int textWidth = strlen(shortVersion) * 8; // 8 pixels per character
-    int rightAlignedX = SSD1362_WIDTH - textWidth - 2; // Screen width - text width - margin
-    ssd1362_drawString(rightAlignedX, 1, (signed char *)shortVersion, 0xF, 8);
-
-    // Display the network address, bottom right aligned. The configuration is
-    // loaded from the SD card by the CM7 a few frames after boot: skip the
-    // drawing while the address is still unset.
-    if (shared_config.network_ip[0] != 0)
-    {
-        char ipString[16];
-        sprintf(ipString, "%u.%u.%u.%u",
-                (unsigned int)shared_config.network_ip[0],
-                (unsigned int)shared_config.network_ip[1],
-                (unsigned int)shared_config.network_ip[2],
-                (unsigned int)shared_config.network_ip[3]);
-
-        int ipWidth = strlen(ipString) * 8;
-        int ipX = SSD1362_WIDTH - ipWidth - 2;
-        int ipY = SSD1362_HEIGHT - 8 - 1; // Bottom margin identical to the top one
-        ssd1362_drawString(ipX, ipY, (signed char *)ipString, 0xF, 8);
-    }
-
-    // Device name, published by the CM7 before the CM4 is released. NEVER call
-    // sys_identity_*() here: the MCU unique-id region bus-faults on the CM4.
+    // Line 1 - device name (published by the CM7 before it releases this core)
     if (shared_feedback.device_name[0] == 'S')
     {
-        char name[sizeof(shared_feedback.device_name) + 1];
-        memcpy(name, (const void *)shared_feedback.device_name, sizeof(shared_feedback.device_name));
-        name[sizeof(shared_feedback.device_name)] = '\0';
-        ssd1362_drawString(2, SSD1362_HEIGHT - 8 - 1, (signed char *)name, 0xF, 8);
+        memcpy(text, (const void *)shared_feedback.device_name, sizeof(shared_feedback.device_name));
+        text[sizeof(shared_feedback.device_name)] = '\0';
+        ssd1362_drawString(2, BOOT_LINE1_Y, (signed char *)text, BOOT_COL_ID, 8);
     }
+
+    // Line 1 - firmware version, right aligned
+    snprintf(text, sizeof(text), "v%s", FW_VERSION);
+    ssd1362_drawString((uint16_t)(SSD1362_WIDTH - 2 - strlen(text) * 8), BOOT_LINE1_Y, (signed char *)text, BOOT_COL_ID, 8);
+
+    // Line 2 - IP address once the CM7 has loaded the configuration
+    const uint8_t stage = shared_feedback.boot_stage;
+    if (stage >= BOOT_STAGE_NETWORK && shared_config.network_ip[0] != 0)
+    {
+        snprintf(text, sizeof(text), "%u.%u.%u.%u",
+                 (unsigned)shared_config.network_ip[0], (unsigned)shared_config.network_ip[1],
+                 (unsigned)shared_config.network_ip[2], (unsigned)shared_config.network_ip[3]);
+        ssd1362_drawString(2, BOOT_LINE2_Y, (signed char *)text, BOOT_COL_DIM, 8);
+    }
+
+    // Line 2 - boot stage with animated dots, right aligned (fixed width: no jitter)
+    const uint32_t dots = (HAL_GetTick() / 400U) % 4U;
+    snprintf(text, sizeof(text), "%s%.*s", gui_bootStageLabel(stage), (int)dots, "...");
+    ssd1362_drawString((uint16_t)(SSD1362_WIDTH - 2 - (strlen(gui_bootStageLabel(stage)) + 3) * 8), BOOT_LINE2_Y,
+                       (signed char *)text, BOOT_COL_STAGE, 8);
 }
 
 // --- Fast hash (stable), and frame source you control elsewhere ---
@@ -317,23 +333,74 @@ void ssd1362_drawBmpNoisyFx(const uint8_t *bitmap,
     }
 }
 
+/* Same effect on a nearest-neighbour downscaled bitmap (num/den <= 1). */
+void ssd1362_drawBmpScaledNoisyFx(const uint8_t *bitmap,
+                                  int16_t x, int16_t y, uint16_t w, uint16_t h,
+                                  uint16_t num, uint16_t den,
+                                  uint8_t base_color, uint8_t amp, int8_t bias,
+                                  uint8_t density, uint8_t temporal_strength,
+                                  uint32_t frame)
+{
+    int t = (int)tri8((uint8_t)(frame & 0xFF));
+    int temporal = (t * (int)temporal_strength) / 255;
+    temporal = (temporal * (int)amp) / 2 / 128;
+
+    const uint16_t dw = (uint16_t)((uint32_t)w * num / den);
+    const uint16_t dh = (uint16_t)((uint32_t)h * num / den);
+
+    for (uint16_t dj = 0; dj < dh; dj++)
+    {
+        const uint16_t sj = (uint16_t)((uint32_t)dj * den / num);
+        const uint8_t *row = bitmap + (sj / 8u) * w;
+        const uint8_t  bit = (uint8_t)(1u << (sj & 7u));
+        const int32_t  py  = (int32_t)y + dj;
+        if (py < 0 || py >= SSD1362_HEIGHT) continue;
+
+        for (uint16_t di = 0; di < dw; di++)
+        {
+            const uint16_t si = (uint16_t)((uint32_t)di * den / num);
+            if ((row[si] & bit) == 0) continue;
+            const int32_t px = (int32_t)x + di;
+            if (px < 0 || px >= SSD1362_WIDTH) continue;
+
+            uint32_t h32 = wang_hash((uint32_t)di * 73856093u ^ (uint32_t)dj * 19349663u ^ (uint32_t)(frame * 83492791u));
+            int rnd = (int)(((h32 >> 8) & 0xFFFF) % (amp + 1));
+            if ((h32 >> 24) & 1u) rnd = -rnd;
+            if ((h32 & 0xFFu) < density) rnd -= (amp * 3) / 2;
+
+            ssd1362_drawPixel((uint16_t)px, (uint16_t)py, clamp4((int)base_color + bias + temporal + rnd), false);
+        }
+    }
+}
+
+/* Screensaver: the logo is downscaled (250x64 -> 150x38), dimmed and drifts on a
+ * slow Lissajous path whose two periods (~37 s and ~53 s at 20 fps) are
+ * incommensurate, so no pixel stays lit at the same place. The panel is then
+ * switched off entirely by gui_core after DEFAULT_SCREENSAVER_DISPLAY_OFF_SEC. */
+#define SAVER_LOGO_NUM      (3)
+#define SAVER_LOGO_DEN      (5)
+#define SAVER_LOGO_W        (250 * SAVER_LOGO_NUM / SAVER_LOGO_DEN)   /* 150 */
+#define SAVER_LOGO_H        (64 * SAVER_LOGO_NUM / SAVER_LOGO_DEN)    /* 38 */
+
 static void gui_drawScreensaverOverlay(void)
 {
     static uint32_t frame = 0;
 
-    // Parameters to make it pop
-    const uint8_t base   = 14;   // un peu en-dessous du blanc pour laisser de la marge vers le haut et bas
-    const uint8_t amp    = 2;    // swing fort
-    const int8_t  bias   = -1;   // globalement un peu plus sombre (accentue le contraste)
-    const uint8_t dens   = 4;   // ~16% de "coups" forts (plus petit = plus fréquent)
-    const uint8_t tstr   = 80;  // pulsation temporelle sensible
+    const float   t  = (float)frame;
+    const int32_t ax = (SSD1362_WIDTH  - SAVER_LOGO_W) / 2 - 2;   /* 51 px of travel each side */
+    const int32_t ay = (SSD1362_HEIGHT - SAVER_LOGO_H) / 2 - 2;   /* 11 px */
+    const int32_t x  = (SSD1362_WIDTH  - SAVER_LOGO_W) / 2 + (int32_t)((float)ax * sinf(t * 0.0085f));
+    const int32_t y  = (SSD1362_HEIGHT - SAVER_LOGO_H) / 2 + (int32_t)((float)ay * sinf(t * 0.0059f + 1.3f));
 
-    ssd1362_drawBmpNoisyFx(Sp3ctra_img,
-                           2, 0, 250, 64,
-                           base, amp, bias,
-                           dens, tstr,
-                           frame++,
-                           false);
+    ssd1362_drawBmpScaledNoisyFx(Sp3ctra_img, (int16_t)x, (int16_t)y, 250, 64,
+                                 SAVER_LOGO_NUM, SAVER_LOGO_DEN,
+                                 9,    /* base: well below white */
+                                 2,    /* amp */
+                                 -1,   /* bias */
+                                 4,    /* density of strong kicks */
+                                 80,   /* temporal pulsation */
+                                 frame);
+    frame++;
 }
 
 /**

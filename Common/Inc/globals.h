@@ -208,6 +208,19 @@ struct __attribute__((aligned(4))) shared_config
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
 };
 
+// CM7 boot progress, shown on the CM4 boot screen (shared_feedback.boot_stage).
+typedef enum
+{
+	BOOT_STAGE_UNKNOWN = 0,
+	BOOT_STAGE_STARTING,
+	BOOT_STAGE_CONFIG,
+	BOOT_STAGE_NETWORK,
+	BOOT_STAGE_LINK,
+	BOOT_STAGE_IMU,
+	BOOT_STAGE_CIS,
+	BOOT_STAGE_READY
+} BootStageTypeDef;
+
 // Host -> device feedback published by the CM7 link server for the CM4.
 // NOLOAD shared region: consumers must react to *_seq CHANGES only (boot-time garbage).
 struct __attribute__((aligned(4))) shared_feedback
@@ -218,7 +231,8 @@ struct __attribute__((aligned(4))) shared_feedback
 	uint32_t link_state;                  // 0 = no host session, 1 = bound
 	uint8_t peer_ip[4];
 	uint8_t led_no_local_press;           // bit i = LED i must NOT light while its button is pressed
-	uint8_t reserved[3];
+	uint8_t boot_stage;                   // BootStageTypeDef, written by the CM7 during StartDefaultTask
+	uint8_t reserved[2];
 	char device_name[16];                 // "Sp3ctra-XXXX", written by the CM7 BEFORE it releases the CM4
 	                                      // (the MCU unique-id region 0x1FF1E800 bus-faults when read from the CM4)
 };

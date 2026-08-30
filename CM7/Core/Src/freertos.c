@@ -171,6 +171,7 @@ void StartDefaultTask(void *argument)
 		file_factoryReset();
 	}
 
+    shared_feedback.boot_stage = BOOT_STAGE_CONFIG;
     printf("- CONFIG FILE INITIALIZATIONS -\n");
 	if (file_initConfig(&shared_config) != FILEMANAGER_OK)
 	{
@@ -180,6 +181,7 @@ void StartDefaultTask(void *argument)
 	printf("-------- POWER ON CIS ---------\n");
 	cis_Power(ON);
 
+    shared_feedback.boot_stage = BOOT_STAGE_NETWORK;
     printf("---- LWIP INITIALIZATIONS -----\n");
 	MX_LWIP_Init();
 
@@ -262,12 +264,14 @@ void StartDefaultTask(void *argument)
                name, serial, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     }
 
+    shared_feedback.boot_stage = BOOT_STAGE_LINK;
     printf("---- LINK INITIALIZATIONS -----\n");
     if (link_serverInit() != LINKSERVER_OK)
     {
         printf("Link server initialization ERROR\n");
     }
 
+    shared_feedback.boot_stage = BOOT_STAGE_IMU;
     printf("----- IMU INITIALIZATIONS -----\n");
 	if (icm42688_init() != ICM42688_OK)
 	{
@@ -280,6 +284,7 @@ void StartDefaultTask(void *argument)
         printf("HID task initialization ERROR\n");
     }
 
+    shared_feedback.boot_stage = BOOT_STAGE_CIS;
     printf("----- CIS INITIALIZATIONS -----\n");
 	if (cis_scanInit() != CISSCAN_OK)
 	{
@@ -288,6 +293,7 @@ void StartDefaultTask(void *argument)
 
     /* Mark system as fully initialized - enables automatic reset on network disconnection */
     systemFullyInitialized = 1;
+    shared_feedback.boot_stage = BOOT_STAGE_READY;
     printf("System marked as fully initialized - automatic reset enabled\n");
 
 #if !defined(DEBUG_LWIP_STATS) && !defined(DEBUG_ICM42688)
