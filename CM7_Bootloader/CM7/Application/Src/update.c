@@ -536,9 +536,9 @@ fwupdate_StatusTypeDef update_restoreBackupFirmwares(void)
         return FWUPDATE_ERROR;
     }
     backupSize = f_size(&backupFile);
-    if (update_eraseFirmware(FW_CM7_START_ADDR, (uint32_t)backupSize, &progressManager, STEP_ERASE_CM7) != FWUPDATE_OK)
+    if (update_eraseFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A), (uint32_t)backupSize, &progressManager, STEP_ERASE_CM7) != FWUPDATE_OK)
     {
-        printf("Failed to erase flash region at 0x%08lX.\n", (long unsigned int)FW_CM7_START_ADDR);
+        printf("Failed to erase flash region at 0x%08lX.\n", (long unsigned int)FW_CM7_SLOT_ADDR(FW_SLOT_A));
         f_close(&backupFile);
         return FWUPDATE_ERROR;
     }
@@ -554,9 +554,9 @@ fwupdate_StatusTypeDef update_restoreBackupFirmwares(void)
         return FWUPDATE_ERROR;
     }
     backupSize = f_size(&backupFile);
-    if (update_eraseFirmware(FW_CM4_START_ADDR, (uint32_t)backupSize, &progressManager, STEP_ERASE_CM4) != FWUPDATE_OK)
+    if (update_eraseFirmware(FW_CM4_SLOT_ADDR(FW_SLOT_A), (uint32_t)backupSize, &progressManager, STEP_ERASE_CM4) != FWUPDATE_OK)
     {
-        printf("Failed to erase flash region at 0x%08lX.\n", (long unsigned int)FW_CM4_START_ADDR);
+        printf("Failed to erase flash region at 0x%08lX.\n", (long unsigned int)FW_CM4_SLOT_ADDR(FW_SLOT_A));
         f_close(&backupFile);
         return FWUPDATE_ERROR;
     }
@@ -573,15 +573,15 @@ fwupdate_StatusTypeDef update_restoreBackupFirmwares(void)
     }
     backupSize = f_size(&backupFile);
 
-    if (update_writeFirmware(FW_CM7_START_ADDR, &backupFile, (uint32_t)backupSize, &progressManager, STEP_FLASH_CM7) != FWUPDATE_OK)
+    if (update_writeFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A), &backupFile, (uint32_t)backupSize, &progressManager, STEP_FLASH_CM7) != FWUPDATE_OK)
     {
-        printf("Error: Failed to restore CM7 firmware at 0x%08lX.\n", (long unsigned int)FW_CM7_START_ADDR);
+        printf("Error: Failed to restore CM7 firmware at 0x%08lX.\n", (long unsigned int)FW_CM7_SLOT_ADDR(FW_SLOT_A));
         f_close(&backupFile);
         return FWUPDATE_ERROR;
     }
 
     f_close(&backupFile);
-    printf("Successfully restored %s to 0x%08lX.\n", backupPath, (long unsigned int)FW_CM7_START_ADDR);
+    printf("Successfully restored %s to 0x%08lX.\n", backupPath, (long unsigned int)FW_CM7_SLOT_ADDR(FW_SLOT_A));
 
     // Step 4: Restore CM4 firmware using `update_writeFirmware`
     printf("Step 4: Restoring CM4 backup\n");
@@ -594,15 +594,15 @@ fwupdate_StatusTypeDef update_restoreBackupFirmwares(void)
     }
     backupSize = f_size(&backupFile);
 
-    if (update_writeFirmware(FW_CM4_START_ADDR, &backupFile, (uint32_t)backupSize, &progressManager, STEP_FLASH_CM4) != FWUPDATE_OK)
+    if (update_writeFirmware(FW_CM4_SLOT_ADDR(FW_SLOT_A), &backupFile, (uint32_t)backupSize, &progressManager, STEP_FLASH_CM4) != FWUPDATE_OK)
     {
-        printf("Error: Failed to restore CM4 firmware at 0x%08lX.\n", (long unsigned int)FW_CM4_START_ADDR);
+        printf("Error: Failed to restore CM4 firmware at 0x%08lX.\n", (long unsigned int)FW_CM4_SLOT_ADDR(FW_SLOT_A));
         f_close(&backupFile);
         return FWUPDATE_ERROR;
     }
 
     f_close(&backupFile);
-    printf("Successfully restored %s to 0x%08lX.\n", backupPath, (long unsigned int)FW_CM4_START_ADDR);
+    printf("Successfully restored %s to 0x%08lX.\n", backupPath, (long unsigned int)FW_CM4_SLOT_ADDR(FW_SLOT_A));
 
     return FWUPDATE_OK;
 }
@@ -733,7 +733,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 	// Step 2: Backup current CM7 firmware
 	printf("Step 2: Backup current CM7 firmware\n");
 	snprintf(backupPath, sizeof(backupPath), "%s/%s", FW_PATH, "backup_cm7.bin");
-	if (update_backupFirmware(FW_CM7_START_ADDR, FW_CM7_MAX_SIZE, backupPath, &progressManager, STEP_BACKUP_CM7) != FWUPDATE_OK)
+	if (update_backupFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A), FW_CM7_MAX_SIZE, backupPath, &progressManager, STEP_BACKUP_CM7) != FWUPDATE_OK)
 	{
 	    printf("Error: Failed to backup current CM7 firmware\n");
 	    f_close(&file);
@@ -743,7 +743,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 	// Step 3: Backup current CM4 firmware
 	printf("Step 3: Backup current CM4 firmware\n");
 	snprintf(backupPath, sizeof(backupPath), "%s/%s", FW_PATH, "backup_cm4.bin");
-	if (update_backupFirmware(FW_CM4_START_ADDR, FW_CM4_MAX_SIZE, backupPath, &progressManager, STEP_BACKUP_CM4) != FWUPDATE_OK)
+	if (update_backupFirmware(FW_CM4_SLOT_ADDR(FW_SLOT_A), FW_CM4_MAX_SIZE, backupPath, &progressManager, STEP_BACKUP_CM4) != FWUPDATE_OK)
 	{
 	    printf("Error: Failed to backup current CM4 firmware\n");
 	    f_close(&file);
@@ -752,7 +752,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 
 	// Step 4: Erase CM7 firmware
 	printf("Step 4: Erase CM7 firmware\n");
-	if (update_eraseFirmware(FW_CM7_START_ADDR, cm7_size, &progressManager, STEP_ERASE_CM7) != FWUPDATE_OK)
+	if (update_eraseFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A), cm7_size, &progressManager, STEP_ERASE_CM7) != FWUPDATE_OK)
 	{
 		printf("Error: Failed to erase CM7 firmware\n");
 		f_close(&file);
@@ -761,7 +761,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 
 	// Step 5: Erase CM4 firmware
 	printf("Step 5: Erase CM4 firmware\n");
-	if (update_eraseFirmware(FW_CM4_START_ADDR, cm4_size, &progressManager, STEP_ERASE_CM4) != FWUPDATE_OK)
+	if (update_eraseFirmware(FW_CM4_SLOT_ADDR(FW_SLOT_A), cm4_size, &progressManager, STEP_ERASE_CM4) != FWUPDATE_OK)
 	{
 		printf("Error: Failed to erase CM4 firmware\n");
 		f_close(&file);
@@ -779,7 +779,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 		return FWUPDATE_ERROR;
 	}
 
-	if (update_writeFirmware(FW_CM7_START_ADDR, &file, cm7_size, &progressManager, STEP_FLASH_CM7) != FWUPDATE_OK)
+	if (update_writeFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A), &file, cm7_size, &progressManager, STEP_FLASH_CM7) != FWUPDATE_OK)
 	{
 		printf("Error: Failed to flash new CM7 firmware\n");
 		f_close(&file);
@@ -797,7 +797,7 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 		return FWUPDATE_ERROR;
 	}
 
-	if (update_writeFirmware(FW_CM4_START_ADDR, &file, cm4_size, &progressManager, STEP_FLASH_CM4) != FWUPDATE_OK)
+	if (update_writeFirmware(FW_CM4_SLOT_ADDR(FW_SLOT_A), &file, cm4_size, &progressManager, STEP_FLASH_CM4) != FWUPDATE_OK)
 	{
 		printf("Error: Failed to flash new CM4 firmware\n");
 		f_close(&file);

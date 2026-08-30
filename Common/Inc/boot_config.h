@@ -58,15 +58,49 @@
 
 #define FLASH_LAST_SECTOR_ADDR   				(FLASH_END_ADDR - FLASH_SECTOR_SIZE + 1)
 
-/* Ces quatre valeurs definissent la zone que le bootloader sauvegarde, efface,
- * flashe et restaure. Les linker scripts CM4/STM32H745IIKX_FLASH.ld et
- * CM7/STM32H745IIKX_FLASH.ld doivent leur rester identiques : une image liee
- * au-dela de FW_*_MAX_SIZE deborde sur un secteur que la sauvegarde ne couvre
- * pas, et un rollback ne la rendrait alors que partiellement. */
-#define FW_CM4_START_ADDR 						(ADDR_FLASH_SECTOR_2_BANK1)
-#define FW_CM7_START_ADDR 						(ADDR_FLASH_SECTOR_0_BANK2)
-#define FW_CM4_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK1 - FW_CM4_START_ADDR)
-#define FW_CM7_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK2 - FW_CM7_START_ADDR)
+/**************************************************************************************/
+/****************                   Slots A / B                        ****************/
+/**************************************************************************************/
+
+/* Deux jeux d'images complets, pour que l'ecriture d'une mise a jour ne touche
+ * jamais l'image en cours d'execution. Le rollback se reduit alors a continuer
+ * de demarrer l'ancien slot : il devient instantane et ne peut plus echouer.
+ *
+ * Une image Cortex-M porte des adresses absolues (table de vecteurs, pools de
+ * litteraux, table d'init de .data) : elle ne peut pas s'executer depuis deux
+ * emplacements. Chaque coeur est donc lie DEUX fois, et le paquet embarque les
+ * quatre images. Les linker scripts doivent rester identiques a ces valeurs.
+ *
+ *   0x08000000  128 Ko  bootloader
+ *   0x08020000  128 Ko  journal OTA
+ *   0x08040000  128 Ko  CM4 slot A
+ *   0x08060000  128 Ko  CM4 slot B
+ *   0x08080000  384 Ko  reserve
+ *   0x080E0000  128 Ko  bootloader slot B (etape 3, non utilise)
+ *   0x08100000  512 Ko  CM7 slot A
+ *   0x08180000  512 Ko  CM7 slot B
+ */
+
+#define FW_SLOT_A 0u
+#define FW_SLOT_B 1u
+#define FW_SLOT_COUNT 2u
+
+#define FW_CM4_SLOT_A_ADDR						(ADDR_FLASH_SECTOR_2_BANK1) /* 0x08040000 */
+#define FW_CM4_SLOT_B_ADDR						(ADDR_FLASH_SECTOR_3_BANK1) /* 0x08060000 */
+#define FW_CM7_SLOT_A_ADDR						(ADDR_FLASH_SECTOR_0_BANK2) /* 0x08100000 */
+#define FW_CM7_SLOT_B_ADDR						(ADDR_FLASH_SECTOR_4_BANK2) /* 0x08180000 */
+
+#define FW_CM4_MAX_SIZE							(FW_CM4_SLOT_B_ADDR - FW_CM4_SLOT_A_ADDR)   /* 128 Ko */
+#define FW_CM7_MAX_SIZE							(FW_CM7_SLOT_B_ADDR - FW_CM7_SLOT_A_ADDR)   /* 512 Ko */
+
+/* Emplacement reserve au second bootloader (etape 3 : OTA du bootloader). */
+#define FW_BL_SLOT_B_ADDR						(ADDR_FLASH_SECTOR_7_BANK1) /* 0x080E0000 */
+
+#define FW_CM4_SLOT_ADDR(slot)					(((slot) == FW_SLOT_B) ? FW_CM4_SLOT_B_ADDR : FW_CM4_SLOT_A_ADDR)
+#define FW_CM7_SLOT_ADDR(slot)					(((slot) == FW_SLOT_B) ? FW_CM7_SLOT_B_ADDR : FW_CM7_SLOT_A_ADDR)
+#define FW_SLOT_OTHER(slot)						(((slot) == FW_SLOT_B) ? FW_SLOT_A : FW_SLOT_B)
+#define FW_SLOT_NAME(slot)						(((slot) == FW_SLOT_B) ? "B" : "A")
+
 #define FLASH_PERSISTENT_DATA_ADDRESS 			(ADDR_FLASH_SECTOR_1_BANK1)
 
 #endif // __BOOT_CONFIG_H__

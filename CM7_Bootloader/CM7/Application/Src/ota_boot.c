@@ -182,7 +182,7 @@ static void otaBoot_startApplication(bool underTrial)
         otaBoot_armWatchdog();
     }
 
-    otaBoot_jumpToFirmware(FW_CM7_START_ADDR);
+    otaBoot_jumpToFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A));
 }
 
 /**

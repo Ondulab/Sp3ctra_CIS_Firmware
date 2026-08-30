@@ -420,6 +420,46 @@ livraisons.
 Ce qu'on y gagne : rollback instantané (plus d'aller-retour de 1,5 Mo vers la
 NOR), mise à jour environ deux fois plus rapide, recouvrement qui ne dépend plus
 du système de fichiers de la NOR, et le préalable indispensable à l'étape 3.
+
+#### Deux images liées par cœur
+
+Une image Cortex-M contient des adresses absolues — table de vecteurs, pools de
+littéraux, table d'initialisation de `.data`. Elle ne peut donc pas s'exécuter
+depuis deux emplacements sans être **liée deux fois**. Le paquet embarque en
+conséquence quatre images : `CM7-A`, `CM7-B`, `CM4-A`, `CM4-B`. Il passe
+d'environ 550 Ko à 1 Mo, ce qui est sans conséquence sur une NOR de 16 Mo, et la
+compilation double.
+
+Les deux autres voies ont été écartées : recopier vers une adresse d'exécution
+unique conserve la fenêtre d'écriture sur l'image active, c'est-à-dire le défaut
+même qu'A/B doit supprimer ; et compiler en ROPI/RWPI supposerait que la HAL ST,
+lwIP et FreeRTOS soient propres à ce régime, ce que rien ne garantit.
+
+#### Carte flash cible
+
+| Zone | Adresse | Taille | Occupation |
+|---|---|---|---|
+| Bootloader | 0x08000000 | 128 Ko | 116 Ko |
+| Journal OTA | 0x08020000 | 128 Ko | quelques octets |
+| CM4-A | 0x08040000 | 128 Ko | 67 Ko |
+| CM4-B | 0x08060000 | 128 Ko | 67 Ko |
+| Réserve | 0x08080000 | 384 Ko | — |
+| BL-B (étape 3) | 0x080E0000 | 128 Ko | — |
+| CM7-A | 0x08100000 | 512 Ko | 392 Ko |
+| CM7-B | 0x08180000 | 512 Ko | 392 Ko |
+
+Les deux adresses CM4 sont alignées sur 64 Ko, granularité de l'option byte
+`CM4BootAddr0` : la bascule de slot le reprogramme, et le bootloader répare
+l'écart au démarrage suivant s'il ne correspond pas au journal.
+
+#### Ce que devient le rollback
+
+Le journal porte `active_slot` (confirmé) et `trial_slot` (à l'essai). En phase
+`TRIAL` le bootloader démarre `trial_slot`, sinon `active_slot`. Une image
+confirmée fait `active_slot = trial_slot` ; une annulation ne fait **rien** —
+elle se contente de continuer à démarrer l'ancien slot. Plus d'effacement, plus
+de restauration, plus de dépendance au système de fichiers : le rollback devient
+instantané et ne peut plus échouer à mi-parcours.
 ### Étape 3 — OTA bootloader via `BOOT_ADD0` (§4)
 ### Étape 4 — OTA via SLP depuis le VST (opcodes `0x30-0x7F` libres)
 

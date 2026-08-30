@@ -102,11 +102,11 @@ void configureBootConfiguration(void)
     // 3) Check if the current boot addresses match the desired ones
     uint32_t currentCm4Boot = currentOB.CM4BootAddr0;
 
-    if (currentCm4Boot != FW_CM4_START_ADDR)
+    if (currentCm4Boot != FW_CM4_SLOT_ADDR(FW_SLOT_A))
     {
         newOB.OptionType |= OPTIONBYTE_CM4_BOOTADD;
         newOB.CM4BootConfig = OB_BOOT_ADD0;
-        newOB.CM4BootAddr0 = FW_CM4_START_ADDR;
+        newOB.CM4BootAddr0 = FW_CM4_SLOT_ADDR(FW_SLOT_A);
 
         needUpdate = true;
     }
@@ -240,7 +240,7 @@ int main(void)
 		gui_displayMessage("        STORAGE FAILURE         ",
 		                   "     SERVICE REQUIRED (SWD)     ");
 		HAL_Delay(3000);
-		otaBoot_jumpToFirmware(FW_CM7_START_ADDR);
+		otaBoot_jumpToFirmware(FW_CM7_SLOT_ADDR(FW_SLOT_A));
 	}
 	printf("FS mount SUCCESS\n");
 
