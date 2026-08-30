@@ -108,14 +108,37 @@ def wait_for_version(host, predicate, timeout_s, label):
     return None
 
 
+def newest_source_mtime():
+    """Date de modification de la source la plus recente du firmware."""
+    newest = 0.0
+    for tree in ("CM7", "CM4", "Common"):
+        for root, dirs, files in os.walk(os.path.join(ROOT, tree)):
+            dirs[:] = [d for d in dirs if d not in ("Release", "Debug", "Drivers", "Middlewares", "DSP")]
+            for f in files:
+                if f.endswith((".c", ".h")):
+                    newest = max(newest, os.path.getmtime(os.path.join(root, f)))
+    return newest
+
+
 def ensure_package(scenario):
-    """Construit le paquet du scenario s'il n'existe pas deja."""
+    """Construit le paquet du scenario, en le reconstruisant s'il a vieilli.
+
+    Un paquet empoisonne reutilise alors que les sources ont change teste une
+    image qui n'est plus celle du depot -- et rend un vert trompeur. C'est
+    arrive : un paquet fault3 anterieur a l'ajout de OTA_TRIAL_DEADLINE_MS a ete
+    reutilise, et le scenario est reste bloque sur l'essai 1/3.
+    """
     os.makedirs(OTA_DIR, exist_ok=True)
 
     if scenario.fault:
         existing = [f for f in os.listdir(OTA_DIR) if f.endswith("_fault%d.bin" % scenario.fault)]
         if existing:
-            return os.path.join(OTA_DIR, sorted(existing)[-1])
+            newest = os.path.join(OTA_DIR, sorted(existing)[-1])
+            if os.path.getmtime(newest) >= newest_source_mtime():
+                return newest
+            print("  paquet %s anterieur aux sources, reconstruction" % os.path.basename(newest))
+            for f in existing:
+                os.unlink(os.path.join(OTA_DIR, f))
 
         print("  construction de l'image empoisonnee (faute %d), plusieurs minutes..." % scenario.fault)
         subprocess.run([BUILD_BROKEN, str(scenario.fault)], cwd=ROOT, check=True)
@@ -124,6 +147,12 @@ def ensure_package(scenario):
         if not existing:
             raise RuntimeError("le paquet de la faute %d n'a pas ete produit" % scenario.fault)
         return os.path.join(OTA_DIR, sorted(existing)[-1])
+
+    # Reconstruction systematique avant d'empaqueter une image saine : make est
+    # incremental, donc c'est quasi gratuit quand rien n'a bouge, et cela evite
+    # d'embarquer les binaires laisses par un scenario a faute.
+    subprocess.run([os.path.join(ROOT, "scripts", "build.sh"), "all", "release"],
+                   cwd=ROOT, check=True, capture_output=True, text=True)
 
     result = subprocess.run([sys.executable, MAKE_PACKAGE] + scenario.package_args,
                             cwd=ROOT, check=True, capture_output=True, text=True)

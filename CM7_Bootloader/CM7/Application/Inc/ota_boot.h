@@ -59,6 +59,11 @@ void otaBoot_jumpToFirmware(uint32_t flashStartAddr);
 /* Reboot apres un court delai, pour laisser le temps de lire l'ecran. */
 void otaBoot_reboot(void);
 
+/* Vrai pendant la PREMIERE tentative d'application d'un paquet. Sert au seul
+ * SP3CTRA_OTA_ABORT_AT_STEP : la coupure simulee ne doit frapper qu'une fois,
+ * pour que la reprise soit ce qui est mis a l'epreuve. */
+bool otaBoot_firstApplyAttempt(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,6 +1,6 @@
 # Plan — Mise à jour firmware CIS : robustesse et rollback
 
-État : étape 0 implémentée, **validation matérielle à faire**
+État : étape 0 implémentée et **validée sur cible** (rollback prouvé), matrice réseau restante
 Dernière révision : 2026-08-30
 Périmètre : `CM7_Bootloader/`, `CM7/Application/Src/http_server.c`, `Common/`, `scripts/ota/`
 
@@ -58,10 +58,18 @@ Classés par gravité. Les lettres servent de référence dans le suivi et les t
 
 ### Brique
 
-**A — Rien ne détecte un firmware qui ne démarre pas.**
+**A — Rien ne détecte un firmware qui ne démarre pas, ni un firmware vivant mais cassé.**
 `USE_WDG` est commenté (`Common/Inc/config.h:52`), l'IWDG n'est jamais armé. Le rollback n'est
 déclenché que par un *reset* pendant l'état `TESTING`. Un firmware qui plante ou boucle sans
 se réinitialiser laisse la machine morte jusqu'à une coupure secteur manuelle.
+
+Second volet, découvert en préparant T3 : le chien de garde ne rattrape qu'une image *figée*.
+Une image qui démarre, tourne, mais n'atteint jamais ses critères de santé — serveur HTTP cassé,
+typiquement — ne provoque aucun reset, donc le compteur d'essais n'avance pas et le rollback ne
+se déclenche jamais. D'où `OTA_TRIAL_DEADLINE_MS` (180 s) : passé ce délai sans confirmation,
+l'image se réinitialise elle-même pour laisser le bootloader compter la tentative. La valeur doit
+rester au-dessus du plus long chemin légitime vers la confirmation (jusqu'à 60 s d'attente du lien
+réseau + initialisation + `OTA_CONFIRM_SETTLE_MS`).
 
 **B — La validation est un placebo.**
 `FW_UPDATE_DONE` est écrit à `freertos.c:203`, **avant** `http_serverInit()`. Le critère de succès
@@ -108,6 +116,64 @@ grandit déborde sur des secteurs que le backup ne couvre pas → restauration p
 **K — `updateFileGen.py` est cassé.** Il cherche `#define FW_VERSION "x.y.z"` alors que
 `config.h:32-37` construit `FW_VERSION` par concaténation de macros. Il embarque aussi l'external
 MAX8 hérité dans chaque paquet.
+
+### Bloquant — découvert au banc le 2026-08-30
+
+**M — Le téléversement de firmware est cassé depuis `907ad74`.**
+
+`http_assembleRequest()` (`http_server.c:78`), ajouté par
+`907ad74 fix(rtos): complete CMSIS-RTOS v2 port and lwIP 2.2.1 tuning` pour
+recoller les POST XHR de Safari envoyés en deux segments, recopie **toute**
+requête dans `http_reqbuf`, un tampon de 2048 octets, et tronque
+silencieusement le surplus :
+
+```c
+if ((u32_t)total + l > HTTP_REQ_BUF_SIZE - 1) { l = (u16_t)(HTTP_REQ_BUF_SIZE - 1 - total); }
+```
+
+Pour un paquet de 550 Ko, l'assembleur consomme deux `netbuf`, en tronque le
+second, puis rend la main. `fwupdate.accum_length` n'atteint donc jamais
+`file_length` : le téléversement ne se termine pas, aucune réponse HTTP n'est
+émise, et le client reste en attente jusqu'au délai de garde. Constaté sur
+cible — la trace s'arrête net après :
+
+```
+@ fwupdate - Scanning HEADER
+@ fwupdate - Found content length = 550827
+```
+
+Ce défaut **précède l'étape 0** et bloque toute la matrice réseau (T1, T3, T4,
+T5, T9, T12 exigent tous un téléversement abouti). T6 passe, lui, précisément
+parce qu'il n'attend aucun aboutissement.
+
+**Corrigé le 2026-08-30 — un gestionnaire dédié qui possède la connexion.**
+Une rustine ne suffit pas : la chaîne de `netbuf` doit être consommée par un
+seul propriétaire, et mélanger l'assembleur avec une lecture de fragments bruts
+produit une boucle d'inondation (essayé, annulé). Le téléversement doit donc
+être détourné avant l'assembleur :
+
+```c
+if (fwupdate_isUploadRequest(first, firstlen)) {
+    reboot = fwupdate_handleUpload(conn, inbuf);   /* possede la connexion */
+    close  = true;
+    break;
+}
+buflen = http_assembleRequest(conn, inbuf);        /* inchangé pour le reste */
+```
+
+`fwupdate_handleUpload()` accumule les en-têtes dans `http_reqbuf` — terminés
+par un NUL, donc les `strstr()` restent bornés — jusqu'à la balise de flux, qui
+marque la fin des en-têtes multipart. Cela couvre le cas des en-têtes étalés sur
+plusieurs segments, ce pour quoi l'assembleur existait. Passé ce point, chaque
+fragment part directement au fichier : la machine à états est alors en
+`DOWNLOAD_STREAM`, où elle ne fait aucune opération de chaîne. L'assembleur
+n'est plus jamais sollicité pour un téléversement, et le correctif Safari reste
+intact.
+
+Un premier essai consistant à court-circuiter l'assembleur pour les fragments de
+flux a échoué : il faisait consommer la même chaîne de `netbuf` par deux
+propriétaires, et la machine s'est mise à inonder la liaison série. La chaîne
+doit avoir un propriétaire unique — d'où le gestionnaire qui prend la connexion.
 
 ### Ergonomie
 
@@ -197,10 +263,9 @@ réellement nécessaires, et jamais combiné à une mise à jour applicative.
 
 ## 5. Étapes
 
-### Étape 0 — Rendre le rollback réel (code écrit, non validé sur cible)
+### Étape 0 — Rendre le rollback réel (validée sur cible le 2026-08-30)
 
 Sans changer l'architecture. Supprime **A, B, C, D, F, G, H, I, K**.
-Les trois images compilent ; **rien n'a encore tourné sur la machine**.
 
 | # | Action | Défaut |
 |---|---|---|
@@ -313,7 +378,140 @@ Objectif : prouver que le rollback se déclenche pour chaque famille de panne, s
 Côté bootloader, `SP3CTRA_OTA_ABORT_AT_STEP=n` provoque un `NVIC_SystemReset()` au milieu de
 l'étape *n* : coupure secteur déterministe et rejouable, sans banc électrique.
 
-### 6.2 Matrice de test
+### 6.2 Résultats sur cible (2026-08-30, Sp3ctra-77DD)
+
+Les trois images ont été flashées par SWD, puis la phase d'essai a été armée en
+écrivant directement un enregistrement `TRIAL` dans le journal — ce qui permet
+d'exercer toute la mécanique **sans réseau**.
+
+**Migration depuis l'ancien format.** Le secteur d'état contenait bien les
+28 octets à zéro de l'ancien `FW_UPDATE_NONE`. Le journal les a lus comme
+invalides, conclu `IDLE` et sauté directement dans l'application, sans rien
+écrire. Vérifié aussi qu'un démarrage nominal laisse le secteur intact.
+
+**Essai puis confirmation** (image saine, un seul reset) :
+
+```
+OTA: running under trial (attempt 1/3)
+OTA: health criteria met, confirming in 30000 ms
+OTA journal: IDLE (trial 0, rollback 0, pending 0, seq 3, slot 2)
+OTA: image confirmed
+```
+
+Trois enregistrements exactement, un seul passage bootloader : **aucun reset
+parasite**, donc aucune annulation à tort d'une image saine.
+
+**Chien de garde et rollback** (faute 5, tâche de garde absente) :
+
+```
+Reset cause: 0x04460000 PIN IWDG
+OTA phase: TRIAL (trial 1/3, ...) -> journal TRIAL(2) -> Watchdog armed (~10000 ms)
+Reset cause: 0x04460000 PIN IWDG
+OTA phase: TRIAL (trial 2/3, ...) -> journal TRIAL(3)
+Reset cause: 0x04460000 PIN IWDG
+OTA phase: TRIAL (trial 3/3, ...)
+OTA: trial image exhausted its attempts, rolling back
+OTA: restoring the previous firmware        (x3, sans sauvegarde sur la NOR)
+OTA: rollback failed 3 times, giving up
+OTA journal: FAILED (...)
+OTA: RECOVERY FAILED | SERVICE REQUIRED (SWD)
+```
+
+Ce qui est prouvé :
+
+| Défaut | Preuve |
+|---|---|
+| **A** | l'IWDG coupe effectivement une image figée, `Reset cause ... IWDG` |
+| **A** | le compteur est incrémenté *avant* le saut : une image qui ne revient jamais consomme son quota (3 essais exactement) |
+| **B** | la confirmation attend 30 s de santé réelle, pas le début de l'init |
+| **C** | après 3 restaurations ratées : `FAILED`, message permanent, démarrage de ce qui est en place — **plus aucune boucle infinie ni effacement** |
+| **D** | journal ajouté à la suite (slots 2→8, seq 3→9), tous CRC valides, aucun effacement de secteur |
+
+`update_restoreBackupFirmwares()` sort **avant tout effacement** quand la
+sauvegarde manque : la zone applicative n'a jamais été abîmée pendant les trois
+tentatives.
+
+### 6.3 Résultats réseau (2026-08-30)
+
+Accès réseau obtenu via `scripts/ota/relay.sh`, qui délègue à Terminal.app : le
+verdict TCC « Réseau local » est mis en cache par processus et ne se rafraîchit
+qu'au relancement de l'application, ce qui aurait coûté la session.
+
+| Test | Résultat |
+|---|---|
+| T5 — paquet à CRC faux | `HTTP/1.1 400 Firmware rejected: checksum mismatch`, aucun redémarrage |
+| T9 — `cm7_size` aberrant | `HTTP/1.1 400 Firmware rejected: CM7 image size out of range`, refusé avant tout effacement |
+| T6 — téléversement coupé à 50 % | interruption absorbée, machine nominale, requête suivante intacte |
+| T12 — mise à jour saine | 36 s, **deux reboots** au lieu de trois, `image confirmed` |
+| T3 — serveur HTTP cassé | rollback **entièrement autonome**, retour en 4.0.0, image restaurée identique octet pour octet à la compilation saine |
+| T1 — HardFault immédiat | rollback, 3 resets IWDG |
+| T13 — chien de garde jamais rechargé | rollback, 3 resets IWDG |
+| T4 — panne avant la fin du délai | rollback, 3 resets IWDG ; l'oracle réseau montre 4.0.99 / injoignable ×3 puis 4.0.0 |
+| T7 — coupure au milieu du flash CM7 | reprise au redémarrage, mise à jour menée à terme, `image confirmed` |
+| T8 — coupure au milieu de la sauvegarde CM7 | sauvegarde refaite depuis zéro, mise à jour menée à terme, `image confirmed` |
+
+**Répartition des mécanismes sur T1, T13 et T4** : 9 resets `IWDG`, 0 par délai
+d'essai. C'est la bonne orthogonalité — le chien de garde couvre les plantages
+et les figeages, le délai couvre le seul cas qu'il ne voit pas, l'image vivante
+mais jamais saine (T3). Les deux filets se complètent sans se recouvrir.
+
+Séquence complète de T12, telle que tracée :
+
+```
+OTA: package verified (CM7 392344 B, CM4 67472 B, external 91238 B)
+OTA journal: PENDING -> 200 OK -> reboot
+BL  PENDING -> pending 1 compté AVANT de toucher la flash
+    CRC verified -> backup CM7/CM4 -> erase -> flash -> journal TRIAL(0) -> reboot
+BL  TRIAL(0) -> TRIAL(1) -> Watchdog armed (~10000 ms) -> saut
+App running under trial (attempt 1/3) -> health criteria met -> IDLE -> image confirmed
+```
+
+T3 exerce le scénario de brique le plus probable : une version qui casse le
+serveur HTTP emporte avec elle le seul moyen d'en envoyer une autre. Cycle
+complet, sans la moindre intervention SWD :
+
+```
+OTA: running under trial (attempt 1/3)
+OTA: trial deadline elapsed without confirmation (health 0x1B), resetting
+OTA: running under trial (attempt 2/3)
+OTA: trial deadline elapsed without confirmation (health 0x1B), resetting
+OTA: running under trial (attempt 3/3)
+OTA: trial deadline elapsed without confirmation (health 0x1B), resetting
+OTA: trial image exhausted its attempts, rolling back
+```
+
+`health 0x1B` = `CONFIG | NETWORK | LINK | CIS` levés, seul `OTA_HEALTH_HTTP`
+(0x04) manquant : la machine tourne, le réseau marche, le capteur scanne, mais
+le canal de mise à jour est mort — et c'est bien ce seul critère qui décide.
+
+Les coupures secteur simulées (`SP3CTRA_OTA_ABORT_AT_STEP`, un
+`NVIC_SystemReset()` au milieu de l'étape visée, uniquement à la première
+tentative) :
+
+```
+OTA journal: PENDING (pending 1)
+Step 6: Flash new CM7 firmware
+OTA: simulating a power cut in the middle of step 6
+------- START BOOTLOADER -------
+OTA journal: PENDING (pending 2)      <- reprise, tentative comptée
+Step 1..8 -> package applied -> TRIAL -> image confirmed
+```
+
+T8 vise l'étape 2 : la sauvegarde interrompue ne laisse qu'un `.tmp`, jamais un
+`backup_cm7.bin` tronqué, et la reprise la refait entièrement. C'est le point
+qui pouvait être vicieux — une sauvegarde à moitié écrite mais tenue pour bonne
+aurait rendu tout rollback ultérieur destructeur.
+
+Et la restauration, avec une sauvegarde réelle sur la NOR :
+
+```
+Step 1/2: Erasing CM7 / CM4 region
+Step 3: Restoring CM7 backup -> Successfully restored 0:/firmware/backup_cm7.bin
+Step 4: Restoring CM4 backup -> Successfully restored 0:/firmware/backup_cm4.bin
+OTA: previous firmware restored -> journal IDLE -> reboot -> OTA phase: IDLE
+```
+
+### 6.4 Matrice de test
 
 | # | Scénario | Attendu |
 |---|---|---|
@@ -321,16 +519,16 @@ l'étape *n* : coupure secteur déterministe et rejouable, sans banc électrique
 | T2 | Faute 2 | reset par IWDG ×3, rollback |
 | T3 | Faute 3 | pas de confirmation, rollback au boot suivant |
 | T4 | Faute 4 | pas de confirmation, rollback |
-| T5 | Paquet à CRC faux | refusé à l'upload, **aucun reboot** |
-| T6 | Upload interrompu à 50 % | refusé, app toujours joignable, requête suivante non corrompue |
-| T7 | `ABORT_AT_STEP=6` (flash CM7) | reprise au reboot, mise à jour menée à terme |
-| T8 | `ABORT_AT_STEP=2` (backup CM7) | reprise, backup reconstruit |
-| T9 | En-tête avec `cm7_size` aberrant | refusé sans effacement |
+| T5 | Paquet à CRC faux | refusé à l'upload, **aucun reboot** — **PASSÉ** (`400 checksum mismatch`) |
+| T6 | Upload interrompu à 50 % | refusé, app toujours joignable, requête suivante non corrompue — **PASSÉ** |
+| T7 | `ABORT_AT_STEP=6` (flash CM7) | reprise au reboot, mise à jour menée à terme — **PASSÉ** |
+| T8 | `ABORT_AT_STEP=2` (backup CM7) | reprise, backup reconstruit — **PASSÉ** |
+| T9 | En-tête avec `cm7_size` aberrant | refusé sans effacement — **PASSÉ** (`400 CM7 image size out of range`) |
 | T10 | Coupure secteur réelle pendant le flash | idem T7 |
 | T11 | Backup absent + firmware cassé | `ROLLBACK` ×3 puis erreur permanente, **pas de boucle infinie** |
-| T12 | Mise à jour saine | un seul passage, confirmation, `IDLE` |
+| T12 | Mise à jour saine | un seul passage, confirmation, `IDLE` — **PASSÉ** (36 s, deux reboots) |
 
-### 6.3 Déroulé sur la machine
+### 6.5 Déroulé sur la machine
 
 ```bash
 # 1. Point de départ propre : les trois images par SWD
@@ -354,11 +552,23 @@ python3 scripts/ota/ota_test.py T12
 L'image empoisonnée porte le patch 99 : `GET /getFirmwareVersion` suffit à
 constater le rollback, sans avoir à interpréter la trace.
 
-### 6.4 Outils
+### 6.6 Outils
 
 - `scripts/ota/make_package.py` — génère un paquet (option `--corrupt`, `--truncate`, `--bad-size`)
 - `scripts/ota/ota_upload.py` — upload HTTP + suivi
-- `scripts/ota/ota_test.py` — déroule la matrice, corrèle avec la trace UART
+- `scripts/ota/ota_test.py` — déroule la matrice, corrèle avec la trace UART.
+  Reconstruit un paquet empoisonné dès que les sources sont plus récentes que
+  lui : réutiliser un paquet périmé teste une image qui n'est plus celle du
+  dépôt et produit un vert trompeur. C'est arrivé — un paquet `fault3` antérieur
+  à `OTA_TRIAL_DEADLINE_MS` a été réutilisé et le scénario est resté bloqué sur
+  l'essai 1/3.
+- `scripts/ota/relay.sh` — délègue une commande à Terminal.app pour contourner
+  le verdict TCC « Réseau local » mis en cache. Chaque invocation a son propre
+  identifiant de journal : avec des chemins fixes, une sonde lancée pendant
+  qu'un test tourne écrase son résultat, et l'échec ressemble à un problème
+  firmware.
+- `scripts/ota/build_abort_bl.sh <0..8>` — bootloader à coupure secteur simulée,
+  à flasher par SWD (le bootloader n'est pas transporté par les paquets)
 - `scripts/uart_trace.sh` — capture existante, sert d'oracle
 
 Lignes à retrouver dans la trace pour un rollback réussi :
@@ -374,7 +584,41 @@ OTA journal: IDLE (...)
 
 ---
 
-## 7. Notes d'outillage
+## 7. Pièges de banc constatés
+
+Trois pièges venaient du **harnais lui-même**, tous du même genre : faire croire
+qu'on teste ce qu'on croit tester.
+
+1. Un paquet empoisonné périmé était réutilisé — T3 est resté bloqué sur
+   l'essai 1/3 avec une image antérieure à `OTA_TRIAL_DEADLINE_MS`.
+   Corrigé : reconstruction dès que les sources sont plus récentes.
+2. `build_broken_fw.sh` restaurait les sources mais laissait les `.bin`
+   empoisonnés dans `Release/`, **plus récents que les sources**, donc
+   indétectables par comparaison de dates. Un T7 a flashé une image fault-4 en
+   la croyant saine. Corrigé : le `trap` supprime les binaires, et `ota_test.py`
+   reconstruit avant d'empaqueter.
+3. `relay.sh` utilisait des chemins de journal fixes : une sonde lancée pendant
+   un test écrasait son résultat, et la perte ressemblait à une panne firmware.
+   Corrigé : un identifiant par invocation.
+
+Dans les trois cas, c'est le **journal OTA en flash** qui a tranché — seul
+témoin que ni le réseau, ni le relais, ni la trace UART ne peuvent falsifier.
+
+- **La trace UART et le programmateur SWD ne peuvent pas coexister** sur le
+  STLINK-V3MODS : `stlink_uart_trace.py` tient `/dev/cu.usbmodem*` en exclusivité
+  et `STM32_Programmer_CLI` échoue en `DEV_CONNECT_ERR`. Pire, une invocation
+  passée pendant ce conflit a rapporté « File download complete » tout en
+  écrivant **32 octets erronés** en flash, et les relectures renvoyaient des
+  valeurs fantaisistes. Toujours arrêter la trace avant tout accès SWD.
+- `mode=UR` **laisse la cible sous reset en sortie** : après une écriture il faut
+  un `-rst` explicite, sinon rien ne redémarre (symptôme : trace UART muette).
+- Écrire un enregistrement de journal par SWD est le moyen le plus rapide
+  d'exercer la séquence d'essai sans réseau :
+  `STM32_Programmer_CLI -c port=SWD mode=UR -d journal_trial.bin 0x08020000 --skipErase`
+- Le VPN (NordVPN ici) bloque le réseau local : l'ARP répond mais tout paquet IP
+  part en `EHOSTUNREACH`. Désactiver « Invisibility on LAN » ou se déconnecter.
+
+## 8. Notes d'outillage
 
 - `scripts/sync_subdir_mk.py` ne couvre pas le bootloader : `CORES["bootloader"]` vaut
   `CM7_Bootloader` alors que la racine de build est `CM7_Bootloader/CM7`. À corriger avant

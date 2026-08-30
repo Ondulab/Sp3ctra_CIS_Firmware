@@ -60,6 +60,25 @@ extern "C" {
  * tombe avant d'avoir ete confirmee. */
 #define OTA_FAULT_LATE_CRASH_MS 15000u
 
+/* Coupure secteur simulee dans le bootloader, au milieu de l'etape indiquee de
+ * update_processPackageFile() :
+ *
+ *   1 CRC   2 sauvegarde CM7   3 sauvegarde CM4   4 effacement CM7
+ *   5 effacement CM4   6 flash CM7   7 flash CM4   8 donnees externes
+ *
+ * 0 desactive le mecanisme. La coupure ne se produit qu'a la PREMIERE tentative
+ * d'application (pending_attempts == 0), sinon chaque reprise se couperait au
+ * meme endroit et l'on testerait le compteur de tentatives plutot que la
+ * reprise elle-meme.
+ *
+ * Reecrit par scripts/ota/build_abort_bl.sh, qui le restaure a 0 ensuite.
+ * NE JAMAIS COMMITTER UNE AUTRE VALEUR. */
+#define SP3CTRA_OTA_ABORT_AT_STEP 0
+
+#if SP3CTRA_OTA_ABORT_AT_STEP != 0
+#warning "SP3CTRA_OTA_ABORT_AT_STEP est actif : bootloader de test, ne pas diffuser"
+#endif
+
 #if SP3CTRA_OTA_FAULT != OTA_FAULT_NONE
 #warning "SP3CTRA_OTA_FAULT est actif : image de test, ne pas diffuser"
 #endif

@@ -43,7 +43,14 @@ restore() {
     # l'arbre de sources, meme si le build echoue ou si on interrompt le script.
     sed -i '' "s/^#define SP3CTRA_OTA_FAULT .*/#define SP3CTRA_OTA_FAULT OTA_FAULT_NONE/" "$HEADER"
     sed -i '' "s/^#define FW_VERSION_PATCH .*/#define FW_VERSION_PATCH $ORIGINAL_PATCH/" "$CONFIG"
-    echo "Sources restaurees (SP3CTRA_OTA_FAULT=OTA_FAULT_NONE, FW_VERSION_PATCH=$ORIGINAL_PATCH)"
+
+    # Les binaires empoisonnes restent dans Release/ et sont PLUS RECENTS que
+    # les sources restaurees : aucune comparaison de dates ne peut les demasquer.
+    # Un empaquetage ulterieur les embarquerait en les croyant sains -- c'est
+    # arrive. On les supprime donc, ce qui force une reconstruction explicite.
+    rm -f "$ROOT"/CM7/Release/*.bin "$ROOT"/CM7/Release/*.elf \
+          "$ROOT"/CM4/Release/*.bin "$ROOT"/CM4/Release/*.elf
+    echo "Sources restaurees, binaires empoisonnes supprimes (reconstruire avant tout empaquetage)"
 }
 trap restore EXIT INT TERM
 

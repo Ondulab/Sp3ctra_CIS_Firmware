@@ -40,6 +40,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 static uint32_t otaBoot_resetFlags;
+static bool otaBoot_firstApply;
 
 /* L'etape precoce s'execute avant MX_FMC_Init() et gui_init() : y toucher a
  * l'ecran accede a un FMC non horloge, donc a une faute de bus. Ce drapeau est
@@ -296,6 +297,8 @@ static void otaBoot_applyPendingPackage(const ota_record_t *record)
 
     printf("OTA: applying %s\n", packageFilePath);
 
+    otaBoot_firstApply = (record->pending_attempts == 0);
+
     /* La tentative est comptee avant d'effacer quoi que ce soit : une coupure
      * secteur en plein flash sera retentee, mais un nombre borne de fois. */
     otaBoot_requireJournal(ota_journal_write(OTA_PHASE_PENDING, 0,
@@ -403,4 +406,9 @@ void otaBoot_lateStage(void)
 
     /* Aucune branche ne revient ici : toutes rebootent ou sautent. */
     otaBoot_reboot();
+}
+
+bool otaBoot_firstApplyAttempt(void)
+{
+    return otaBoot_firstApply;
 }

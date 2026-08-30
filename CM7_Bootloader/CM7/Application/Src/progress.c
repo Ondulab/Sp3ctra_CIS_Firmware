@@ -15,8 +15,10 @@
 
 
 #include "progress.h"
-#include "ota_boot.h"   // For otaBoot_refreshWatchdog
-#include "update_gui.h" // For gui_displayUpdateProcess
+#include "main.h"
+#include "ota_boot.h"         // For otaBoot_refreshWatchdog
+#include "ota_fault_inject.h" // For SP3CTRA_OTA_ABORT_AT_STEP
+#include "update_gui.h"       // For gui_displayUpdateProcess
 
 void progress_init(ProgressManager* pm, uint32_t num_steps)
 {
@@ -43,6 +45,21 @@ void progress_update(ProgressManager* pm, uint32_t step_number, uint32_t current
      * chaque bloc traite. Sans cela, un chien de garde ayant survecu au reset
      * couperait la machine en plein flash. */
     otaBoot_refreshWatchdog();
+
+#if SP3CTRA_OTA_ABORT_AT_STEP != 0
+    /* Coupure secteur simulee : un reset brutal au milieu de l'etape visee,
+     * deterministe et rejouable, la ou une vraie coupure demande un banc.
+     * Seulement a la premiere tentative, sinon chaque reprise se couperait au
+     * meme endroit. */
+    if (otaBoot_firstApplyAttempt() &&
+        step_number == SP3CTRA_OTA_ABORT_AT_STEP &&
+        (uint64_t)current_value * 2u >= (uint64_t)total_value)
+    {
+        printf("\nOTA: simulating a power cut in the middle of step %lu\n",
+               (unsigned long)step_number);
+        NVIC_SystemReset();
+    }
+#endif
 
     // Calculate progress percentage for the current step
     float step_progress = (current_value * 100.0f) / total_value;
