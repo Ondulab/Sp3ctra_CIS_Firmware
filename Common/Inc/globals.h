@@ -185,6 +185,13 @@ struct __attribute__((aligned(4))) shared_var
     uint32_t led_update_requested[3];
 };
 
+// Longueur du mot de passe d'administration. Il est tire au sort au premier
+// demarrage plutot que fixe par defaut : un mot de passe d'usine identique sur
+// toutes les machines ne protege de rien des que la documentation circule.
+// L'alphabet ecarte les caracteres ambigus a lire sur une petite dalle OLED.
+#define ADMIN_PASSWORD_LEN 12
+#define ADMIN_PASSWORD_ALPHABET "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
 struct __attribute__((aligned(4))) shared_config
 {
 	uint8_t network_ip[4];
@@ -206,6 +213,9 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
+	// Administration credentials, guarding every request that CHANGES the device
+	char admin_password[ADMIN_PASSWORD_LEN + 1]; // generated on first boot, never a fixed default
+	uint8_t admin_password_ack;     // 1 once it has been used: the boot screen stops showing it
 };
 
 // CM7 boot progress, shown on the CM4 boot screen (shared_feedback.boot_stage).
@@ -235,6 +245,9 @@ struct __attribute__((aligned(4))) shared_feedback
 	uint8_t reserved[2];
 	char device_name[16];                 // "Sp3ctra-XXXX", written by the CM7 BEFORE it releases the CM4
 	                                      // (the MCU unique-id region 0x1FF1E800 bus-faults when read from the CM4)
+	char admin_password[ADMIN_PASSWORD_LEN + 1]; // published for the boot screen ONLY
+	uint8_t admin_show_password;          // 1 while the password has never been used: the screen is
+	                                      // the only way to learn it, and it must never leave by the network
 };
 
 /**************************************************************************************/

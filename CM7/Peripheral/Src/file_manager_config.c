@@ -34,6 +34,11 @@
 /* Private variables ---------------------------------------------------------*/
 const struct shared_config DefaultConfig =
 {
+    /* Volontairement vide : le mot de passe est tire au sort au premier
+     * demarrage. Une valeur par defaut identique sur toutes les machines ne
+     * protegerait de rien des que la documentation circule. */
+    .admin_password = "",
+    .admin_password_ack = 0,
     .network_ip = DEFAULT_NETWORK_IP,
     .network_netmask = DEFAULT_NETWORK_NETMASK,
     .network_gw = DEFAULT_NETWORK_GW,
@@ -177,6 +182,15 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
             {
                 config->motion_threshold_gyro = strtof(value, NULL);
             }
+            else if (strcmp(token, "ADMIN_PASSWORD") == 0)
+            {
+                strncpy((char *)config->admin_password, value, ADMIN_PASSWORD_LEN);
+                config->admin_password[ADMIN_PASSWORD_LEN] = '\0';
+            }
+            else if (strcmp(token, "ADMIN_PASSWORD_ACK") == 0)
+            {
+                config->admin_password_ack = (uint8_t)strtoul(value, NULL, 10);
+            }
         }
 
         token = strtok(NULL, "=");
@@ -225,6 +239,8 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "GUI_SHOW_IMU=%u\n", config->gui_show_imu);
     f_printf(&file, "GUI_INVERT_CIS_IMAGE=%u\n", config->gui_invert_cis_image);
     f_printf(&file, "SCREENSAVER_TIMEOUT_SEC=%u\n", config->screensaver_timeout_sec);
+    f_printf(&file, "ADMIN_PASSWORD=%s\n", config->admin_password);
+    f_printf(&file, "ADMIN_PASSWORD_ACK=%u\n", config->admin_password_ack);
 
     char float_buffer[32];
     sprintf(float_buffer, "MOTION_THRESHOLD_ACC=%.2f\n", config->motion_threshold_acc);

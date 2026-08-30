@@ -37,6 +37,7 @@
 #include "stm32_flash.h"
 
 #include "http_server.h"
+#include "admin_auth.h"
 #include "ota_app.h"
 #include "link_server.h"
 #include "sys_identity.h"
@@ -843,6 +844,19 @@ static bool fwupdate_handleUpload(struct netconn *conn, struct netbuf *inbuf)
                 if (strstr(http_reqbuf, DOWNLOAD_STREAM_TAG) != NULL ||
                     strstr(http_reqbuf, DOWNLOAD_STREAM_TAG_2) != NULL)
                 {
+                    /* Les en-tetes sont complets : on verifie les identifiants
+                     * AVANT la premiere ecriture sur la NOR, pour qu'une
+                     * requete non authentifiee ne laisse aucune trace et ne
+                     * detruise pas le paquet deja en place. */
+                    if (!adminAuth_check(http_reqbuf))
+                    {
+                        printf("@ fwupdate - unauthenticated upload rejected\n");
+                        adminAuth_sendChallenge(conn);
+                        ret = FWUPDATE_STATUS_ERROR;
+                        goto finished;
+                    }
+                    adminAuth_markUsed();
+
                     ret = fwupdate_multipart_state_machine(conn, http_reqbuf, assembled);
                     headerDone = true;
                 }
@@ -934,6 +948,22 @@ static void http_server(struct netconn *conn)
 				/* Assemble headers + body (may span several netbufs) into http_reqbuf */
 				buflen = http_assembleRequest(conn, inbuf);
 				buf = http_reqbuf;
+
+				/* Toute requete qui MODIFIE l'appareil exige les identifiants :
+				 * un changement d'IP ou un factory reset a distance sont aussi
+				 * dommageables qu'un mauvais firmware. Les GET de lecture
+				 * restent libres, pour ne pas gener la supervision. */
+				if (buflen >= 5 && strncmp(buf, "POST ", 5) == 0)
+				{
+					if (!adminAuth_check(buf))
+					{
+						printf("HTTP: unauthenticated POST rejected\n");
+						adminAuth_sendChallenge(conn);
+						close = true;
+						break;
+					}
+					adminAuth_markUsed();
+				}
 #ifdef HTTP_SERVER_DEBUG
 				printf("# Process buffer: %p %d bytes\n", buf, buflen);
 #endif

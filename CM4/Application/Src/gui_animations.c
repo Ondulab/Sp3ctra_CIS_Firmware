@@ -42,6 +42,32 @@
 
 /* Private function prototypes -----------------------------------------------*/
 static void gui_renderWaveAnimation(gui_overlay_callback_t overlay_callback);
+/**
+ * @brief Vrai si le mot de passe d'administration doit etre affiche.
+ *
+ * shared_feedback occupe une region NOLOAD : son contenu au demarrage est du
+ * bruit tant que le CM7 n'a rien publie. On ne se contente donc pas du
+ * drapeau, on verifie aussi que la chaine appartient bien a l'alphabet des
+ * mots de passe -- sinon un octet aleatoire ferait afficher n'importe quoi a
+ * la place de l'adresse IP.
+ */
+static bool gui_adminPasswordPending(void)
+{
+    if (shared_feedback.admin_show_password != 1u)
+    {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < ADMIN_PASSWORD_LEN; i++)
+    {
+        if (strchr(ADMIN_PASSWORD_ALPHABET, shared_feedback.admin_password[i]) == NULL)
+        {
+            return false;
+        }
+    }
+    return shared_feedback.admin_password[ADMIN_PASSWORD_LEN] == '\0';
+}
+
 static void gui_drawStartupOverlay(void);
 
 /* Private functions ---------------------------------------------------------*/
@@ -238,9 +264,20 @@ static void gui_drawStartupOverlay(void)
     snprintf(text, sizeof(text), "v%s", FW_VERSION);
     ssd1362_drawString((uint16_t)(SSD1362_WIDTH - 2 - strlen(text) * 8), BOOT_LINE1_Y, (signed char *)text, BOOT_COL_ID, 8);
 
-    // Line 2 - IP address once the CM7 has loaded the configuration
+    // Line 2 - admin password while it has never been used, otherwise IP address.
+    //
+    // This screen is the ONLY way to learn the password: it is never served
+    // over the network, since a password readable by the network would protect
+    // nothing. It therefore reappears at every boot until it is first used.
     const uint8_t stage = shared_feedback.boot_stage;
-    if (stage >= BOOT_STAGE_NETWORK && shared_config.network_ip[0] != 0)
+    if (gui_adminPasswordPending())
+    {
+        memcpy(text, (const void *)shared_feedback.admin_password, ADMIN_PASSWORD_LEN);
+        text[ADMIN_PASSWORD_LEN] = '\0';
+        ssd1362_drawString(2, BOOT_LINE2_Y, (signed char *)"ADMIN", BOOT_COL_DIM, 8);
+        ssd1362_drawString(2 + 6 * 8, BOOT_LINE2_Y, (signed char *)text, BOOT_COL_ID, 8);
+    }
+    else if (stage >= BOOT_STAGE_NETWORK && shared_config.network_ip[0] != 0)
     {
         snprintf(text, sizeof(text), "%u.%u.%u.%u",
                  (unsigned)shared_config.network_ip[0], (unsigned)shared_config.network_ip[1],

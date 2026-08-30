@@ -39,6 +39,7 @@
 #include "lwip.h"
 #include "link_server.h"
 #include "hid_task.h"
+#include "admin_auth.h"
 #include "ota_app.h"
 #include "ota_fault_inject.h"
 #include "sys_identity.h"
@@ -191,6 +192,10 @@ void StartDefaultTask(void *argument)
 	{
 		otaApp_reportHealth(OTA_HEALTH_CONFIG, true);
 	}
+
+	/* Identifiants d'administration : generes au premier demarrage, publies
+	 * pour l'ecran du CM4 tant qu'ils n'ont jamais servi. */
+	adminAuth_init();
 
 	printf("-------- POWER ON CIS ---------\n");
 	cis_Power(ON);
