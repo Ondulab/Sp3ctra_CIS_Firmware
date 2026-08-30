@@ -45,7 +45,10 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 1024K
+  /* Doit rester identique a FW_CM7_START_ADDR / FW_CM7_MAX_SIZE de
+     Common/Inc/boot_config.h : voir la note du linker script CM4.
+     896K = secteurs 0 a 6 du bank 2, le secteur 7 restant reserve. */
+  FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 896K
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K

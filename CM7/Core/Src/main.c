@@ -33,6 +33,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "ota_fault_inject.h"
 #include "sys_identity.h"
 #include "stdlib.h"
 #include "stdio.h"
@@ -92,6 +93,12 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
+	/* Injection de fautes : sans effet quand SP3CTRA_OTA_FAULT vaut 0, ce qui
+	 * est le cas de toute version diffusee. Place avant toute initialisation
+	 * pour simuler une image qui ne demarre pas du tout. */
+	OTA_FAULT_EARLY_BOOT();
+
 
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */

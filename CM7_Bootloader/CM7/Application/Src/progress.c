@@ -15,6 +15,7 @@
 
 
 #include "progress.h"
+#include "ota_boot.h"   // For otaBoot_refreshWatchdog
 #include "update_gui.h" // For gui_displayUpdateProcess
 
 void progress_init(ProgressManager* pm, uint32_t num_steps)
@@ -36,6 +37,12 @@ void progress_update(ProgressManager* pm, uint32_t step_number, uint32_t current
         // Prevent division by zero
         return;
     }
+
+    /* Point de rafraichissement du chien de garde pour tout le bootloader :
+     * chaque boucle longue (CRC, sauvegarde, effacement, flash) passe ici a
+     * chaque bloc traite. Sans cela, un chien de garde ayant survecu au reset
+     * couperait la machine en plein flash. */
+    otaBoot_refreshWatchdog();
 
     // Calculate progress percentage for the current step
     float step_progress = (current_value * 100.0f) / total_value;

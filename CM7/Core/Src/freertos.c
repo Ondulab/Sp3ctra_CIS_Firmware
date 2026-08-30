@@ -39,6 +39,8 @@
 #include "lwip.h"
 #include "link_server.h"
 #include "hid_task.h"
+#include "ota_app.h"
+#include "ota_fault_inject.h"
 #include "sys_identity.h"
 
 /* Enable to log button->MIDI events (verbose, for debugging only). */
@@ -146,7 +148,14 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-	/* add threads, ... */
+	/* Tache de garde OTA : elle recharge le chien de garde arme par le
+	 * bootloader et confirme l'image a l'essai. Creee avant tout le reste, car
+	 * la sequence d'initialisation qui suit peut durer plus d'une minute quand
+	 * le lien reseau tarde a s'etablir. */
+	if (!otaApp_init())
+	{
+		printf("OTA guard task creation ERROR\n");
+	}
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -176,6 +185,11 @@ void StartDefaultTask(void *argument)
 	if (file_initConfig(&shared_config) != FILEMANAGER_OK)
 	{
 		printf("File initialization ERROR\n");
+		otaApp_reportHealth(OTA_HEALTH_CONFIG, false);
+	}
+	else
+	{
+		otaApp_reportHealth(OTA_HEALTH_CONFIG, true);
 	}
 
 	printf("-------- POWER ON CIS ---------\n");
@@ -191,33 +205,17 @@ void StartDefaultTask(void *argument)
 		printf("FTP initialization ERROR\n");
     }
 
-	printf("- READ FIRMWARE UPDATE STATUS -\n");
-	FW_UpdateState dataRead;
-	if (STM32Flash_readPersistentData(&dataRead) != STM32FLASH_OK)
-	{
-		printf("Read update status ERROR\n");
-	}
-
-	if (dataRead != FW_UPDATE_NONE)
-	{
-	    STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_DONE);
-	    if (status == STM32FLASH_OK)
-	    {
-	        printf("Firmware update must be tested now.\n");
-	    }
-	    else
-	    {
-	        printf("Failed to write firmware update status in STM32 flash\n");
-	    }
-
-		printf("Rebooting\n");
-		System_SafeReset();
-	}
-
 	printf("----- HTTP INITIALIZATIONS ----\n");
-	if (http_serverInit() != HTTPSERVER_OK)
+	if (OTA_FAULT_HTTP_INIT_FAILS() || http_serverInit() != HTTPSERVER_OK)
 	{
 		printf("HTTP initialization ERROR\n");
+		otaApp_reportHealth(OTA_HEALTH_HTTP, false);
+	}
+	else
+	{
+		/* Seul canal permettant d'envoyer une nouvelle version : c'est le
+		 * critere qui decide de la confirmation ou de l'annulation. */
+		otaApp_reportHealth(OTA_HEALTH_HTTP, true);
 	}
 
 	printf("---------- UDP INIT -----------\n");
@@ -245,6 +243,8 @@ void StartDefaultTask(void *argument)
         }
     }
 
+    otaApp_reportHealth(OTA_HEALTH_NETWORK, isConnected == 1);
+
     if (isConnected == 1)
     {
         printf("Network connection established - proceeding with initialization\n");
@@ -269,6 +269,11 @@ void StartDefaultTask(void *argument)
     if (link_serverInit() != LINKSERVER_OK)
     {
         printf("Link server initialization ERROR\n");
+        otaApp_reportHealth(OTA_HEALTH_LINK, false);
+    }
+    else
+    {
+        otaApp_reportHealth(OTA_HEALTH_LINK, true);
     }
 
     shared_feedback.boot_stage = BOOT_STAGE_IMU;
@@ -289,6 +294,11 @@ void StartDefaultTask(void *argument)
 	if (cis_scanInit() != CISSCAN_OK)
 	{
 		printf("CIS initialization ERROR\n");
+		otaApp_reportHealth(OTA_HEALTH_CIS, false);
+	}
+	else
+	{
+		otaApp_reportHealth(OTA_HEALTH_CIS, true);
 	}
 
     /* Mark system as fully initialized - enables automatic reset on network disconnection */

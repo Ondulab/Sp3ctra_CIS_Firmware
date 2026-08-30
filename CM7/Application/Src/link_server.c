@@ -173,6 +173,23 @@ static void link_unbind(const char *reason)
     if (session.bound)
     {
         printf("LINK: session 0x%08lX closed (%s)\n", (unsigned long)session.session, reason);
+
+        /* Leave no trace of the host: the OLED overlay disappears and the
+         * buttons get their local backlight back (a host that crashes must not
+         * leave the LEDs inhibited forever). */
+        shared_feedback.overlay.count = 0;
+        __DMB();
+        shared_feedback.overlay_seq++;
+        shared_feedback.led_no_local_press = 0;
+        for (uint32_t i = 0; i < NUMBER_OF_LEDS; i++)
+        {
+            volatile struct led_State *l = &shared_var.ledState[i];
+            l->brightness_1 = 0; l->time_1 = 0; l->glide_1 = 0;
+            l->brightness_2 = 0; l->time_2 = 0; l->glide_2 = 0;
+            l->blink_count = 0;
+            __DMB();
+            shared_var.led_update_requested[i] = TRUE;
+        }
     }
     memset(&session, 0, sizeof(session));
     hid_rate_hz = SLP_DEFAULT_HID_RATE_HZ;
@@ -347,6 +364,17 @@ static void link_handleLedSet(const struct slp_led_set *m)
 {
     uint8_t no_local = shared_feedback.led_no_local_press;
 
+    printf("LINK: LED_SET mask 0x%02X", (unsigned)m->led_mask);
+    for (uint32_t i = 0; i < NUMBER_OF_LEDS && i < SLP_MAX_LEDS; i++)
+    {
+        if (m->led_mask & (1U << i))
+        {
+            printf("  L%u=%u%%/%ums%s", (unsigned)(i + 1), (unsigned)m->led[i].brightness_1,
+                   (unsigned)m->led[i].time_1_ms, (m->led[i].flags & SLP_LED_NO_LOCAL_PRESS) ? "!" : "");
+        }
+    }
+    printf("\n");
+
     for (uint32_t i = 0; i < NUMBER_OF_LEDS && i < SLP_MAX_LEDS; i++)
     {
         if ((m->led_mask & (1U << i)) == 0)
@@ -379,6 +407,20 @@ static void link_handleLedSet(const struct slp_led_set *m)
 
 static void link_handleOverlay(const struct slp_oled_overlay *m)
 {
+    /* Diagnostic trace, throttled: overlays may arrive at 20 Hz while editing. */
+    static uint32_t last_trace = 0;
+    if ((HAL_GetTick() - last_trace) >= 500U)
+    {
+        last_trace = HAL_GetTick();
+        printf("LINK: OVERLAY %u item(s), ttl %u ms", (unsigned)m->count, (unsigned)m->ttl_ms);
+        for (uint32_t i = 0; i < m->count && i < SLP_OVERLAY_MAX_ITEMS; i++)
+        {
+            printf("  [%.*s=%.*s]", (int)SLP_OVERLAY_LABEL_LEN, m->item[i].label,
+                   (int)SLP_OVERLAY_VALUE_LEN, m->item[i].value);
+        }
+        printf("\n");
+    }
+
     memcpy((void *)&shared_feedback.overlay, m, sizeof(struct slp_oled_overlay));
     if (shared_feedback.overlay.count > SLP_OVERLAY_MAX_ITEMS)
     {

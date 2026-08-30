@@ -32,6 +32,8 @@
 
 #include "crc.h"
 
+#include "ota.h"
+#include "ota_boot.h"
 #include "update_gui.h"
 #include "update.h"
 
@@ -113,8 +115,10 @@ static fwupdate_StatusTypeDef update_calculateCRC(FIL* file, ProgressManager* pr
 		return FWUPDATE_ERROR;
 	}
 
-	// Initialize the CRC calculation
-	__HAL_CRC_DR_RESET(&hcrc);
+	/* CRC logiciel (ota_crc32) plutot que le peripherique : l'application et le
+	 * bootloader le configurent differemment, et le CRC d'un paquet ne doit
+	 * dependre d'aucun etat partage. La valeur est celle de zlib.crc32(). */
+	crc_calculated = OTA_CRC32_INIT;
 
 	while (totalDataRead < crc_length)
 	{
@@ -127,8 +131,7 @@ static fwupdate_StatusTypeDef update_calculateCRC(FIL* file, ProgressManager* pr
 			return FWUPDATE_ERROR;
 		}
 
-		// Calculate the CRC for the read bytes
-		crc_calculated = HAL_CRC_Accumulate(&hcrc, (uint32_t *)readBuffer, bytesRead);
+		crc_calculated = ota_crc32(crc_calculated, readBuffer, bytesRead);
 
 		totalDataRead += bytesRead;
 
@@ -136,15 +139,12 @@ static fwupdate_StatusTypeDef update_calculateCRC(FIL* file, ProgressManager* pr
 		progress_update(progressManager, step_number, totalDataRead, crc_length);
 	}
 
-	// Perform the final XOR with 0xFFFFFFFF
-	crc_calculated ^= 0xFFFFFFFF;
-
 	// Compare the calculated CRC with the CRC from the file
 	if (crc_calculated != crc_read)
 	{
 		printf("CRC mismatch: calculated 0x%08lX, expected 0x%08lX\n", crc_calculated, crc_read);
 		gui_displayUpdateFailed();
-		return FWUPDATE_ERROR;
+		return FWUPDATE_CRCMISMATCH;
 	}
 	else
 	{
@@ -678,6 +678,46 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 	printf("CM4 firmware size: %lu bytes\n", cm4_size);
 	printf("External data size: %lu bytes\n", external_size);
 
+	/* Validation de l'en-tete AVANT tout effacement.
+	 *
+	 * Le CRC couvre l'en-tete : il suffit de le recalculer pour fabriquer un
+	 * paquet coherent annoncant des tailles aberrantes. Sans ces bornes,
+	 * update_eraseFirmware() effacerait des secteurs hors de la zone
+	 * applicative -- dont celui du bootloader lui-meme. */
+	if (cm7_size == 0 || cm7_size > FW_CM7_MAX_SIZE)
+	{
+		printf("Error: CM7 size %lu out of range (max %lu)\n",
+		       cm7_size, (unsigned long)FW_CM7_MAX_SIZE);
+		f_close(&file);
+		gui_displayUpdateFailed();
+		return FWUPDATE_CRCMISMATCH;
+	}
+
+	if (cm4_size == 0 || cm4_size > FW_CM4_MAX_SIZE)
+	{
+		printf("Error: CM4 size %lu out of range (max %lu)\n",
+		       cm4_size, (unsigned long)FW_CM4_MAX_SIZE);
+		f_close(&file);
+		gui_displayUpdateFailed();
+		return FWUPDATE_CRCMISMATCH;
+	}
+
+	/* Les tailles annoncees doivent decrire exactement le fichier : en-tete,
+	 * les trois charges utiles, puis le footer CRC de 4 octets. */
+	{
+		const uint64_t expected = (uint64_t)HEADER_SIZE + cm7_size + cm4_size + external_size + 4u;
+		const uint64_t actual = (uint64_t)f_size(&file);
+
+		if (expected != actual)
+		{
+			printf("Error: package size mismatch (header describes %lu bytes, file is %lu)\n",
+			       (unsigned long)expected, (unsigned long)actual);
+			f_close(&file);
+			gui_displayUpdateFailed();
+			return FWUPDATE_CRCMISMATCH;
+		}
+	}
+
 	// Display version
 	gui_displayVersion(version);
 
@@ -766,6 +806,18 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 
 	// Step 8: Save external data
 	printf("Step 8: Save external data\n");
+
+	if (external_size == 0)
+	{
+		/* Paquet sans charge externe. Sans ce test, le fichier de destination
+		 * serait ouvert en FA_CREATE_ALWAYS puis referme vide, ecrasant celui
+		 * deja present sur la NOR. */
+		printf("No external data in this package, keeping the existing file\n");
+		f_close(&file);
+		gui_displayUpdateSuccess();
+		return FWUPDATE_OK;
+	}
+
 	res = f_lseek(&file, HEADER_SIZE + cm7_size + cm4_size);
 	if (res != FR_OK)
 	{

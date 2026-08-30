@@ -45,7 +45,12 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-  FLASH (rx)      			: ORIGIN = 0x08040000, LENGTH = (1024K - 256K)
+  /* Doit rester identique a FW_CM4_START_ADDR / FW_CM4_MAX_SIZE de
+     Common/Inc/boot_config.h : c'est cette taille que le bootloader
+     sauvegarde et restaure. Une image qui deborderait au-dela ne serait
+     que partiellement rendue par un rollback. 640K = secteurs 2 a 6 du
+     bank 1, le secteur 7 restant reserve. */
+  FLASH (rx)      			: ORIGIN = 0x08040000, LENGTH = 640K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
   RAM_D1A (rw)    			: ORIGIN = 0x10000000, LENGTH = 40K

@@ -161,3 +161,25 @@ ssd1362_drawString(0, 25, (int8_t *)						"    FIRMWARE TESTING SUCCESS    ", 0x
 	// Display the frame buffer
 	ssd1362_writeFullBuffer();
 }
+
+/**
+ * @brief Displays a two-line message using the update banner.
+ * @param line1 First line, 32 characters wide.
+ * @param line2 Second line, 32 characters wide.
+ */
+void gui_displayMessage(const char* line1, const char* line2)
+{
+	ssd1362_clearBuffer();
+
+	// Draw border
+	ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, false);
+	ssd1362_drawRect(0, 0, 255, 63, BANNER_BACKGROUND_COLOR, false);
+
+	ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)"         FIRMWARE UPDATE        ", 0xF, 8);
+
+	ssd1362_drawString(0, 25, (int8_t *)line1, 0xF, 8);
+	ssd1362_drawString(0, 45, (int8_t *)line2, 0xF, 8);
+
+	// Display the frame buffer
+	ssd1362_writeFullBuffer();
+}

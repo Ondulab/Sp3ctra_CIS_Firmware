@@ -58,6 +58,11 @@
 
 #define FLASH_LAST_SECTOR_ADDR   				(FLASH_END_ADDR - FLASH_SECTOR_SIZE + 1)
 
+/* Ces quatre valeurs definissent la zone que le bootloader sauvegarde, efface,
+ * flashe et restaure. Les linker scripts CM4/STM32H745IIKX_FLASH.ld et
+ * CM7/STM32H745IIKX_FLASH.ld doivent leur rester identiques : une image liee
+ * au-dela de FW_*_MAX_SIZE deborde sur un secteur que la sauvegarde ne couvre
+ * pas, et un rollback ne la rendrait alors que partiellement. */
 #define FW_CM4_START_ADDR 						(ADDR_FLASH_SECTOR_2_BANK1)
 #define FW_CM7_START_ADDR 						(ADDR_FLASH_SECTOR_0_BANK2)
 #define FW_CM4_MAX_SIZE							(ADDR_FLASH_SECTOR_7_BANK1 - FW_CM4_START_ADDR)

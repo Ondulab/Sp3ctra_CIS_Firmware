@@ -37,6 +37,7 @@
 #include "stm32_flash.h"
 
 #include "http_server.h"
+#include "ota_app.h"
 #include "link_server.h"
 #include "sys_identity.h"
 #include "udp_client.h"
@@ -351,14 +352,35 @@ void delete_old_firmware(const char *latest_firmware)
     f_closedir(&dir);
 }
 
+/**
+ * @brief  Ramene la machine a etats du televersement a son point de depart.
+ *
+ * Un televersement se deroule entierement dans une seule connexion : la boucle
+ * netconn_recv de http_server() est maintenue ouverte tant qu'il dure. Une
+ * connexion qui tombe en cours de route laissait la machine en
+ * FWUPDATE_STATE_DOWNLOAD_STREAM avec son FIL ouvert, et la requete suivante --
+ * fut-ce un simple GET -- etait ecrite dans le fichier firmware jusqu'a
+ * atteindre file_length, ce qui declenchait un redemarrage sur un paquet
+ * corrompu. On repart donc d'un etat propre a chaque connexion.
+ */
+static void fwupdate_abort(void)
+{
+    if (fwupdate.has_been_initialized)
+    {
+        printf("@ fwupdate - discarding an unfinished upload (%d/%d bytes)\n",
+               fwupdate.accum_length, fwupdate.file_length);
+        f_close(&file);
+    }
+
+    memset(&fwupdate, 0, sizeof(fwupdate));
+    fwupdate.state = FWUPDATE_STATE_HEADER;
+}
+
 static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16_t buflen)
 {
     int ret = FWUPDATE_STATUS_NONE;
     char *buf_start = buf;
     char *buf_end = buf + buflen; // Points to byte AFTER end of buffer.
-
-    int len = 0;
-    char response[100];
 
     DIR dir;
     FRESULT fres = f_opendir(&dir, FW_PATH);
@@ -607,6 +629,13 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                     f_lseek(&file, read_offset);
                                     fr = f_read(&file, check_buffer, bytes_to_read, &bytes_read);
 
+                                    /* La recherche du boundary compare des blocs
+                                     * de boundary_len octets : sans le garde-fou
+                                     * ajoute aux deux boucles ci-dessous, un
+                                     * fichier plus court que le boundary rendait
+                                     * bytes_read - boundary_len negatif en size_t,
+                                     * soit quatre milliards d'iterations hors du
+                                     * tampon de 512 octets. */
                                     if (fr == FR_OK && bytes_read > 0)
                                     {
                                         /* Build the complete boundary string with ending -- */
@@ -618,7 +647,7 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                         bool found = false;
                                         size_t new_file_size = actual_size;
 
-                                        for (size_t i = 0; i <= bytes_read - boundary_len; i++)
+                                        for (size_t i = 0; boundary_len <= bytes_read && i <= bytes_read - boundary_len; i++)
                                         {
                                             if (memcmp(&check_buffer[i], boundary_final, boundary_len) == 0)
                                             {
@@ -647,7 +676,7 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                                             snprintf(boundary_final, sizeof(boundary_final), "--%s--", fwupdate.boundary);
                                             boundary_len = strlen(boundary_final);
 
-                                            for (size_t i = 0; i <= bytes_read - boundary_len; i++)
+                                            for (size_t i = 0; boundary_len <= bytes_read && i <= bytes_read - boundary_len; i++)
                                             {
                                                 if (memcmp(&check_buffer[i], boundary_final, boundary_len) == 0)
                                                 {
@@ -686,12 +715,12 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
                         if ((fwupdate.accum_length >= fwupdate.file_length)
                             || (fwupdate.stage == FW_UPDATE_Stage_VERIFIED))
                         {
+                            /* Le fichier est complet, mais rien ne dit encore
+                             * qu'il soit valide : la reponse HTTP est laissee a
+                             * l'appelant, qui la choisit apres verification.
+                             * Repondre 200 ici puis 400 apres coup produisait
+                             * deux reponses pour une seule requete. */
                             ret = FWUPDATE_STATUS_DONE;
-                            len = sprintf(response,
-                                          "HTTP/1.1 200 OK\r\n"
-                                          "Content-Type: text/plain\r\n\r\n"
-                                          "Update Successful.\r\n");
-                            netconn_write(conn, response, len, NETCONN_COPY);
 
                             /* Reset state for a new download next time */
                             fwupdate.state = FWUPDATE_STATE_HEADER;
@@ -705,7 +734,7 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
 
     if (ret == FWUPDATE_STATUS_ERROR)
     {
-        fwupdate.state = FWUPDATE_STATE_HEADER;
+        fwupdate_abort();
     }
 
     return ret;
@@ -730,6 +759,9 @@ static void http_server(struct netconn *conn)
         printf("Error: Null connection passed to http_server.\n");
         return;
     }
+
+	/* Etat propre a chaque connexion : voir fwupdate_abort(). */
+	fwupdate_abort();
 
 	/* Read the data from the port, blocking if nothing yet there.
 	   We assume the request (the part we care about) is in one netbuf */
@@ -1435,19 +1467,38 @@ static void http_server(struct netconn *conn)
 
 						if (ret == FWUPDATE_STATUS_DONE)
 						{
-							/* reboot after we close the connection. */
+							/* Le paquet est verifie ICI, avant le redemarrage :
+							 * un paquet invalide est refuse avec sa raison dans
+							 * la reponse HTTP et ne provoque aucun reboot.
+							 * L'ancienne sequence levait le drapeau sans rien
+							 * verifier, et c'est le bootloader qui decouvrait
+							 * le probleme apres deux redemarrages. */
+							const char *reason = otaApp_acceptPackage(fwupdate.full_file_path);
 
-						    STM32Flash_StatusTypeDef status = STM32Flash_writePersistentData(FW_UPDATE_RECEIVED);
-						    if (status == STM32FLASH_OK)
-						    {
-						        printf("Firmware update received\n");
-						    }
-						    else
-						    {
-						        printf("Failed to write firmware update status in STM32 flash\n");
-						    }
+							if (reason == NULL)
+							{
+								const char *accepted =
+										"HTTP/1.1 200 OK\r\n"
+										"Content-Type: text/plain\r\n\r\n"
+										"Update accepted, rebooting.\r\n";
 
-							reboot = true;
+								printf("Firmware package accepted, rebooting to apply it\n");
+								netconn_write(conn, accepted, strlen(accepted), NETCONN_COPY);
+								reboot = true;
+							}
+							else
+							{
+								char rejected[192];
+								int rejectedLen = snprintf(rejected, sizeof(rejected),
+										"HTTP/1.1 400 Bad Request\r\n"
+										"Content-Type: text/plain\r\n\r\n"
+										"Firmware rejected: %s\r\n", reason);
+
+								printf("Firmware package rejected: %s\n", reason);
+								netconn_write(conn, rejected, (size_t)rejectedLen, NETCONN_COPY);
+
+								f_unlink(fwupdate.full_file_path);
+							}
 						}
 					}
 				}

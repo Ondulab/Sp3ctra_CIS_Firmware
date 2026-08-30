@@ -32,6 +32,8 @@
 #include "stm32_flash.h"
 #include "file_manager.h"
 
+#include "ota.h"
+#include "ota_boot.h"
 #include "update.h"
 #include "update_gui.h"
 
@@ -71,8 +73,6 @@ static void MPU_Config(void);
 
 /* Function prototypes */
 static void configureBootConfiguration(void);
-static void reboot(void);
-static void gotoFirmware(uint32_t fwFlashStartAdd);
 
 /* USER CODE END PFP */
 
@@ -145,59 +145,6 @@ void configureBootConfiguration(void)
     HAL_FLASH_Lock();
 }
 
-/**
- * @brief  Reboot the system after a delay.
- */
-static void reboot(void)
-{
-	printf("Rebooting in 2\n");
-	/* Wait 2 seconds. */
-	HAL_Delay(2000);
-	NVIC_SystemReset();
-}
-
-/**
- * @brief  Jump to the firmware stored in flash memory.
- * @param  fwFlashStartAdd  Address where the firmware starts in flash memory.
- */
-static void gotoFirmware(uint32_t fwFlashStartAdd)
-{
-	HAL_MPU_Disable();
-	HAL_SuspendTick();
-
-	__disable_irq(); // Disable interrupt
-
-	SysTick->CTRL = 0;  // Disable SysTick
-	SysTick->LOAD = 0;
-	SysTick->VAL  = 0;
-
-	HAL_RCC_DeInit();
-
-	for (uint8_t i = 0; i < 8; i++) // Clear all NVIC Enable and Pending registers
-	{
-		NVIC->ICER[i] = 0xFFFFFFFF;
-		NVIC->ICPR[i] = 0xFFFFFFFF;
-	}
-
-	// Validate firmware address
-	uint32_t appStack = *((volatile uint32_t*) fwFlashStartAdd);
-	uint32_t appEntry = *((volatile uint32_t*) (fwFlashStartAdd + 4));
-
-	SCB_DisableICache();
-	SCB_DisableDCache();
-
-	__enable_irq();
-
-	__DMB();
-	SCB->VTOR = fwFlashStartAdd;
-	__DSB();
-
-	HAL_DeInit();
-	__set_MSP(appStack);
-
-	pFunction jumpToApplication = (pFunction)appEntry;
-	jumpToApplication();
-}
 /* USER CODE END 0 */
 
 /**
@@ -240,27 +187,31 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 /* USER CODE BEGIN Boot_Mode_Sequence_2 */
-	//STM32Flash_writePersistentData(FW_UPDATE_RECEIVED);	//uncomment for testing
-	//STM32Flash_writePersistentData(FW_UPDATE_NONE);
 
 /* USER CODE END Boot_Mode_Sequence_2 */
 
   /* USER CODE BEGIN SysInit */
 
-	/* Initialize the Flash Update State */
-	FW_UpdateState dataRead;
-	STM32Flash_readPersistentData(&dataRead);
+	/* Chien de garde : s'il a survecu au reset qui nous amene ici, les etapes
+	 * longues qui suivent (CRC, sauvegarde, flash) le rechargeront via
+	 * progress_update(). */
+	otaBoot_refreshWatchdog();
 
-	if (dataRead == FW_UPDATE_NONE)
-	{
-		gotoFirmware(FW_CM7_START_ADDR);
-	}
+	/* Liaison serie avant l'etape precoce : c'est la seule trace de ce que
+	 * decide le sequenceur, et le chemin rapide (rien a faire, on saute dans
+	 * l'application) n'atteint jamais l'initialisation des peripheriques plus
+	 * bas. HAL_UART_MspInit se suffit a lui-meme -- il configure PLL3, les
+	 * horloges et ses broches. */
+	MX_USART1_UART_Init();
 
-	if (dataRead == FW_UPDATE_TO_TEST)
-	{
-		STM32Flash_writePersistentData(FW_UPDATE_TESTING);
-		gotoFirmware(FW_CM7_START_ADDR);
-	}
+	printf("\n------- START BOOTLOADER -------\n");
+	printf("Bootloader version: %s\n", BL_VERSION);
+	otaBoot_logResetCause();
+
+	/* Etape precoce du sequenceur : saute directement dans l'application quand
+	 * il n'y a rien a faire, et ne retourne alors pas. */
+	otaBoot_earlyStage();
+
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -273,136 +224,28 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
-	printf("\n------- START BOOTLOADER -------\n");
-
 	gui_init();
-	printf("Bootloader version: %s\n", BL_VERSION);
 
-	printf("----- FILE INITIALIZATION ------\n");
+	printf("----- FILE INITIALIZATION -----\n");
 
-	FRESULT fres; // Variable to store the result of FATFS operations
+	otaBoot_refreshWatchdog();
 
-	// Attempt to mount the file system on SD card or USB (where the package is stored)
-	fres = f_mount(&fs, "0:", 1);
-	if (fres != FR_OK)
+	/* Montage de la NOR QSPI : c'est la qu'attend le paquet et les sauvegardes. */
+	if (f_mount(&fs, "0:", 1) != FR_OK)
 	{
+		/* Sans systeme de fichiers, ni application ni restauration ne sont
+		 * possibles. On demarre malgre tout ce qui se trouve en flash plutot
+		 * que de laisser la machine morte dans le bootloader. */
 		printf("FS mount ERROR\n");
-		gui_displayUpdateFailed();
+		gui_displayMessage("        STORAGE FAILURE         ",
+		                   "     SERVICE REQUIRED (SWD)     ");
+		HAL_Delay(3000);
+		otaBoot_jumpToFirmware(FW_CM7_START_ADDR);
 	}
 	printf("FS mount SUCCESS\n");
 
-	if (dataRead == FW_UPDATE_TESTING)
-	{
-		printf("--- RESTORE PREVIOUS FIRMWARE --\n");
-		if (update_restoreBackupFirmwares() != FWUPDATE_OK)
-		{
-			gui_displayUpdateFailed();
-
-			reboot();
-		}
-
-		/* Reboot after we close the connection. */
-		if (STM32Flash_writePersistentData(FW_UPDATE_TO_TEST) != STM32FLASH_OK)
-		{
-			printf("Failed to write firmware update status in STM32 flash\n");
-		}
-		else
-		{
-			printf("Firmware update done, reset firmware update flag\n");
-		}
-
-		gui_displayUpdateSuccess();
-
-		reboot();
-	}
-
-	if (dataRead == FW_UPDATE_DONE)
-	{
-		/* Reboot after we close the connection. */
-		if (STM32Flash_writePersistentData(FW_UPDATE_NONE) != STM32FLASH_OK)
-		{
-			printf("Failed to write firmware update status in STM32 flash\n");
-		}
-		else
-		{
-			printf("Firmware update done, reset firmware update flag\n");
-		}
-
-		gui_displayUpdateSuccess();
-
-		reboot();
-	}
-
-	if (dataRead == FW_UPDATE_RECEIVED)
-	{
-		char packageFilePath[64];
-
-		// Find the package file
-		if (update_findPackageFile(packageFilePath, sizeof(packageFilePath)) != FWUPDATE_OK)
-		{
-			printf("No firmware found in /firmware/\n");
-
-			if (STM32Flash_writePersistentData(FW_UPDATE_NONE) != STM32FLASH_OK)
-			{
-				printf("Failed to write firmware update status in STM32 flash\n");
-			}
-			else
-			{
-				printf("Firmware update abort, reset firmware update flag\n");
-			}
-
-			gui_displayUpdateFailed();
-			reboot();
-		}
-		else
-		{
-			printf("Found package file: %s\n", packageFilePath);
-
-			printf("--------- START UPDATE ---------\n");
-
-			fwupdate_StatusTypeDef status = update_processPackageFile(packageFilePath);
-			if (status != FWUPDATE_OK)
-			{
-				if (status != FWUPDATE_CRCMISMATCH)
-				{
-					printf("Firmware update failed\n");
-					gui_displayUpdateFailed();
-				}
-				else
-				{
-					printf("Preparing to reset all cores \n");
-
-					if (STM32Flash_writePersistentData(FW_UPDATE_NONE) != STM32FLASH_OK)
-					{
-						printf("Failed to write firmware update status in STM32 flash\n");
-					}
-					else
-					{
-						printf("Firmware update aborted \n");
-						reboot();
-					}
-				}
-			}
-			else
-			{
-				printf("Firmware update completed successfully\n");
-				gui_displayUpdateTesting();
-			}
-		}
-
-		printf("Preparing to reset all cores \n");
-
-		/* Reboot after we close the connection. */
-		if (STM32Flash_writePersistentData(FW_UPDATE_TO_TEST) != STM32FLASH_OK)
-		{
-			printf("Failed to write firmware update status in STM32 flash\n");
-		}
-		else
-		{
-			printf("Firmware update must be tested now \n");
-			reboot();
-		}
-	}
+	/* Etape tardive : application du paquet ou restauration. Ne retourne pas. */
+	otaBoot_lateStage();
 
   /* USER CODE END 2 */
 

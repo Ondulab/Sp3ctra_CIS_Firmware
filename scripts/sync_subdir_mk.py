@@ -16,7 +16,9 @@ import sys
 import glob
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORES = {"cm7": "CM7", "cm4": "CM4", "bootloader": "CM7_Bootloader"}
+# le bootloader est un projet CubeIDE imbrique : sa racine de build est
+# CM7_Bootloader/CM7/<config>, pas CM7_Bootloader/<config>.
+CORES = {"cm7": "CM7", "cm4": "CM4", "bootloader": os.path.join("CM7_Bootloader", "CM7")}
 
 
 def source_dir_of(mk_path, c_srcs):

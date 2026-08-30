@@ -30,6 +30,11 @@ void gui_displayUpdateFailed(void);
 void gui_displayUpdateTesting(void);
 void gui_displayUpdateSuccess(void);
 
+/* Message generique sur deux lignes, pour les etats qui n'ont pas d'ecran
+ * dedie (restauration impossible, intervention requise). Les chaines sont
+ * affichees telles quelles : 32 caracteres par ligne. */
+void gui_displayMessage(const char* line1, const char* line2);
+
 /* Exported macros -----------------------------------------------------------*/
 /* Add any necessary macros here */
 
