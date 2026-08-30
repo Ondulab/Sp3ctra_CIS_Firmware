@@ -376,6 +376,44 @@ static void fwupdate_abort(void)
     fwupdate.state = FWUPDATE_STATE_HEADER;
 }
 
+/**
+ * @brief  Cloture un televersement complet : verification, reponse HTTP, verdict.
+ *
+ * Le paquet est verifie ICI, avant tout redemarrage : un paquet invalide est
+ * refuse avec sa raison dans la reponse et ne coute aucun reboot. L'ancienne
+ * sequence levait le drapeau sans rien verifier, et c'est le bootloader qui
+ * decouvrait le probleme deux redemarrages plus tard.
+ *
+ * @retval true si l'appareil doit redemarrer pour appliquer le paquet.
+ */
+static bool fwupdate_finish(struct netconn *conn)
+{
+    const char *reason = otaApp_acceptPackage(fwupdate.full_file_path);
+
+    if (reason == NULL)
+    {
+        const char *accepted = "HTTP/1.1 200 OK\r\n"
+                               "Content-Type: text/plain\r\n\r\n"
+                               "Update accepted, rebooting.\r\n";
+
+        printf("Firmware package accepted, rebooting to apply it\n");
+        netconn_write(conn, accepted, strlen(accepted), NETCONN_COPY);
+        return true;
+    }
+
+    char rejected[192];
+    int rejectedLen = snprintf(rejected, sizeof(rejected),
+                               "HTTP/1.1 400 Bad Request\r\n"
+                               "Content-Type: text/plain\r\n\r\n"
+                               "Firmware rejected: %s\r\n", reason);
+
+    printf("Firmware package rejected: %s\n", reason);
+    netconn_write(conn, rejected, (size_t)rejectedLen, NETCONN_COPY);
+
+    f_unlink(fwupdate.full_file_path);
+    return false;
+}
+
 static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16_t buflen)
 {
     int ret = FWUPDATE_STATUS_NONE;
@@ -739,6 +777,115 @@ static int fwupdate_multipart_state_machine(struct netconn *conn, char *buf, u16
 
     return ret;
 }
+/**
+ * @brief  Recoit un televersement de firmware de bout en bout.
+ *
+ * Ce gestionnaire prend la main sur la connexion, car http_assembleRequest() ne
+ * peut pas servir ici : son tampon de 2 Ko tronque silencieusement tout ce qui
+ * depasse, si bien qu'un paquet de plusieurs centaines de kilo-octets
+ * n'atteignait jamais sa taille annoncee et que le televersement ne se
+ * terminait jamais.
+ *
+ * Les en-tetes -- qui peuvent s'etaler sur plusieurs segments TCP, ce pour quoi
+ * l'assembleur existe -- sont accumules dans http_reqbuf jusqu'a la balise de
+ * flux, avec terminaison par un NUL pour que les strstr() de la machine a etats
+ * restent bornes. Passe ce point, chaque fragment part directement dans le
+ * fichier : la machine a etats est alors en DOWNLOAD_STREAM, ou elle ne fait
+ * aucune operation de chaine sur le tampon.
+ *
+ * @param  conn   connexion, drainee jusqu'a Content-Length ou jusqu'au timeout
+ *                de reception.
+ * @param  inbuf  premier netbuf recu. Il reste la propriete de l'appelant, qui
+ *                le libere ; ceux obtenus ensuite sont liberes ici.
+ * @retval true si l'appareil doit redemarrer pour appliquer le paquet.
+ */
+static bool fwupdate_handleUpload(struct netconn *conn, struct netbuf *inbuf)
+{
+    struct netbuf *nb = inbuf;
+    bool owned = false; /* inbuf appartient a l'appelant */
+    bool headerDone = false;
+    u16_t assembled = 0;
+    int ret = FWUPDATE_STATUS_INPROGRESS;
+
+    for (;;)
+    {
+        do
+        {
+            char *p;
+            u16_t l;
+
+            if (netbuf_data(nb, (void **)&p, &l) != ERR_OK)
+            {
+                break;
+            }
+
+            if (headerDone)
+            {
+                ret = fwupdate_multipart_state_machine(conn, p, l);
+            }
+            else if ((u32_t)assembled + l > HTTP_REQ_BUF_SIZE - 1)
+            {
+                /* Les en-tetes multipart tiennent largement dans deux segments.
+                 * Au-dela, mieux vaut refuser franchement que recopier un
+                 * paquet ampute -- c'etait exactement le defaut de l'assembleur. */
+                printf("@ fwupdate - headers exceed %d bytes, aborting\n",
+                       HTTP_REQ_BUF_SIZE - 1);
+                ret = FWUPDATE_STATUS_ERROR;
+            }
+            else
+            {
+                memcpy(http_reqbuf + assembled, p, l);
+                assembled = (u16_t)(assembled + l);
+                http_reqbuf[assembled] = '\0';
+
+                /* La balise de flux marque la fin des en-tetes multipart :
+                 * tant qu'elle manque, il reste des en-tetes a recevoir. */
+                if (strstr(http_reqbuf, DOWNLOAD_STREAM_TAG) != NULL ||
+                    strstr(http_reqbuf, DOWNLOAD_STREAM_TAG_2) != NULL)
+                {
+                    ret = fwupdate_multipart_state_machine(conn, http_reqbuf, assembled);
+                    headerDone = true;
+                }
+            }
+
+            if (ret != FWUPDATE_STATUS_INPROGRESS)
+            {
+                goto finished;
+            }
+        }
+        while (netbuf_next(nb) >= 0);
+
+        if (owned)
+        {
+            netbuf_delete(nb);
+            owned = false;
+        }
+
+        if (http_recv(conn, &nb) != ERR_OK)
+        {
+            printf("@ fwupdate - upload interrupted after %d/%d bytes\n",
+                   fwupdate.accum_length, fwupdate.file_length);
+            ret = FWUPDATE_STATUS_ERROR;
+            goto finished;
+        }
+        owned = true;
+    }
+
+finished:
+    if (owned)
+    {
+        netbuf_delete(nb);
+    }
+
+    if (ret == FWUPDATE_STATUS_DONE)
+    {
+        return fwupdate_finish(conn);
+    }
+
+    fwupdate_abort();
+    return false;
+}
+
 static void http_server(struct netconn *conn)
 {
 	struct netbuf *inbuf;
@@ -770,6 +917,20 @@ static void http_server(struct netconn *conn)
 		if (netconn_err(conn) == ERR_OK)
 		{
 			do {
+				char *first;
+				u16_t firstlen;
+
+				/* Le televersement de firmware est detourne AVANT l'assembleur :
+				 * son tampon de 2 Ko ne peut pas contenir un paquet, et le
+				 * tronquer empechait la fin du transfert d'etre detectee. */
+				if (netbuf_data(inbuf, (void **)&first, &firstlen) == ERR_OK &&
+				    firstlen >= 12 && strncmp(first, "POST /upload", 12) == 0)
+				{
+					reboot = fwupdate_handleUpload(conn, inbuf);
+					close = true;
+					break;
+				}
+
 				/* Assemble headers + body (may span several netbufs) into http_reqbuf */
 				buflen = http_assembleRequest(conn, inbuf);
 				buf = http_reqbuf;
@@ -1467,38 +1628,7 @@ static void http_server(struct netconn *conn)
 
 						if (ret == FWUPDATE_STATUS_DONE)
 						{
-							/* Le paquet est verifie ICI, avant le redemarrage :
-							 * un paquet invalide est refuse avec sa raison dans
-							 * la reponse HTTP et ne provoque aucun reboot.
-							 * L'ancienne sequence levait le drapeau sans rien
-							 * verifier, et c'est le bootloader qui decouvrait
-							 * le probleme apres deux redemarrages. */
-							const char *reason = otaApp_acceptPackage(fwupdate.full_file_path);
-
-							if (reason == NULL)
-							{
-								const char *accepted =
-										"HTTP/1.1 200 OK\r\n"
-										"Content-Type: text/plain\r\n\r\n"
-										"Update accepted, rebooting.\r\n";
-
-								printf("Firmware package accepted, rebooting to apply it\n");
-								netconn_write(conn, accepted, strlen(accepted), NETCONN_COPY);
-								reboot = true;
-							}
-							else
-							{
-								char rejected[192];
-								int rejectedLen = snprintf(rejected, sizeof(rejected),
-										"HTTP/1.1 400 Bad Request\r\n"
-										"Content-Type: text/plain\r\n\r\n"
-										"Firmware rejected: %s\r\n", reason);
-
-								printf("Firmware package rejected: %s\n", reason);
-								netconn_write(conn, rejected, (size_t)rejectedLen, NETCONN_COPY);
-
-								f_unlink(fwupdate.full_file_path);
-							}
+							reboot = fwupdate_finish(conn);
 						}
 					}
 				}
