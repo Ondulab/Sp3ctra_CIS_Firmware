@@ -1,0 +1,588 @@
+/* Sp3ctra device pages -- shared shell and charter.
+ *
+ * Colours, type scale and control recipes mirror the VST (vst/source/UITheme.h):
+ *   what you LOOK AT  -> the page's category colour (--accent)
+ *   what you TOUCH    -> ONE acid lime (--lime), desaturated at rest (--lime-rest)
+ * Keep both palettes in sync with UITheme.h; never restate a literal in a page. */
+
+:root {
+    --bg: #1e1e1e;            /* kColBg          */
+    --panel: #282828;         /* kColPanelBg     */
+    --frame: #20202a;         /* kColFrameBg     */
+    --surface: #1a1a2a;       /* kColSurface     */
+    --border: #3a3a3a;        /* kColBorder      */
+    --text: #b8c4d0;          /* kColText        */
+    --muted: #888888;         /* kColTextMuted   */
+    --btn: #2a2a2a;           /* kColBtnBg       */
+    --btn-hot: #3a3a3a;       /* kColBtnActive   */
+    --lime: #dcff3c;          /* kColHandle      */
+    --lime-rest: #b4cc63;     /* kColHandle mixed kCtlRestMix toward kColCtlNeutral */
+    --tabbar: #1f1f28;
+    --tab-off: #232330;
+    --tab-off-hot: #2c2c3a;
+    --tab-border: #3a3a4a;
+    --tab-text: #8890a0;
+    --accent: #00d9ff;        /* per page, see [data-page] below */
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Category colours -- moduleCatColour(), one per page. */
+body[data-page="scan"] { --accent: #00d9ff; }    /* SRC   electric cyan */
+body[data-page="imu"] { --accent: #ffb020; }     /* UTILS vivid amber   */
+body[data-page="network"] { --accent: #ff2ed0; }  /* MIDI  hot magenta   */
+body[data-page="gui"] { --accent: #b44dff; }     /* FX    neon violet   */
+body[data-page="update"] { --accent: #45ff8c; }  /* OUT   neon green    */
+
+body {
+    font-family: var(--font);
+    font-size: 14px;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0 0 24px 0;
+}
+
+/* ---- Header + tab bar (built by sp3ctra.js) ------------------------------ */
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    height: 56px;
+    background: linear-gradient(#383838, #262626);
+    border-bottom: 1px solid #444;
+}
+
+.app-header img {
+    height: 30px;
+    width: auto;
+    display: block;
+}
+
+.app-id {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.4;
+}
+
+.app-id b {
+    color: #eee;
+    font-weight: 500;
+}
+
+.tabbar {
+    display: flex;
+    gap: 3px;
+    padding: 3px 8px;
+    background: var(--tabbar);
+    border-bottom: 1px solid var(--border);
+}
+
+.tab {
+    padding: 6px 16px;
+    border-radius: 3px;
+    border: 1px solid var(--tab-border);
+    background: var(--tab-off);
+    color: var(--tab-text);
+    font: 700 14px var(--font);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.tab:hover {
+    background: var(--tab-off-hot);
+    color: #b8c0d0;
+}
+
+.tab.active {
+    background: rgba(220, 255, 60, 0.22);
+    border-color: rgba(220, 255, 60, 0.95);
+    color: #fff;
+}
+
+/* ---- Page shell --------------------------------------------------------- */
+
+.main-wrapper {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+.main-wrapper.wide {
+    max-width: 1100px;
+}
+
+.container {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px 10px 12px;
+    margin: 12px 0;
+    box-sizing: border-box;
+}
+
+/* Section badge -- the module-page caption, in the page's category colour. */
+.title {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    color: var(--accent);
+    opacity: 0.85;
+    margin-bottom: 6px;
+}
+
+.hint {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 4px 0 0 0;
+}
+
+/* ---- Module grammar (ModuleChrome): a page is ONE object -----------------
+ * frame (the live view) -> status strip -> rows of labelled boxes, split by
+ * "--- SECTION ---" bands. Never a stack of same-weight panels. */
+
+.boxrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px 18px;
+    margin-top: 10px;
+}
+
+.box {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1 1 130px;
+    min-width: 118px;
+    /* A lone control must not stretch across the page: a box is a box. */
+    max-width: 240px;
+}
+
+.box.wide { flex: 2 1 280px; max-width: 500px; }
+.box.narrow { flex: 0 1 96px; max-width: 120px; }
+
+/* Label centred above its control, in the page's colour: what you look at. */
+.boxlabel {
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    color: var(--accent);
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.box > select,
+.box > input,
+.box > button,
+.box > .seg,
+.box > .quad,
+.box > .readonly {
+    margin: 0;
+    width: 100%;
+}
+
+/* Band closing a section, like drawSectionCaption(). */
+.section {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    color: var(--accent);
+    opacity: 0.5;
+    margin: 18px 0 2px 0;
+}
+
+/* Two or three choices that exclude each other read as ONE control. */
+.seg {
+    display: flex;
+}
+
+.seg button {
+    flex: 1;
+    margin: 0;
+    border-radius: 0;
+}
+
+.seg button:first-child { border-radius: 3px 0 0 3px; }
+.seg button:last-child { border-radius: 0 3px 3px 0; margin-left: -1px; }
+
+/* Dotted quad: four octets that are one address. */
+.quad {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.quad input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 5px 2px;
+}
+
+.quad span {
+    color: var(--muted);
+}
+
+/* A value the device reports and the page cannot change. */
+.readonly,
+input[readonly],
+.box input[disabled] {
+    background: #16161c;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 5px 8px;
+    text-align: center;
+    font-size: 14px;
+    cursor: default;
+}
+
+/* Thin strip under a frame: what the device is doing right now. */
+.statusbar {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 18px;
+}
+
+/* Physical button, lit while it is held. */
+.led {
+    min-width: 24px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #6d7480;
+    background: #16161c;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 7px;
+}
+
+.led.on {
+    color: #fff;
+    background: rgba(220, 255, 60, 0.22);
+    border-color: rgba(220, 255, 60, 0.95);
+}
+
+.axis {
+    font-weight: 500;
+    margin-right: 12px;
+}
+
+.statusbar .leds {
+    display: inline-flex;
+    gap: 6px;
+    margin-right: 10px;
+    vertical-align: -3px;
+}
+
+.statusbar b {
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* ---- Controls: everything you can touch wears the lime ------------------ */
+
+select,
+input,
+button,
+a.button {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    color: #d8dee8;
+    background-color: var(--btn);
+    border: 1px solid rgba(180, 204, 99, 0.45);
+    border-radius: 3px;
+    outline: none;
+    margin: 5px 0;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    cursor: pointer;
+    text-align: center;
+    -moz-text-align-last: center;
+    text-align-last: center;
+}
+
+select:hover,
+input:hover,
+button:hover,
+a.button:hover {
+    background-color: var(--btn-hot);
+    border-color: rgba(220, 255, 60, 0.95);
+    color: #fff;
+}
+
+select:focus,
+input:focus {
+    border-color: rgba(220, 255, 60, 0.95);
+    color: #fff;
+}
+
+input[disabled] {
+    background-color: #1a1a1a;
+    border-color: var(--border);
+    color: var(--muted);
+    cursor: default;
+}
+
+input[disabled]:hover {
+    background-color: #1a1a1a;
+    border-color: var(--border);
+    color: var(--muted);
+}
+
+label {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+    margin: 5px 0;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+/* Selected segment of a choice (DPI, hand) -- same recipe as an active tab. */
+.dpi-button.selected,
+.hand-button.selected,
+button.selected {
+    background-color: rgba(220, 255, 60, 0.22);
+    border-color: rgba(220, 255, 60, 0.95);
+    color: #fff;
+}
+
+input[type="range"] {
+    padding: 0;
+    border: none;
+    background: transparent;
+    accent-color: var(--lime);
+    cursor: pointer;
+}
+
+.box > input[type="range"] {
+    height: 32px;   /* line up with the selects and buttons beside it */
+}
+
+input[type="checkbox"] {
+    padding: 0;
+    margin: 0 4px 0 0;
+    border: none;
+    accent-color: var(--lime);
+    vertical-align: -2px;
+}
+
+input[type="number"] {
+    text-align: center;
+    -moz-text-align-last: center;
+    text-align-last: center;
+}
+
+input[type="file"] {
+    text-align: left;
+    text-align-last: left;
+    color: var(--text);
+    background-color: #1a1a1a;
+}
+
+input[type="file"]::file-selector-button {
+    font-family: var(--font);
+    font-size: 13px;
+    color: #d8dee8;
+    background-color: var(--btn);
+    border: 1px solid rgba(180, 204, 99, 0.45);
+    border-radius: 3px;
+    margin-right: 8px;
+    padding: 3px 8px;
+    cursor: pointer;
+}
+
+
+
+
+/* Free-form row of controls (viewer pages). */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.row label {
+    color: var(--muted);
+}
+
+/* ---- Graphic frame: the window a page draws its live view in ------------- */
+
+.frame {
+    position: relative;
+    background: var(--frame);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 0;
+    margin-top: 2px;
+}
+
+.frame canvas {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+}
+
+/* Caption top-left inside the frame, readout top-right -- ModuleChrome. */
+.caption,
+.readout {
+    position: absolute;
+    top: 4px;
+    font-size: 13px;
+    color: var(--accent);
+    pointer-events: none;
+}
+
+.caption {
+    left: 8px;
+    font-weight: 700;
+    opacity: 0.75;
+}
+
+.readout {
+    right: 8px;
+    opacity: 0.6;
+}
+
+.warn {
+    color: #e8785a;
+}
+
+/* ---- Progress ----------------------------------------------------------- */
+
+progress {
+    width: 100%;
+    height: 4px;
+    background-color: #1a1a1a;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    margin: 6px 0;
+    display: block;
+    overflow: hidden;
+}
+
+progress::-webkit-progress-bar {
+    background-color: #1a1a1a;
+}
+
+progress::-webkit-progress-value {
+    background-color: var(--lime);
+}
+
+progress::-moz-progress-bar {
+    background-color: var(--lime);
+}
+
+/* ---- Busy states and the reconnect overlay ------------------------------ */
+
+.button-loading {
+    background-color: var(--btn);
+    color: transparent;
+    pointer-events: none;
+    display: inline-flex;
+    justify-content: center;
+    position: relative;
+}
+
+.button-loading2 {
+    position: absolute;
+    right: 4px;
+    top: 0;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+}
+
+.button-loading::after,
+.button-loading2::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--lime);
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    display: none;
+}
+
+.reconnect-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 30px;
+    z-index: 1001;
+    display: none;
+    text-align: center;
+    min-width: 300px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+.reconnect-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.reconnect-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border);
+    border-top-color: var(--lime);
+    border-radius: 50%;
+    animation: spin-reconnect 1s linear infinite;
+    flex-shrink: 0;
+}
+
+.reconnect-message {
+    color: #eee;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.7;
+    white-space: pre-line;
+    text-align: center;
+    width: 100%;
+}
+
+@keyframes spin-reconnect {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

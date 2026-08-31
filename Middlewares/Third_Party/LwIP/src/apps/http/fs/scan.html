@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Sp3ctra Live Scan</title>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
+</head>
+
+<body data-page="scan">
+    <div class="main-wrapper wide">
+        <div class="container">
+            <span class="title">LIVE SCAN</span>
+
+            <div class="frame">
+                <canvas id="view" height="480"></canvas>
+                <span class="caption">WATERFALL</span>
+                <span class="readout" id="readout"></span>
+            </div>
+            <div class="frame" id="scopeFrame" style="display:none; margin-top:8px;">
+                <canvas id="scope" height="140"></canvas>
+                <span class="caption">LEVELS</span>
+            </div>
+            <div class="statusbar" id="status">connecting&hellip;</div>
+
+            <div class="boxrow">
+                <div class="box narrow">
+                    <span class="boxlabel">STREAM</span>
+                    <button id="run" class="selected">Pause</button>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">RESOLUTION</span>
+                    <select id="dec">
+                        <option value="1">full</option>
+                        <option value="2">1/2</option>
+                        <option value="4" selected>1/4</option>
+                        <option value="8">1/8</option>
+                    </select>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">SPEED</span>
+                    <select id="speed">
+                        <option value="25">25 lines/s</option>
+                        <option value="100">100 lines/s</option>
+                        <option value="250" selected>250 lines/s</option>
+                        <option value="2000">max</option>
+                    </select>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">HISTORY</span>
+                    <select id="span">
+                        <option value="500">500 lines</option>
+                        <option value="1000" selected>1000 lines</option>
+                        <option value="2000">2000 lines</option>
+                        <option value="4000">4000 lines</option>
+                    </select>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">GAIN <span id="gainVal">1.0&times;</span></span>
+                    <input type="range" id="gain" min="1" max="8" step="0.1" value="1">
+                </div>
+                <div class="box">
+                    <span class="boxlabel">DISPLAY</span>
+                    <div class="seg">
+                        <button id="flip">FLIP</button>
+                        <button id="levels">LEVELS</button>
+                    </div>
+                </div>
+                <div class="box narrow">
+                    <span class="boxlabel">EXPORT</span>
+                    <button id="save">PNG</button>
+                </div>
+            </div>
+
+            <div class="section">&mdash; CIS &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">DPI</span>
+                    <div class="seg">
+                        <button id="dpi200" class="dpi-button" onclick="updateDPI('200')">200</button>
+                        <button id="dpi400" class="dpi-button" onclick="updateDPI('400')">400</button>
+                    </div>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">OVERSAMPLING</span>
+                    <div id="loadingIndicator" class="button-loading2" style="display:none;"></div>
+                    <select id="oversampling" onchange="updateOversampling(this.value)">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="4">4</option>
+                        <option value="8">8</option>
+                        <option value="16">16</option>
+                        <option value="32">32</option>
+                    </select>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">HAND</span>
+                    <div class="seg">
+                        <button id="leftHand" class="hand-button" onclick="updateHand('0')">LEFT</button>
+                        <button id="rightHand" class="hand-button" onclick="updateHand('1')">RIGHT</button>
+                    </div>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">CALIBRATION</span>
+                    <button id="calibrateButton" onclick="startCalibration()">Start</button>
+                </div>
+            </div>
+            <p class="hint">&#9888;&#65039; Calibration: keep moving over a white reference surface</p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
+    <script src="settings.js"></script>
+    <script>
+        var view = document.getElementById('view');
+        var vctx = view.getContext('2d');
+        var scope = document.getElementById('scope');
+        var sctx = scope.getContext('2d');
+        var scopeFrame = document.getElementById('scopeFrame');
+        var statusEl = document.getElementById('status');
+        var readoutEl = document.getElementById('readout');
+
+        /* Offscreen waterfall: one column per scan line, at the device's resolution. */
+        var oc = document.createElement('canvas');
+        var octx = oc.getContext('2d');
+        var pixels = 0;          /* current column height (device pixel count) */
+        var span = 1000;         /* columns kept */
+        var filled = 0;          /* columns drawn so far: what is worth showing */
+        var since = 0;           /* id of the next line we have not drawn yet */
+        var running = true;
+        var POLL_HZ = 25;        /* requests per second; each carries a batch */
+        var drawn = 0, errors = 0, dropped = 0, bytes = 0, behind = false;
+        var lastRateTick = 0, linesPerSec = 0, kbPerSec = 0, dropPerSec = 0;
+        var dev = { dpi: 0, lps: 0, pub: 0, flags: 0 };
+
+        function resetWaterfall(h) {
+            pixels = h;
+            filled = 0;
+            oc.width = span;
+            oc.height = h;
+            octx.fillStyle = '#20202a';
+            octx.fillRect(0, 0, oc.width, oc.height);
+        }
+
+        function fitView() {
+            /* The bitmap is stretched to the box: the box is what the eye reads. */
+            view.width = view.clientWidth || 900;
+            scope.width = view.width;
+        }
+
+        /* One response = one shift and one putImageData, whatever the batch size:
+         * scrolling column by column would redraw the whole strip N times. */
+        function drawBatch(rgb, lines, count) {
+            if (count !== pixels || oc.width !== span) {
+                resetWaterfall(count);
+            }
+            var n = lines > oc.width ? oc.width : lines;
+            var skip = lines - n;                    /* older than the window: drop */
+            octx.drawImage(oc, -n, 0);
+
+            var img = octx.createImageData(n, count);
+            var d = img.data;
+            var gain = parseFloat(document.getElementById('gain').value);
+            var flip = document.getElementById('flip').classList.contains('selected');
+
+            for (var x = 0; x < n; x++) {
+                var base = (skip + x) * count * 3;
+                for (var y = 0; y < count; y++) {
+                    var s = base + (flip ? (count - 1 - y) : y) * 3;
+                    var r = rgb[s] * gain, g = rgb[s + 1] * gain, b = rgb[s + 2] * gain;
+                    var o = (y * n + x) * 4;
+                    d[o] = r > 255 ? 255 : r;
+                    d[o + 1] = g > 255 ? 255 : g;
+                    d[o + 2] = b > 255 ? 255 : b;
+                    d[o + 3] = 255;
+                }
+            }
+            octx.putImageData(img, oc.width - n, 0);
+
+            filled += n;
+            if (filled > oc.width) { filled = oc.width; }
+            /* Blit only what has been scanned: a fresh page fills the frame from
+             * the first batch instead of showing an empty left half. */
+            vctx.drawImage(oc, oc.width - filled, 0, filled, oc.height,
+                           0, 0, view.width, view.height);
+
+            if (scopeFrame.style.display !== 'none') {
+                drawScope(rgb, (lines - 1) * count * 3, count);
+            }
+        }
+
+        function drawScope(rgb, base, count) {
+            var w = scope.width, h = scope.height;
+            sctx.fillStyle = '#20202a';
+            sctx.fillRect(0, 0, w, h);
+            var cols = ['#ff5a5a', '#45ff8c', '#00d9ff'];
+            for (var c = 0; c < 3; c++) {
+                sctx.strokeStyle = cols[c];
+                sctx.beginPath();
+                for (var i = 0; i < count; i++) {
+                    var x = i * w / count;
+                    var y = h - (rgb[base + i * 3 + c] / 255) * h;
+                    if (i === 0) { sctx.moveTo(x, y); } else { sctx.lineTo(x, y); }
+                }
+                sctx.stroke();
+            }
+        }
+
+        function setStatus(count) {
+            var link = (dev.flags & 1) ? 'host bound' : 'no host';
+            if (dev.flags & 2) { link += ', streaming'; }
+            var txt = '<b>' + linesPerSec.toFixed(0) + '</b> lines/s of <b>' + dev.lps +
+                '</b> &middot; <b>' + count + '</b> px &middot; <b>' + dev.dpi + '</b> dpi &middot; <b>' +
+                kbPerSec.toFixed(0) + '</b> kB/s &middot; ' + link;
+            if (dropPerSec >= 1) {
+                txt += ' &middot; <span class="warn">' + dropPerSec.toFixed(0) + ' dropped/s</span>';
+            }
+            if (errors > 0) {
+                txt += ' &middot; <span class="warn">' + errors + ' failed request(s)</span>';
+            }
+            statusEl.innerHTML = txt;
+            readoutEl.textContent = dev.pub + ' published/s';
+        }
+
+        function handle(buf) {
+            if (buf.length < 24 || buf[0] !== 83 || buf[1] !== 67 || buf[2] !== 78 || buf[3] !== 50) {
+                errors++;
+                return;
+            }
+            var count = buf[4] | (buf[5] << 8);
+            var lines = buf[6] | (buf[7] << 8);
+            var firstId = (buf[8] | (buf[9] << 8) | (buf[10] << 16) | (buf[11] << 24)) >>> 0;
+            dev.dpi = buf[12] | (buf[13] << 8);
+            dev.lps = buf[14] | (buf[15] << 8);
+            dev.pub = buf[16] | (buf[17] << 8);
+            var lost = buf[18] | (buf[19] << 8);
+            dropped += lost;
+            behind = lost > 0;   /* the ring lapped us: come back sooner */
+            dev.flags = buf[20];
+            bytes += buf.length;
+
+            if (lines > 0 && count > 0 && buf.length >= 24 + 3 * lines * count) {
+                drawBatch(buf.subarray(24), lines, count);
+                drawn += lines;
+                since = (firstId + lines) >>> 0;
+            }
+            setStatus(count);
+        }
+
+        function tick() {
+            if (!running) { return; }
+            var started = performance.now();
+            var dec = document.getElementById('dec').value;
+            var rate = document.getElementById('speed').value;
+
+            fetch('/scan.bin?dec=' + dec + '&rate=' + rate + '&since=' + since, { cache: 'no-store' })
+                .then(function (r) { return r.arrayBuffer(); })
+                .then(function (b) { handle(new Uint8Array(b)); })
+                .catch(function () { errors++; })
+                .then(function () {
+                    var now = performance.now();
+                    var elapsed = now - lastRateTick;
+                    if (elapsed >= 1000) {
+                        linesPerSec = drawn * 1000 / elapsed;
+                        kbPerSec = bytes / elapsed;       /* bytes per ms == kB/s */
+                        dropPerSec = dropped * 1000 / elapsed;
+                        drawn = 0; bytes = 0; dropped = 0;
+                        lastRateTick = now;
+                    }
+                    /* Falling behind means the device produces faster than we ask:
+                     * go straight back for the next batch instead of idling. */
+                    var wait = behind ? 4 : (1000 / POLL_HZ - (now - started));
+                    setTimeout(tick, wait > 0 ? wait : 0);
+                });
+        }
+
+        document.getElementById('run').onclick = function () {
+            running = !running;
+            this.textContent = running ? 'Pause' : 'Run';
+            this.className = running ? 'selected' : '';
+            if (running) { since = 0; tick(); }
+        };
+        document.getElementById('span').onchange = function () {
+            span = parseInt(this.value, 10);
+            resetWaterfall(pixels || 1);
+        };
+        document.getElementById('dec').onchange = function () { since = 0; };
+        document.getElementById('gain').oninput = function () {
+            document.getElementById('gainVal').textContent = parseFloat(this.value).toFixed(1) + '×';
+        };
+        document.getElementById('flip').onclick = function () {
+            this.classList.toggle('selected');
+        };
+        document.getElementById('levels').onclick = function () {
+            this.classList.toggle('selected');
+            scopeFrame.style.display = this.classList.contains('selected') ? 'block' : 'none';
+        };
+        document.getElementById('save').onclick = function () {
+            var a = document.createElement('a');
+            a.href = oc.toDataURL('image/png');
+            a.download = 'sp3ctra-scan.png';
+            a.click();
+        };
+        window.addEventListener('resize', fitView);
+        /* A hidden tab must stop polling: the device serves one client at a time. */
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                running = false;
+                document.getElementById('run').textContent = 'Run';
+                document.getElementById('run').className = '';
+            }
+        });
+
+        fitView();
+        resetWaterfall(1);
+        lastRateTick = performance.now();
+        tick();
+
+        /* The device is about to reboot (DPI change): stop hammering it. */
+        function stopLiveView() {
+            running = false;
+            document.getElementById('run').textContent = 'Run';
+            document.getElementById('run').className = '';
+        }
+
+        function setDPI(value) {
+            var buttons = document.querySelectorAll('.dpi-button');
+            buttons.forEach(function (button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim() === value) {
+                    button.classList.add('selected');
+                }
+            });
+        }
+        function loadDPI() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "getDPI", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("DPI settings loaded:", xhr.responseText);
+                        setDPI(xhr.responseText.trim());
+                        resolve();
+                    } else {
+                        console.error("Failed to load DPI settings:", xhr.statusText);
+                        reject(new Error("Failed to load DPI settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateDPI(newDPI) {
+            return new Promise((resolve, reject) => {
+                var dpi200Button = document.getElementById('dpi200');
+                var dpi400Button = document.getElementById('dpi400');
+                dpi200Button.classList.add('button-loading');  // Add loading class
+                dpi400Button.classList.add('button-loading');  // Add loading class
+                if (!newDPI || isNaN(newDPI)) {
+                    alert("Invalid DPI value. Please enter a numeric value.");
+                    dpi200Button.classList.remove('button-loading');
+                    dpi400Button.classList.remove('button-loading');
+                    reject(new Error("Invalid DPI value"));
+                    return;
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "setDPI", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("DPI updated to", newDPI);
+
+                        // Device will reboot, stop timers and show overlay
+                        stopTimers();
+                        overlay.style.display = 'block';
+
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification("Applying DPI settings\nDevice rebooting\nWaiting for reconnection...");
+
+                        // Wait for device to become available again, then reload
+                        waitForDeviceAndReload(newDPI);
+
+                        resolve();
+                    } else {
+                        console.error("Failed to update DPI settings:", xhr.statusText);
+                        dpi200Button.classList.remove('button-loading');  // Remove loading class on error
+                        dpi400Button.classList.remove('button-loading');  // Remove loading class on error
+                        overlay.style.display = 'none'; // Remove overlay
+                        reject(new Error("Failed to update DPI settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    dpi200Button.classList.remove('button-loading');  // Remove loading class on network error
+                    dpi400Button.classList.remove('button-loading');  // Remove loading class on network error
+                    overlay.style.display = 'none'; // Remove overlay
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("dpi=" + newDPI);
+            });
+        }
+        function setOversampling(value) {
+            var select = document.getElementById('oversampling');
+            select.value = value; // Set the dropdown to the current oversampling value
+        }
+        function setLoadingIndicator(loading) {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loading) {
+                loadingIndicator.style.display = 'inline-flex';
+            }
+            else {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        function loadOversampling() {
+            setLoadingIndicator(true); // Activates the loading animation
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getOversampling", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var select = document.getElementById('oversampling');
+                        select.value = xhr.responseText.trim();
+                        console.log("Oversampling settings loaded:", xhr.responseText);
+                        setLoadingIndicator(false); // Deactivates the loading animation
+                        resolve();
+                    }
+                    else {
+                        console.error("Failed to load oversampling settings:", xhr.statusText);
+                        setLoadingIndicator(false); // Deactivates the loading animation on error
+                        reject(new Error("Failed to load oversampling settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    setLoadingIndicator(false); // Deactivates the loading animation on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+        function updateOversampling(newOversampling) {
+            setLoadingIndicator(true); // Activates the loading animation
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setOversampling", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Oversampling updated to:", newOversampling);
+                        setLoadingIndicator(false); // Deactivates the loading animation
+                        resolve();
+                    }
+                    else {
+                        console.error("Failed to update oversampling settings:", xhr.statusText);
+                        setLoadingIndicator(false); // Deactivates the loading animation on error
+                        reject(new Error("Failed to update oversampling settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    setLoadingIndicator(false); // Deactivates the loading animation on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("oversampling=" + newOversampling);
+            });
+        }
+        function setHand(value) {
+            var buttons = document.querySelectorAll('.hand-button');
+            var handValue = "";
+            if (value === "1") {
+                handValue = "right";
+            } else if (value === "0") {
+                handValue = "left";
+            }
+
+            buttons.forEach(function (button) {
+                button.classList.remove('selected');
+                if (button.textContent.trim().toLowerCase() === handValue) {
+                    button.classList.add('selected');
+                }
+            });
+        }
+        function loadHand() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "getHand", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Hand settings loaded:", xhr.responseText);
+                        setHand(xhr.responseText.trim());
+                        resolve();
+                    } else {
+                        console.error("Failed to load hand settings:", xhr.statusText);
+                        reject(new Error("Failed to load hand settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateHand(newHand) {
+            return new Promise((resolve, reject) => {
+                var leftHandButton = document.getElementById('leftHand');
+                var rightHandButton = document.getElementById('rightHand');
+                leftHandButton.classList.add('button-loading');  // Add loading class
+                rightHandButton.classList.add('button-loading');  // Add loading class
+                if (!newHand || isNaN(newHand)) {
+                    alert("Invalid hand value. Please enter a numeric value.");
+                    reject(new Error("Invalid hand value"));
+                    return;
+                }
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "setHand", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Hand updated to", newHand);
+                        setHand(newHand.toString());
+                        leftHandButton.classList.remove('button-loading');  // Remove loading class
+                        rightHandButton.classList.remove('button-loading');  // Remove loading class
+                        resolve();
+                    } else {
+                        console.error("Failed to update hand settings:", xhr.statusText);
+                        leftHandButton.classList.remove('button-loading');  // Remove loading class on error
+                        rightHandButton.classList.remove('button-loading');  // Remove loading class on error
+                        reject(new Error("Failed to update hand settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    leftHandButton.classList.remove('button-loading');  // Remove loading class on network error
+                    rightHandButton.classList.remove('button-loading');  // Remove loading class on network error
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("hand=" + newHand);
+            });
+        }
+        function startCalibration() {
+            return new Promise((resolve, reject) => {
+                var calibrateButton = document.getElementById('calibrateButton');
+                calibrateButton.classList.add('button-loading');  // Add loading class
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "startCalibration", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Calibration started successfully");
+                        calibrateButton.classList.remove('button-loading');  // Remove loading class
+                        alert("✓ CIS Calibration Successful!\n\nCalibration data has been saved to flash memory.");
+                        resolve();
+                    } else {
+                        console.error("Failed to start calibration:", xhr.statusText);
+                        calibrateButton.classList.remove('button-loading');  // Remove loading class on error
+                        reject(new Error("Failed to start calibration with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => {
+                    calibrateButton.classList.remove('button-loading');  // Remove loading class on network error
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("CIS_CAL_START");
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            setupInputListeners()
+                .then(() => loadDPI())
+                .then(() => loadHand())
+                .then(() => loadOversampling())
+                .catch(e => console.error('CIS settings failed to load:', e));
+        });
+    </script>
+</body>
+
+</html>

@@ -1,46 +1,22 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sp3ctra 404</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            background-color: #333;
-            /* Slightly dark background color */
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-family: 'Orbitron', sans-serif;
-            /* Use Orbitron font for a futuristic look */
-        }
-
-        h1 {
-            font-size: 72px;
-            /* Large size for the error message */
-            color: red;
-            /* Red color emphasizes the error */
-        }
-
-        img {
-            max-width: 40%;
-            /* Ensure the image scales responsively */
-            max-height: 40%;
-            filter: invert(100%);
-            /* Invert image colors for a high-contrast effect */
-        }
-    </style>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
 </head>
 
-<body>
-    <img src="img/Sp3ctra.png" alt="Sp3ctra Logo" type="image/png">
-    <h1>404 ERROR</h1> <!-- Large error message displayed in the center -->
+<body data-page="404">
+    <div class="main-wrapper">
+        <div class="container">
+            <span class="title">404</span>
+            <p class="hint">No page of that name on this device. Pick one above.</p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
 </body>
 
 </html>

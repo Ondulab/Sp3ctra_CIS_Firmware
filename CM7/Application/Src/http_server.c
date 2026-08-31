@@ -25,6 +25,7 @@
 
 #include "string.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "stdbool.h"
 
 #include "ff.h" // FATFS include
@@ -38,6 +39,7 @@
 
 #include "http_server.h"
 #include "admin_auth.h"
+#include "cis_scan.h"
 #include "ota_app.h"
 #include "link_server.h"
 #include "sys_identity.h"
@@ -56,6 +58,10 @@
  * The buffer is also NUL-terminated so that strstr()/strncmp() on the request are safe. */
 #define HTTP_REQ_BUF_SIZE 2048
 static char http_reqbuf[HTTP_REQ_BUF_SIZE];
+
+/* Requests served on one keep-alive connection before we close it anyway: at the
+ * live viewer's 25 polls per second, 64 is ~2.5 s of viewing (see GET /scan.bin). */
+#define HTTP_KEEPALIVE_MAX_REQUESTS 64
 
 /* Copy the whole netbuf chain into http_reqbuf, then for a POST keep receiving (bounded by the
  * receive timeout) until the Content-Length body is complete. Returns the assembled length. */
@@ -910,6 +916,7 @@ static void http_server(struct netconn *conn)
 	/* Normal GET requests are expected to be closed by us after sending the response. */
 	bool close = true;
 	bool reboot = false;
+	int served = 0;
 
 #ifdef HTTP_SERVER_DEBUG
 	printf("===== http_server_serve recv\n");
@@ -973,32 +980,11 @@ static void http_server(struct netconn *conn)
 				if ((buflen >= 5) && (strncmp(buf, "GET /", 5) == 0))
 				{
 
-					/* Check for various paths and handle GET requests */
-					if (strncmp((char const *)buf, "GET /config.html", 16) == 0)
-					{
-						fs_open(&file, "/config.html");
-						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-						fs_close(&file);
-					}
-
-					/* Send an image file for requests to '/img/Sp3ctra.png' */
-					else if (strncmp((char const *)buf, "GET /img/Sp3ctra.png", 20) == 0)
-					{
-						fs_open(&file, "/img/Sp3ctra.png");
-						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-						fs_close(&file);
-					}
-
-					/* Send a favicon for requests to '/img/favicon_64x64.ico' */
-					else if (strncmp((char const *)buf, "GET /img/favicon_64x64.ico", 26) == 0)
-					{
-						fs_open(&file, "/img/favicon_64x64.ico");
-						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
-						fs_close(&file);
-					}
-
-					/* Get frequency data and send response */
-					else if (strncmp((char const *)buf, "GET /getFreq", 12) == 0)
+					/* Check for various paths and handle GET requests.
+					 * Static files (pages, stylesheet, script, images) are served by the
+					 * catch-all at the end of this chain; only the dynamic endpoints are
+					 * matched by name here. */
+					if (strncmp((char const *)buf, "GET /getFreq", 12) == 0)
 					{
 						char response[100];
 						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_var.cis_freq);
@@ -1160,12 +1146,161 @@ static void http_server(struct netconn *conn)
 					}
 
 
-					/* Send 404 if no route matches */
-					else
+					/* Live IMU: one sample per request for the imu.html charts. */
+					else if (strncmp((char const *)buf, "GET /getImu", 11) == 0)
 					{
-						fs_open(&file, "/404.html");
+						char body[256];
+						int bodyLen = sprintf(body,
+								"{\"acc\":[%.3f,%.3f,%.3f],\"gyro\":[%.2f,%.2f,%.2f],"
+								"\"temp\":%.1f,\"seq\":%u,\"btn\":[%d,%d,%d]}",
+								shared_imu.acc[0], shared_imu.acc[1], shared_imu.acc[2],
+								shared_imu.gyro[0], shared_imu.gyro[1], shared_imu.gyro[2],
+								shared_imu.temp_c, (unsigned)shared_imu.seq,
+								shared_var.button_events[0].state == SWITCH_PRESSED,
+								shared_var.button_events[1].state == SWITCH_PRESSED,
+								shared_var.button_events[2].state == SWITCH_PRESSED);
+
+						/* Polled ~20 times per second: keep the connection like /scan.bin. */
+						close = (++served >= HTTP_KEEPALIVE_MAX_REQUESTS);
+
+						char hdr[160];
+						int hdrLen = sprintf(hdr,
+								"HTTP/1.1 200 OK\r\n"
+								"Content-Type: application/json\r\n"
+								"Content-Length: %d\r\n"
+								"Cache-Control: no-store\r\n"
+								"Connection: %s\r\n\r\n",
+								bodyLen, close ? "close" : "keep-alive");
+						netconn_write(conn, hdr, (size_t)hdrLen, NETCONN_COPY);
+						netconn_write(conn, body, (size_t)bodyLen, NETCONN_COPY);
+					}
+
+					/* Live scan viewer: the page is served from flash and polls
+					 * /scan.bin, accumulating the waterfall in a canvas itself.
+					 * The device therefore only ever publishes its latest line. */
+					else if (strncmp((char const *)buf, "GET /scan.html", 14) == 0)
+					{
+						fs_open(&file, "/scan.html");
 						netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
 						fs_close(&file);
+					}
+
+					/* Scan lines: 24 B preamble, then every line published since the
+					 * client's last one. Batching is what makes the viewer usable --
+					 * one line per request capped it at the poll rate (25 of the
+					 * sensor's 1000 lines per second). */
+					else if (strncmp((char const *)buf, "GET /scan.bin", 13) == 0)
+					{
+						uint8_t dec = 4;
+						uint16_t rate = 25;
+						uint32_t since = 0;
+						const char *arg;
+
+						if ((arg = strstr(buf, "dec=")) != NULL)
+						{
+							dec = (uint8_t)atoi(arg + 4);
+						}
+						if ((arg = strstr(buf, "rate=")) != NULL)
+						{
+							rate = (uint16_t)atoi(arg + 5);
+						}
+						if ((arg = strstr(buf, "since=")) != NULL)
+						{
+							since = (uint32_t)strtoul(arg + 6, NULL, 10);
+						}
+						/* Re-arms the publishing: it stops by itself once the page does. */
+						cisScan_requestPreview(dec, rate);
+
+						uint32_t firstId = 0;
+						uint16_t pixels = 0, dropped = 0, pubRate = 0;
+						const uint16_t lines = cisScan_previewBatch(since, &firstId, &pixels,
+						                                            &dropped, &pubRate);
+						const uint16_t dpi = (uint16_t)shared_config.cis_dpi;
+						const uint16_t lps = (uint16_t)shared_var.cis_freq;
+						const uint8_t flags = (uint8_t)((link_isBound() ? 0x01 : 0x00) |
+						                               (udpClient_isStreaming() ? 0x02 : 0x00));
+						const uint32_t body = 3U * (uint32_t)pixels * (uint32_t)lines;
+
+						/* Little endian: "SCN2", pixels, lines, first id, dpi, scan
+						 * rate, published rate, dropped, flags, decimation */
+						uint8_t head[24];
+						head[0] = 'S'; head[1] = 'C'; head[2] = 'N'; head[3] = '2';
+						head[4] = (uint8_t)pixels;          head[5] = (uint8_t)(pixels >> 8);
+						head[6] = (uint8_t)lines;           head[7] = (uint8_t)(lines >> 8);
+						head[8] = (uint8_t)firstId;         head[9] = (uint8_t)(firstId >> 8);
+						head[10] = (uint8_t)(firstId >> 16); head[11] = (uint8_t)(firstId >> 24);
+						head[12] = (uint8_t)dpi;            head[13] = (uint8_t)(dpi >> 8);
+						head[14] = (uint8_t)lps;            head[15] = (uint8_t)(lps >> 8);
+						head[16] = (uint8_t)pubRate;        head[17] = (uint8_t)(pubRate >> 8);
+						head[18] = (uint8_t)dropped;        head[19] = (uint8_t)(dropped >> 8);
+						head[20] = flags;                   head[21] = dec;
+						head[22] = 0;                       head[23] = 0;
+
+						/* Keep the connection for the next batch, up to the burst cap. */
+						close = (++served >= HTTP_KEEPALIVE_MAX_REQUESTS);
+
+						char hdr[160];
+						int hdrLen = sprintf(hdr,
+								"HTTP/1.1 200 OK\r\n"
+								"Content-Type: application/octet-stream\r\n"
+								"Content-Length: %u\r\n"
+								"Cache-Control: no-store\r\n"
+								"Connection: %s\r\n\r\n",
+								(unsigned)(sizeof(head) + body),
+								close ? "close" : "keep-alive");
+						netconn_write(conn, hdr, (size_t)hdrLen, NETCONN_COPY);
+						netconn_write(conn, head, sizeof(head), NETCONN_COPY);
+						for (uint16_t i = 0; i < lines; i++)
+						{
+							const uint8_t *px = cisScan_previewLine(firstId + i);
+							if (px == NULL)
+							{
+								break; /* cannot happen once a line exists; length stays honest */
+							}
+							if (netconn_write(conn, px, 3U * (size_t)pixels, NETCONN_COPY) != ERR_OK)
+							{
+								/* Body shorter than Content-Length: this connection can no
+								 * longer be reused, close it instead of desyncing it. */
+								close = true;
+								break;
+							}
+						}
+					}
+
+					/* Anything else: serve the file of that name from the flash file
+					 * system (fsdata.c carries each file's HTTP header), 404 otherwise.
+					 * Names are matched against the embedded table, so a path cannot
+					 * escape it. */
+					else
+					{
+						char path[64];
+						const char *req = buf + 4;   /* after "GET " */
+						size_t n = 0;
+						while (req[n] != '\0' && req[n] != ' ' && req[n] != '?' &&
+						       req[n] != '\r' && n < sizeof(path) - 1)
+						{
+							path[n] = req[n];
+							n++;
+						}
+						path[n] = '\0';
+						if (n == 1)   /* bare "/" -- the device opens on its live image */
+						{
+							strcpy(path, "/scan.html");
+						}
+						if (fs_open(&file, path) != ERR_OK && fs_open(&file, "/404.html") != ERR_OK)
+						{
+							/* Nothing to serve at all: answer, never write an unopened file. */
+							const char *notFound = "HTTP/1.1 404 Not Found\r\n"
+									"Content-Type: text/plain\r\n"
+									"Content-Length: 9\r\n\r\n"
+									"Not found";
+							netconn_write(conn, notFound, strlen(notFound), NETCONN_COPY);
+						}
+						else
+						{
+							netconn_write(conn, (const unsigned char*)(file.data), (size_t)file.len, NETCONN_NOCOPY);
+							fs_close(&file);
+						}
 					}
 				}
 				else
@@ -1595,7 +1730,7 @@ static void http_server(struct netconn *conn)
 							char newIP[16];
 							sprintf(newIP, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 
-						    len = sprintf(response, "HTTP/1.1 302 Found\r\nLocation: http://%s/config.html\r\n\r\n", newIP);
+						    len = sprintf(response, "HTTP/1.1 302 Found\r\nLocation: http://%s/network.html\r\n\r\n", newIP);
 							netconn_write(conn, response, len, NETCONN_COPY);
 
 							reboot = true;

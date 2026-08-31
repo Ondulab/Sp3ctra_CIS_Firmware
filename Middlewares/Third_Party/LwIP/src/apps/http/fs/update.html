@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Sp3ctra Firmware Update</title>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
+</head>
+
+<body data-page="update">
+    <div class="main-wrapper">
+        <div class="container">
+            <span class="title">FIRMWARE</span>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">VERSION</span>
+                    <input type="text" id="versionNumber" value="Loading..." disabled>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">HARDWARE</span>
+                    <input type="text" id="hwRevision" value="&mdash;" disabled>
+                </div>
+                <div class="box wide">
+                    <span class="boxlabel">PROTOCOL</span>
+                    <input type="text" id="slpVersion" value="&mdash;" disabled>
+                </div>
+            </div>
+
+            <div class="section">&mdash; UPDATE &mdash;</div>
+
+            <form id="firmwareForm" action="/upload" method="post" enctype="multipart/form-data">
+                <div class="boxrow">
+                    <div class="box wide">
+                        <span class="boxlabel">IMAGE (.bin)</span>
+                        <input type="file" id="firmwareFile" name="firmware" accept=".bin">
+                    </div>
+                    <div class="box narrow">
+                        <span class="boxlabel">INSTALL</span>
+                        <button type="submit">Upload</button>
+                    </div>
+                </div>
+                <progress id="uploadProgress" value="0" max="100"></progress>
+                <p class="hint">
+                    Pick the CM7 <code>.bin</code> built for this device. Uploading asks for the
+                    administrator credentials (user <b>admin</b>), the same password that guards FTP.
+                    The device reboots on its own once the image is written &mdash; keep it powered
+                    until this page comes back.
+                </p>
+            </form>
+
+            <div class="section">&mdash; FACTORY RESET &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">ALL SETTINGS</span>
+                    <button id="factoryResetBtn" onclick="factoryReset()">Factory Reset</button>
+                </div>
+            </div>
+            <p class="hint">
+                Restores every setting, including the network address, and draws a new
+                administrator password &mdash; it is shown on the boot screen.
+            </p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
+    <script src="settings.js"></script>
+    <script>
+        function loadFirmwareVersion() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/getFirmwareVersion', true);
+            xhr.onload = function () {
+                document.getElementById('versionNumber').value =
+                    xhr.status === 200 ? xhr.responseText.trim() : 'Unknown';
+            };
+            xhr.onerror = function () {
+                document.getElementById('versionNumber').value = 'Unknown';
+            };
+            xhr.send();
+        }
+
+        function loadDeviceInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/getDeviceInfo', true);
+            xhr.onload = function () {
+                if (xhr.status !== 200) { return; }
+                try {
+                    var d = JSON.parse(xhr.responseText);
+                    document.getElementById('hwRevision').value = 'rev ' + d.hw;
+                    document.getElementById('slpVersion').value = 'SLP v' + d.protocol +
+                        ' · port ' + d.link_port;
+                } catch (e) { /* leave the placeholders */ }
+            };
+            xhr.send();
+        }
+
+        document.getElementById('firmwareForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var formData = new FormData(this);
+            var xhr = new XMLHttpRequest();
+            var submitButton = document.querySelector('#firmwareForm button[type="submit"]');
+            submitButton.classList.add('button-loading');
+
+            xhr.open('POST', this.action, true);
+
+            xhr.upload.onprogress = function (ev) {
+                if (ev.lengthComputable) {
+                    document.getElementById('uploadProgress').value = (ev.loaded / ev.total) * 100;
+                }
+            };
+
+            xhr.onload = function () {
+                submitButton.classList.remove('button-loading');
+                if (xhr.status === 200) {
+                    alert("✓ Firmware Upload Successful!\n\nFirmware has been transferred to device.");
+                    document.getElementById('uploadProgress').value = 0;
+                } else {
+                    alert('Error during firmware update: ' + xhr.status);
+                }
+            };
+
+            xhr.onerror = function () {
+                submitButton.classList.remove('button-loading');
+                alert("✗ Network Error!\n\nUnable to communicate with device.");
+            };
+
+            xhr.send(formData);
+        });
+
+function factoryReset() {
+            return new Promise((resolve, reject) => {
+                // Selecting the button associated with the factory reset action.
+                var resetButton = document.getElementById('factoryResetBtn');
+                resetButton.classList.add('button-loading');  // Add loading class to indicate processing.
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "factoryReset", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Factory reset initiated");
+
+                        // Device will reboot, stop timers and show overlay
+                        stopTimers();
+                        overlay.style.display = 'block';
+
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification(
+                            "Factory reset in progress\n" +
+                            "Device rebooting\n\n" +
+                            "⚠️ Important: Device will reset to default IP\n" +
+                            "Default IP: 192.168.100.1\n\n" +
+                            "Waiting for reconnection..."
+                        );
+
+                        // Wait for device to become available at default IP (192.168.1.10)
+                        waitForFactoryResetAndReload('192.168.100.1');
+
+                        resolve();
+                    } else {
+                        console.error("Failed to reset factory settings:", xhr.statusText);
+                        resetButton.classList.remove('button-loading');  // Remove loading class on error.
+                        reject(new Error("Failed to reset factory settings with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = function () {
+                    console.error("Network request failed.");
+                    resetButton.classList.remove('button-loading');  // Remove loading class on network error.
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
+                    reject(new Error("Network request error"));
+                };
+                xhr.send("START_FACTORY_RESET");
+            });
+        }
+
+        loadFirmwareVersion();
+        loadDeviceInfo();
+    </script>
+</body>
+
+</html>

@@ -52,34 +52,91 @@ VST side lives in `scripts/slp/slp_fake_device.py`.
 
 ### HTTP Server
 
-The device also runs an HTTP server for configuration from a browser and
-firmware upload. Navigate to the device IP address (default:
-[192.168.100.1](http://192.168.100.1/config.html)). Sections:
+The device also runs an HTTP server: pages, stylesheet and script all come from
+its own flash, so any browser on the network drives it with nothing to install.
+Navigate to the device IP address (default:
+[192.168.100.1](http://192.168.100.1/), which opens the live image). Five tabs,
+in the VST's colours and type (`vst/source/UITheme.h` -- category colour for what
+you look at, one acid lime for what you touch):
 
-#### Device
+| Tab | Page | What it is |
+|---|---|---|
+| SCAN | `/scan.html` | the sensor's image, live -- **and the CIS settings** (DPI, oversampling, handedness, calibration) |
+| IMU | `/imu.html` | accelerometer, gyroscope and buttons, live -- **and the IMU settings** (full scales, calibration) |
+| NETWORK | `/network.html` | device identity, host link, addresses and ports |
+| GUI | `/gui.html` | what the OLED shows, screensaver and motion thresholds |
+| UPDATE | `/update.html` | installed firmware, upload, factory reset |
 
-Name, serial number, MAC address and host link state (bound / streaming), refreshed every second.
+Each live view carries the settings that shape it: the DPI you pick on SCAN
+changes the image right above it, and the full scales picked on IMU are the ones
+its charts are drawn against. `fs/settings.js` holds what those pages share --
+the reconnect modal, the numeric-input listeners, and the helpers that wait for
+the device to answer again after a reboot.
 
-#### CIS Parameters
+The shell (logo header, tab bar, device identity) is built once by
+`fs/sp3ctra.js`, and `fs/sp3ctra.css` holds the whole charter: a page adds a tab
+by declaring `<body data-page="...">`, never by copying markup. Nothing is
+fetched from the internet -- an isolated LAN is the normal case.
 
-- **DPI (Dots Per Inch)**:  
-  Configures the resolution of the Contact Image Sensor (CIS). Available options:
-  - 200 DPI
-  - 400 DPI
+Every page is **one module**, laid out like a module editor in the VST
+(`ui/ModuleEditorChrome.h`): the frame with its caption and readout, a status
+strip under it, then rows of boxes -- each control under a small centred label --
+split by `--- SECTION ---` bands. Mutually exclusive choices (200/400,
+LEFT/RIGHT, OFF/ON) are drawn as one segmented control, not as loose buttons.
+Stacking panels of equal weight is what this replaced.
 
-- **OVSP (Oversampling)**:  
-  Adjusts the oversampling rate to enhance image quality.
+#### SCAN
 
-- **LPS (Lines Per Second)**:  
-  Visualizes the line capture rate. Higher values improve performance but may reduce image quality.
+[`/scan.html`](http://192.168.100.1/scan.html) shows what the sensor sees. The
+page polls `GET /scan.bin?dec=&rate=&since=`, which answers a 24 B little endian
+preamble (`"SCN2"`, pixels per line, lines in this batch, id of the first, dpi,
+scan rate, published rate, lines dropped, flags, decimation) followed by that
+many lines of interleaved RGB. The **browser** accumulates the waterfall in a
+canvas; the device only keeps the last few lines.
 
-- **Hand (Left/Right)**:  
-  Select the dominant hand for accurate calibration.
+**One request carries a batch, not a line.** The sensor scans at ~1000 lines/s
+and a browser cannot make 1000 requests per second, so the firmware keeps a ring
+sized in bytes (32 KB) and hands over everything published since the client's
+`since` id. The ring therefore holds a dozen lines at 1/4 resolution, three at
+full resolution and two dozen at 1/8: **resolution is paid for in line rate**,
+which is what the page's **SPEED** (25 / 100 / 250 lines/s, or max) and
+**RESOLUTION** boxes trade against each other. The status strip states what is
+actually achieved -- `250 lines/s of 1052 · 864 px · 640 kB/s` -- and counts
+dropped lines when the client cannot keep up, so the two boxes can be tuned on
+fact rather than on hope.
 
-- **Start Calibration**:  
-  Initiates the calibration process based on the selected settings.
+The ring is written lock free: the scan task never waits on the HTTP task, and a
+line lapped while it is being sent costs one torn column out of hundreds. Lines
+are published only while a page keeps polling, and only one line out of
+`scan_rate / requested_rate`, so an unwatched device pays nothing and asking for
+25 lines/s costs 25 memcpy per second, not 1000. The HTTP server still serves one
+client at a time: the page stops polling when its tab is hidden, and each
+connection is closed after 64 requests so another browser is never locked out for
+more than a couple of seconds.
 
-#### Network Settings
+The CIS settings sit under the image, so a change is judged on the picture it
+produces: **DPI** (200 / 400), **OVSP** (oversampling), **Hand** (which way the
+device is held, for calibration) and **Start CIS Calibration** -- move the device
+continuously over a white reference while it runs. The line rate is no longer a
+field to read: the frame's readout shows it live.
+
+#### IMU
+
+`/imu.html` plots the accelerometer and the gyroscope as rolling traces (one
+pixel per sample, X / Y / Z in the catalogue's cyan / magenta / amber) and lights
+the three buttons as they are pressed. It polls `GET /getImu`, which answers one
+sample as JSON: `acc` in g, `gyro` in dps, `temp` in °C, the sample `seq` and the
+three button states. The polling rate is picked in the page; like the scan page
+it stops polling when its tab is hidden.
+
+The IMU settings sit under the charts: **Gyro** and **Accel** full scales -- the
+very ranges the traces are drawn against, so the plot always says what the sensor
+is set to -- and **Start IMU Calibration** (keep the device still for ~1.5 s).
+
+#### NETWORK
+
+Identity first -- name, serial number, MAC address and host link state
+(bound / streaming), refreshed every two seconds -- then the addresses:
 
 - **IP Address/Subnet Mask/Gateway**: static IPv4 configuration of the device
   (default `192.168.100.1` / `255.255.255.0` / `0.0.0.0`).
@@ -88,7 +145,14 @@ Name, serial number, MAC address and host link state (bound / streaming), refres
 - **Link Port (SLP)**: control channel port the device listens on (default `55150`).
 - **Stream w/o host**: keep streaming to *Dest IP* without a host session (ON by default).
 
-> **Note**: After modifying network settings, click **Apply Network Settings** (the device reboots).
+> **Note**: After modifying network settings, click **Apply Network Settings**
+> (the device reboots, and the page follows it to its new address).
+
+#### GUI
+
+What the OLED shows and when it sleeps: **Show IMU** (the IMU strip),
+**Invert CIS Image**, screensaver **Timeout**, and the **Motion Acc / Motion
+Gyro** thresholds that count as movement and keep the screen awake.
 
 #### Administrator password
 
@@ -106,7 +170,9 @@ one.
 
 #### Firmware Update
 
-To update the firmware via the HTTP interface:
+To update the firmware via the HTTP interface, on the **UPDATE** tab
+(`/update.html`, which also shows the installed version, hardware revision and
+SLP protocol):
 
 1. Select the firmware file from your local machine.
 2. Click **Upload Firmware** and enter the administrator credentials.
@@ -120,8 +186,10 @@ restores the previous version automatically. See
 
 #### Advanced Settings
 
-- **Factory Reset**:  
-  Restores the device to its original factory settings. Use this option to reset all configurations if needed.
+- **Factory Reset** (UPDATE tab):  
+  Restores the device to its original factory settings, including a freshly drawn
+  administrator password. The device reboots at the default address and the page
+  follows it there.
 
 ### FTP Server
 

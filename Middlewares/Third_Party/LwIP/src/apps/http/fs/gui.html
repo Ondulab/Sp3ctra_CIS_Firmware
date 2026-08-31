@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sp3ctra GUI</title>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
+</head>
+
+<body data-page="gui">
+    <div class="main-wrapper">
+        <div class="container">
+            <span class="title">GUI</span>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">SHOW IMU</span>
+                    <div class="seg">
+                        <button id="guiShowImuOff" class="hand-button" onclick="updateGuiShowImu('0')">OFF</button>
+                        <button id="guiShowImuOn" class="hand-button" onclick="updateGuiShowImu('1')">ON</button>
+                    </div>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">INVERT CIS IMAGE</span>
+                    <div class="seg">
+                        <button id="guiInvertOff" class="hand-button" onclick="updateGuiInvertCisImage('0')">OFF</button>
+                        <button id="guiInvertOn" class="hand-button" onclick="updateGuiInvertCisImage('1')">ON</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">&mdash; SCREENSAVER &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">TIMEOUT (s)</span>
+                    <div id="loadingIndicatorScreensaver" class="button-loading2" style="display:none;"></div>
+                    <input type="number" id="screensaverTimeout" min="1" max="1000"
+                        onchange="updateScreensaverTimeout(this.value)">
+                </div>
+                <div class="box">
+                    <span class="boxlabel">MOTION ACC (g)</span>
+                    <div id="loadingIndicatorMotionAcc" class="button-loading2" style="display:none;"></div>
+                    <input type="number" id="motionThresholdAcc" min="0.01" max="1.0" step="0.01"
+                        onchange="updateMotionThresholdAcc(this.value)">
+                </div>
+                <div class="box">
+                    <span class="boxlabel">MOTION GYRO (dps)</span>
+                    <div id="loadingIndicatorMotionGyro" class="button-loading2" style="display:none;"></div>
+                    <input type="number" id="motionThresholdGyro" min="0.5" max="10.0" step="0.5"
+                        onchange="updateMotionThresholdGyro(this.value)">
+                </div>
+            </div>
+            <p class="hint">Movement above either threshold counts as motion and keeps the screen awake.</p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
+    <script src="settings.js"></script>
+    <script>
+        function setGuiShowImu(value) {
+            var buttons = [document.getElementById('guiShowImuOff'), document.getElementById('guiShowImuOn')];
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            if (value === "1") {
+                document.getElementById('guiShowImuOn').classList.add('selected');
+            } else {
+                document.getElementById('guiShowImuOff').classList.add('selected');
+            }
+        }
+        function loadGuiShowImu() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getGuiShowImu", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        setGuiShowImu(xhr.responseText.trim());
+                        console.log("GUI Show IMU loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load GUI Show IMU:", xhr.statusText);
+                        reject(new Error("Failed to load GUI Show IMU"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateGuiShowImu(newValue) {
+            return new Promise((resolve, reject) => {
+                var buttons = [document.getElementById('guiShowImuOff'), document.getElementById('guiShowImuOn')];
+                buttons.forEach(btn => btn.classList.add('button-loading'));
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setGuiShowImu", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    if (xhr.status === 200) {
+                        setGuiShowImu(newValue);
+                        console.log("GUI Show IMU updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update GUI Show IMU:", xhr.statusText);
+                        reject(new Error("Failed to update GUI Show IMU"));
+                    }
+                };
+                xhr.onerror = () => {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("gui_show_imu=" + newValue);
+            });
+        }
+        function setGuiInvertCisImage(value) {
+            var buttons = [document.getElementById('guiInvertOff'), document.getElementById('guiInvertOn')];
+            buttons.forEach(btn => btn.classList.remove('selected'));
+            if (value === "1") {
+                document.getElementById('guiInvertOn').classList.add('selected');
+            } else {
+                document.getElementById('guiInvertOff').classList.add('selected');
+            }
+        }
+        function loadGuiInvertCisImage() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getGuiInvertCisImage", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        setGuiInvertCisImage(xhr.responseText.trim());
+                        console.log("GUI Invert CIS Image loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load GUI Invert CIS Image:", xhr.statusText);
+                        reject(new Error("Failed to load GUI Invert CIS Image"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateGuiInvertCisImage(newValue) {
+            return new Promise((resolve, reject) => {
+                var buttons = [document.getElementById('guiInvertOff'), document.getElementById('guiInvertOn')];
+                buttons.forEach(btn => btn.classList.add('button-loading'));
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setGuiInvertCisImage", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    if (xhr.status === 200) {
+                        setGuiInvertCisImage(newValue);
+                        console.log("GUI Invert CIS Image updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update GUI Invert CIS Image:", xhr.statusText);
+                        reject(new Error("Failed to update GUI Invert CIS Image"));
+                    }
+                };
+                xhr.onerror = () => {
+                    buttons.forEach(btn => btn.classList.remove('button-loading'));
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("gui_invert_cis_image=" + newValue);
+            });
+        }
+        function loadScreensaverTimeout() {
+            const loadingIndicator = document.getElementById('loadingIndicatorScreensaver');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getScreensaverTimeout", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('screensaverTimeout').value = xhr.responseText.trim();
+                        console.log("Screensaver Timeout loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Screensaver Timeout:", xhr.statusText);
+                        reject(new Error("Failed to load Screensaver Timeout"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+        function updateScreensaverTimeout(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorScreensaver');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setScreensaverTimeout", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Screensaver Timeout updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Screensaver Timeout:", xhr.statusText);
+                        reject(new Error("Failed to update Screensaver Timeout"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("screensaver_timeout=" + newValue);
+            });
+        }
+        function loadMotionThresholdAcc() {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionAcc');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getMotionThresholdAcc", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('motionThresholdAcc').value = xhr.responseText.trim();
+                        console.log("Motion Threshold Acc loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Motion Threshold Acc:", xhr.statusText);
+                        reject(new Error("Failed to load Motion Threshold Acc"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+        function updateMotionThresholdAcc(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionAcc');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setMotionThresholdAcc", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Motion Threshold Acc updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Motion Threshold Acc:", xhr.statusText);
+                        reject(new Error("Failed to update Motion Threshold Acc"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("motion_threshold_acc=" + newValue);
+            });
+        }
+        function loadMotionThresholdGyro() {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getMotionThresholdGyro", true);
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        document.getElementById('motionThresholdGyro').value = xhr.responseText.trim();
+                        console.log("Motion Threshold Gyro loaded:", xhr.responseText);
+                        resolve();
+                    } else {
+                        console.error("Failed to load Motion Threshold Gyro:", xhr.statusText);
+                        reject(new Error("Failed to load Motion Threshold Gyro"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send();
+            });
+        }
+        function updateMotionThresholdGyro(newValue) {
+            const loadingIndicator = document.getElementById('loadingIndicatorMotionGyro');
+            loadingIndicator.style.display = 'inline-flex';
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/setMotionThresholdGyro", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    loadingIndicator.style.display = 'none';
+                    if (xhr.status === 200) {
+                        console.log("Motion Threshold Gyro updated to:", newValue);
+                        resolve();
+                    } else {
+                        console.error("Failed to update Motion Threshold Gyro:", xhr.statusText);
+                        reject(new Error("Failed to update Motion Threshold Gyro"));
+                    }
+                };
+                xhr.onerror = () => {
+                    loadingIndicator.style.display = 'none';
+                    reject(new Error("Network request failed"));
+                };
+                xhr.send("motion_threshold_gyro=" + newValue);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            setupInputListeners()
+                .then(() => loadGuiShowImu())
+                .then(() => loadGuiInvertCisImage())
+                .then(() => loadScreensaverTimeout())
+                .then(() => loadMotionThresholdAcc())
+                .then(() => loadMotionThresholdGyro())
+                .catch(e => console.error('GUI settings failed to load:', e));
+        });
+
+    </script>
+</body>
+
+</html>

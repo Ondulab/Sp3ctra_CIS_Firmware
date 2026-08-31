@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sp3ctra Network</title>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
+</head>
+
+<body data-page="network">
+    <div class="main-wrapper">
+        <div class="container">
+            <span class="title">NETWORK</span>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">NAME</span>
+                    <input type="text" id="devName" disabled>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">SERIAL</span>
+                    <input type="text" id="devSerial" disabled>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">MAC</span>
+                    <input type="text" id="devMac" disabled>
+                </div>
+            </div>
+            <div class="boxrow">
+                <div class="box wide">
+                    <span class="boxlabel">HOST LINK</span>
+                    <input type="text" id="devLink" disabled>
+                </div>
+            </div>
+
+            <div class="section">&mdash; ADDRESSES &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box wide">
+                    <span class="boxlabel">IP ADDRESS</span>
+                    <div class="quad">
+                        <input type="number" id="ipPart1" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipPart2" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipPart3" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipPart4" min="0" max="255">
+                    </div>
+                </div>
+                <div class="box wide">
+                    <span class="boxlabel">SUBNET MASK</span>
+                    <div class="quad">
+                        <input type="number" id="maskPart1" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="maskPart2" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="maskPart3" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="maskPart4" min="0" max="255">
+                    </div>
+                </div>
+            </div>
+            <div class="boxrow">
+                <div class="box wide">
+                    <span class="boxlabel">GATEWAY</span>
+                    <div class="quad">
+                        <input type="number" id="gateway1" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="gateway2" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="gateway3" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="gateway4" min="0" max="255">
+                    </div>
+                </div>
+                <div class="box wide">
+                    <span class="boxlabel">DEST IP (STREAM)</span>
+                    <div class="quad">
+                        <input type="number" id="ipDestPart1" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipDestPart2" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipDestPart3" min="0" max="255">
+                        <span>.</span>
+                        <input type="number" id="ipDestPart4" min="0" max="255">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">&mdash; PORTS &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">STREAM (UDP)</span>
+                    <input type="number" id="udp_port" name="udp_port" min="1" max="65535" required>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">LINK (SLP)</span>
+                    <input type="number" id="link_port" name="link_port" min="1" max="65535" required>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">STREAM W/O HOST</span>
+                    <div class="seg">
+                        <button id="streamUnboundOff" class="hand-button" onclick="setStreamWhenUnbound('0')">OFF</button>
+                        <button id="streamUnboundOn" class="hand-button" onclick="setStreamWhenUnbound('1')">ON</button>
+                    </div>
+                </div>
+                <div class="box">
+                    <span class="boxlabel">CHANGES</span>
+                    <button id="updateNetworkBtn" onclick="updateNetworkConfig()">Apply</button>
+                </div>
+            </div>
+            <p class="hint">Applying reboots the device; this page follows it to its new address.</p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
+    <script src="settings.js"></script>
+    <script>
+        function applyDeviceInfo(info) {
+            document.getElementById("devName").value = info.name || "";
+            document.getElementById("devSerial").value = info.serial || "";
+            document.getElementById("devMac").value = info.mac || "";
+            let link;
+            if (info.bound) {
+                link = "bound to " + info.peer + (info.streaming ? " (streaming)" : "");
+            } else {
+                link = "no host" + (info.streaming ? " - streaming to Dest IP" : "");
+            }
+            document.getElementById("devLink").value = link + " - SLP v" + info.protocol + " on UDP " + info.link_port;
+        }
+        function loadDeviceInfo() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getDeviceInfo", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        try { applyDeviceInfo(JSON.parse(xhr.responseText)); } catch (e) { console.error(e); }
+                        resolve();
+                    } else {
+                        reject(new Error("Failed to load device info"));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function refreshDeviceInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    try { applyDeviceInfo(JSON.parse(this.responseText)); } catch (e) { }
+                }
+            };
+            xhr.open("GET", "getDeviceInfo?_=" + new Date().getTime(), true);
+            xhr.send();
+        }
+        function setStreamWhenUnbound(value) {
+            streamWhenUnbound = (value === '1') ? 1 : 0;
+            document.getElementById('streamUnboundOn').classList.toggle('selected', streamWhenUnbound === 1);
+            document.getElementById('streamUnboundOff').classList.toggle('selected', streamWhenUnbound === 0);
+        }
+        function loadNetworkConfig() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getNetworkConfig", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        var config = JSON.parse(xhr.responseText);
+                        document.getElementById("ipPart1").value = config.ip.split('.')[0];
+                        document.getElementById("ipPart2").value = config.ip.split('.')[1];
+                        document.getElementById("ipPart3").value = config.ip.split('.')[2];
+                        document.getElementById("ipPart4").value = config.ip.split('.')[3];
+                        document.getElementById("maskPart1").value = config.mask.split('.')[0];
+                        document.getElementById("maskPart2").value = config.mask.split('.')[1];
+                        document.getElementById("maskPart3").value = config.mask.split('.')[2];
+                        document.getElementById("maskPart4").value = config.mask.split('.')[3];
+                        document.getElementById("gateway1").value = config.gw.split('.')[0];
+                        document.getElementById("gateway2").value = config.gw.split('.')[1];
+                        document.getElementById("gateway3").value = config.gw.split('.')[2];
+                        document.getElementById("gateway4").value = config.gw.split('.')[3];
+                        document.getElementById("ipDestPart1").value = config.dest_ip.split('.')[0];
+                        document.getElementById("ipDestPart2").value = config.dest_ip.split('.')[1];
+                        document.getElementById("ipDestPart3").value = config.dest_ip.split('.')[2];
+                        document.getElementById("ipDestPart4").value = config.dest_ip.split('.')[3];
+                        document.getElementById("udp_port").value = config.udp_port;
+
+                        document.getElementById("link_port").value = config.link_port;
+                        setStreamWhenUnbound(String(config.stream_when_unbound));
+                        resolve();
+                    } else {
+                        console.error("Failed to load network settings:", xhr.statusText);
+                        reject(new Error("Network configuration failed to load with status: " + xhr.status));
+                    }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateNetworkConfig() {
+            return new Promise((resolve, reject) => {
+                // Selecting the button associated with the network configuration update action.
+                var updateNetworkButton = document.getElementById('updateNetworkBtn');
+                updateNetworkButton.classList.add('button-loading');  // Add loading class to the button to indicate processing.
+
+                // Collect network configuration data from input fields
+                const ipAddr = [
+                    document.getElementById("ipPart1").value,
+                    document.getElementById("ipPart2").value,
+                    document.getElementById("ipPart3").value,
+                    document.getElementById("ipPart4").value
+                ].join('.');
+
+                const subnetMask = [
+                    document.getElementById("maskPart1").value,
+                    document.getElementById("maskPart2").value,
+                    document.getElementById("maskPart3").value,
+                    document.getElementById("maskPart4").value
+                ].join('.');
+
+                const gateway = [
+                    document.getElementById("gateway1").value,
+                    document.getElementById("gateway2").value,
+                    document.getElementById("gateway3").value,
+                    document.getElementById("gateway4").value
+                ].join('.');
+
+                const destIpAddr = [
+                    document.getElementById("ipDestPart1").value,
+                    document.getElementById("ipDestPart2").value,
+                    document.getElementById("ipDestPart3").value,
+                    document.getElementById("ipDestPart4").value
+                ].join('.');
+
+                const udpPort = document.getElementById("udp_port").value;
+
+                const linkPort = document.getElementById("link_port").value;
+
+                // Construct the POST request data
+                const data = `ip=${ipAddr}&mask=${subnetMask}&gateway=${gateway}&dest_ip=${destIpAddr}&udp_port=${udpPort}&link_port=${linkPort}&stream_when_unbound=${streamWhenUnbound}`;
+
+                // Create and send the HTTP POST request
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/updateNetworkConfig", true);
+                xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        console.log("Network configuration updated successfully.");
+
+                        // Device will reboot, stop timers and show overlay
+                        stopTimers();
+                        overlay.style.display = 'block';
+
+                        // Show non-modal notification immediately (non-blocking)
+                        showReconnectNotification("Applying network settings\nDevice rebooting\n\n⚠️ Important: Depending on your configuration,\nyou may need to reconfigure your network connection.\n\nConnecting to new IP address...");
+
+                        // Wait for device to become available at new IP, then reload
+                        waitForNetworkChangeAndReload(ipAddr);
+
+                        resolve();
+                    } else {
+                        console.error("Failed to update network configuration:", xhr.statusText);
+                        updateNetworkButton.classList.remove('button-loading');  // Remove loading class on error.
+                        overlay.style.display = 'none'; // Remove overlay
+                        reject(new Error("Failed to update network configuration with status: " + xhr.status));
+                    }
+                };
+
+                xhr.onerror = function () {
+                    console.error("Network request failed.");
+                    updateNetworkButton.classList.remove('button-loading');  // Remove loading class on network error.
+                    overlay.style.display = 'none'; // Remove overlay
+                    alert("✗ Network Error!\n\nUnable to communicate with device.");
+                    reject(new Error("Network request error"));
+                };
+
+                xhr.send(data);
+            });
+        }
+
+        /* Host link state is live: re-read it every two seconds. stopTimers()
+         * cancels this one before the device reboots. */
+        function deviceTimer() {
+            refreshDeviceInfo();
+            timerId = setTimeout(deviceTimer, 2000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            setupInputListeners()
+                .then(() => loadNetworkConfig())
+                .then(() => loadDeviceInfo())
+                .then(() => deviceTimer())
+                .catch(e => console.error('Network settings failed to load:', e));
+        });
+
+    </script>
+</body>
+
+</html>
