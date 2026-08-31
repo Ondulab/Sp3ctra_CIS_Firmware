@@ -473,6 +473,19 @@ fileManager_StatusTypeDef file_readCisCals(const char* filePath, struct cisCals*
     }
 
     (void)f_close(&file);
+
+    /* La taille ne suffit pas a valider le format : un fichier de l'ancienne disposition
+       est PLUS GRAND que la structure actuelle, donc la lecture reussit et rend des
+       octets qui n'ont plus le sens attendu. Sans ce marqueur, une mise a jour du
+       firmware chargerait silencieusement une calibration aberrante. */
+    if (data->magic != CIS_CAL_FILE_MAGIC || data->version != CIS_CAL_FILE_VERSION)
+    {
+        printf("Calibration file format mismatch (magic 0x%08lX v%lu, expected 0x%08lX v%lu)\n",
+               (unsigned long)data->magic, (unsigned long)data->version,
+               (unsigned long)CIS_CAL_FILE_MAGIC, (unsigned long)CIS_CAL_FILE_VERSION);
+        return FILEMANAGER_ERROR;
+    }
+
     return FILEMANAGER_OK;
 }
 

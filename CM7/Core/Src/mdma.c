@@ -34,6 +34,10 @@ void HAL_MDMA_XferCpltCallback(MDMA_HandleTypeDef *hmdma);
 
 MDMA_LinkNodeConfTypeDef nodeConfigs[3];
 
+/* La tete de chaque ligne dans le tampon = SP (2) + overscan de la ligne PRECEDENTE
+   (12) = 14 echantillons de transitoire, PUIS les 38 pixels noirs, puis l'effectif
+   (structure relevee sur cible : plateau noir plein a raw[14..51]). La copie demarre
+   donc a 14, et le saut inter-bloc vaut aussi 14. */
 static int32_t source_offset = (CIS_SP_WIDTH + CIS_OVER_SCAN) * sizeof(uint16_t);
 
 /* USER CODE END 1 */
@@ -173,19 +177,19 @@ void MX_MDMA_Init(void)
 void MDMA_Init(void)
 {
     //ADC1
-    nodeConfigs[0].SrcAddress = (uint32_t)&cisData_ADC1[CIS_SP_WIDTH];
+    nodeConfigs[0].SrcAddress = (uint32_t)&cisData_ADC1[CIS_SP_WIDTH + CIS_OVER_SCAN];
     nodeConfigs[0].DstAddress = (uint32_t)&cisDataCpy[0];
     nodeConfigs[0].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
     nodeConfigs[0].BlockCount = COLOR_CHANNELS;
 
     //ADC2
-    nodeConfigs[1].SrcAddress = (uint32_t)&cisData_ADC2[CIS_SP_WIDTH];
+    nodeConfigs[1].SrcAddress = (uint32_t)&cisData_ADC2[CIS_SP_WIDTH + CIS_OVER_SCAN];
     nodeConfigs[1].DstAddress = (uint32_t)&cisDataCpy[cisConfig.useful_data_size_per_lane];
     nodeConfigs[1].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
     nodeConfigs[1].BlockCount = COLOR_CHANNELS;
 
     //ADC3
-    nodeConfigs[2].SrcAddress = (uint32_t)&cisData_ADC3[CIS_SP_WIDTH];
+    nodeConfigs[2].SrcAddress = (uint32_t)&cisData_ADC3[CIS_SP_WIDTH + CIS_OVER_SCAN];
     nodeConfigs[2].DstAddress = (uint32_t)&cisDataCpy[cisConfig.useful_data_size_per_lane * 2];
     nodeConfigs[2].BlockDataLength = cisConfig.useful_data_size_per_color_per_lane * sizeof(uint16_t);
     nodeConfigs[2].BlockCount = COLOR_CHANNELS;

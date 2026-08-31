@@ -33,6 +33,8 @@ extern "C" {
 /* USER CODE END Includes */
 
 extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim15;
+void CIS_TIM15_TriggerInit(void);
 
 extern TIM_HandleTypeDef htim3;
 

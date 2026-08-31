@@ -51,7 +51,7 @@ void gui_startCalibration(void)
             /*-------- 1 --------*/
             ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
-            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON WHITE SURFACE - HL ", 0xF, 8);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" WHITE PAPER - KEEP MOVING - HL ", 0xF, 8);
             ssd1362_writeFullBuffer();
 
             while (shared_var.cis_cal_progressbar < 99)
@@ -68,7 +68,7 @@ void gui_startCalibration(void)
             /*-------- 2 --------*/
             ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
-            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON GRAY SURFACE - ML ", 0xF, 8);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" WHITE PAPER - KEEP MOVING - ML ", 0xF, 8);
             ssd1362_writeFullBuffer();
 
             while (shared_var.cis_cal_progressbar < 99)
@@ -85,7 +85,7 @@ void gui_startCalibration(void)
             /*-------- 3 --------*/
             ssd1362_fillRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, false);
             ssd1362_fillRect(0, DISPLAY_HEAD_Y1POS, DISPLAY_WIDTH, DISPLAY_HEAD_Y2POS, BANNER_BACKGROUND_COLOR, true);
-            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" MOVE CIS ON BLACK SURFACE - LL ", 0xF, 8);
+            ssd1362_drawString(0, DISPLAY_HEAD_Y1POS + 1, (int8_t *)" KEEP ON PAPER - LEDS OFF - LL ", 0xF, 8);
             ssd1362_writeFullBuffer();
 
             while (shared_var.cis_cal_progressbar < 99)

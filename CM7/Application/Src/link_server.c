@@ -43,6 +43,7 @@
 #include "file_manager.h"
 #include "icm42688.h"
 #include "link_server.h"
+#include "cis.h"
 
 /* Private define ------------------------------------------------------------*/
 #define LINK_TASK_STACK_BYTES   (16384)   /* file_writeConfig (FatFs FIL + sector buffer) and IMU calibration run here */
@@ -798,6 +799,9 @@ static void linkTask(void *argument)
                 line_rate_lps = (uint16_t)(((lines - rate_lines) * 1000U) / (now - rate_tick));
                 rate_tick = now;
                 rate_lines = lines;
+
+                /* Asservissement thermique des LED (1 Hz, hors calibration). */
+                cis_ledThermalServo();
             }
         }
 

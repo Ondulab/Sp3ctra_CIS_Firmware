@@ -46,14 +46,15 @@ void MX_TIM1_Init(void)
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
-	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2;
+	uint32_t prescalerValue, counterPeriod, pulseValueCH1, pulseValueCH2, pulseValueCH3, pulseValueCH4;
 
-    uint32_t CLK_DIVIDER = ((200000000) / CIS_CLK_FREQ);
+    uint32_t CLK_DIVIDER = ((200000000) / (uint32_t)cisConfig.cis_clk_freq);
 
 	prescalerValue = 0;
 	counterPeriod = (CLK_DIVIDER) - 1;
 	pulseValueCH2 = (CLK_DIVIDER / 2) - 1; //CLK OUT Ton 0.1ms
-	pulseValueCH1 = ((CLK_DIVIDER / 2) * 1.8) - 1; //ADC CC1
+	pulseValueCH1 = ((CLK_DIVIDER / 2) * 1.8) - 1; //OC1REF (sans role depuis TRGO=UPDATE)
+	(void)pulseValueCH3; (void)pulseValueCH4;
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
@@ -67,6 +68,13 @@ void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
+  /* TRGO = OC1REF, comme depuis toujours. L'essai TRGO=UPDATE a fait tourner les
+     esclaves TIM8/3/4/5 a DEUX ticks par periode CP (sous-trames LED mesurees a 301
+     horloges au lieu de 602) : l'impulsion d'update est manifestement vue deux fois par
+     leur logique d'horloge externe. OC1REF (PWM2, un seul front montant par periode)
+     est la reference eprouvee ; TIM15 se verrouille alors a l'instant CCR1 de la
+     periode, ce qui place ses fronts d'echantillonnage a ~45 et ~295 ns -- toujours au
+     coeur des zones valides des deux phases pixel. */
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1REF;
   sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
@@ -131,7 +139,7 @@ void MX_TIM3_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-  counterPeriod = (cisConfig.lane_size * 3) - 1;
+  counterPeriod = (cisConfig.lane_size * 3) - 1;  /* ticks esclaves = echantillons */
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
@@ -193,7 +201,7 @@ void MX_TIM4_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-  counterPeriod = (cisConfig.lane_size * 3) - 1;
+  counterPeriod = (cisConfig.lane_size * 3) - 1;  /* ticks esclaves = echantillons */
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
@@ -255,7 +263,7 @@ void MX_TIM5_Init(void)
   pulseValue = cisConfig.leds_off_index - 1;
 
   prescalerValue = 0;
-  counterPeriod = (cisConfig.lane_size * 3) - 1;
+  counterPeriod = (cisConfig.lane_size * 3) - 1;  /* ticks esclaves = echantillons */
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
@@ -353,6 +361,8 @@ void MX_TIM8_Init(void)
     uint32_t prescalerValue, counterPeriod, pulseValue;
 
     prescalerValue = 0;
+    /* Ticks esclaves = ECHANTILLONS (2 par periode CP, mesure) : les periodes se
+       programment en lane_size, comme les graines de cis_startCapture. */
     counterPeriod = cisConfig.lane_size - 1;
     pulseValue = CIS_SP_WIDTH - 1;
 
@@ -695,6 +705,80 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 }
 
 /* USER CODE BEGIN 1 */
+
+/* Declencheur ADC 400 dpi : le capteur sort DEUX pixels par periode CP, il faut donc
+   deux conversions par periode, chacune au coeur de la zone stable de son pixel --
+   des positions que les PWM simples de TIM1 ne peuvent pas fournir (un front reste
+   toujours epingle au debordement, sur une frontiere pixel), et les modes
+   asymetrique/combine se sont reveles sans effet sur la route CC3 -> ADC.
+   TIM15, libre, est resynchronise par le TRGO(update) de TIM1 a CHAQUE periode CP et
+   tourne a la demi-periode : son OC1REF (PWM2) monte a CNT=CCR1 deux fois par periode
+   CP, aux instants CCR1 et CCR1 + periode/2 -- librement choisis. Les ADC declenchent
+   sur T15_TRGO, front montant seul. */
+TIM_HandleTypeDef htim15;
+
+void CIS_TIM15_TriggerInit(void)
+{
+  TIM_SlaveConfigTypeDef sSlaveConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  uint32_t CLK_DIVIDER = ((200000000) / (uint32_t)cisConfig.cis_clk_freq);
+
+  __HAL_RCC_TIM15_CLK_ENABLE();
+
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 0;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = (CLK_DIVIDER / 2) - 1;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_PWM_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* RESET+TRIGGER combine sur TIM1 (ITR0 = tim1_trgo) : TIM15 ne DEMARRE qu'au premier
+     front TRGO et se recale a chacun. Crucial : TIM15 tourne sur sa propre horloge
+     (200 MHz), pas sur celle de TIM1 -- en mode reset simple il generait des triggers
+     ADC pendant le gel de TIM1, et le tampon DMA commencait a se remplir AVANT le
+     depart optique, d'un nombre d'echantillons dependant du temps logiciel entre
+     l'armement des ADC et le relachement : phase differente a chaque boot (les « pas
+     sautes » entre calibrations). Ici cis_startCapture coupe son CEN apres le gel ;
+     le premier TRGO du relachement le redemarre en phase, au tick pres. */
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_COMBINED_RESETTRIGGER;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR0;
+  if (HAL_TIM_SlaveConfigSynchro(&htim15, &sSlaveConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC1REF;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* Point de fonctionnement etabli par BALAYAGE DE PHASE sur cible (2026-09-01) : la
+     video du M118 ne s'etablit qu'en toute fin de pixel (ts ~200 ns pour 250 ns de
+     periode pixel), et l'ancien declenchement a ~95 ns posait la fenetre S&H au bord
+     d'une falaise de ~1500 comptes / 10 ns -- chaque nanoseconde de variation au boot
+     (etat du TXS0104E sur CP, phases d'horloge) devenait un ecart de niveau global ou
+     par voie, la non-reproductibilite historique entre demarrages. Le declenchement a
+     13/100 de periode (65 ns) place la fenetre au centre du plateau ETABLI mesure
+     (50-90 ns, plat a ~1 %) : on echantillonne le pixel PRECEDENT, pleinement settle
+     -- un pipeline d'un pixel que l'auto-localisation du plateau noir absorbe. */
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.Pulse = ((CLK_DIVIDER * 13) / 100) - 1;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim15, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
 
 /* USER CODE END 1 */
 

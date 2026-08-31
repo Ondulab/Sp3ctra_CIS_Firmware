@@ -139,18 +139,27 @@ struct __attribute__((aligned(4))) cisRgbBuffers
 
 struct __attribute__((aligned(4))) cisCals
 {
-	// Offset unique (valeur noire) - OPTIMISÉ 16-bit
-	int16_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+	// Marqueur de format : la lecture ne validait que la taille, et un fichier de
+	// l'ancienne disposition est plus GRAND que celle-ci — il aurait donc été relu
+	// sans erreur, comme des données valides.
+	uint32_t magic;
+	uint32_t version;
 
-	// Gains pour les deux segments - OPTIMISÉ Q8.8 format
-	int16_t gainsData_seg1[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];   // 0% → 50%
-	int16_t gainsData_seg2[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];   // 50% → 100%
+	// --- Ce qui varie d'un pixel à l'autre : dispersion de fabrication -------------
+	int16_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];  // niveau noir, comptages ADC
+	int16_t gainData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];    // sensibilité, Q4.12
 
-	// Points de transition par pixel (valeur ADC à 50%) - OPTIMISÉ 16-bit
-	int16_t transitionPoint[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+	// --- Ce qui est commun : la forme de la réponse de la chaîne -------------------
+	// Indexée par la valeur normalisée 0..CIS_CAL_CURVE_MAX, rend la sortie 0..255.
+	// Le nombre de niveaux de calibration n'en change pas la taille.
+	uint8_t curve[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
 
 	// Références pour correction de dérive (INCHANGÉ)
 	int32_t blackRefInactiveAvg[COLOR_CHANNELS][CIS_ADC_OUT_LANES];  // Red, Green, Blue for each lane
+
+	// Température (IMU, °C) au moment de la calibration : référence de
+	// l'asservissement thermique des LED.
+	float cal_temp_c;
 };
 
 // IMU calibration data structure
@@ -290,6 +299,13 @@ typedef struct
     int32_t leds_off_index;
 
     uint16_t udp_nb_packet_per_line;
+
+    /* Domaine HORLOGES (periodes de CP), distinct du domaine ECHANTILLONS : en 400 dpi
+       le capteur sort 2 px/horloge, donc lane_clocks = lane_size/2. Les timers comptent
+       des horloges, les tampons des echantillons -- les confondre etait le bug de la
+       duplication d'image. */
+    int32_t cis_clk_freq;
+    int32_t lane_clocks;
 } CIS_Config;
 
 __attribute__((aligned(4)))

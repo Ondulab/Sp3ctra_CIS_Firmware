@@ -46,7 +46,12 @@ CIS_StatusTypeDef cis_init(void);
 CIS_StatusTypeDef cis_Power(bool powerOn);
 CIS_StatusTypeDef cis_reConfigure(void);
 void cis_imageProcess(int32_t* cisDataCpy_int, struct slp_line_cis *imageBuffers);
-void cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData, uint16_t iterationNb);
+bool cis_isMoving(void);
+void cis_ledPowerAdjFine(int32_t red_x100, int32_t green_x100, int32_t blue_x100);
+void cis_ledThermalServo(void);
+CIS_StatusTypeDef cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData,
+                                                  uint16_t iterationNb,
+                                                  uint8_t progressBase, uint8_t progressSpan);
 void cis_startCapture(void);
 void cis_stopCapture(void);
 void cis_ledsOn(void);
