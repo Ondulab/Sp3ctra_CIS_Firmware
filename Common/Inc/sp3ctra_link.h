@@ -203,6 +203,7 @@ enum slp_cfg_id
     SLP_CFG_NET_DEST_IP         = 23,  /* ip4, unbound-fallback stream target */
     SLP_CFG_STREAM_PORT         = 24,  /* u16, unbound-fallback stream port */
     SLP_CFG_STREAM_WHEN_UNBOUND = 25,  /* u8, 0 | 1 */
+    SLP_CFG_BLACK_POINT         = 27,  /* u8, 0..200 : point noir de sortie, x1000 lineaire */
     SLP_CFG_LINK_PORT           = 26,  /* u16, reboot */
     SLP_CFG_LINE_RATE           = 40   /* u16, lines/s, read-only */
 };

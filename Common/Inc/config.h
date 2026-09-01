@@ -127,6 +127,7 @@
 #define DEFAULT_CIS_RAW 0
 #define DEFAULT_CIS_DPI 400
 #define DEFAULT_CIS_OVERSAMPLING 1
+#define DEFAULT_CIS_BLACK_POINT 55   /* x1000 lineaire, voir SLP_CFG_BLACK_POINT */
 
 // Horloge CIS (CP), par mode.
 // Datasheet M118-232C3 : en 400 dpi le capteur sort DEUX pixels par periode de CP
@@ -296,16 +297,14 @@
 // l'ancien format serait relu comme des données valides (la lecture ne teste que la
 // taille, et l'ancien fichier est plus GRAND) et produirait une image aberrante.
 #define CIS_CAL_FILE_MAGIC                      (0x53503343UL)  /* "SP3C" */
-#define CIS_CAL_FILE_VERSION                    (10UL) /* v10 : + point noir */
+#define CIS_CAL_FILE_VERSION                    (11UL) /* v11 : courbes LINEAIRES au fichier,
+   rendu (equilibre + point noir + sRGB) compose en RAM a chaud -- voir
+   cis_composeOutputLut() et SLP_CFG_BLACK_POINT. */
 
-/* Point noir de sortie (x1000, domaine lineaire, applique apres l'equilibre
-   couleur, avant le gamma). Convention scanner : le zero de sortie = le materiau
-   le plus noir utilise, pas l'obscurite totale -- sinon un papier noir encode sa
-   reflectance reelle en sRGB et sort gris (mesure 2026-09-01 : Clairefontaine
-   noir = 5,2-6,2 %% -> sRGB 64). A 55, ce papier sort ~0-15. Contrepartie
-   assumee : toute reflectance < 5,5 %% (noirs profonds de tirages) ecrase a 0.
-   0 = comportement physique pur. La mire couleur affinera. */
-#define CIS_OUTPUT_BLACK_POINT_X1000            (55)
+/* Le point noir de sortie est un REGLAGE d'appareil (shared_config.cis_black_point,
+   SLP_CFG_BLACK_POINT, persiste) : 0 = physique pur (synthese/mesure), 55 = dessin
+   (Clairefontaine noir 5,2-6,2 %% mesure -> sort noir), ~25 = photo. Applique par
+   cis_composeOutputLut(), effet immediat sans recalibration. */
 
 /* Equilibre couleur de sortie, en domaine LINEAIRE, applique avant l'encodage
    sRGB lors de la construction des courbes (cout runtime nul). Mesure du
@@ -361,7 +360,7 @@
    (symboles cisLineLog / cisLineLogHead). 768 lignes ~ 0,72 s a 1063 lps, assez
    pour voir un 100 Hz secteur (~10 lignes de periode). 0 en production. */
 #define CIS_LINE_LOG_ENABLED                    (1)
-#define CIS_LINE_LOG_N                          (768)
+#define CIS_LINE_LOG_N                          (512)  /* reduit pour loger la LUT de rendu */
 
 /* Reactivite de l'IIR de derive (1/2^n sur l'erreur ; l'etat reste en Q3, dont le
    >>3 de lecture est distinct). Historique : 3 (coupure ~20 Hz), choisi quand

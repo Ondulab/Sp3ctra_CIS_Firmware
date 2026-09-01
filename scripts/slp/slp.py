@@ -61,13 +61,14 @@ CFG_IDS = {
     "dpi": 1, "oversampling": 2, "handedness": 3, "gyro_fs": 4, "accel_fs": 5,
     "gui_show_imu": 6, "gui_invert": 7, "screensaver_s": 8, "motion_thr_acc": 9,
     "motion_thr_gyro": 10, "net_ip": 20, "net_mask": 21, "net_gw": 22, "net_dest_ip": 23,
-    "stream_port": 24, "stream_when_unbound": 25, "link_port": 26, "line_rate": 40,
+    "stream_port": 24, "stream_when_unbound": 25, "link_port": 26, "black_point": 27, "line_rate": 40,
 }
 CFG_NAMES = {v: k for k, v in CFG_IDS.items()}
 CFG_TYPES = {  # type used when SETTING (the device echoes its own type in replies)
     1: CFG_U16, 2: CFG_U8, 3: CFG_U8, 4: CFG_U8, 5: CFG_U8, 6: CFG_U8, 7: CFG_U8, 8: CFG_U16,
     9: CFG_F32, 10: CFG_F32, 20: CFG_IP4, 21: CFG_IP4, 22: CFG_IP4, 23: CFG_IP4,
     24: CFG_U16, 25: CFG_U8, 26: CFG_U16, 40: CFG_U16,
+    24: CFG_U16, 27: CFG_U8, 26: CFG_U16, 40: CFG_U16,
 }
 
 # ---- struct formats (little-endian, packed) ----------------------------------

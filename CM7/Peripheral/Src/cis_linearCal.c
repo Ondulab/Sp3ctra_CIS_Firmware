@@ -93,6 +93,10 @@ static bool driftPrimed = false;
 
 /* Moyennes brutes des demi-voies (gauche/droite) de la ligne courante : servent a
    l'erreur de l'annuleur LMS et au journal de lignes. */
+/* LUT de RENDU lue par la boucle pixel : linearisation du fichier composee avec
+   l'equilibre couleur (compile), le point noir (config appareil) et le gamma. */
+static uint8_t cisRenderCurve[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
+
 static int16_t cisActHalfL[3][CIS_ADC_OUT_LANES];
 static int16_t cisActHalfR[3][CIS_ADC_OUT_LANES];
 #if CIS_LMS_CANCELLER_ENABLED
@@ -431,9 +435,9 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
         const uint32_t calB  = (cisConfig.useful_data_size_per_lane * lane) + 2 * stride + CIS_BLACK_PIXELS;
 
         /* Sorties de la boucle interne : une indirection de moins par pixel. */
-        const uint8_t * restrict curveR = cisCals.curve[0][lane];
-        const uint8_t * restrict curveG = cisCals.curve[1][lane];
-        const uint8_t * restrict curveB = cisCals.curve[2][lane];
+        const uint8_t * restrict curveR = cisRenderCurve[0][lane];
+        const uint8_t * restrict curveG = cisRenderCurve[1][lane];
+        const uint8_t * restrict curveB = cisRenderCurve[2][lane];
 
         const int32_t driftR = globalDriftOffset[0][lane];
         const int32_t driftG = globalDriftOffset[1][lane];
@@ -676,6 +680,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     /* ---- Construction des courbes de reponse ----------------------------------- */
     printf("Build response curves\n");
     cis_buildCurves(bitDepth);
+    cis_composeOutputLut();
     shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
     osDelay(100);
 
@@ -931,6 +936,41 @@ void cis_refreshDarkReferences(int32_t *cisDataCpy)
 }
 
 /**
+ * @brief  Compose la LUT de rendu : lineaire (fichier) -> equilibre -> point noir -> sRGB.
+ *
+ * Appelee au chargement de la calibration, en fin de calibration, et par le lien
+ * SLP quand SLP_CFG_BLACK_POINT change : effet immediat, sans recalibration.
+ * ~18k evaluations flottantes, quelques millisecondes, hors boucle pixel.
+ */
+void cis_composeOutputLut(void)
+{
+    static const float trim[3] = { CIS_OUTPUT_TRIM_R_X1000 / 1000.0f,
+                                   CIS_OUTPUT_TRIM_G_X1000 / 1000.0f,
+                                   CIS_OUTPUT_TRIM_B_X1000 / 1000.0f };
+    const float bp = (float)shared_config.cis_black_point / 1000.0f;
+
+    for (int32_t c = 0; c < COLOR_CHANNELS; c++)
+    {
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            for (int32_t n = 0; n < CIS_CAL_CURVE_SIZE; n++)
+            {
+                float yf = (float)cisCals.curve[c][lane][n] / 255.0f;
+                yf = (yf * trim[c] - bp) / (1.0f - bp);
+                if (yf < 0.0f) { yf = 0.0f; } else if (yf > 1.0f) { yf = 1.0f; }
+#if CIS_OUTPUT_GAMMA_SRGB
+                yf = (yf <= 0.0031308f) ? (12.92f * yf)
+                                        : (1.055f * powf(yf, 1.0f / 2.4f) - 0.055f);
+#endif
+                cisRenderCurve[c][lane][n] = (uint8_t)(yf * 255.0f + 0.5f);
+            }
+        }
+    }
+    printf("CIS: render LUT composed (black point %u/1000)\n",
+           (unsigned)shared_config.cis_black_point);
+}
+
+/**
  * @brief       Position normalisee moyenne d'un niveau de stimulus, par couleur et par voie.
  *
  * On n'en retient que la moyenne : c'est ce qui rend le cout memoire d'un niveau
@@ -1072,33 +1112,12 @@ static void cis_buildCurves(uint32_t maxOut)
                 }
 
                 const int32_t dx = xs[k + 1] - xs[k];
-#if CIS_OUTPUT_GAMMA_SRGB
-                /* Interpolation en flottant puis encodage sRGB : la reflectance
-                   lineaire y/maxOut devient un code perceptuel. Composer ICI (et non
-                   sur le 8 bits final) garde toute la resolution dans les ombres. */
-                float yf = (dx > 0)
-                         ? ((float)ys[k] + (float)(n - xs[k]) * (float)(ys[k + 1] - ys[k]) / (float)dx)
-                         : (float)ys[k + 1];
-                yf /= (float)maxOut;
-                {
-                    static const float trim[3] = { CIS_OUTPUT_TRIM_R_X1000 / 1000.0f,
-                                                   CIS_OUTPUT_TRIM_G_X1000 / 1000.0f,
-                                                   CIS_OUTPUT_TRIM_B_X1000 / 1000.0f };
-                    yf *= trim[c];
-                }
-                {
-                    const float bp = CIS_OUTPUT_BLACK_POINT_X1000 / 1000.0f;
-                    yf = (yf - bp) / (1.0f - bp);
-                }
-                if (yf < 0.0f) { yf = 0.0f; } else if (yf > 1.0f) { yf = 1.0f; }
-                const float enc = (yf <= 0.0031308f) ? (12.92f * yf)
-                                : (1.055f * powf(yf, 1.0f / 2.4f) - 0.055f);
-                int32_t y = (int32_t)(enc * (float)maxOut + 0.5f);
-#else
+                /* Le fichier stocke la LINEARISATION physique pure ; le rendu
+                   (equilibre couleur, point noir, sRGB) est compose a chaud dans
+                   cisRenderCurve par cis_composeOutputLut(). */
                 int32_t y = (dx > 0)
                           ? (ys[k] + ((n - xs[k]) * (ys[k + 1] - ys[k])) / dx)
                           : ys[k + 1];
-#endif
 
                 if (y < 0)                  y = 0;
                 if (y > (int32_t)maxOut)    y = (int32_t)maxOut;

@@ -44,6 +44,7 @@
 #include "icm42688.h"
 #include "link_server.h"
 #include "cis.h"
+#include "cis_linearCal.h"
 
 /* Private define ------------------------------------------------------------*/
 #define LINK_TASK_STACK_BYTES   (16384)   /* file_writeConfig (FatFs FIL + sector buffer) and IMU calibration run here */
@@ -475,6 +476,7 @@ static int cfg_read(struct slp_cfg_item *it)
     {
         case SLP_CFG_DPI:             it->type = SLP_CFG_U16; it->value = shared_config.cis_dpi; break;
         case SLP_CFG_OVERSAMPLING:    it->type = SLP_CFG_U8;  it->value = shared_config.cis_oversampling; break;
+        case SLP_CFG_BLACK_POINT:     it->type = SLP_CFG_U8;  it->value = shared_config.cis_black_point; break;
         case SLP_CFG_HANDEDNESS:      it->type = SLP_CFG_U8;  it->value = shared_config.cis_handedness; break;
         case SLP_CFG_GYRO_FS:         it->type = SLP_CFG_U8;  it->value = shared_config.imu_gyro_sensitivity; break;
         case SLP_CFG_ACCEL_FS:        it->type = SLP_CFG_U8;  it->value = shared_config.imu_accel_sensitivity; break;
@@ -516,6 +518,11 @@ static void cfg_write(struct slp_cfg_item *it, bool *changed, bool *reboot, bool
         case SLP_CFG_OVERSAMPLING:
             if (v < 1U || v > 32U) { flags = SLP_CFG_F_REJECTED; break; }
             shared_config.cis_oversampling = (uint8_t)v; *changed = true;
+            break;
+        case SLP_CFG_BLACK_POINT:
+            if (v > 200U) { flags = SLP_CFG_F_REJECTED; break; }
+            shared_config.cis_black_point = (uint8_t)v; *changed = true;
+            cis_composeOutputLut();   /* effet immediat, sans recalibration */
             break;
         case SLP_CFG_HANDEDNESS:
             if (v > 1U) { flags = SLP_CFG_F_REJECTED; break; }

@@ -49,6 +49,7 @@ const struct shared_config DefaultConfig =
     .cis_print_calibration = DEFAULT_CIS_PRINT_CALIBRATION,
     .cis_dpi = DEFAULT_CIS_DPI,
     .cis_oversampling = DEFAULT_CIS_OVERSAMPLING,
+    .cis_black_point = DEFAULT_CIS_BLACK_POINT,
     .cis_handedness = DEFAULT_CIS_HANDEDNESS,
     .imu_gyro_sensitivity = DEFAULT_GYRO_SENSITIVITY,
     .imu_accel_sensitivity = DEFAULT_ACCEL_SENSITIVITY,
@@ -150,6 +151,10 @@ static fileManager_StatusTypeDef file_parseLine(char* line, volatile struct shar
             {
                 config->cis_oversampling = (uint8_t)strtoul(value, NULL, 10);
             }
+            else if (strcmp(token, "CIS_BLACK_POINT") == 0)
+            {
+                config->cis_black_point = (uint8_t)strtoul(value, NULL, 10);
+            }
             else if (strcmp(token, "CIS_HANDEDNESS") == 0)
             {
                 config->cis_handedness = (uint8_t)strtoul(value, NULL, 10);
@@ -232,6 +237,7 @@ fileManager_StatusTypeDef file_writeConfig(const char* filePath, const volatile 
     f_printf(&file, "CIS_PRINT_CALIBRATION=%u\n", config->cis_print_calibration);
     f_printf(&file, "CIS_DPI=%u\n", config->cis_dpi);
     f_printf(&file, "CIS_OVERSAMPLING=%u\n", config->cis_oversampling);
+    f_printf(&file, "CIS_BLACK_POINT=%u\n", config->cis_black_point);
     f_printf(&file, "CIS_HANDEDNESS=%u\n", config->cis_handedness);
     f_printf(&file, "IMU_GYRO_SENSITIVITY=%u\n", config->imu_gyro_sensitivity);
     f_printf(&file, "IMU_ACCEL_SENSITIVITY=%u\n", config->imu_accel_sensitivity);

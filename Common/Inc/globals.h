@@ -222,6 +222,7 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
+	uint8_t cis_black_point;        // Point noir de sortie, x1000 lineaire (0..200) : 0=physique, 55=dessin, ~25=photo
 	// Administration credentials, guarding every request that CHANGES the device
 	char admin_password[ADMIN_PASSWORD_LEN + 1]; // generated on first boot, never a fixed default
 	uint8_t admin_password_ack;     // 1 once it has been used: the boot screen stops showing it

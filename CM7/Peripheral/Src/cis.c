@@ -214,6 +214,7 @@ static CIS_StatusTypeDef cis_configure(void)
     	printf("CIS load calibration ERROR\n");
     	return CIS_ERROR;
     }
+    cis_composeOutputLut();
 
     /* Initialize variables based on the desired DPI */
     if (shared_config.cis_dpi == 400)
