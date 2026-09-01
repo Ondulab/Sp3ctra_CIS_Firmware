@@ -350,6 +350,20 @@
    a 3 : l'IIR ne corrige que sa vraie cible, la derive thermique. Le residuel
    ~0,3-0,5 %% a 40-56 Hz est un chantier MATERIEL (alimentation). */
 #define CIS_DRIFT_IIR_SHIFT                     (3)
+
+/* Annuleur adaptatif LMS de l'ondulation du piedestal (mesure 2026-09-01 : raie
+   48-58 Hz errante, coherence fenetre noire<->actifs 0,95-0,99 au pic mais
+   dephasee ~120 deg -- une soustraction directe AGGRAVE, il faut un filtre qui
+   apprend gain ET phase par canal). Reference = residu rapide de la fenetre noire
+   (partie que l'IIR de derive ne suit pas) ; le FIR adaptatif par (couleur, voie)
+   s'ajoute au terme de derive : cout par pixel nul, ~200k MAC/s au total.
+   L'erreur utilise la moyenne des actifs bruts, ecretee pour les transitoires de
+   scene. Annule toute interference coherente avec le piedestal, quelle que soit
+   sa frequence. */
+#define CIS_LMS_CANCELLER_ENABLED               (1)
+#define CIS_LMS_TAPS                            (24)   /* ~1,3 periode a 55 Hz */
+#define CIS_LMS_MU_SHIFT                        (4)    /* dw = (e*r) >> n, tau ~0,1 s */
+#define CIS_LMS_LEAK_SHIFT                      (12)   /* fuite, borne les poids */
 // Un échantillon IMU au-dessus du seuil garde la porte ouverte pendant ce temps : le
 // mouvement est détecté par à-coups, sans rémanence la porte battrait à chaque échantillon.
 #define CIS_CAL_MOTION_HOLD_MS                  (250)

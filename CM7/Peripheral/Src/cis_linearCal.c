@@ -91,6 +91,15 @@ static int32_t cisLevelNorm[CIS_CAL_LEVEL_COUNT][COLOR_CHANNELS][CIS_ADC_OUT_LAN
 static int32_t driftState[3][CIS_ADC_OUT_LANES];
 static bool driftPrimed = false;
 
+/* Moyennes brutes des demi-voies (gauche/droite) de la ligne courante : servent a
+   l'erreur de l'annuleur LMS et au journal de lignes. */
+static int16_t cisActHalfL[3][CIS_ADC_OUT_LANES];
+static int16_t cisActHalfR[3][CIS_ADC_OUT_LANES];
+#if CIS_LMS_CANCELLER_ENABLED
+static int16_t cisLmsRef[3][CIS_ADC_OUT_LANES];   /* residu rapide fenetre noire */
+static int16_t cisLmsYdbg;                        /* y du canal G voie1, pour le journal */
+#endif
+
 #if CIS_LINE_LOG_ENABLED
 /* Non statiques : leurs adresses se lisent dans la map pour le dump SWD. */
 struct cisLineLogEntry
@@ -98,12 +107,12 @@ struct cisLineLogEntry
     int16_t noir[3][CIS_ADC_OUT_LANES];   /* moyenne fenetre noire BRUTE   [couleur][voie] */
     int16_t act[3][CIS_ADC_OUT_LANES];    /* moyenne actifs BRUTE, demi-voie DROITE */
     int16_t rawact[3][CIS_ADC_OUT_LANES]; /* moyenne actifs BRUTE, demi-voie GAUCHE */
+    int16_t y_dbg;                        /* sortie de l'annuleur LMS, canal G voie1 */
+    uint32_t cyc;                         /* DWT->CYCCNT : l'acquisition tourne a 1107,4
+                                             lps mais ~4 %% des lignes sont sautees ; les
+                                             intervalles reels rendent le spectre exact
+                                             (Lomb-Scargle) au lieu d'un axe suppose. */
 };
-/* 6 points spatiaux le long de la barrette (2 par voie) : le profil de PHASE de
-   l'oscillation ~55 Hz au pic discrimine sa nature (gradient=alimentation,
-   bascule rigide=vibration, saut par ADC=references). */
-static int16_t cisLineLogRawAct[3][CIS_ADC_OUT_LANES];
-static int16_t cisLineLogRawActR[3][CIS_ADC_OUT_LANES];
 volatile uint32_t cisLineLogHead;
 struct cisLineLogEntry cisLineLog[CIS_LINE_LOG_N];
 #endif
@@ -273,6 +282,9 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                     driftState[c][l] += (target - driftState[c][l]) >> CIS_DRIFT_IIR_SHIFT;
                 }
                 globalDriftOffset[c][l] = driftState[c][l] >> 3;
+#if CIS_LMS_CANCELLER_ENABLED
+                cisLmsRef[c][l] = (int16_t)((target >> 3) - globalDriftOffset[c][l]);
+#endif
             }
         }
         driftPrimed = true;
@@ -332,10 +344,7 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
      */
     (void)maxClipValue;  /* la sortie est bornée par construction de la courbe */
 
-#if CIS_LINE_LOG_ENABLED
-    /* Actifs BRUTS de cette ligne (la boucle pixel ci-dessous les reecrit en 0..255) :
-       necessaires pour mesurer le couplage reel piedestal->photodiodes sans que la
-       correction de derive ne s'entremele a la mesure. */
+    /* Moyennes brutes des demi-voies AVANT toute correction : erreur du LMS + journal. */
     {
         const uint32_t offs[3] = { (uint32_t)cisConfig.red_offset,
                                    (uint32_t)cisConfig.green_offset,
@@ -349,10 +358,58 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                 int32_t sa = 0, sb = 0;
                 for (int32_t k = 0; k < half; k++) sa += pa[k];
                 for (int32_t k = half; k < cisConfig.pixels_per_color_per_lane; k++) sb += pa[k];
-                cisLineLogRawAct[c][l]  = (int16_t)(sa / half);
-                cisLineLogRawActR[c][l] = (int16_t)(sb / (cisConfig.pixels_per_color_per_lane - half));
+                cisActHalfL[c][l] = (int16_t)(sa / half);
+                cisActHalfR[c][l] = (int16_t)(sb / (cisConfig.pixels_per_color_per_lane - half));
             }
         }
+    }
+
+#if CIS_LMS_CANCELLER_ENABLED
+    /* Annuleur adaptatif : voir config.h. y s'ajoute au terme de derive de CETTE
+       ligne (avant la boucle pixel), l'adaptation minimise la correlation entre le
+       residu des actifs et l'historique de la fenetre noire. */
+    {
+        static int16_t refHist[3][CIS_ADC_OUT_LANES][CIS_LMS_TAPS];
+        static int32_t wq15[3][CIS_ADC_OUT_LANES][CIS_LMS_TAPS];
+        static int32_t actSlowQ3[3][CIS_ADC_OUT_LANES];
+        static uint32_t lmsIdx;
+        const int32_t h0 = (int32_t)(lmsIdx % CIS_LMS_TAPS);
+        for (int32_t c = 0; c < 3; c++)
+        {
+            for (int32_t l = 0; l < CIS_ADC_OUT_LANES; l++)
+            {
+                refHist[c][l][h0] = cisLmsRef[c][l];
+                int32_t y = 0;
+                for (int32_t k = 0; k < CIS_LMS_TAPS; k++)
+                {
+                    y += wq15[c][l][k] * refHist[c][l][(h0 - k + CIS_LMS_TAPS) % CIS_LMS_TAPS];
+                }
+                y >>= 15;
+                if (y > CIS_DRIFT_THRESHOLD) { y = CIS_DRIFT_THRESHOLD; }
+                else if (y < -CIS_DRIFT_THRESHOLD) { y = -CIS_DRIFT_THRESHOLD; }
+
+                const int32_t act = ((int32_t)cisActHalfL[c][l] + (int32_t)cisActHalfR[c][l]) / 2;
+                if (lmsIdx == 0U)
+                {
+                    actSlowQ3[c][l] = act << 3;
+                }
+                actSlowQ3[c][l] += ((act << 3) - actSlowQ3[c][l]) >> 3;
+                int32_t e = act - (actSlowQ3[c][l] >> 3) - y;
+                if (e > 127) { e = 127; } else if (e < -127) { e = -127; }  /* scene */
+
+                for (int32_t k = 0; k < CIS_LMS_TAPS; k++)
+                {
+                    const int32_t r = refHist[c][l][(h0 - k + CIS_LMS_TAPS) % CIS_LMS_TAPS];
+                    wq15[c][l][k] += (e * r) >> CIS_LMS_MU_SHIFT;
+                    wq15[c][l][k] -= wq15[c][l][k] >> CIS_LMS_LEAK_SHIFT;
+                }
+                globalDriftOffset[c][l] += y;
+#if CIS_LINE_LOG_ENABLED
+                if (c == 1 && l == 1) { cisLmsYdbg = (int16_t)y; }
+#endif
+            }
+        }
+        lmsIdx++;
     }
 #endif
 
@@ -415,7 +472,14 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
        boucle ci-dessus (elle demarre aux offsets actifs), on y lit donc encore le brut
        de CETTE ligne ; les actifs, eux, sont desormais en sortie calibree 0..255. */
     {
+        if ((DWT->CTRL & DWT_CTRL_CYCCNTENA_Msk) == 0U)
+        {
+            CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+            DWT->CYCCNT = 0U;
+            DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+        }
         struct cisLineLogEntry *e = &cisLineLog[cisLineLogHead % CIS_LINE_LOG_N];
+        e->cyc = DWT->CYCCNT;
         const uint32_t offs[3] = { (uint32_t)cisConfig.red_offset,
                                    (uint32_t)cisConfig.green_offset,
                                    (uint32_t)cisConfig.blue_offset };
@@ -429,10 +493,13 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                 for (int32_t k = 0; k < CIS_USEFUL_BLACK_PIXELS; k++) sn += pn[k];
                 e->noir[c][lane] = (int16_t)(sn / CIS_USEFUL_BLACK_PIXELS);
 
-                e->act[c][lane] = cisLineLogRawActR[c][lane];
-                e->rawact[c][lane] = cisLineLogRawAct[c][lane];
+                e->act[c][lane] = cisActHalfR[c][lane];
+                e->rawact[c][lane] = cisActHalfL[c][lane];
             }
         }
+#if CIS_LMS_CANCELLER_ENABLED
+        e->y_dbg = cisLmsYdbg;
+#endif
         cisLineLogHead++;
     }
 #endif
