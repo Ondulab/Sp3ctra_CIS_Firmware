@@ -1416,8 +1416,14 @@ static void http_server(struct netconn *conn)
 					/* Calibration du voile : vitre face a RIEN (papier noir a 20-30 cm) */
 					else if (strncmp((char const *)buf, "POST /startVeil", 15) == 0)
 					{
-						cisVeilRequested = 1;
-						const char *resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nVeil calibration started";
+						/* target=black : ancre noire sur CIBLE noire, LEDs allumees, en
+						   GLISSANT (le zero par pixel du mode Dessin, stries annulees par
+						   construction). Sans argument : voile en l'air (mode Physique). */
+						const bool black = (strstr(buf, "target=black") != NULL);
+						cisVeilRequested = black ? 2U : 1U;
+						const char *resp = black
+						    ? "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nBlack target anchor started - GLIDE on black paper now"
+						    : "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nVeil calibration started";
 						netconn_write(conn, resp, strlen(resp), NETCONN_COPY);
 					}
 

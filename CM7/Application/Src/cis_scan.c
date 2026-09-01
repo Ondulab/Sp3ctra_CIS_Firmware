@@ -185,8 +185,9 @@ static void cis_scanTask(void *argument)
 
         if (cisVeilRequested)
         {
+            const bool onBlack = (cisVeilRequested == 2U);
             cisVeilRequested = 0;
-            cis_calibrateVeil(cisDataCpy);
+            cis_calibrateVeil(cisDataCpy, onBlack);
         }
 
         // 1) Retrieve a free buffer (blocks if none available)

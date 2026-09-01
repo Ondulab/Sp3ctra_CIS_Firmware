@@ -1025,7 +1025,7 @@ static int32_t cis_veilDataIndex(int32_t k)
  * dans CIS_VEIL_FILE puis replie dans offsetData. Ensuite le repli est rejoue par
  * cis_refreshDarkReferences a chaque demarrage de capture.
  */
-void cis_calibrateVeil(int32_t *cisDataCpy)
+void cis_calibrateVeil(int32_t *cisDataCpy, bool onBlackTarget)
 {
     char path[64];
     sprintf(path, CIS_VEIL_FILE_PATH_FORMAT, (unsigned)shared_config.cis_dpi);
@@ -1035,13 +1035,19 @@ void cis_calibrateVeil(int32_t *cisDataCpy)
         printf("VEIL: no valid calibration, aborted\n");
         return;
     }
-    printf("===== VEIL CALIBRATION (glass must face NOTHING) =====\n");
+    printf(onBlackTarget
+           ? "===== BLACK TARGET ANCHOR (GLIDE on black paper, LEDs on) =====\n"
+           : "===== VEIL CALIBRATION (glass must face NOTHING) =====\n");
     f_unlink(path);                                  /* sinon le refresh replierait l'ancienne */
 
     cis_refreshDarkReferences(cisDataCpy);           /* offsets = noir frais, LEDs restaurees */
     osDelay(40);
 
-    if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data, CIS_VEIL_ITER, 0, 100, false) != CIS_OK)
+    /* Sur cible noire : le MOUVEMENT moyenne la texture du papier (comme l'ancre
+       blanche) ; en l'air il n'y a rien a moyenner. */
+    if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data,
+                                        onBlackTarget ? CIS_CAL_ITER_ANCHOR : CIS_VEIL_ITER,
+                                        0, 100, onBlackTarget) != CIS_OK)
     {
         printf("VEIL: capture FAILED, nothing written\n");
         return;
