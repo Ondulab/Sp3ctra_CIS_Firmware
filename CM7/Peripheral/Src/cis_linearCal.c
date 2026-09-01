@@ -96,10 +96,14 @@ static bool driftPrimed = false;
 struct cisLineLogEntry
 {
     int16_t noir[3][CIS_ADC_OUT_LANES];   /* moyenne fenetre noire BRUTE   [couleur][voie] */
-    int16_t act[3][CIS_ADC_OUT_LANES];    /* moyenne sortie calibree en Q4 [couleur][voie] */
-    int16_t rawact[3][CIS_ADC_OUT_LANES]; /* moyenne actifs BRUTE, avant toute correction */
+    int16_t act[3][CIS_ADC_OUT_LANES];    /* moyenne actifs BRUTE, demi-voie DROITE */
+    int16_t rawact[3][CIS_ADC_OUT_LANES]; /* moyenne actifs BRUTE, demi-voie GAUCHE */
 };
+/* 6 points spatiaux le long de la barrette (2 par voie) : le profil de PHASE de
+   l'oscillation ~55 Hz au pic discrimine sa nature (gradient=alimentation,
+   bascule rigide=vibration, saut par ADC=references). */
 static int16_t cisLineLogRawAct[3][CIS_ADC_OUT_LANES];
+static int16_t cisLineLogRawActR[3][CIS_ADC_OUT_LANES];
 volatile uint32_t cisLineLogHead;
 struct cisLineLogEntry cisLineLog[CIS_LINE_LOG_N];
 #endif
@@ -341,9 +345,12 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
             for (int32_t l = 0; l < CIS_ADC_OUT_LANES; l++)
             {
                 const int32_t *pa = &cisDataCpy[(cisConfig.useful_data_size_per_lane * l) + offs[c]];
-                int32_t sa = 0;
-                for (int32_t k = 0; k < cisConfig.pixels_per_color_per_lane; k++) sa += pa[k];
-                cisLineLogRawAct[c][l] = (int16_t)(sa / cisConfig.pixels_per_color_per_lane);
+                const int32_t half = cisConfig.pixels_per_color_per_lane / 2;
+                int32_t sa = 0, sb = 0;
+                for (int32_t k = 0; k < half; k++) sa += pa[k];
+                for (int32_t k = half; k < cisConfig.pixels_per_color_per_lane; k++) sb += pa[k];
+                cisLineLogRawAct[c][l]  = (int16_t)(sa / half);
+                cisLineLogRawActR[c][l] = (int16_t)(sb / (cisConfig.pixels_per_color_per_lane - half));
             }
         }
     }
@@ -422,10 +429,7 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                 for (int32_t k = 0; k < CIS_USEFUL_BLACK_PIXELS; k++) sn += pn[k];
                 e->noir[c][lane] = (int16_t)(sn / CIS_USEFUL_BLACK_PIXELS);
 
-                const int32_t *pa = &cisDataCpy[base];
-                int32_t sa = 0;
-                for (int32_t k = 0; k < cisConfig.pixels_per_color_per_lane; k++) sa += pa[k];
-                e->act[c][lane] = (int16_t)((sa * 16) / cisConfig.pixels_per_color_per_lane);
+                e->act[c][lane] = cisLineLogRawActR[c][lane];
                 e->rawact[c][lane] = cisLineLogRawAct[c][lane];
             }
         }
