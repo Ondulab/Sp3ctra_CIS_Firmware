@@ -296,7 +296,16 @@
 // l'ancien format serait relu comme des données valides (la lecture ne teste que la
 // taille, et l'ancien fichier est plus GRAND) et produirait une image aberrante.
 #define CIS_CAL_FILE_MAGIC                      (0x53503343UL)  /* "SP3C" */
-#define CIS_CAL_FILE_VERSION                    (9UL)  /* v9 : sRGB + equilibre couleur */
+#define CIS_CAL_FILE_VERSION                    (10UL) /* v10 : + point noir */
+
+/* Point noir de sortie (x1000, domaine lineaire, applique apres l'equilibre
+   couleur, avant le gamma). Convention scanner : le zero de sortie = le materiau
+   le plus noir utilise, pas l'obscurite totale -- sinon un papier noir encode sa
+   reflectance reelle en sRGB et sort gris (mesure 2026-09-01 : Clairefontaine
+   noir = 5,2-6,2 %% -> sRGB 64). A 55, ce papier sort ~0-15. Contrepartie
+   assumee : toute reflectance < 5,5 %% (noirs profonds de tirages) ecrase a 0.
+   0 = comportement physique pur. La mire couleur affinera. */
+#define CIS_OUTPUT_BLACK_POINT_X1000            (55)
 
 /* Equilibre couleur de sortie, en domaine LINEAIRE, applique avant l'encodage
    sRGB lors de la construction des courbes (cout runtime nul). Mesure du

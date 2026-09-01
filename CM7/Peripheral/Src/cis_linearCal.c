@@ -1086,6 +1086,10 @@ static void cis_buildCurves(uint32_t maxOut)
                                                    CIS_OUTPUT_TRIM_B_X1000 / 1000.0f };
                     yf *= trim[c];
                 }
+                {
+                    const float bp = CIS_OUTPUT_BLACK_POINT_X1000 / 1000.0f;
+                    yf = (yf - bp) / (1.0f - bp);
+                }
                 if (yf < 0.0f) { yf = 0.0f; } else if (yf > 1.0f) { yf = 1.0f; }
                 const float enc = (yf <= 0.0031308f) ? (12.92f * yf)
                                 : (1.055f * powf(yf, 1.0f / 2.4f) - 0.055f);
