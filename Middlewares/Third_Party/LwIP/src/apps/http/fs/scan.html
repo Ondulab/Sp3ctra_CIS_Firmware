@@ -86,6 +86,15 @@
                     </div>
                 </div>
                 <div class="box">
+                    <span class="boxlabel">BLACK POINT</span>
+                    <div id="loadingIndicatorBp" class="button-loading2" style="display:none;"></div>
+                    <select id="blackpoint" onchange="updateBlackPoint(this.value)">
+                        <option value="0">Physique (0)</option>
+                        <option value="25">Photo (25)</option>
+                        <option value="55">Dessin (55)</option>
+                    </select>
+                </div>
+                <div class="box">
                     <span class="boxlabel">OVERSAMPLING</span>
                     <div id="loadingIndicator" class="button-loading2" style="display:none;"></div>
                     <select id="oversampling" onchange="updateOversampling(this.value)">
@@ -465,6 +474,30 @@
                 xhr.send("oversampling=" + newOversampling);
             });
         }
+        function loadBlackPoint() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "/getBlackPoint", true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        document.getElementById('blackpoint').value = xhr.responseText.trim();
+                        resolve();
+                    }
+                    else { reject(new Error("getBlackPoint: " + xhr.status)); }
+                };
+                xhr.onerror = () => reject(new Error("Network request failed"));
+                xhr.send();
+            });
+        }
+        function updateBlackPoint(v) {
+            var ind = document.getElementById('loadingIndicatorBp');
+            ind.style.display = 'inline-flex';
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/setBlackPoint", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.onload = xhr.onerror = function () { ind.style.display = 'none'; };
+            xhr.send("black_point=" + v);
+        }
         function setHand(value) {
             var buttons = document.querySelectorAll('.hand-button');
             var handValue = "";
@@ -569,6 +602,7 @@
                 .then(() => loadDPI())
                 .then(() => loadHand())
                 .then(() => loadOversampling())
+            .then(() => loadBlackPoint())
                 .catch(e => console.error('CIS settings failed to load:', e));
         });
     </script>

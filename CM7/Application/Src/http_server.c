@@ -24,6 +24,7 @@
 #include "lwip/apps/fs.h"
 
 #include "string.h"
+#include "cis_linearCal.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "stdbool.h"
@@ -1009,6 +1010,15 @@ static void http_server(struct netconn *conn)
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
+					/* Point noir de sortie (x1000 lineaire) : 0 physique, 55 dessin, ~25 photo */
+					else if (strncmp((char const *)buf, "GET /getBlackPoint", 18) == 0)
+					{
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_black_point);
+
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
 					/* Get hand settings */
 					else if (strncmp((char const *)buf, "GET /getHand", 12) == 0)
 					{
@@ -1374,6 +1384,31 @@ static void http_server(struct netconn *conn)
 						else
 						{
 							char *errorResponse = "Error: Oversampling value not found";
+							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
+						}
+					}
+
+					/* Point noir : applique a chaud (recomposition de la LUT de rendu), persiste */
+					else if (strncmp((char const *)buf, "POST /setBlackPoint", 19) == 0)
+					{
+						char *bpValue = strstr(buf, "black_point=");
+						if (bpValue) bpValue += 12;
+
+						if (bpValue)
+						{
+							int v = atoi(bpValue);
+							if (v < 0) v = 0; else if (v > 200) v = 200;
+							shared_config.cis_black_point = (uint8_t)v;
+							cis_composeOutputLut();
+							file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+							char response[100];
+							int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nBlack point set to %d", (int)shared_config.cis_black_point);
+							netconn_write(conn, response, len, NETCONN_COPY);
+						}
+						else
+						{
+							char *errorResponse = "Error: black_point value not found";
 							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
 						}
 					}
