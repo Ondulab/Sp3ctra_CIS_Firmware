@@ -296,7 +296,24 @@
 // l'ancien format serait relu comme des données valides (la lecture ne teste que la
 // taille, et l'ancien fichier est plus GRAND) et produirait une image aberrante.
 #define CIS_CAL_FILE_MAGIC                      (0x53503343UL)  /* "SP3C" */
-#define CIS_CAL_FILE_VERSION                    (7UL)  /* tableaux canoniques R,G,B */
+#define CIS_CAL_FILE_VERSION                    (9UL)  /* v9 : sRGB + equilibre couleur */
+
+/* Equilibre couleur de sortie, en domaine LINEAIRE, applique avant l'encodage
+   sRGB lors de la construction des courbes (cout runtime nul). Mesure du
+   2026-09-01 par appariement de quantiles entre un scan de tirage photo et le
+   fichier original : deficit rouge ~11 %% constant sur toute la gamme (R-G = -13
+   codes sRGB contre -3 attendus), leger exces bleu. Provisoire en attendant une
+   mire couleur ; x1000, 1000 = neutre. */
+#define CIS_OUTPUT_TRIM_R_X1000                 (1110)
+#define CIS_OUTPUT_TRIM_G_X1000                 (1000)
+#define CIS_OUTPUT_TRIM_B_X1000                 (970)
+
+/* Encodage gamma sRGB de la sortie, compose dans les LUT a la calibration (cout
+   runtime nul). Mesure du 2026-09-01 sur un scan de tirage photo : la sortie
+   lineaire en lumiere affichee telle quelle ecrase les tons moyens ~2x et
+   affame les ombres en codes 8 bits (aggrave la posterisation sombre). A 0,
+   sortie lineaire (comportement historique) pour la synthese si necessaire. */
+#define CIS_OUTPUT_GAMMA_SRGB                   (1)  /* tableaux canoniques R,G,B */
 
 /* Asservissement thermique des LED.
    Mesure inter-boots : l'eclairement global derive de ~10 % entre deux etats

@@ -1072,9 +1072,29 @@ static void cis_buildCurves(uint32_t maxOut)
                 }
 
                 const int32_t dx = xs[k + 1] - xs[k];
+#if CIS_OUTPUT_GAMMA_SRGB
+                /* Interpolation en flottant puis encodage sRGB : la reflectance
+                   lineaire y/maxOut devient un code perceptuel. Composer ICI (et non
+                   sur le 8 bits final) garde toute la resolution dans les ombres. */
+                float yf = (dx > 0)
+                         ? ((float)ys[k] + (float)(n - xs[k]) * (float)(ys[k + 1] - ys[k]) / (float)dx)
+                         : (float)ys[k + 1];
+                yf /= (float)maxOut;
+                {
+                    static const float trim[3] = { CIS_OUTPUT_TRIM_R_X1000 / 1000.0f,
+                                                   CIS_OUTPUT_TRIM_G_X1000 / 1000.0f,
+                                                   CIS_OUTPUT_TRIM_B_X1000 / 1000.0f };
+                    yf *= trim[c];
+                }
+                if (yf < 0.0f) { yf = 0.0f; } else if (yf > 1.0f) { yf = 1.0f; }
+                const float enc = (yf <= 0.0031308f) ? (12.92f * yf)
+                                : (1.055f * powf(yf, 1.0f / 2.4f) - 0.055f);
+                int32_t y = (int32_t)(enc * (float)maxOut + 0.5f);
+#else
                 int32_t y = (dx > 0)
                           ? (ys[k] + ((n - xs[k]) * (ys[k + 1] - ys[k])) / dx)
                           : ys[k + 1];
+#endif
 
                 if (y < 0)                  y = 0;
                 if (y > (int32_t)maxOut)    y = (int32_t)maxOut;
