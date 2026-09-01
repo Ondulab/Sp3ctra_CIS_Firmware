@@ -86,6 +86,24 @@ static const uint8_t cisCalLevels[CIS_CAL_LEVEL_COUNT] = CIS_CAL_LEVELS;
    pixel a pixel. C'est ce qui rend le nombre de niveaux gratuit en memoire. */
 static int32_t cisLevelNorm[CIS_CAL_LEVEL_COUNT][COLOR_CHANNELS][CIS_ADC_OUT_LANES];
 
+/* Etat de l'IIR de derive (Q3), au niveau fichier : cis_refreshDarkReferences le
+   re-amorce apres avoir rebase offsets et references noires. */
+static int32_t driftState[3][CIS_ADC_OUT_LANES];
+static bool driftPrimed = false;
+
+#if CIS_LINE_LOG_ENABLED
+/* Non statiques : leurs adresses se lisent dans la map pour le dump SWD. */
+struct cisLineLogEntry
+{
+    int16_t noir[3][CIS_ADC_OUT_LANES];   /* moyenne fenetre noire BRUTE   [couleur][voie] */
+    int16_t act[3][CIS_ADC_OUT_LANES];    /* moyenne sortie calibree en Q4 [couleur][voie] */
+    int16_t rawact[3][CIS_ADC_OUT_LANES]; /* moyenne actifs BRUTE, avant toute correction */
+};
+static int16_t cisLineLogRawAct[3][CIS_ADC_OUT_LANES];
+volatile uint32_t cisLineLogHead;
+struct cisLineLogEntry cisLineLog[CIS_LINE_LOG_N];
+#endif
+
 /* Private user code ---------------------------------------------------------*/
 
 void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult)
@@ -237,9 +255,6 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
        a ligne dans TOUTE la ligne -- c'est du banding fabrique par la correction
        elle-meme. Etat en Q3 pour ne pas perdre la resolution sous l'IIR. */
     {
-        static int32_t driftState[3][CIS_ADC_OUT_LANES];  /* Q3 */
-        static bool driftPrimed = false;
-
         for (int32_t c = 0; c < 3; c++)
         {
             for (int32_t l = 0; l < CIS_ADC_OUT_LANES; l++)
@@ -251,7 +266,7 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                 }
                 else
                 {
-                    driftState[c][l] += (target - driftState[c][l]) >> 3;
+                    driftState[c][l] += (target - driftState[c][l]) >> CIS_DRIFT_IIR_SHIFT;
                 }
                 globalDriftOffset[c][l] = driftState[c][l] >> 3;
             }
@@ -313,6 +328,27 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
      */
     (void)maxClipValue;  /* la sortie est bornée par construction de la courbe */
 
+#if CIS_LINE_LOG_ENABLED
+    /* Actifs BRUTS de cette ligne (la boucle pixel ci-dessous les reecrit en 0..255) :
+       necessaires pour mesurer le couplage reel piedestal->photodiodes sans que la
+       correction de derive ne s'entremele a la mesure. */
+    {
+        const uint32_t offs[3] = { (uint32_t)cisConfig.red_offset,
+                                   (uint32_t)cisConfig.green_offset,
+                                   (uint32_t)cisConfig.blue_offset };
+        for (int32_t c = 0; c < 3; c++)
+        {
+            for (int32_t l = 0; l < CIS_ADC_OUT_LANES; l++)
+            {
+                const int32_t *pa = &cisDataCpy[(cisConfig.useful_data_size_per_lane * l) + offs[c]];
+                int32_t sa = 0;
+                for (int32_t k = 0; k < cisConfig.pixels_per_color_per_lane; k++) sa += pa[k];
+                cisLineLogRawAct[c][l] = (int16_t)(sa / cisConfig.pixels_per_color_per_lane);
+            }
+        }
+    }
+#endif
+
     /* Les DONNEES sont a des positions tournantes (l'assignation ligne->couleur du
        capteur change a la mise sous tension, mesuree par l'identification LED) ; les
        TABLEAUX de calibration sont canoniques : R, G, B dans cet ordre, toujours.
@@ -366,6 +402,36 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                                                 CIS_CAL_CURVE_BITS)];
         }
     }
+
+#if CIS_LINE_LOG_ENABLED
+    /* Journal par ligne : la fenetre noire de cisDataCpy n'est PAS reecrite par la
+       boucle ci-dessus (elle demarre aux offsets actifs), on y lit donc encore le brut
+       de CETTE ligne ; les actifs, eux, sont desormais en sortie calibree 0..255. */
+    {
+        struct cisLineLogEntry *e = &cisLineLog[cisLineLogHead % CIS_LINE_LOG_N];
+        const uint32_t offs[3] = { (uint32_t)cisConfig.red_offset,
+                                   (uint32_t)cisConfig.green_offset,
+                                   (uint32_t)cisConfig.blue_offset };
+        for (int32_t c = 0; c < 3; c++)
+        {
+            for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+            {
+                const uint32_t base = (cisConfig.useful_data_size_per_lane * lane) + offs[c];
+                const int32_t *pn = &cisDataCpy[base - CIS_BLACK_PIXELS + CIS_IGNORE_FIRST_BLACK_PIXELS];
+                int32_t sn = 0;
+                for (int32_t k = 0; k < CIS_USEFUL_BLACK_PIXELS; k++) sn += pn[k];
+                e->noir[c][lane] = (int16_t)(sn / CIS_USEFUL_BLACK_PIXELS);
+
+                const int32_t *pa = &cisDataCpy[base];
+                int32_t sa = 0;
+                for (int32_t k = 0; k < cisConfig.pixels_per_color_per_lane; k++) sa += pa[k];
+                e->act[c][lane] = (int16_t)((sa * 16) / cisConfig.pixels_per_color_per_lane);
+                e->rawact[c][lane] = cisLineLogRawAct[c][lane];
+            }
+        }
+        cisLineLogHead++;
+    }
+#endif
 }
 #pragma GCC pop_options
 
@@ -455,7 +521,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
         }
     }
 
-    if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data, CIS_CAL_ITER_ANCHOR, 0, 100) != CIS_OK)
+    if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data, CIS_CAL_ITER_ANCHOR, 0, 100, true) != CIS_OK)
     {
         printf("Calibration ABORTED during the white capture, previous calibration kept\n");
         goto abort;
@@ -470,7 +536,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
     cis_ledPowerAdj(CIS_BLACK_LED_POWER, CIS_BLACK_LED_POWER, CIS_BLACK_LED_POWER);
     osDelay(200);
 
-    if (cis_imageProcessRGB_Calibration(cisDataCpy, blackCal.data, CIS_CAL_ITER_ANCHOR, 0, 100) != CIS_OK)
+    if (cis_imageProcessRGB_Calibration(cisDataCpy, blackCal.data, CIS_CAL_ITER_ANCHOR, 0, 100, true) != CIS_OK)
     {
         printf("Calibration ABORTED during the black capture, previous calibration kept\n");
         goto abort;
@@ -523,7 +589,7 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
             osDelay(200);
 
             if (cis_imageProcessRGB_Calibration(cisDataCpy, intermediateCal.data,
-                                                CIS_CAL_ITER_LEVEL, base, span) != CIS_OK)
+                                                CIS_CAL_ITER_LEVEL, base, span, true) != CIS_OK)
             {
                 printf("Calibration ABORTED during the %d%% level capture, previous calibration kept\n",
                        (int)duty);
@@ -712,6 +778,85 @@ static void cis_computeAffine(struct cisCalsTypes *whiteCal, struct cisCalsTypes
             }
         }
     }
+}
+
+/**
+ * @brief  Ancre noire fraiche a chaque demarrage de capture.
+ *
+ * Mesure du 2026-08-31 (SWD, scene statique) : entre les offsets stockes par la
+ * calibration et le noir courant subsiste un residu PAR PIXEL de 16-21 LSB14 --
+ * la derive du courant d'obscurite depuis la calibration, que la correction de
+ * derive par voie ne peut pas voir. A travers gain x pente de courbe, ce residu
+ * explique 50-70 %% du banding des teintes sombres. Remede : recapturer l'ancre
+ * noire (LEDs eteintes, aucun mouvement requis) et rebaser offsets et references
+ * de derive. Les GAINS restent : ils decrivent la sensibilite, qui ne derive pas
+ * a cette echelle (span modifie de ~0,3 %%).
+ *
+ * S'execute en ~200 ms en fin de cis_startCapture, identification LED comprise :
+ * la rotation couleur est donc deja connue et les positions canoniques justes.
+ */
+void cis_refreshDarkReferences(int32_t *cisDataCpy)
+{
+    if (cisCals.magic != CIS_CAL_FILE_MAGIC || cisCals.version != CIS_CAL_FILE_VERSION)
+    {
+        printf("CIS: dark refresh skipped (no valid calibration)\n");
+        return;
+    }
+
+    cis_ledPowerAdj(CIS_BLACK_LED_POWER, CIS_BLACK_LED_POWER, CIS_BLACK_LED_POWER);
+    osDelay(40);   /* purge : charge integree pendant l'etat LEDs allumees + pipeline */
+
+    if (cis_imageProcessRGB_Calibration(cisDataCpy, blackCal.data,
+                                        CIS_CAL_DARK_REFRESH_ITER, 0, 100, false) != CIS_OK)
+    {
+        printf("CIS: dark refresh capture FAILED, offsets kept\n");
+        cis_ledPowerAdj(100, 100, 100);
+        return;
+    }
+
+    /* References de derive par couleur et par voie (memes conversions que la
+       calibration, cis_startLinearCalibration). */
+    cis_ComputeCalsInactivesAvrg(&blackCal, CIS_RED);
+    cis_ComputeCalsInactivesAvrg(&blackCal, CIS_GREEN);
+    cis_ComputeCalsInactivesAvrg(&blackCal, CIS_BLUE);
+    for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+    {
+        cisCals.blackRefInactiveAvg[0][lane] = (blackCal.red.inactiveAvrgPix[lane]   + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS;
+        cisCals.blackRefInactiveAvg[1][lane] = (blackCal.green.inactiveAvrgPix[lane] + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS;
+        cisCals.blackRefInactiveAvg[2][lane] = (blackCal.blue.inactiveAvrgPix[lane]  + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS;
+    }
+
+    /* Offsets par pixel : positions donnees (tournantes) vers positions canoniques,
+       exactement comme cis_computeAffine -- mais SANS toucher aux gains. */
+    int32_t shiftMin = INT32_MAX, shiftMax = INT32_MIN;
+    for (int32_t c = 0; c < COLOR_CHANNELS; c++)
+    {
+        const uint32_t dataOff = (c == 0) ? (uint32_t)cisConfig.red_offset
+                               : (c == 1) ? (uint32_t)cisConfig.green_offset
+                                          : (uint32_t)cisConfig.blue_offset;
+        const uint32_t calOff = (uint32_t)c * cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_PIXELS;
+
+        for (int32_t lane = CIS_ADC_OUT_LANES; --lane >= 0; )
+        {
+            const uint32_t laneData = (cisConfig.useful_data_size_per_lane * lane) + dataOff;
+            const uint32_t laneCal  = (cisConfig.useful_data_size_per_lane * lane) + calOff;
+
+            for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
+            {
+                const int32_t offs = ((int32_t)blackCal.data[laneData + i] + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS;
+                const int32_t d = offs - cisCals.offsetData[laneCal + i];
+                if (d < shiftMin) shiftMin = d;
+                if (d > shiftMax) shiftMax = d;
+                cisCals.offsetData[laneCal + i] = (int16_t)offs;
+            }
+        }
+    }
+
+    driftPrimed = false;   /* l'IIR de derive repart de la nouvelle reference */
+    printf("CIS: dark refresh, offsets rebased (shift %ld..%ld)\n",
+           (long)shiftMin, (long)shiftMax);
+
+    cis_ledPowerAdj(100, 100, 100);
 }
 
 /**

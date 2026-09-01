@@ -209,8 +209,16 @@
 #define CIS_SAMPLE_PIPELINE                     (2)
 
 // LED illumination durations in microseconds
-#define CIS_400DPI_LED_DURATION_US              (300)  // Duration in microseconds
-#define CIS_200DPI_LED_DURATION_US              (150)  // Duration in microseconds
+/* Fenetre d'eclairage par couleur, en VRAIES microsecondes depuis la correction du
+   domaine dans cis_configure (les timers LED tiquent en echantillons, 2 par periode
+   CP ; l'ancien calcul divisait par la periode CP et produisait une fenetre moitie
+   moindre qu'annonce). 225 us sur les 301 us de la fenetre d'integration 400 dpi :
+   mesure sur papier blanc, p95 = 10 400 comptes avec l'ancienne fenetre de 150 us
+   -> ~13 900 attendus, soit ~85 % des 16383 pleine echelle. Monter au-dela sature
+   les voies bleues au blanc de calibration. RECALIBRATION OBLIGATOIRE apres tout
+   changement ici. */
+#define CIS_400DPI_LED_DURATION_US              (225)
+#define CIS_200DPI_LED_DURATION_US              (112)
 
 #define CIS_MAX_ADC_BUFF_SIZE 	 	 		    ((CIS_MAX_LANE_SIZE) * (COLOR_CHANNELS))
 #define CIS_MAX_USEFUL_DATA_SIZE 			    (((CIS_BLACK_PIXELS) + (CIS_400DPI_PIXELS_PER_LANE)) * (COLOR_CHANNELS))
@@ -315,6 +323,33 @@
 // Les seuils sont ceux, déjà réglables (SLP / web), du détecteur de mouvement de
 // l'économiseur d'écran : shared_config.motion_threshold_acc / _gyro.
 #define CIS_CAL_REQUIRE_MOTION                  (1)
+
+/* Rafraichissement de l'ancre noire a chaque cis_startCapture : lignes moyennees,
+   LEDs eteintes (~200 ms a 1000 lps). Motive par la mesure du 2026-08-31 : residu
+   par pixel de 16-21 LSB14 entre offsets stockes et noir courant -- la derive DSNU
+   depuis la calibration -- expliquant 50-70 %% du banding des teintes sombres. */
+#define CIS_CAL_DARK_REFRESH_ITER               (200)
+
+/* Journal RAM des moyennes PAR LIGNE (fenetre noire brute + sortie calibree, par
+   couleur et par voie) : instrument du chantier banding horizontal, lu par SWD
+   (symboles cisLineLog / cisLineLogHead). 768 lignes ~ 0,72 s a 1063 lps, assez
+   pour voir un 100 Hz secteur (~10 lignes de periode). 0 en production. */
+#define CIS_LINE_LOG_ENABLED                    (1)
+#define CIS_LINE_LOG_N                          (768)
+
+/* Reactivite de l'IIR de derive (1/2^n sur l'erreur ; l'etat reste en Q3, dont le
+   >>3 de lecture est distinct). Historique : 3 (coupure ~20 Hz), choisi quand
+   l'injection du bruit de fenetre noire dominait. Mesure du 2026-09-01 (journal par
+   ligne) : le piedestal ondule a 42,5 Hz (periode 25 lignes, additive, presente dans
+   les pixels masques, coherente inter-voies) et l'IIR 1/8 la chasse avec retard de
+   phase -> banding horizontal, sortie anti-correlee a la fenetre noire (-0,3..-0,8).
+   CONCLUSION du 2026-09-01 apres mesure du couplage (journal v2, actifs bruts) :
+   k(noir->actifs) = -0,05..-0,40 -- les photodiodes ne voient PAS l'ondulation du
+   piedestal (elle est dans la LUMIERE/l'analogique, voies extremes anti-correlees) ;
+   accelerer l'IIR n'apporte rien et injecte le bruit de la fenetre noire. On reste
+   a 3 : l'IIR ne corrige que sa vraie cible, la derive thermique. Le residuel
+   ~0,3-0,5 %% a 40-56 Hz est un chantier MATERIEL (alimentation). */
+#define CIS_DRIFT_IIR_SHIFT                     (3)
 // Un échantillon IMU au-dessus du seuil garde la porte ouverte pendant ce temps : le
 // mouvement est détecté par à-coups, sans rémanence la porte battrait à chaque échantillon.
 #define CIS_CAL_MOTION_HOLD_MS                  (250)

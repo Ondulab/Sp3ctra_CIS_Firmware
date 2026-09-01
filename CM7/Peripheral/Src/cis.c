@@ -271,8 +271,13 @@ static CIS_StatusTypeDef cis_configure(void)
     /* Calculate the cycle duration in microseconds */
     float32_t cycle_duration_us = (1000000.0f / (float32_t)cisConfig.cis_clk_freq);
 
-    /* Calculate LED OFF index */
-    cisConfig.leds_off_index = (int)(leds_duration_us / cycle_duration_us) + CIS_LED_ON;
+    /* Fin de fenetre LED, en TICKS des timers LED. Ces timers sont esclaves de TIM1
+       et tiquent DEUX fois par periode CP (domaine echantillons, comme TIM8 : voir
+       tim.c) : le tick vaut cycle_duration_us / 2. L'ancien calcul divisait par la
+       periode CP entiere -> fenetre reelle moitie de la duree demandee (mesure SWD du
+       2026-08-31 : CCR 602 = 150 us au lieu des 300 configures, moitie de la lumiere
+       perdue sur toute la chaine, calibration comprise). */
+    cisConfig.leds_off_index = (int)(leds_duration_us / (cycle_duration_us / 2.0f)) + CIS_LED_ON;
 
     /* Check that led_off_index does not exceed CIS_MAX_LANE_SIZE */
     if (cisConfig.leds_off_index > CIS_MAX_LANE_SIZE)
@@ -550,7 +555,8 @@ void cis_imageProcess(int32_t *cisDataCpy, struct slp_line_cis *imageBuffers)
  */
 CIS_StatusTypeDef cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t *cisCalData,
                                                   uint16_t iterationNb,
-                                                  uint8_t progressBase, uint8_t progressSpan)
+                                                  uint8_t progressBase, uint8_t progressSpan,
+                                                  bool requireMotion)
 {
     uint32_t totalElements = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
     uint32_t i;
@@ -611,7 +617,7 @@ CIS_StatusTypeDef cis_imageProcessRGB_Calibration(int32_t *cisDataCpy, uint32_t 
         /* Capteur immobile : la ligne est jetee, pas comptabilisee. Moyenner iterationNb
            fois la meme portion de papier graverait son grain dans les gains par pixel.
            La barre de progression se fige, ce qui dit a l'operateur quoi faire. */
-        if (!cis_isMoving())
+        if (requireMotion && !cis_isMoving())
         {
             if (!stalledReported)
             {
@@ -928,6 +934,10 @@ void cis_startCapture()
         cis_ledPowerAdjFine(10000, 10000, 10000);
 
     }
+
+    /* Ancre noire fraiche : rebase les offsets par pixel et les references de derive
+       sur l'etat thermique COURANT du capteur (voir cis_refreshDarkReferences). */
+    cis_refreshDarkReferences(cisDataCpy);
 
 #ifdef CIS_PRINT_COUNTER
 	printf("=========== COUNTERS ==========\n");
