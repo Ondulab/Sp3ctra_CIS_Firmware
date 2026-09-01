@@ -30,6 +30,8 @@ typedef enum {
 CISCALIBRATION_StatusTypeDef cis_linearCalibrationInit(void);
 void cis_refreshDarkReferences(int32_t *cisDataCpy);
 void cis_composeOutputLut(void);
+void cis_calibrateVeil(int32_t *cisDataCpy);
+extern volatile uint8_t cisVeilRequested;
 void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint32_t bitDepth);
 void cis_printForCharacterization(float32_t* cisDataCpy_f32);
 

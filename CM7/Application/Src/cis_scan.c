@@ -183,6 +183,12 @@ static void cis_scanTask(void *argument)
     {
         cis_userCal();
 
+        if (cisVeilRequested)
+        {
+            cisVeilRequested = 0;
+            cis_calibrateVeil(cisDataCpy);
+        }
+
         // 1) Retrieve a free buffer (blocks if none available)
         xQueueReceive(freeBufferQueue, &pCurrentBuffer, portMAX_DELAY);
 

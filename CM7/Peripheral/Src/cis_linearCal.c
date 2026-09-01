@@ -26,6 +26,7 @@
 #include "arm_math.h"
 
 #include "file_manager.h"
+#include "ff.h"
 #include "cis.h"
 
 #include "cis_linearCal.h"
@@ -928,6 +929,36 @@ void cis_refreshDarkReferences(int32_t *cisDataCpy)
         }
     }
 
+    /* Repli du voile stocke, si present : offsets = noir frais + lumiere parasite. */
+    {
+        char path[64];
+        sprintf(path, CIS_VEIL_FILE_PATH_FORMAT, (unsigned)shared_config.cis_dpi);
+        FIL f;
+        if (f_open(&f, path, FA_READ) == FR_OK)
+        {
+            uint32_t hdr[4]; UINT br;
+            const int32_t total = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
+            if (f_read(&f, hdr, sizeof(hdr), &br) == FR_OK && br == sizeof(hdr)
+                && hdr[0] == CIS_VEIL_FILE_MAGIC && hdr[2] == shared_config.cis_dpi
+                && (int32_t)hdr[3] == total)
+            {
+                int16_t chunk[256];
+                int32_t k = 0;
+                for (;;)
+                {
+                    if (f_read(&f, chunk, sizeof(chunk), &br) != FR_OK || br == 0U) { break; }
+                    const int32_t cnt = (int32_t)(br / 2U);
+                    for (int32_t j = 0; j < cnt && k < total; j++, k++)
+                    {
+                        cisCals.offsetData[k] = (int16_t)(cisCals.offsetData[k] + chunk[j]);
+                    }
+                }
+                printf("CIS: veil map folded (%ld px)\n", (long)k);
+            }
+            f_close(&f);
+        }
+    }
+
     driftPrimed = false;   /* l'IIR de derive repart de la nouvelle reference */
     printf("CIS: dark refresh, offsets rebased (shift %ld..%ld)\n",
            (long)shiftMin, (long)shiftMax);
@@ -968,6 +999,87 @@ void cis_composeOutputLut(void)
     }
     printf("CIS: render LUT composed (black point %u/1000)\n",
            (unsigned)shared_config.cis_black_point);
+}
+
+volatile uint8_t cisVeilRequested = 0;
+
+/* Decomposition d'un index canonique d'offsetData en position DONNEE (rotation). */
+static int32_t cis_veilDataIndex(int32_t k)
+{
+    const int32_t perLane = cisConfig.useful_data_size_per_lane;           /* 3570 */
+    const int32_t perCol  = cisConfig.useful_data_size_per_color_per_lane; /* 1190 */
+    const int32_t lane = k / perLane, rem = k % perLane;
+    const int32_t c = rem / perCol, i = rem % perCol;
+    if (i < CIS_BLACK_PIXELS) { return -1; }                /* fenetre noire : pas de voile */
+    const int32_t dataOff = (c == 0) ? cisConfig.red_offset
+                          : (c == 1) ? cisConfig.green_offset : cisConfig.blue_offset;
+    return (perLane * lane) + dataOff + (i - CIS_BLACK_PIXELS);
+}
+
+/**
+ * @brief  Calibration du voile : carte de la lumiere parasite interne, LEDs allumees.
+ *
+ * Prerequis physique : RIEN devant la vitre (papier noir defocalise a 20-30 cm en
+ * ecran de la piece). Sequence : purge de l'ancienne carte, ancre noire fraiche
+ * (LEDs eteintes), capture LEDs a 100 %%, voile = moyenne - offsets, ecrit en flux
+ * dans CIS_VEIL_FILE puis replie dans offsetData. Ensuite le repli est rejoue par
+ * cis_refreshDarkReferences a chaque demarrage de capture.
+ */
+void cis_calibrateVeil(int32_t *cisDataCpy)
+{
+    char path[64];
+    sprintf(path, CIS_VEIL_FILE_PATH_FORMAT, (unsigned)shared_config.cis_dpi);
+
+    if (cisCals.magic != CIS_CAL_FILE_MAGIC || cisCals.version != CIS_CAL_FILE_VERSION)
+    {
+        printf("VEIL: no valid calibration, aborted\n");
+        return;
+    }
+    printf("===== VEIL CALIBRATION (glass must face NOTHING) =====\n");
+    f_unlink(path);                                  /* sinon le refresh replierait l'ancienne */
+
+    cis_refreshDarkReferences(cisDataCpy);           /* offsets = noir frais, LEDs restaurees */
+    osDelay(40);
+
+    if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data, CIS_VEIL_ITER, 0, 100, false) != CIS_OK)
+    {
+        printf("VEIL: capture FAILED, nothing written\n");
+        return;
+    }
+
+    FIL f;
+    if (f_open(&f, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
+    {
+        printf("VEIL: f_open FAILED\n");
+        return;
+    }
+    const int32_t total = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
+    uint32_t hdr[4] = { CIS_VEIL_FILE_MAGIC, 1U, shared_config.cis_dpi, (uint32_t)total };
+    UINT bw;
+    f_write(&f, hdr, sizeof(hdr), &bw);
+    int16_t chunk[256];
+    int32_t n = 0, vmin = INT16_MAX, vmax = INT16_MIN;
+    for (int32_t k = 0; k < total; k++)
+    {
+        const int32_t d = cis_veilDataIndex(k);
+        int32_t v = 0;
+        if (d >= 0)
+        {
+            v = (((int32_t)whiteCal.data[d] + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS)
+                - (int32_t)cisCals.offsetData[k];
+            v = CLIP_INT16(v);
+            cisCals.offsetData[k] = (int16_t)(cisCals.offsetData[k] + v);   /* repli immediat */
+            if (v < vmin) { vmin = v; }
+            if (v > vmax) { vmax = v; }
+        }
+        chunk[n++] = (int16_t)v;
+        if (n == 256) { f_write(&f, chunk, sizeof(chunk), &bw); n = 0; }
+    }
+    if (n) { f_write(&f, chunk, (UINT)(n * 2), &bw); }
+    f_close(&f);
+    printf("VEIL: map written (%ld px, %ld..%ld counts), folded into offsets\n",
+           (long)total, (long)vmin, (long)vmax);
+    printf("=====================================================\n");
 }
 
 /**

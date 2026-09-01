@@ -1413,6 +1413,14 @@ static void http_server(struct netconn *conn)
 						}
 					}
 
+					/* Calibration du voile : vitre face a RIEN (papier noir a 20-30 cm) */
+					else if (strncmp((char const *)buf, "POST /startVeil", 15) == 0)
+					{
+						cisVeilRequested = 1;
+						const char *resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nVeil calibration started";
+						netconn_write(conn, resp, strlen(resp), NETCONN_COPY);
+					}
+
 					/* Process calibration start command */
 					else if (strncmp((char const *)buf, "POST /startCalibration", 22) == 0)
 					{

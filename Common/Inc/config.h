@@ -355,6 +355,15 @@
    depuis la calibration -- expliquant 50-70 %% du banding des teintes sombres. */
 #define CIS_CAL_DARK_REFRESH_ITER               (200)
 
+/* Calibration du VOILE : carte additive par pixel de la lumiere parasite interne
+   (LEDs allumees, RIEN devant la vitre -- papier noir a 20-30 cm en ecran).
+   Mesure 2026-09-01 : voile 1,5-4 %% lineaire, structure ~1 %% -> le banding
+   vertical du "noir complet" en mode physique. Fichier SP3V, replie dans
+   offsetData a chaque demarrage de capture : cout par pixel nul. */
+#define CIS_VEIL_ITER                           (400)
+#define CIS_VEIL_FILE_PATH_FORMAT               "0:/CIS_VEIL_%udpi.BIN"
+#define CIS_VEIL_FILE_MAGIC                     (0x53503356UL)  /* "SP3V" */
+
 /* Journal RAM des moyennes PAR LIGNE (fenetre noire brute + sortie calibree, par
    couleur et par voie) : instrument du chantier banding horizontal, lu par SWD
    (symboles cisLineLog / cisLineLogHead). 768 lignes ~ 0,72 s a 1063 lps, assez
