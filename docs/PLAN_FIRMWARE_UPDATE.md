@@ -413,6 +413,15 @@ Vérifié sur cible :
 | FTP | refusé | refusé | `230`, `PWD` opérationnel |
 
 Scénarios T14 et T15 ajoutés à la matrice.
+
+**Revirement le 2026-09-02 : authentification retirée.** L'usage réel (machines
+personnelles sur réseau local de confiance, mot de passe à recopier depuis
+l'OLED à chaque manipulation) ne justifiait pas la friction ; l'auth admin a été
+supprimée du firmware (HTTP et FTP — le FTP a d'ailleurs été retiré le même
+jour au profit de `/fs/list` + `/fs/get` en lecture seule). Les POST sont
+libres. T14 et T15 retirés de la matrice le 2026-09-03, ainsi que l'option
+`--password` de `ota_upload.py` / `ota_test.py`.
+
 ### Étape 2 — Slots A/B (§3)
 
 **À faire maintenant.** Le parc compte 5 machines, toutes sous contrôle : la

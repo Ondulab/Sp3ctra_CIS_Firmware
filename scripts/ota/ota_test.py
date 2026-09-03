@@ -43,12 +43,6 @@ UPLOAD = os.path.join(ROOT, "scripts", "ota", "ota_upload.py")
 
 DEFAULT_HOST = "192.168.100.1"
 
-# Mot de passe d'administration, exige par tout ce qui modifie l'appareil. Il
-# s'affiche sur l'ecran de demarrage et sur la trace UART jusqu'a son premier
-# usage : il ne transite jamais par le reseau, sinon la protection ne servirait
-# a rien. Renseigne par --password.
-PASSWORD = None
-
 # Une restauration reecrit 896 Ko + 640 Ko en flash interne depuis la NOR, et
 # une image a l'essai consomme trois demarrages avant d'etre abandonnee.
 ROLLBACK_TIMEOUT_S = 900
@@ -57,7 +51,7 @@ QUICK_TIMEOUT_S = 60
 
 class Scenario:
     def __init__(self, key, title, kind, fault=None, package_args=None, expect=None,
-                 status="400", password=""):
+                 status="400"):
         self.key = key
         self.title = title
         self.kind = kind  # "rollback" | "reject" | "abort" | "accept"
@@ -65,8 +59,6 @@ class Scenario:
         self.package_args = package_args or []
         self.expect = expect
         self.status = status
-        # "" = le mot de passe global ; None = aucun identifiant ; sinon celui-ci.
-        self.password = password
 
 
 SCENARIOS = [
@@ -82,10 +74,6 @@ SCENARIOS = [
              expect="CM7 image size out of range"),
     Scenario("T12", "Mise a jour saine", "accept"),
     Scenario("T13", "Chien de garde jamais recharge", "rollback", fault=5),
-    Scenario("T14", "Televersement sans identifiants", "reject", status="401",
-             expect="Administrator credentials required", password=None),
-    Scenario("T15", "Televersement avec mauvais mot de passe", "reject", status="401",
-             expect="Administrator credentials required", password="WRONGWRONG12"),
 ]
 
 BY_KEY = {s.key: s for s in SCENARIOS}
@@ -179,7 +167,7 @@ def ensure_package(scenario):
 def run(scenario, host):  # noqa: D401
     print("\n=== %s : %s ===" % (scenario.key, scenario.title))
 
-    baseline = device_version(host)  # GET libre, sans identifiants
+    baseline = device_version(host)
     if baseline is None:
         print("  ECHEC : appareil injoignable avant le test")
         return False
@@ -189,9 +177,6 @@ def run(scenario, host):  # noqa: D401
     print("  paquet : %s" % os.path.basename(package))
 
     cmd = [sys.executable, UPLOAD, "--host", host, package]
-    password = PASSWORD if scenario.password == "" else scenario.password
-    if password:
-        cmd += ["--password", password]
     if scenario.kind == "abort":
         cmd += ["--abort-at", "50"]
 
@@ -254,13 +239,9 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("cases", nargs="*", help="scenarios a jouer (defaut : les rapides)")
     parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--password", help="mot de passe d'administration")
     parser.add_argument("--all", action="store_true", help="jouer tous les scenarios")
     parser.add_argument("--list", action="store_true", help="lister les scenarios")
     args = parser.parse_args(argv)
-
-    global PASSWORD
-    PASSWORD = args.password
 
     if args.list:
         for s in SCENARIOS:
