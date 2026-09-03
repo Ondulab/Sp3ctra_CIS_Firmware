@@ -51,7 +51,6 @@ static fwupdate_StatusTypeDef update_calculateCRC(FIL* file, ProgressManager* pr
 static fwupdate_StatusTypeDef update_backupFirmware(uint32_t flashStartAddr, uint32_t size, const char* backupFilePath, ProgressManager* progressManager, uint32_t step_number);
 static fwupdate_StatusTypeDef update_eraseFirmware(uint32_t flashStartAddr, uint32_t size, ProgressManager* progressManager, uint32_t step_number);
 static fwupdate_StatusTypeDef update_writeFirmware(uint32_t flashStartAddr, FIL* file, uint32_t size, ProgressManager* progressManager, uint32_t step_number);
-static fwupdate_StatusTypeDef update_writeExternalData(FIL* file, uint32_t external_size, ProgressManager* progressManager, uint32_t step_number);
 
 /**
  * @brief Reads a 32-bit unsigned integer from a buffer in little-endian format.
@@ -369,77 +368,6 @@ static fwupdate_StatusTypeDef update_eraseFirmware(uint32_t flashStartAddr, uint
 }
 
 /**
- * @brief  Writes external data to the file system.
- *         This function reads data from an open package file and writes it
- *         to the file system in manageable chunks to prevent memory overload.
- *         A reliable write operation with CRC verification is performed.
- *
- * @param  file            Pointer to the open package file.
- * @param  external_size   Size of the external data in bytes.
- * @param  progressManager Pointer to the progress manager for tracking progress.
- * @param  step_number     Step number for progress tracking.
- *
- * @return FWUPDATE_OK if the update process is successful, FWUPDATE_ERROR otherwise.
- */
-static fwupdate_StatusTypeDef update_writeExternalData(FIL* file, uint32_t external_size, ProgressManager* progressManager, uint32_t step_number)
-{
-    UINT bytesRead;
-    FRESULT res;
-    uint8_t readBuffer[BUFFER_SIZE] __attribute__((aligned(4)));
-
-    uint32_t totalBytesToWrite = external_size;
-    uint32_t totalBytesWritten = 0;
-
-    printf("Writing external data to the file system...\n");
-
-    // Open the destination file
-    FIL externalFile;
-    res = f_open(&externalFile, "0:/External_MAX8.tar.gz", FA_WRITE | FA_READ | FA_CREATE_ALWAYS);
-    if (res != FR_OK)
-    {
-        printf("Failed to open the file on the file system\n");
-        gui_displayUpdateFailed();
-        return FWUPDATE_ERROR;
-    }
-
-    // Process data in chunks to avoid memory overload
-    uint32_t bytesToWrite = external_size;
-    while (bytesToWrite > 0)
-    {
-        // Read a chunk of data from the source file
-        uint32_t chunkSize = (bytesToWrite > BUFFER_SIZE) ? BUFFER_SIZE : bytesToWrite;
-        res = f_read(file, readBuffer, chunkSize, &bytesRead);
-        if (res != FR_OK || bytesRead != chunkSize)
-        {
-            printf("Failed to read external data (error %d)\n", res);
-            f_close(&externalFile);
-            gui_displayUpdateFailed();
-            return FWUPDATE_ERROR;
-        }
-
-        // Perform a reliable write with CRC verification
-        if (file_reliableWrite(&externalFile, readBuffer, bytesRead, 5) != FILEMANAGER_OK)
-        {
-            printf("Error: Reliable write failed in file system\n");
-            f_close(&externalFile);
-            gui_displayUpdateFailed();
-            return FWUPDATE_ERROR;
-        }
-
-        bytesToWrite -= bytesRead;
-        totalBytesWritten += bytesRead;
-
-        // Update progress bar
-        progress_update(progressManager, step_number, totalBytesWritten, totalBytesToWrite);
-    }
-
-    // Close the file
-    f_close(&externalFile);
-
-    return FWUPDATE_OK;
-}
-
-/**
  * @brief  Search for a firmware package file in the filesystem.
  * @param  packageFilePath Buffer to store the found package file path.
  * @param  maxLen Maximum length of the buffer.
@@ -616,7 +544,7 @@ fwupdate_StatusTypeDef update_restoreBackupFirmwares(void)
  */
 fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 {
-    const int NUM_STEPS = 8;
+    const int NUM_STEPS = 7;
     const int STEP_CRC_CALCULATION = 1;
     const int STEP_BACKUP_CM7 = 2;
     const int STEP_BACKUP_CM4 = 3;
@@ -624,7 +552,6 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
     const int STEP_ERASE_CM4 = 5;
     const int STEP_FLASH_CM7 = 6;
     const int STEP_FLASH_CM4 = 7;
-    const int STEP_SAVE_EXTERNAL = 8;
 
 	FIL file;
 	UINT bytesRead;
@@ -804,35 +731,15 @@ fwupdate_StatusTypeDef update_processPackageFile(const TCHAR* packageFilePath)
 		return FWUPDATE_ERROR;
 	}
 
-	// Step 8: Save external data
-	printf("Step 8: Save external data\n");
-
-	if (external_size == 0)
+	/* La charge externe MAX8 (external Max/MSP de l'ancien ecosysteme
+	 * CISYNTH) n'est plus distribuee : celle d'un ancien paquet est ignoree
+	 * -- elle reste couverte par le CRC et le controle de taille ci-dessus
+	 * -- et l'archive deja deposee sur la NOR est purgee. */
+	if (external_size != 0)
 	{
-		/* Paquet sans charge externe. Sans ce test, le fichier de destination
-		 * serait ouvert en FA_CREATE_ALWAYS puis referme vide, ecrasant celui
-		 * deja present sur la NOR. */
-		printf("No external data in this package, keeping the existing file\n");
-		f_close(&file);
-		gui_displayUpdateSuccess();
-		return FWUPDATE_OK;
+		printf("Ignoring obsolete external data (%lu bytes)\n", external_size);
 	}
-
-	res = f_lseek(&file, HEADER_SIZE + cm7_size + cm4_size);
-	if (res != FR_OK)
-	{
-		printf("Error: Failed to reposition to external data\n");
-		gui_displayUpdateFailed();
-		f_close(&file);
-		return FWUPDATE_ERROR;
-	}
-
-	if (update_writeExternalData(&file, external_size, &progressManager, STEP_SAVE_EXTERNAL) != FWUPDATE_OK)
-	{
-		printf("Error: Failed to save external data\n");
-		f_close(&file);
-		return FWUPDATE_ERROR;
-	}
+	(void)f_unlink("0:/External_MAX8.tar.gz");
 
 	// Close the package file
 	f_close(&file);

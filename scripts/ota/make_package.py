@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Assemble un paquet de mise a jour CIS (cis_package_<version>.bin).
 
-Remplace UpdateFileGen/updateFileGen.py, casse depuis que Common/Inc/config.h
-construit FW_VERSION par concatenation de macros au lieu d'une chaine litterale.
+Remplace l'ancien UpdateFileGen/updateFileGen.py (supprime le 2026-09-02 avec
+la charge externe MAX8).
 
 Format (inchange, le bootloader deploye doit pouvoir le lire) :
 
     offset 0   : "BOOT"                    4 o
     offset 4   : taille de l'image CM7     4 o, little-endian
     offset 8   : taille de l'image CM4     4 o
-    offset 12  : taille de la charge externe 4 o
+    offset 12  : taille de la charge externe 4 o (toujours 0 : la charge
+                 MAX8 est obsolete, le champ reste pour le format)
     offset 16  : version, complete de zeros 8 o
-    offset 24  : image CM7, image CM4, charge externe
+    offset 24  : image CM7, image CM4
     fin - 4    : CRC-32 (zlib) de tout ce qui precede
 
 Les options de corruption servent au banc de test du rollback : elles
@@ -34,7 +35,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 CM7_BIN = os.path.join(ROOT, "CM7", "Release", "Sp3ctra_CIS_Firmware_CM7.bin")
 CM4_BIN = os.path.join(ROOT, "CM4", "Release", "Sp3ctra_CIS_Firmware_CM4.bin")
-EXTERNAL = os.path.join(ROOT, "UpdateFileGen", "External_MAX8.tar.gz")
 CONFIG_H = os.path.join(ROOT, "Common", "Inc", "config.h")
 BOOT_CONFIG_H = os.path.join(ROOT, "Common", "Inc", "boot_config.h")
 FAULT_H = os.path.join(ROOT, "Common", "Inc", "ota_fault_inject.h")
@@ -77,15 +77,21 @@ def read_max_sizes(path=BOOT_CONFIG_H):
     if not sectors:
         raise ValueError("adresses de secteurs introuvables dans %s" % path)
 
+    def addr(name):
+        # Suit les alias du type "#define FW_CM7_SLOT_B_ADDR (ADDR_FLASH_SECTOR_4_BANK2)"
+        # jusqu'a une adresse de secteur.
+        while name not in sectors:
+            alias = re.search(r"#define\s+%s\s+\(([A-Z0-9_]+)\)" % name, text)
+            if not alias:
+                raise ValueError("%s irresoluble dans %s" % (name, path))
+            name = alias.group(1)
+        return int(sectors[name], 16)
+
     def resolve(macro):
         m = re.search(r"#define\s+%s\s+\(([A-Z0-9_]+)\s*-\s*([A-Z0-9_]+)\)" % macro, text)
         if not m:
             raise ValueError("%s introuvable dans %s" % (macro, path))
-        end, start = m.group(1), m.group(2)
-        start_macro = re.search(r"#define\s+%s\s+\(([A-Z0-9_]+)\)" % start, text)
-        if start_macro:
-            start = start_macro.group(1)
-        return int(sectors[end], 16) - int(sectors[start], 16)
+        return addr(m.group(1)) - addr(m.group(2))
 
     return resolve("FW_CM7_MAX_SIZE"), resolve("FW_CM4_MAX_SIZE")
 
@@ -119,11 +125,6 @@ def build(args):
     cm7 = read_file(CM7_BIN, "image CM7")
     cm4 = read_file(CM4_BIN, "image CM4")
 
-    external = b""
-    if os.path.isfile(EXTERNAL) and not args.no_external:
-        with open(EXTERNAL, "rb") as f:
-            external = f.read()
-
     max_cm7, max_cm4 = read_max_sizes()
     if len(cm7) > max_cm7:
         raise ValueError("image CM7 de %d o au-dela de FW_CM7_MAX_SIZE (%d o)" % (len(cm7), max_cm7))
@@ -146,11 +147,11 @@ def build(args):
         b"BOOT",
         announced_cm7,
         len(cm4),
-        len(external),
+        0,  # charge externe MAX8 supprimee, champ conserve pour le format
         version.encode("utf-8")[:8],
     )
 
-    body = header + cm7 + cm4 + external
+    body = header + cm7 + cm4
     package = body + struct.pack("<I", zlib.crc32(body) & 0xFFFFFFFF)
 
     if args.corrupt:
@@ -183,7 +184,6 @@ def build(args):
     print("version        : %s" % version)
     print("CM7            : %d o (annonce %d)" % (len(cm7), announced_cm7))
     print("CM4            : %d o" % len(cm4))
-    print("charge externe : %d o" % len(external))
     print("faute injectee : %s" % (fault if fault else "aucune"))
     print("CRC-32         : 0x%08X" % (zlib.crc32(body) & 0xFFFFFFFF))
     print("paquet         : %s (%d o)" % (out, len(package)))
@@ -194,7 +194,6 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", help="chemin du paquet produit")
     parser.add_argument("--out-dir", default=os.path.join(ROOT, "build", "ota"), help="dossier de sortie")
-    parser.add_argument("--no-external", action="store_true", help="omettre la charge externe MAX8")
     parser.add_argument("--allow-fault", action="store_true", help="empaqueter malgre une faute injectee")
     parser.add_argument("--corrupt", action="store_true", help="retourner un octet du corps (CRC faux)")
     parser.add_argument("--truncate", type=int, metavar="PCT", help="tronquer le paquet a PCT %% de sa taille")

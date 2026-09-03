@@ -385,6 +385,10 @@ fileManager_StatusTypeDef file_initConfig(volatile struct shared_config* config)
         rv = FILEMANAGER_OK;
     }
 
+    /* La charge externe MAX8 n'est plus distribuee : purge de l'archive
+     * deposee sur la NOR par les anciens paquets de mise a jour. */
+    (void)f_unlink("0:/External_MAX8.tar.gz");
+
     if (file_readConfig(CONFIG_FILE_PATH, config) != 0)
     {
         printf("Failed to read configuration file\n");

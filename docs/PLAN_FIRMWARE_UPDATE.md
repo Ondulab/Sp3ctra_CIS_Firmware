@@ -12,14 +12,17 @@ Périmètre : `CM7_Bootloader/`, `CM7/Application/Src/http_server.c`, `Common/`,
 
 | Maillon | Fichier | Rôle |
 |---|---|---|
-| Générateur | `UpdateFileGen/updateFileGen.py` | assemble `cis_package_<version>.bin` |
+| Générateur | `scripts/ota/make_package.py` | assemble `cis_package_<version>.bin` |
 | Transport | `CM7/Application/Src/http_server.c:354` | `POST /upload` multipart → `0:/firmware/` (NOR QSPI 16 Mo, FatFs) |
 | Drapeau | `CM7/Peripheral/Src/stm32_flash.c:111` | un mot de 32 bits en secteur 1 bank1 |
 | Flasheur | `CM7_Bootloader/CM7/Application/Src/update.c` | CRC → backup → erase → flash |
 | Séquenceur | `CM7_Bootloader/CM7/Core/Src/main.c:250-400` | machine à états 5 valeurs |
 
 Format du paquet : en-tête 24 o (`"BOOT"`, cm7_size, cm4_size, external_size, version[8]),
-puis CM7.bin, CM4.bin, `External_MAX8.tar.gz`, puis un footer CRC-32 (zlib) sur tout ce qui précède.
+puis CM7.bin, CM4.bin, puis un footer CRC-32 (zlib) sur tout ce qui précède. Depuis 2026-09-02
+la charge externe `External_MAX8.tar.gz` (external Max/MSP hérité de CISYNTH) n'est plus
+distribuée : external_size vaut toujours 0 (champ conservé pour le format), le bootloader ignore
+celle d'un ancien paquet, et l'app comme le bootloader purgent l'archive présente sur la NOR.
 
 ### 1.2 Séquence nominale (trois reboots)
 
