@@ -1,9 +1,10 @@
 # Flash et logs par Ethernet, sans ST-Link — Sp3ctra Net Boot (SNB)
 
 État : **validé sur cible** (Sp3ctra-77DD, 2026-09-16) : flash CM7 + CM4 par le
-réseau, entrée par `POST /netboot` et par journal `FAILED`, logs HTTP et UDP, OTA
-HTTP classique (T12) rejouée sur le bootloader en -Os. Reste à jouer : entrée par
-les boutons, coupure au milieu d'un `WRITE`.
+réseau, mise à jour du bootloader par ses deux slots, entrée par `POST /netboot`
+et par journal `FAILED`, logs HTTP et UDP, OTA HTTP classique (T12) rejouée sur
+le bootloader en -Os. Reste à jouer : entrée par les boutons, coupure au milieu
+d'un `WRITE`.
 Dernière révision : 2026-09-16
 Périmètre : `CM7_Bootloader/`, `Common/{Inc,Src}/{log_ring,boot_mailbox,netboot_protocol}`,
 `CM7/Application/Src/http_server.c`, `CM7/LWIP/Target/ethernetif.c`, `scripts/netboot/`
@@ -316,9 +317,10 @@ Joué le 2026-09-16 sur Sp3ctra-77DD, carte V3 (✔ = passé, ○ = reste à jou
    déjà écrits sont ignorés et le CRC final passe ;
 9. ○ **IWDG** : entrer en mode flasheur depuis une image en essai (chien de garde
    armé) et y rester plus de 10 s ;
-10. ○ **bootloader A → B → A** : `netflash.sh bootloader release` deux fois de
-    suite, `INFO` doit rapporter `1.3.0 (slot B)` puis `(slot A)` — implémenté,
-    validé sur simulateur, machine hors ligne au moment de le jouer.
+10. ✔ **bootloader A → B → A** : `netflash.sh bootloader release` deux fois de
+    suite (2026-09-16). Écriture du slot 0,4 s, `BOOT_ADD0` basculé, application
+    de retour 11 s après l'entrée, `INFO` rapporte `1.3.0 (slot B)` puis
+    `(slot A)`. Le bootloader se met désormais à jour sans sonde.
 
 ## 7. Pièges connus
 
@@ -326,6 +328,9 @@ Joué le 2026-09-16 sur Sp3ctra-77DD, carte V3 (✔ = passé, ○ = reste à jou
   `ETH_RX_DESC_CNT 8`) est généré par CubeMX et le `.ioc` du bootloader ne
   déclare pas l'ETH : une régénération les perdra. À rejouer à la main, comme
   les patchs de `scripts/post_cubemx_restore.sh` côté firmware.
+- Le projet CubeIDE du bootloader lie chaque source du HAL une par une dans
+  son `.project` : `stm32h7xx_hal_eth.c` et `_eth_ex.c` y sont déclarés, sans
+  quoi une régénération des makefiles les oublie et l'édition de liens échoue.
 - `scripts/sync_subdir_mk.py` ignore les dossiers `Drivers` ; les deux fichiers
   HAL ETH ont été ajoutés au `subdir.mk` par un appel direct de sa fonction
   `sync()` (voir l'historique). Toute régénération CubeIDE les redécouvre seule.
