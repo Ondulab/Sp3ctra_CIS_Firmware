@@ -61,10 +61,12 @@ if ! command -v STM32_Programmer_CLI >/dev/null 2>&1; then
 fi
 # -----------------------------------------
 
-# Chemins des binaires (ELF)
-CM7_ELF=$(find CM7/$CONFIG -name "*.elf" | head -n 1)
-CM4_ELF=$(find CM4/$CONFIG -name "*.elf" | head -n 1)
-BOOTLOADER_ELF=$(find CM7_Bootloader/CM7/$CONFIG -name "*.elf" | head -n 1)
+# Chemins des binaires (ELF).
+# Exclure les images *_SLOT_B (liées pour le slot B OTA, 0x08060000/0x08180000) :
+# le boot n'exécute que le slot A — flasher SLOT_B "réussit" mais ne change rien.
+CM7_ELF=$(find CM7/$CONFIG -name "*.elf" ! -name "*SLOT_B*" | head -n 1)
+CM4_ELF=$(find CM4/$CONFIG -name "*.elf" ! -name "*SLOT_B*" | head -n 1)
+BOOTLOADER_ELF=$(find CM7_Bootloader/CM7/$CONFIG -name "*.elf" ! -name "*SLOT_B*" | head -n 1)
 
 flash_elf() {
     local elf=$1

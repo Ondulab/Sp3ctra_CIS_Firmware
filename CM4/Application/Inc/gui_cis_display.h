@@ -21,6 +21,6 @@
 #include "stdint.h"
 
 /* Exported function prototypes ----------------------------------------------*/
-void gui_displayImage(void);
+void gui_displayImage(uint32_t reserved_top);
 
 #endif /* __GUI_CIS_DISPLAY_H */

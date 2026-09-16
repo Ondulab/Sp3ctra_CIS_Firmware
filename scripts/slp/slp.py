@@ -89,7 +89,7 @@ S_BIND_ACK = struct.Struct("<IB3sHHBBHHHHH8s")       # 32
 S_PONG = struct.Struct("<IIIIHBBhB5s")               # 28
 S_ERROR = struct.Struct("<BBH")                      # 4
 S_LINE_HDR = struct.Struct("<IHHBBH")                # 12
-S_HID = struct.Struct("<IHBB4I3f3ff8s")              # 60
+S_HID = struct.Struct("<IHBB4I3f3ff4B4s")            # 60
 
 SIZES = {  # full datagram sizes as asserted in the C header
     "hdr": 12, "hello": 20, "bind": 40, "unbind": 16, "ping": 20, "led_cmd": 12, "led_set": 64,
@@ -283,9 +283,11 @@ def build_line(seq, line_id, pixel_offset, pixel_count, frag_index, frag_count, 
     return hdr(LINE, HDR.size + len(body) + 3 * pixel_count, seq) + body + bytes(r) + bytes(g) + bytes(b)
 
 
-def build_hid(seq, timestamp_us, button_state, button_seq, acc, gyro, temp_c, valid=0x0F, n_buttons=3):
+def build_hid(seq, timestamp_us, button_state, button_seq, acc, gyro, temp_c, valid=0x0F, n_buttons=3,
+              face=0, hit_seq=0, hit_velocity=0, hit_face=0):
     bs = list(button_seq) + [0] * (MAX_BUTTONS - len(button_seq))
-    body = S_HID.pack(timestamp_us & 0xFFFFFFFF, valid, n_buttons, button_state, *bs[:4], *acc, *gyro, temp_c, b"\0" * 8)
+    body = S_HID.pack(timestamp_us & 0xFFFFFFFF, valid, n_buttons, button_state, *bs[:4], *acc, *gyro, temp_c,
+                      face, hit_seq, hit_velocity, hit_face, b"\0" * 4)
     return hdr(HID, HDR.size + len(body), seq) + body
 
 
@@ -368,10 +370,19 @@ def parse_line(data):
                     data[base + 2 * n:base + 3 * n])
 
 
+# enum slp_face - the bar's LONG faces only (its two 25 mm ends are retired).
+FACE_NAMES = ("moving", "paper", "back", "left", "right")
+
+
+def face_name(f):
+    return FACE_NAMES[f] if 0 <= f < len(FACE_NAMES) else f"?{f}"
+
+
 @dataclass
 class Hid:
     seq: int; timestamp_us: int; valid_mask: int; button_count: int; button_state: int
     button_seq: list; acc: tuple; gyro: tuple; temp_c: float
+    face: int; hit_seq: int; hit_velocity: int; hit_face: int
 
 
 def parse_hid(data):
@@ -379,7 +390,8 @@ def parse_hid(data):
     if not h or h[0] != HID:
         return None
     f = S_HID.unpack_from(data, HDR.size)
-    return Hid(h[2], f[0], f[1], f[2], f[3], list(f[4:8]), tuple(f[8:11]), tuple(f[11:14]), f[14])
+    return Hid(h[2], f[0], f[1], f[2], f[3], list(f[4:8]), tuple(f[8:11]), tuple(f[11:14]), f[14],
+               f[15], f[16], f[17], f[18])
 
 
 # ---- helpers ------------------------------------------------------------------

@@ -41,10 +41,17 @@
 /* Private define ------------------------------------------------------------*/
 /* Web preview (GET /scan.bin, see cis_scan.h). A page that stops polling stops
  * the publishing after CIS_PREVIEW_ARM_MS. The ring is sized in bytes: at 1/4
- * resolution it holds a dozen lines (half a second of viewing at 25 polls/s),
- * at full resolution only three -- resolution is paid for in line rate. */
+ * resolution it holds 25 lines, at full resolution six, at 1/8 fifty --
+ * resolution is paid for in line rate.
+ *
+ * It must cover a whole poll interval PLUS the time the answer spends on the
+ * wire, or the writer laps the reader between two requests: 25 lines is 100 ms
+ * at 250 lines/s, where 40 ms of polling leaves 60 ms of margin. Sized at 32 KB
+ * (12 lines, 48 ms) the margin was thinner than one transfer, which is what made
+ * the viewer drop lines steadily. It lives in D1B next to the ADC buffers: the
+ * AXI RAM has other users and neither region is cached here. */
 #define CIS_PREVIEW_ARM_MS      2000
-#define CIS_PREVIEW_POOL_BYTES  (32 * 1024)
+#define CIS_PREVIEW_POOL_BYTES  (64 * 1024)
 #define CIS_PREVIEW_MAX_SLOTS   64
 
 /* Private variables ---------------------------------------------------------*/
@@ -54,7 +61,7 @@ static QueueHandle_t readyBufferQueue;
 
 /* The ring. Single writer (cis_sendTask), single reader (http_thread), no lock:
  * see the contract in cis_scan.h. */
-static uint8_t previewPool[CIS_PREVIEW_POOL_BYTES];
+static uint8_t previewPool[CIS_PREVIEW_POOL_BYTES] __attribute__((section(".previewPool")));
 static volatile uint16_t previewPixels = 0;      /* pixels kept per line */
 static volatile uint16_t previewLineBytes = 0;   /* 3 * previewPixels */
 static volatile uint16_t previewSlots = 0;       /* lines the pool holds */
@@ -183,11 +190,9 @@ static void cis_scanTask(void *argument)
     {
         cis_userCal();
 
-        if (cisVeilRequested)
+        if (cisBlackPointCalState == 1U)
         {
-            const bool onBlack = (cisVeilRequested == 2U);
-            cisVeilRequested = 0;
-            cis_calibrateVeil(cisDataCpy, onBlack);
+            cis_calibrateBlackPoint(cisDataCpy);
         }
 
         // 1) Retrieve a free buffer (blocks if none available)
@@ -367,10 +372,20 @@ uint16_t cisScan_previewBatch(uint32_t since, uint32_t *firstId, uint16_t *pixel
         start = since;
     }
 
-    uint32_t count = head - start;
-    if (count > slots)
+    /* Never hand over more than half the ring in one answer: the writer keeps
+     * publishing while that answer is on the wire, and a batch as long as the
+     * ring would be lapped by the time it is sent. The client comes back sooner
+     * instead -- short answers, always headroom behind them. */
+    uint32_t maxLines = slots / 2U;
+    if (maxLines < 1U)
     {
-        count = slots;
+        maxLines = 1U;
+    }
+
+    uint32_t count = head - start;
+    if (count > maxLines)
+    {
+        count = maxLines;
         start = head - count;
     }
 

@@ -38,10 +38,19 @@
  * Processes the RGB data from the scanline buffers, converts the values into a
  * grayscale or pseudo-color representation, and draws the corresponding pixels.
  *
- * @note This function returns immediately if the transfer is not complete.
+ * @param reserved_top Display rows [0..reserved_top-1] belong to the host
+ *        overlay band this frame (gui_overlay_reservedTop()): the image is
+ *        squeezed into the rows below instead of being painted over. A change
+ *        of this value forces a redraw even without a fresh CIS line, so the
+ *        band's slide animation reflows the image every frame.
+ *
+ * @note This function returns immediately if the transfer is not complete
+ *       and the geometry did not change.
  */
-void gui_displayImage(void)
+void gui_displayImage(uint32_t reserved_top)
 {
+    static uint32_t last_reserved_top = 0;
+
     uint8_t cis_rgb[3] = {0};
     int32_t cis_color = 0;
     int32_t i = 0;
@@ -49,19 +58,29 @@ void gui_displayImage(void)
     float32_t packet, index;
     uint32_t area1_height = GUI_GET_AREA1_HEIGHT();
     uint32_t area1_y2pos = GUI_GET_AREA1_Y2POS();
-    int32_t line_Ypos = DISPLAY_AERA1_Y1POS + (area1_height / 2);
-    int32_t half_height_above = (area1_height + 1) / 2;  // Round up for odd heights
-    int32_t half_height_below = area1_height / 2;        // Round down for odd heights
     int32_t pixel_intensity = 0;
     float64_t angle = 0;
 
-    if (!transferComplete)
+    if (!transferComplete && reserved_top == last_reserved_top)
     {
         return;
     }
 
     transferComplete = false;
+    last_reserved_top = reserved_top;
 
+    if (reserved_top >= area1_height)
+    {
+        return;   /* band covers the whole image area */
+    }
+
+    const int32_t img_height = (int32_t)(area1_height - reserved_top);
+    const int32_t img_y1 = DISPLAY_AERA1_Y1POS + (int32_t)reserved_top;
+    int32_t line_Ypos = img_y1 + (img_height / 2);
+    int32_t half_height_above = (img_height + 1) / 2;  // Round up for odd heights
+    int32_t half_height_below = img_height / 2;        // Round down for odd heights
+
+    /* Full-area clear: also erases rows the band just released while sliding out. */
     ssd1362_fillRect(0, DISPLAY_AERA1_Y1POS, DISPLAY_WIDTH, area1_y2pos, GUI_COLOR(0), false);
 
     // CIS DISPLAY

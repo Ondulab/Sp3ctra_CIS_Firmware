@@ -26,6 +26,9 @@ void leds_pressFeedback(buttonIdTypeDef button_id, buttonStateTypeDef is_pressed
 void leds_check_update_state(void);
 /** Slow breathing of the three backlights while the OLED sleeps (edge-triggered). */
 void leds_setScreensaverMode(bool active);
+/** Sine pulse of ONE backlight (menu validate button) while the device runs
+ *  without any IP link. -1 = off. Press feedback and screensaver win over it. */
+void leds_setAttractMode(int32_t led_index);
 void led_test(void);
 
 #endif /* __GUI_H */

@@ -128,6 +128,15 @@ void icm42688_getGyroDps(float out[3])
 	out[2] = _gyr[2];
 }
 
+/* Accelerometer full scale currently programmed, in g (2 / 4 / 8 / 16). The
+ * shock detector needs it: every axis CLIPS there, so the velocity curve must
+ * end just below it instead of at a hard-coded value the hardware can never
+ * reach. 0 until the sensor is configured. */
+float icm42688_accelFsG(void)
+{
+	return _accelScale * 32768.0f;
+}
+
 /**
  * @brief      Get gyro data, per axis
  *
@@ -450,31 +459,37 @@ ICM42688_StatusTypeDef icm42688_setFilters(uint8_t gyroFilters, uint8_t accFilte
 
 	if (accFilters == true)
 	{
-		// Configure AAF for 473Hz bandwidth (optimal for 1000Hz ODR fast motion capture)
-		// From datasheet table: 473Hz -> DELT=1, DELTSQR=1, BITSHIFT=15
+		// AAF 258 Hz (datasheet section 5.3: DELT=6, DELTSQR=36, BITSHIFT=10).
+		// The band must stay wide enough for the gesture detectors: a ~1 ms
+		// shock, already clipped at the accel full scale, keeps a ~3 g peak
+		// through 258 Hz - the old DELT=1 setting (42 Hz, mislabelled 473 Hz)
+		// crushed every impact below the HIT threshold.
+		const uint8_t  aaf_delt     = 6;
+		const uint16_t aaf_deltsqr  = 36;
+		const uint8_t  aaf_bitshift = 10;
 
-		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT (1), bit 0 = ACCEL_AAF_DIS (0=enable)
-		uint8_t config_static2 = (1 << 1) | ACCEL_AAF_ENABLE;  // DELT=1, AAF enabled
+		// UB2_REG_ACCEL_CONFIG_STATIC2 (0x03): bits 6:1 = ACCEL_AAF_DELT, bit 0 = ACCEL_AAF_DIS (0=enable)
+		uint8_t config_static2 = (uint8_t)(aaf_delt << 1) | ACCEL_AAF_ENABLE;
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC2, config_static2) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
-		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte (1 & 0xFF = 1)
-		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, 1) != ICM42688_OK)
+		// UB2_REG_ACCEL_CONFIG_STATIC3 (0x04): bits 7:0 = ACCEL_AAF_DELTSQR low byte
+		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC3, (uint8_t)(aaf_deltsqr & 0xFF)) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
-		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 3:0 = ACCEL_AAF_DELTSQR high nibble (1 >> 8 = 0), bits 7:4 = ACCEL_AAF_BITSHIFT (15)
-		uint8_t config_static4 = (15 << 4) | ((1 >> 8) & 0x0F);  // BITSHIFT=15, DELTSQR high=0
+		// UB2_REG_ACCEL_CONFIG_STATIC4 (0x05): bits 7:4 = ACCEL_AAF_BITSHIFT, bits 3:0 = ACCEL_AAF_DELTSQR high nibble
+		uint8_t config_static4 = (uint8_t)(aaf_bitshift << 4) | (uint8_t)((aaf_deltsqr >> 8) & 0x0F);
 		if (icm42688_writeRegister(UB2_REG_ACCEL_CONFIG_STATIC4, config_static4) != ICM42688_OK)
 		{
 			return ICM42688_ERROR;
 		}
 
 #ifdef DEBUG_ICM42688
-		printf("ICM42688: AAF configured for 473Hz (DELT=1, DELTSQR=1, BITSHIFT=15)\n");
+		printf("ICM42688: AAF configured for 258Hz (DELT=6, DELTSQR=36, BITSHIFT=10)\n");
 #endif
 	}
 	else

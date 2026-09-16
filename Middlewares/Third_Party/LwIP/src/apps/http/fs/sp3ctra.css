@@ -31,6 +31,7 @@ body[data-page="scan"] { --accent: #00d9ff; }    /* SRC   electric cyan */
 body[data-page="imu"] { --accent: #ffb020; }     /* UTILS vivid amber   */
 body[data-page="network"] { --accent: #ff2ed0; }  /* MIDI  hot magenta   */
 body[data-page="gui"] { --accent: #b44dff; }     /* FX    neon violet   */
+body[data-page="files"] { --accent: #ff6a3d; }   /* FILES signal orange */
 body[data-page="update"] { --accent: #45ff8c; }  /* OUT   neon green    */
 
 body {

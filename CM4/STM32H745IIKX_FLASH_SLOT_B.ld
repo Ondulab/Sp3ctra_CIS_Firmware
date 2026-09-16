@@ -6,8 +6,8 @@
 **  Author      : STM32CubeIDE
 **
 **  Abstract    : Linker script for STM32H7 series
-**                      2048Kbytes FLASH
-**                      512Kbytes RAM
+**			      		2048Kbytes FLASH
+**                		512Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.
@@ -16,55 +16,50 @@
 **
 **  Target      : STMicroelectronics STM32
 **
-**  Distribution: The file is distributed as is without any warranty
+**  Distribution: The file is distributed as is, without any warranty
 **                of any kind.
 **
 *****************************************************************************
 ** @attention
 **
-** <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
-** All rights reserved.</center></h2>
+** Copyright (c) 2019 STMicroelectronics.
+** All rights reserved.
 **
 ** This software component is licensed by ST under BSD 3-Clause license,
 ** the "License"; You may not use this file except in compliance with the
 ** License. You may obtain a copy of the License at:
 **                        opensource.org/licenses/BSD-3-Clause
 **
-*****************************************************************************
+****************************************************************************
 */
 
 /* Entry Point */
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM_AXI) + LENGTH(RAM_AXI); /* end of "RAM" Ram type memory */
-
-_Min_Heap_Size = 0x400; /* required amount of heap  */
+_estack = ORIGIN(RAM_D1A) + LENGTH(RAM_D1A); /* 0x10048000;    /* end of RAM */
+/* Generate a link error if heap and stack don't fit into RAM */
+_Min_Heap_Size = 0x400;      /* required amount of heap  */
 _Min_Stack_Size = 0x800; /* required amount of stack */
 
-/* Memories definition */
+/* Specify the memory areas */
 MEMORY
 {
-  /* Slot A. Doit rester identique a FW_CM7_SLOT_A_ADDR / FW_CM7_MAX_SIZE de
+  /* Slot B, ENGENDRE par scripts/ota/link_slot_b.sh -- ne pas editer. Doit rester identique a FW_CM4_SLOT_A_ADDR / FW_CM4_MAX_SIZE de
      Common/Inc/boot_config.h. Le script du slot B est engendre a partir
      de celui-ci par scripts/ota/link_slot_b.sh : ne pas le dupliquer a la
      main, les deux dériveraient. */
-  FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 512K
-  DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
+  FLASH (rx)      			: ORIGIN = 0x08060000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
-  RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
-  RAM_D1A (r)    			: ORIGIN = 0x30000000, LENGTH = 40K
-  RAM_D1B (rw)    			: ORIGIN = 0x30000000 + LENGTH(RAM_D1A), LENGTH = 128K - LENGTH(RAM_D1A)
-  RAM_D23 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
+  RAM_D1A (rw)    			: ORIGIN = 0x10000000, LENGTH = 40K
   RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
-  ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
-/* Sections */
+/* Define output sections */
 SECTIONS
 {
-  /* The startup code into "FLASH" Rom type memory */
+  /* The startup code goes first into FLASH */
   .isr_vector :
   {
     . = ALIGN(4);
@@ -72,7 +67,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  /* The program code and other data into "FLASH" Rom type memory */
+  /* The program code and other data goes into FLASH */
   .text :
   {
     . = ALIGN(4);
@@ -89,7 +84,7 @@ SECTIONS
     _etext = .;        /* define a global symbols at end of code */
   } >FLASH
 
-  /* Constant data into "FLASH" Rom type memory */
+  /* Constant data goes into FLASH */
   .rodata :
   {
     . = ALIGN(4);
@@ -98,68 +93,41 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .ARM.extab   : { 
-    . = ALIGN(4);
-    *(.ARM.extab* .gnu.linkonce.armextab.*)
-    . = ALIGN(4);
-  } >FLASH
-  
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >FLASH
   .ARM : {
-    . = ALIGN(4);
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
-    . = ALIGN(4);
   } >FLASH
 
-  .preinit_array :
+  .preinit_array     :
   {
-    . = ALIGN(4);
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-    . = ALIGN(4);
   } >FLASH
-  
   .init_array :
   {
-    . = ALIGN(4);
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
-    . = ALIGN(4);
   } >FLASH
-  
   .fini_array :
   {
-    . = ALIGN(4);
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
-    . = ALIGN(4);
   } >FLASH
   
   /* user sections... */
-  .dtcm (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP (*(.cisCals));  
-    KEEP (*(.cisDataCpy));
-    . = ALIGN(4);
-  } >DTCM
-  
-  .axi (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP (*(.cisData_adc2));
-    KEEP(*(.calAccBlack));
-    KEEP(*(.calAccIntermediate));
-    KEEP(*(.calAccWhite));
-    KEEP(*(.scanline_buff)); 
-    . = ALIGN(4);
-  } >RAM_AXI
+  /* Pas de "AT> FLASH" sur les sections NOLOAD : elles ne contiennent aucune
+     donnee a charger, mais un AT> leur donne quand meme une LMA en flash,
+     identique a celle de .data. STM32CubeProgrammer voit alors plusieurs
+     segments a la meme adresse physique et affiche "File corrupted. Two or
+     more segments define the same memory zone". Sans AT>, LMA = VMA (comme
+     dans le script du CM7) et le binaire produit est inchange. */
   
   .shared (NOLOAD):
   {
@@ -172,6 +140,7 @@ SECTIONS
   .shared_cached (NOLOAD):
   {
     . = ALIGN(4);
+    KEEP (*(.rgbBuffers));
     KEEP (*(.imuData));    
     . = ALIGN(4);    
   } >RAM_SHARED_CACHED
@@ -183,21 +152,11 @@ SECTIONS
     . = ALIGN(4);
   } >RAM_D4
   
-  .ram_d1 (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP (*(.cisData_adc1)); 
-    KEEP (*(.cisData_adc3));
-    . = ALIGN(4);
-    KEEP (*(.previewPool));
-    . = ALIGN(4);
-  } >RAM_D1B
-  
-  /* Used by the startup to initialize data */
+  /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
-  /* Initialized data sections into "RAM_AXI" Ram type memory */
-  .data : 
+  /* Initialized data sections goes into RAM, load LMA copy after code */
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -208,13 +167,13 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM_AXI AT> FLASH
+  } >RAM_D1A AT> FLASH
 
-  /* Uninitialized data section into "RAM_AXI" Ram type memory */
+  /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
   {
-    /* This is used by the startup in order to initialize the .bss section */
+    /* This is used by the startup in order to initialize the .bss secion */
     _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
     *(.bss)
@@ -224,18 +183,9 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >RAM_AXI
-  
-  _sram_axi_start = ORIGIN(RAM_SHARED);
-  _sram_axi_end =  ORIGIN(RAM_SHARED) + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED) + LENGTH(RAM_AXI);
-  
-  _sram_dtcm_start = ORIGIN(DTCM);
-  _sram_dtcm_end = ORIGIN(DTCM) + LENGTH(DTCM);
-  
-  _sram_d2_start = ORIGIN(RAM_D23);
-  _sram_d2_end = ORIGIN(RAM_D23) + LENGTH(RAM_D23);
+  } >RAM_D1A
 
-  /* User_heap_stack section, used to check that there is enough "RAM_AXI" Ram  type memory left */
+  /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
   {
     . = ALIGN(8);
@@ -244,23 +194,9 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >RAM_AXI
-  
-  .lwip_sec (NOLOAD) :
-  {
-    . = ABSOLUTE(0x30040000);
-    *(.RxDecripSection)
-    *(.RxDescripSection) 
-    
-    . = ABSOLUTE(0x30040100);
-    *(.TxDecripSection)
-    *(.TxDescripSection)
-    
-    . = ABSOLUTE(0x30040200);
-    *(.Rx_PoolSection)  
-  } >RAM_D23
-  
-  /* Remove information from the compiler libraries */
+  } >RAM_D1A
+
+  /* Remove information from the standard libraries */
   /DISCARD/ :
   {
     libc.a ( * )
@@ -270,3 +206,5 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
+
+

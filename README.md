@@ -159,7 +159,7 @@ Gyro** thresholds that count as movement and keep the screen awake.
 Every request that **changes** the device -- firmware upload, network settings,
 factory reset, CIS/IMU/GUI settings -- requires HTTP Basic credentials, user
 `admin`. Read-only `GET` endpoints stay open so passive monitoring is not
-disturbed. The same password guards the FTP server.
+disturbed.
 
 The password is **drawn at random on first boot**: there is no factory default,
 so no device ships with a credential that is printed in this file. It is shown
@@ -191,40 +191,13 @@ restores the previous version automatically. See
   administrator password. The device reboots at the default address and the page
   follows it there.
 
-### FTP Server
+### Files
 
-The CISYNTH device is also equipped with an FTP server, allowing file transfers to and from the device. This server can be accessed using any FTP client.
-
-#### Connection Parameters
-
-- **Protocol**:  
-  Be aware that this connection is not encrypted, so avoid transmitting sensitive data.
-
-- **Host**:  
-  The IP address of the device should be entered here. By default, this is:
-  - IP: `192.168.0.10`
-
-- **Port**:  
-  You can use the default FTP port (`21`) unless you have configured the server to use a custom port.
-
-- **Encryption**:  
-  The FTP connection used is non-encrypted (FTP simple).
-
-- **Authentication Type**:  
-  - User `admin`, with the administrator password described above. Anonymous
-    access is refused, and no command other than `USER`, `PASS` and `QUIT` is
-    served before login.
-
-    > This used to accept any credentials. Since `CONFIG.TXT` lives on the same
-    > flash and now carries the administrator password, an anonymous FTP read
-    > was enough to recover it and bypass the HTTP authentication entirely.
-
-#### Using an FTP Client
-
-1. Open your preferred FTP client (e.g., FileZilla).
-2. Enter the connection details as described above (IP address, protocol, etc.).
-3. Connect to the server with user `admin` and the administrator password.
-4. Once connected, you can upload or download files to and from the device.
+The **FILES** tab (`/files.html`) is a read-only browser of the device storage
+(configuration, calibration data, firmware packages). Directories open in
+place, with the path shown above the listing; clicking a file downloads it.
+Nothing can be written or deleted through this page -- the only write channel
+remains the firmware upload on the UPDATE tab.
 
 ## Using MAX8
 

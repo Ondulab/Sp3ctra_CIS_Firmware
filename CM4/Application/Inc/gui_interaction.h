@@ -20,10 +20,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stdbool.h"
 #include "stdint.h"
+#include "globals.h"
 
 /* Exported function prototypes ----------------------------------------------*/
 void gui_interractiveMenu(void);
 void gui_displayPopUp(void);
 bool gui_checkButtonActivity(void);
+bool gui_button_isPressed(buttonIdTypeDef id);
 
 #endif /* __GUI_INTERACTION_H */

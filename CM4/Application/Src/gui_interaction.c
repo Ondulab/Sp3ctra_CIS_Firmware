@@ -23,14 +23,36 @@
 #include "basetypes.h"
 #include "globals.h"
 #include "config.h"
+#include "gui_config.h"
 #include "gpio.h"
 
 #include "ssd1362.h"
 #include "leds.h"
 #include "gui_calibration.h"
+#include "gui_menu.h"
 #include "gui_interaction.h"
 
+/* Private variables ---------------------------------------------------------*/
+
+// Button debounce state - file scope so gui_button_isPressed can read it
+typedef struct {
+    uint32_t debounce_start_tick;  // Tick when debounce started
+    GPIO_PinState raw_state;       // Current raw GPIO state
+    buttonStateTypeDef stable_state; // Debounced stable state
+    uint32_t sequence_number;      // Event sequence counter
+} ButtonDebounceState_t;
+
+static ButtonDebounceState_t btn_state[NUMBER_OF_BUTTONS] = {0};
+
 /* Private functions ---------------------------------------------------------*/
+
+/**
+ * @brief Debounced state of one button (for the menu auto-repeat).
+ */
+bool gui_button_isPressed(buttonIdTypeDef id)
+{
+    return btn_state[id].stable_state == SWITCH_PRESSED;
+}
 
 /**
  * @brief Displays a popup window with current configuration parameters.
@@ -41,11 +63,17 @@ void gui_displayPopUp(void)
 {
     uint8_t textData[256] = {0};
 
-    ssd1362_fillRect(10, 5, 67, 35, 15, false);
-    ssd1362_drawRect(9, 4, 68, 36, 0, false);
+    /* Bottom-left of the IMAGE area: the top band (host overlay / device
+     * menu) stays readable, and the IMU strip - which repaints after this
+     * popup every frame - starts right below. */
+    const uint16_t y2 = (uint16_t)(GUI_GET_AREA1_Y2POS() - 1);
+    const uint16_t y1 = (uint16_t)(y2 - 32);
+
+    ssd1362_fillRect(10, y1 + 1, 67, y2 - 1, 15, false);
+    ssd1362_drawRect(9, y1, 68, y2, 0, false);
 
     sprintf((char *)textData, "%d DPI", (int)shared_config.cis_dpi);
-    ssd1362_drawString(12, 07, (int8_t *)textData, 0, 8);
+    ssd1362_drawString(12, y1 + 3, (int8_t *)textData, 0, 8);
 
     if (shared_config.cis_oversampling < 10)
     {
@@ -55,7 +83,7 @@ void gui_displayPopUp(void)
     {
         sprintf((char *)textData, "OVS  %d", (int)shared_config.cis_oversampling);
     }
-    ssd1362_drawString(12, 17, (int8_t *)textData, 0, 8);
+    ssd1362_drawString(12, y1 + 13, (int8_t *)textData, 0, 8);
 
     if (shared_var.cis_freq < 100)
         sprintf((char *)textData, "%d   Hz", (int)(shared_var.cis_freq));
@@ -64,7 +92,7 @@ void gui_displayPopUp(void)
     else
         sprintf((char *)textData, "%d Hz", (int)(shared_var.cis_freq));
 
-    ssd1362_drawString(12, 27, (int8_t*)textData, 0, 8);
+    ssd1362_drawString(12, y1 + 23, (int8_t*)textData, 0, 8);
 }
 
 /**
@@ -92,16 +120,6 @@ bool gui_checkButtonActivity(void)
  */
 void gui_interractiveMenu(void)
 {
-    // Button debounce state - static to maintain state between calls
-    typedef struct {
-        uint32_t debounce_start_tick;  // Tick when debounce started
-        GPIO_PinState raw_state;       // Current raw GPIO state
-        buttonStateTypeDef stable_state; // Debounced stable state
-        uint32_t sequence_number;      // Event sequence counter
-    } ButtonDebounceState_t;
-
-    static ButtonDebounceState_t btn_state[NUMBER_OF_BUTTONS] = {0};
-
     // Configuration constants
     #define DEBOUNCE_PRESS_MS   20    // Debounce time for press (20ms standard)
     #define DEBOUNCE_RELEASE_MS 20    // Debounce time for release (20ms standard)
@@ -120,18 +138,26 @@ void gui_interractiveMenu(void)
         gui_startCalibration();
     }
 
-    // Handle popup display for configuration changes
+    // Handle popup display for configuration changes. While the device menu is
+    // open it already shows the values being edited: keep the old* trackers in
+    // sync silently so no stale popup fires when the menu closes.
     if (shared_config.cis_oversampling != oldOversampling)
     {
-        start_tick = current_tick;
+        if (!gui_menu_isActive())
+        {
+            start_tick = current_tick;
+        }
         oldOversampling = shared_config.cis_oversampling;
     }
     if (shared_config.cis_dpi != oldDPI)
     {
-        start_tick = current_tick;
+        if (!gui_menu_isActive())
+        {
+            start_tick = current_tick;
+        }
         oldDPI = shared_config.cis_dpi;
     }
-    if ((current_tick - start_tick) < 3000)
+    if ((current_tick - start_tick) < 3000 && start_tick != 0 && !gui_menu_isActive())
     {
         gui_displayPopUp();
     }
@@ -182,6 +208,9 @@ void gui_interractiveMenu(void)
 
                     // Provide LED feedback
                     leds_pressFeedback(i, new_state);
+
+                    // Feed the on-device menu (active while no host is bound)
+                    gui_menu_onButton((buttonIdTypeDef)i, new_state);
 
                     // Publish event to CM7 via shared memory (edge-triggered)
                     shared_var.button_events[i].state = new_state;

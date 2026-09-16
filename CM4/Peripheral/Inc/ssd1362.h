@@ -70,6 +70,9 @@ void ssd1362_drawChar16(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color)
 void ssd1362_drawChar32(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color);
 void ssd1362_drawCharArray(uint16_t x, uint16_t y, int8_t text[], uint8_t color, uint32_t size);
 void ssd1362_drawString(uint16_t x, uint16_t y, int8_t textString[], uint8_t color, uint32_t size);
+/** drawString with a vertical clip window [y_min..y_max] — glyph rows outside are skipped
+ *  (both fonts advance 8 px per character; size selects the 8 or 16 px tall face). */
+void ssd1362_drawStringClipped(int32_t x, int32_t y, const char *text, uint8_t color, uint32_t size, int32_t y_min, int32_t y_max);
 void ssd1362_drawBmp(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t color, bool display);
 void ssd1362_drawBmpScaled(const uint8_t *bitmap, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t num, uint16_t den, uint8_t color);
 void ssd1362_progressBar(uint16_t x, uint16_t y, uint8_t state, uint8_t color);

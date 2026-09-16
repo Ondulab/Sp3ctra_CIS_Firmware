@@ -257,12 +257,21 @@
 //
 // On les sépare :
 //     n   = clamp((raw - offset[p]) * gain[p] >> CIS_CAL_GAIN_SHIFT, 0, CURVE_MAX)
-//     out = curve[couleur][voie][n]
+//     n  -= (dA[p]*baseA[n] + dB[p]*baseB[n]) >> CIS_CAL_TENT_SHIFT  (ancres basses)
+//     n  -= veilDelta[p]                                            (voile, uniforme)
+//     out = renderCurve[couleur][voie][n]
 //
 // Conséquence décisive : le coût runtime est CONSTANT quel que soit le nombre de
 // niveaux de calibration, puisque la courbe est tabulée une fois pour toutes. C'est
 // ce qui permet de dépasser 3 points — l'ancien schéma coûtait deux tableaux par pixel
 // de plus à chaque niveau ajouté, et la DTCM n'en avait plus les moyens.
+//
+// Le fichier ne stocke plus la courbe TABULÉE mais ses POINTS DE CASSURE (positions
+// normalisées mesurées + sorties visées en Q16) : la tabulation uint8 stockait du
+// LINÉAIRE sur 8 bits AVANT l'étirement point noir + sRGB, et un pas de 1/255
+// linéaire près du noir devient 5-13 codes de sortie après sRGB — du banding de
+// quantification fabriqué par le format lui-même. La LUT de rendu est désormais
+// interpolée en pleine précision et quantifiée UNE seule fois, en bout de chaîne.
 // 11 bits (2048 entrees) et non 10 : avec 14 bits en entree la dynamique utile atteint
 // ~3456 comptages, et renormaliser sur 1024 en jetterait la moitie. 2048 laisse 8 pas
 // normalises entre deux codes de sortie consecutifs, assez fin pour que le bruit du
@@ -270,6 +279,11 @@
 #define CIS_CAL_CURVE_BITS                      (11)
 #define CIS_CAL_CURVE_SIZE                      (1 << CIS_CAL_CURVE_BITS)  // 2048 entrées
 #define CIS_CAL_CURVE_MAX                       (CIS_CAL_CURVE_SIZE - 1)
+
+// Sorties visées des points de cassure, en Q16 (0..65535). Assez fin pour que la
+// composition point noir + sRGB, calculée en flottant depuis ces valeurs, tombe
+// toujours sur le bon code de sortie 8 bits (l'erreur résiduelle est < 1/2 code).
+#define CIS_CAL_CURVE_Y_MAX                     (65535)
 
 // Gains en Q4.12 : pas de 1/4096, soit ~0,02 % d'erreur relative sur un gain proche de
 // 1, contre ~1 % avec l'ancien Q8.8 — c'est autant de bruit à motif fixe en moins.
@@ -280,10 +294,15 @@
 
 // Niveaux de stimulus, en % de rapport cyclique LED. Le PREMIER doit être 0 (trame
 // d'obscurité -> offset par pixel) et le DERNIER 100 (blanc -> gain par pixel).
-// Les intermédiaires ne servent qu'à la forme de la courbe : ils ne sont jamais
-// conservés pixel à pixel, seulement moyennés par couleur et par voie. Le coût
-// mémoire est donc indépendant de leur nombre.
-#define CIS_CAL_LEVELS                          { 0, 15, 30, 45, 60, 80, 100 }
+// Les intermédiaires servent à la forme de la courbe, moyennés par couleur et par
+// voie — SAUF les niveaux CIS_CAL_LOW_ANCHOR_IDX_A/_B, aussi conservés pixel à
+// pixel (voir l'ancre basse ci-dessous).
+// Densité déplacée vers les SOMBRES (v13) : le banding vertical résiduel vit sous
+// l'ancien premier point (15 % ~ position 307/2047) — le noir d'un dessin est à
+// ~5 % de réflectance, et sRGB + point noir y étirent chaque unité d'index en
+// plusieurs codes de sortie. Le milieu de gamme, mesuré quasi linéaire et peu
+// dispersé (positions à ~1 % de la théorie, MAD 1-4), cède 45 et 80.
+#define CIS_CAL_LEVELS                          { 0, 4, 8, 15, 30, 60, 100 }
 #define CIS_CAL_LEVEL_COUNT                     (7)
 
 // Blanc et noir fixent gain et offset PAR PIXEL : ils méritent la moyenne longue.
@@ -293,12 +312,45 @@
 #define CIS_CAL_ITER_ANCHOR                     (1000)
 #define CIS_CAL_ITER_LEVEL                      (200)
 
+/* Ancres basses PAR PIXEL. La non-linearite en basse lumiere varie pixel a pixel :
+   une courbe partagee par voie garantit noir et blanc mais laisse ce residu en
+   banding vertical dans les ombres — la ou point noir + sRGB l'etirent le plus.
+   Mesure v12 (ancre unique a 15 %) : ecarts sains mais MINUSCULES a ce niveau
+   (MAD 1-4, p99 <= 10) alors que le banding persiste plus bas -> la dispersion vit
+   SOUS le premier point de mesure. v13 : DEUX niveaux conserves par pixel (4 % et
+   8 %, indices A et B), ecart a la moyenne de voie en unites d'index (int8 sature).
+   Au runtime, correction n' = n - (dA*baseA[n] + dB*baseB[n]) >> 7 avec deux
+   fonctions de base triangulaires en Q7 : A culmine a x(4%) et s'annule a x(8%),
+   B culmine a x(8%) et s'annule a x(15%) = CIS_CAL_LOW_ANCHOR_TOP_IDX — la
+   correction est CONFINEE aux sombres, plus d'extrapolation vers les tons moyens.
+   Les ancres affines (noir, blanc) restent exactes par pixel. Sans branche,
+   ~8 operations par canal. Devenus par pixel, ces niveaux meritent la moyenne
+   d'ancre. */
+/* DESACTIVE (2026-09-03) : effet nul (ecarts de reponse par pixel mesures a MAD 1-4,
+   sous le bruit) ET coupable de la chute de debit (545 lps au lieu de ~1063) -- deux
+   lectures de LUT AXI aleatoires de plus par canal (tentA[n], tentB[n]), 72 Ko de
+   tables balayees au hasard qui font thrasher le cache D de 16 Ko. Le vrai correctif
+   du banding est la carte de VOILE (calcul DTCM pur, sans LUT). Les champs lowDeltaA/B
+   restent dans la struct (format inchange, pas de recalibration) mais inertes. */
+#define CIS_CAL_LOW_ANCHOR_ENABLED              (0)
+#define CIS_CAL_LOW_ANCHOR_IDX_A                (1)      /* 4 % dans CIS_CAL_LEVELS */
+#define CIS_CAL_LOW_ANCHOR_IDX_B                (2)      /* 8 % */
+#define CIS_CAL_LOW_ANCHOR_TOP_IDX              (3)      /* 15 % : fin de la correction */
+#define CIS_CAL_ITER_LOW_ANCHOR                 (1000)
+#define CIS_CAL_TENT_SHIFT                      (7)      /* bases en Q7, pic = 128 */
+#define CIS_CAL_TENT_UNITY                      (1 << CIS_CAL_TENT_SHIFT)
+#define CIS_CAL_LOW_DELTA_MAX                   (127)    /* saturation int8 de l'ecart */
+
 // La disposition du fichier de calibration change. Sans marqueur, un fichier de
 // l'ancien format serait relu comme des données valides (la lecture ne teste que la
 // taille, et l'ancien fichier est plus GRAND) et produirait une image aberrante.
 #define CIS_CAL_FILE_MAGIC                      (0x53503343UL)  /* "SP3C" */
-#define CIS_CAL_FILE_VERSION                    (11UL) /* v11 : courbes LINEAIRES au fichier,
-   rendu (equilibre + point noir + sRGB) compose en RAM a chaud -- voir
+#define CIS_CAL_FILE_VERSION                    (16UL) /* v16 : voile REPLIE dans gain/
+   offset a la calibration (cout runtime nul, la rampe explicite v15 coutait ~20 %% de
+   debit) -- gainData/offsetData folded, veilDelta stocke pour inspection seulement.
+   Ancres basses (lowDelta) DESACTIVEES (effet nul + LUT AXI qui thrashait le cache).
+   v15 : rampe voile explicite. v14 : plateau. v13 : niveaux {0,4,8,15,30,60,100}.
+   v12 : points de cassure Q16 au fichier. Rendu compose en RAM a chaud -- voir
    cis_composeOutputLut() et SLP_CFG_BLACK_POINT. */
 
 /* Le point noir de sortie est un REGLAGE d'appareil (shared_config.cis_black_point,
@@ -355,14 +407,34 @@
    depuis la calibration -- expliquant 50-70 %% du banding des teintes sombres. */
 #define CIS_CAL_DARK_REFRESH_ITER               (200)
 
-/* Calibration du VOILE : carte additive par pixel de la lumiere parasite interne
-   (LEDs allumees, RIEN devant la vitre -- papier noir a 20-30 cm en ecran).
-   Mesure 2026-09-01 : voile 1,5-4 %% lineaire, structure ~1 %% -> le banding
-   vertical du "noir complet" en mode physique. Fichier SP3V, replie dans
-   offsetData a chaque demarrage de capture : cout par pixel nul. */
-#define CIS_VEIL_ITER                           (400)
-#define CIS_VEIL_FILE_PATH_FORMAT               "0:/CIS_VEIL_%udpi.BIN"
-#define CIS_VEIL_FILE_MAGIC                     (0x53503356UL)  /* "SP3V" */
+/* Calibration du POINT NOIR : l'operateur glisse sur son papier noir, on mesure le
+   residu lineaire par pixel (offsets, gains et courbe appliques comme au runtime,
+   arret juste avant le point noir) et on pose le point noir au-dessus du haut de la
+   DISPERSION (percentile + marge), pas de la moyenne : c'est la dispersion qui fait
+   les stries verticales du noir (mesure 2026-09-02, papier Clairefontaine noir). */
+#define CIS_BP_CAL_ITER                         (400)
+#define CIS_BP_CAL_KEEP_PERMILLE                (995)  /* percentile retenu : P99,5 */
+#define CIS_BP_CAL_MARGIN_X1000                 (10)   /* marge bruit temporel par ligne */
+#define CIS_BP_CAL_MAX_X1000                    (150)  /* au-dela : cible pas noire, echec */
+
+/* Carte de VOILE par pixel, remplie par la MEME calibration de point noir. Le voile
+   (lumiere LED parasite additive, geometrie fixe) fait varier le plancher d'ombre de
+   ~0,7-1,2 %% lineaire dans l'espace -- banding vertical LARGE BANDE (mesure : 30 %%
+   de l'energie a 150-385 px, le reste reparti 8-150 px), que le point noir scalaire
+   ne peut aplatir.
+   veilDelta[p] = plancher[p] - base_COULEUR (moyenne sur les 3 voies) : ecart PLEIN,
+   toutes echelles spatiales, reference commune aux voies (pas de marche de voie),
+   sature int8. Correction PHYSIQUE par rampe n' = n - veil*(MAX-n)/MAX -- nulle au
+   blanc (le voile est deja dans l'ancre blanche), pleine au noir.
+   REPLIEE dans gain/offset (2026-09-03) : cette rampe est AFFINE en n, et n est affine
+   en raw (l'etage offset/gain), donc n' = gain'*(raw-offset') avec gain' = gain*
+   (MAX+veil)/MAX et offset' = offset + (veil<<GAIN_SHIFT)/gain'. La correction est
+   absorbee dans gainData/offsetData a la calibration : COUT RUNTIME NUL (la rampe
+   explicite coutait ~20 %% de debit, 1005->810 lps mesure). veilDelta reste stocke
+   pour inspection. Ni plateau (marches de voie), ni passe-haut (banding large bande) :
+   essais precedents ecartes par la mesure. */
+#define CIS_VEIL_MAP_ENABLED                    (1)
+#define CIS_VEIL_DELTA_MAX                      (127)  /* saturation int8 signee */
 
 /* Journal RAM des moyennes PAR LIGNE (fenetre noire brute + sortie calibree, par
    couleur et par voie) : instrument du chantier banding horizontal, lu par SWD
@@ -380,10 +452,20 @@
    CONCLUSION du 2026-09-01 apres mesure du couplage (journal v2, actifs bruts) :
    k(noir->actifs) = -0,05..-0,40 -- les photodiodes ne voient PAS l'ondulation du
    piedestal (elle est dans la LUMIERE/l'analogique, voies extremes anti-correlees) ;
-   accelerer l'IIR n'apporte rien et injecte le bruit de la fenetre noire. On reste
-   a 3 : l'IIR ne corrige que sa vraie cible, la derive thermique. Le residuel
-   ~0,3-0,5 %% a 40-56 Hz est un chantier MATERIEL (alimentation). */
-#define CIS_DRIFT_IIR_SHIFT                     (3)
+   accelerer l'IIR n'apporte rien et injecte le bruit de la fenetre noire. Le residuel
+   ~0,3-0,5 %% a 40-56 Hz est un chantier MATERIEL (alimentation/masse).
+   2026-09-02 : passe de 3 a 6 (coupure ~21 Hz -> ~2,6 Hz). A 3, l'IIR laissait
+   passer ~40 %% d'une raie a 50 Hz avec ~70 deg de retard : chaque mV d'ondulation
+   de la fenetre noire (mode commun, masse flottante) injectait ~0,4 mV d'artefact
+   dephase dans TOUTE la ligne -- la correction sur-alimentait le banding. A 6 il
+   n'en passe ~5 %%, la cible thermique (secondes) reste largement couverte, et le
+   dark refresh rebase de toute facon les offsets a chaque demarrage de capture. */
+#define CIS_DRIFT_IIR_SHIFT                     (6)
+/* Precision de l'etat de l'IIR (Q bits de fraction). La zone morte de troncature
+   vaut 2^(SHIFT-Q) comptage : a Q3/shift 6 elle atteignait 8 comptages (IIR fige),
+   a Q8 elle retombe a 1/4 de comptage. Borne : CIS_DRIFT_THRESHOLD (~1,6k) << 8
+   tient tres largement dans l'int32. */
+#define CIS_DRIFT_IIR_STATE_Q                   (8)
 
 /* Annuleur adaptatif LMS de l'ondulation du piedestal (mesure 2026-09-01 : raie
    48-58 Hz errante, coherence fenetre noire<->actifs 0,95-0,99 au pic mais

@@ -148,11 +148,33 @@ struct __attribute__((aligned(4))) cisCals
 	// --- Ce qui varie d'un pixel à l'autre : dispersion de fabrication -------------
 	int16_t offsetData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];  // niveau noir, comptages ADC
 	int16_t gainData[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];    // sensibilité, Q4.12
+	// Écarts par pixel aux DEUX ancres basses (niveaux CIS_CAL_LOW_ANCHOR_IDX_A/_B,
+	// 4 % et 8 %), en unités d'index de courbe, saturés int8. Retranchés de n au
+	// runtime, pondérés par les bases triangulaires confinées sous 15 %
+	// (voir config.h, "ancres basses PAR PIXEL").
+	int8_t  lowDeltaA[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+	int8_t  lowDeltaB[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
+
+	// Carte de VOILE par pixel : excès du plancher d'ombre au-dessus du plancher de
+	// la voie, en unités d'index de courbe (saturé int8). Le voile est de la lumière
+	// LED parasite additive, de géométrie fixe COMMUNE aux 3 couleurs (mesuré : stries
+	// verticales corrélées 0,85-0,93, ~0,7-1,2 % linéaire RMS, spread 15-25 unités
+	// d'index). Un point noir SCALAIRE ne peut pas l'aplatir → banding vertical dans
+	// les ombres. Retranché de n au runtime (uniforme : le voile est constant en index,
+	// indépendant de la scène). Rempli par cis_calibrateBlackPoint ; zéro = pas de
+	// correction (défaut tant que la calibration du point noir n'a pas été faite).
+	int8_t  veilDelta[CIS_MAX_USEFUL_DATA_SIZE * CIS_ADC_OUT_LANES];
 
 	// --- Ce qui est commun : la forme de la réponse de la chaîne -------------------
-	// Indexée par la valeur normalisée 0..CIS_CAL_CURVE_MAX, rend la sortie 0..255.
-	// Le nombre de niveaux de calibration n'en change pas la taille.
-	uint8_t curve[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
+	// Points de cassure de la linéarisation, PLEINE PRÉCISION : la courbe tabulée
+	// uint8 qu'ils remplacent quantifiait le linéaire à 8 bits avant l'étirement
+	// point noir + sRGB (banding de quantification près du noir). curveX = positions
+	// normalisées mesurées (0..CIS_CAL_CURVE_MAX, monotonie forcée, ancres 0 et max
+	// exactes) ; curveY = sorties visées partagées, proportionnelles au rapport
+	// cyclique, en Q16 (0..CIS_CAL_CURVE_Y_MAX). La LUT de rendu est interpolée
+	// depuis ces points par cis_composeOutputLut().
+	int16_t  curveX[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_LEVEL_COUNT];
+	uint16_t curveY[CIS_CAL_LEVEL_COUNT];
 
 	// Références pour correction de dérive (INCHANGÉ)
 	int32_t blackRefInactiveAvg[COLOR_CHANNELS][CIS_ADC_OUT_LANES];  // Red, Green, Blue for each lane
@@ -181,6 +203,16 @@ struct __attribute__((aligned(4))) imuCals
 	float accelScaleZ;
 };
 
+// Requests the CM4 device menu can post to the CM7 (see shared_var menu_req_*).
+typedef enum
+{
+	MENU_REQ_NONE = 0,
+	MENU_REQ_CFG_SET,        // menu_req_id/_value -> cfg apply + persist (link_server cfg_write path)
+	MENU_REQ_IMU_CAL,        // icm42688_performCalibration (blocking ~1.2 s on the CM7 link task)
+	MENU_REQ_BLACKPOINT_CAL, // async: progress mirrored in menu_bp_cal_state
+	MENU_REQ_FACTORY_RESET,  // file_factoryReset (QSPI format, blocking several s) + reboot
+} menuReqKindTypeDef;
+
 struct __attribute__((aligned(4))) shared_var
 {
 	int32_t cis_process_rdy;
@@ -192,14 +224,19 @@ struct __attribute__((aligned(4))) shared_var
 	struct button_Event button_events[3];
 	struct led_State ledState[3];
     uint32_t led_update_requested[3];
+	/* CM4 device menu -> CM7 request mailbox. NOLOAD region: the CM7 zeroes
+	   these words BEFORE it releases the CM4 (main.c), so both sides start
+	   from seq == done_seq == 0. The CM4 is the only writer of the request
+	   words and posts seq LAST; the CM7 link task executes, writes result,
+	   then echoes done_seq. One request in flight at a time. */
+	uint32_t menu_req_seq;       // CM4: +1 per request (posted last)
+	uint32_t menu_req_kind;      // menuReqKindTypeDef
+	uint32_t menu_req_id;        // slp_cfg_id for MENU_REQ_CFG_SET
+	uint32_t menu_req_value;     // raw value (IEEE-754 bits for f32 ids, packed a|b<<8|c<<16|d<<24 for ip4)
+	uint32_t menu_req_done_seq;  // CM7: last executed request
+	uint32_t menu_req_result;    // SLP_CFG_F_* flags of the last executed request
+	uint32_t menu_bp_cal_state;  // CM7 mirror of cisBlackPointCalState: 0 idle, 1 running, 2 done, 3 failed
 };
-
-// Longueur du mot de passe d'administration. Il est tire au sort au premier
-// demarrage plutot que fixe par defaut : un mot de passe d'usine identique sur
-// toutes les machines ne protege de rien des que la documentation circule.
-// L'alphabet ecarte les caracteres ambigus a lire sur une petite dalle OLED.
-#define ADMIN_PASSWORD_LEN 12
-#define ADMIN_PASSWORD_ALPHABET "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 struct __attribute__((aligned(4))) shared_config
 {
@@ -222,12 +259,6 @@ struct __attribute__((aligned(4))) shared_config
 	uint16_t screensaver_timeout_sec; // Screensaver timeout in seconds (1-1000)
 	float motion_threshold_acc;     // Accelerometer motion threshold in g (0.01-1.0)
 	float motion_threshold_gyro;    // Gyroscope motion threshold in dps (0.5-10.0)
-	// Administration credentials, guarding every request that CHANGES the device
-	char admin_password[ADMIN_PASSWORD_LEN + 1]; // generated on first boot, never a fixed default
-	uint8_t admin_password_ack;     // 1 once it has been used: the boot screen stops showing it
-	/* N'AJOUTER de nouveaux champs qu'ICI, en fin de structure : admin_password est
-	   accede par mots alignes (adminAuth_init) -- decaler son offset = HardFault
-	   UNALIGNED au boot (vecu, 2026-09-01). */
 	uint8_t cis_black_point;        // Point noir de sortie, x1000 lineaire (0..200) : 0=physique, 55=dessin, ~25=photo
 };
 
@@ -258,9 +289,7 @@ struct __attribute__((aligned(4))) shared_feedback
 	uint8_t reserved[2];
 	char device_name[16];                 // "Sp3ctra-XXXX", written by the CM7 BEFORE it releases the CM4
 	                                      // (the MCU unique-id region 0x1FF1E800 bus-faults when read from the CM4)
-	char admin_password[ADMIN_PASSWORD_LEN + 1]; // published for the boot screen ONLY
-	uint8_t admin_show_password;          // 1 while the password has never been used: the screen is
-	                                      // the only way to learn it, and it must never leave by the network
+	uint8_t net_link_up;                  // Ethernet carrier (CM7 isConnected mirror) for the CM4 menu
 };
 
 /**************************************************************************************/

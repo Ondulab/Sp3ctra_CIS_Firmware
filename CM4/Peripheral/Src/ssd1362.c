@@ -373,6 +373,33 @@ void ssd1362_drawString(uint16_t x, uint16_t y, int8_t textString[], uint8_t col
 	ssd1362_drawCharArray(x,y, textString, color, size);
 }
 
+void ssd1362_drawStringClipped(int32_t x, int32_t y, const char *text, uint8_t color, uint32_t size, int32_t y_min, int32_t y_max)
+{
+	const uint32_t rows = (size == 16) ? 16 : 8;
+	int32_t xOffset = 0;
+
+	for (const char *c = text; *c != '\0'; c++, xOffset += 8)
+	{
+		for (uint32_t row = 0; row < rows; row++)
+		{
+			const int32_t ry = y + (int32_t) row;
+			if (ry < y_min || ry > y_max || ry < 0)
+			{
+				continue;
+			}
+			if (size == 16)
+			{
+				ssd1362_drawByteAsRow((uint16_t)(x + xOffset), (uint16_t) ry, font16x16[(unsigned char)*c][row * 2], color);
+				ssd1362_drawByteAsRow((uint16_t)(x + xOffset + 8), (uint16_t) ry, font16x16[(unsigned char)*c][(row * 2) + 1], color);
+			}
+			else
+			{
+				ssd1362_drawByteAsRow((uint16_t)(x + xOffset), (uint16_t) ry, font8x8_basic[(unsigned char)*c][row], color);
+			}
+		}
+	}
+}
+
 void ssd1362_drawChar16(uint16_t x, uint16_t y, uint8_t thisChar, uint8_t color)
 {
 	for (size_t row = 0; row < 16; row++) {

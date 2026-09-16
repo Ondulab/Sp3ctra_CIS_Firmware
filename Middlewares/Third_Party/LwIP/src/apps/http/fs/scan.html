@@ -43,9 +43,11 @@
                 <div class="box">
                     <span class="boxlabel">SPEED</span>
                     <select id="speed">
+                        <option value="auto" selected>auto</option>
                         <option value="25">25 lines/s</option>
                         <option value="100">100 lines/s</option>
-                        <option value="250" selected>250 lines/s</option>
+                        <option value="250">250 lines/s</option>
+                        <option value="500">500 lines/s</option>
                         <option value="2000">max</option>
                     </select>
                 </div>
@@ -89,9 +91,9 @@
                     <span class="boxlabel">BLACK POINT</span>
                     <div id="loadingIndicatorBp" class="button-loading2" style="display:none;"></div>
                     <select id="blackpoint" onchange="updateBlackPoint(this.value)">
-                        <option value="0">Physique (0)</option>
+                        <option value="0">Physical (0)</option>
                         <option value="25">Photo (25)</option>
-                        <option value="55">Dessin (55)</option>
+                        <option value="55">Drawing (55)</option>
                     </select>
                 </div>
                 <div class="box">
@@ -117,8 +119,22 @@
                     <span class="boxlabel">CALIBRATION</span>
                     <button id="calibrateButton" onclick="startCalibration()">Start</button>
                 </div>
+                <div class="box">
+                    <span class="boxlabel">BLACK POINT CAL</span>
+                    <button id="bpCalButton" onclick="startBlackPointCal()">Start</button>
+                </div>
             </div>
-            <p class="hint">&#9888;&#65039; Calibration: keep moving over a white reference surface</p>
+            <p class="hint"><b>Calibration</b> &mdash; place the device on a plain <b>white</b> sheet,
+                press Start, and keep gliding until the confirmation appears. This measures each
+                pixel's dark offset and gain plus the sensor response curve, and stores them on the
+                device.</p>
+            <p class="hint"><b>Black point cal</b> &mdash; place the device on the matte <b>black</b>
+                paper you want rendered as pure black, press Start, and keep gliding until the
+                confirmation appears. The device measures the residual brightness of every pixel on
+                that paper and sets the black point just above it, so the paper reads as uniform
+                black without crushing more shadow detail than necessary. The value is applied
+                immediately, saved, and shown in the BLACK POINT selector &mdash; which you can still
+                use to override it manually.</p>
         </div>
     </div>
     <script src="sp3ctra.js"></script>
@@ -141,8 +157,19 @@
         var since = 0;           /* id of the next line we have not drawn yet */
         var running = true;
         var POLL_HZ = 25;        /* requests per second; each carries a batch */
+
+        /* Lines arrive in bursts of a dozen and are drawn a few per animation
+         * frame: painting a whole batch at once is what made the waterfall jump.
+         * The queue is the jitter buffer, kept under BACKLOG_S of latency. */
+        var pending = [];
+        var budget = 0;          /* fractional columns owed to the display */
+        var rateEst = 25;        /* smoothed lines/s coming in */
+        var lastFrame = 0;
+        var BACKLOG_S = 0.12;
+
         var drawn = 0, errors = 0, dropped = 0, bytes = 0, behind = false;
         var lastRateTick = 0, linesPerSec = 0, kbPerSec = 0, dropPerSec = 0;
+        var autoRate = 250;      /* what "auto" currently asks the device for */
         var dev = { dpi: 0, lps: 0, pub: 0, flags: 0 };
 
         function resetWaterfall(h) {
@@ -160,14 +187,17 @@
             scope.width = view.width;
         }
 
-        /* One response = one shift and one putImageData, whatever the batch size:
-         * scrolling column by column would redraw the whole strip N times. */
-        function drawBatch(rgb, lines, count) {
+        /* One shift and one putImageData per animation frame, whatever the number
+         * of columns: scrolling column by column would redraw the strip N times. */
+        function drawColumns(views) {
+            var count = views[0].length / 3;
             if (count !== pixels || oc.width !== span) {
                 resetWaterfall(count);
             }
-            var n = lines > oc.width ? oc.width : lines;
-            var skip = lines - n;                    /* older than the window: drop */
+            if (views.length > oc.width) {
+                views = views.slice(views.length - oc.width);
+            }
+            var n = views.length;
             octx.drawImage(oc, -n, 0);
 
             var img = octx.createImageData(n, count);
@@ -176,10 +206,10 @@
             var flip = document.getElementById('flip').classList.contains('selected');
 
             for (var x = 0; x < n; x++) {
-                var base = (skip + x) * count * 3;
+                var line = views[x];
                 for (var y = 0; y < count; y++) {
-                    var s = base + (flip ? (count - 1 - y) : y) * 3;
-                    var r = rgb[s] * gain, g = rgb[s + 1] * gain, b = rgb[s + 2] * gain;
+                    var s = (flip ? (count - 1 - y) : y) * 3;
+                    var r = line[s] * gain, g = line[s + 1] * gain, b = line[s + 2] * gain;
                     var o = (y * n + x) * 4;
                     d[o] = r > 255 ? 255 : r;
                     d[o + 1] = g > 255 ? 255 : g;
@@ -197,11 +227,34 @@
                            0, 0, view.width, view.height);
 
             if (scopeFrame.style.display !== 'none') {
-                drawScope(rgb, (lines - 1) * count * 3, count);
+                drawScope(views[n - 1], count);
             }
         }
 
-        function drawScope(rgb, base, count) {
+        /* Drain the queue at the rate the lines come in, so the image slides
+         * instead of stepping. A backlog above BACKLOG_S is caught up at once. */
+        function frame(now) {
+            requestAnimationFrame(frame);
+            var dt = lastFrame ? (now - lastFrame) : 16;
+            lastFrame = now;
+
+            if (pending.length === 0) {
+                budget = 0;
+                return;
+            }
+            budget += dt / 1000 * rateEst;
+            var backlog = rateEst * BACKLOG_S;
+            if (pending.length > backlog) {
+                budget += pending.length - backlog;
+            }
+            var n = Math.floor(budget);
+            if (n < 1) { return; }
+            if (n > pending.length) { n = pending.length; }
+            budget -= n;
+            drawColumns(pending.splice(0, n));
+        }
+
+        function drawScope(line, count) {
             var w = scope.width, h = scope.height;
             sctx.fillStyle = '#20202a';
             sctx.fillRect(0, 0, w, h);
@@ -211,16 +264,20 @@
                 sctx.beginPath();
                 for (var i = 0; i < count; i++) {
                     var x = i * w / count;
-                    var y = h - (rgb[base + i * 3 + c] / 255) * h;
+                    var y = h - (line[i * 3 + c] / 255) * h;
                     if (i === 0) { sctx.moveTo(x, y); } else { sctx.lineTo(x, y); }
                 }
                 sctx.stroke();
             }
         }
 
+        function requestedRate() {
+            var v = document.getElementById('speed').value;
+            return v === 'auto' ? Math.round(autoRate) : parseInt(v, 10);
+        }
+
         function setStatus(count) {
             var link = (dev.flags & 1) ? 'host bound' : 'no host';
-            if (dev.flags & 2) { link += ', streaming'; }
             var txt = '<b>' + linesPerSec.toFixed(0) + '</b> lines/s of <b>' + dev.lps +
                 '</b> &middot; <b>' + count + '</b> px &middot; <b>' + dev.dpi + '</b> dpi &middot; <b>' +
                 kbPerSec.toFixed(0) + '</b> kB/s &middot; ' + link;
@@ -229,6 +286,12 @@
             }
             if (errors > 0) {
                 txt += ' &middot; <span class="warn">' + errors + ' failed request(s)</span>';
+            }
+            /* Streaming to a host that is not there still fills the link with the
+             * SLP flow, and the preview is what gives way. */
+            if ((dev.flags & 2) && !(dev.flags & 1) && dropPerSec >= 5) {
+                txt += ' &middot; <span class="warn">&#9888; "Stream w/o host" is ON and no host ' +
+                    'is bound: it competes for the link (see NETWORK)</span>';
             }
             statusEl.innerHTML = txt;
             readoutEl.textContent = dev.pub + ' published/s';
@@ -252,7 +315,9 @@
             bytes += buf.length;
 
             if (lines > 0 && count > 0 && buf.length >= 24 + 3 * lines * count) {
-                drawBatch(buf.subarray(24), lines, count);
+                for (var i = 0; i < lines; i++) {
+                    pending.push(buf.subarray(24 + i * count * 3, 24 + (i + 1) * count * 3));
+                }
                 drawn += lines;
                 since = (firstId + lines) >>> 0;
             }
@@ -263,9 +328,9 @@
             if (!running) { return; }
             var started = performance.now();
             var dec = document.getElementById('dec').value;
-            var rate = document.getElementById('speed').value;
 
-            fetch('/scan.bin?dec=' + dec + '&rate=' + rate + '&since=' + since, { cache: 'no-store' })
+            fetch('/scan.bin?dec=' + dec + '&rate=' + requestedRate() + '&since=' + since,
+                  { cache: 'no-store' })
                 .then(function (r) { return r.arrayBuffer(); })
                 .then(function (b) { handle(new Uint8Array(b)); })
                 .catch(function () { errors++; })
@@ -276,12 +341,23 @@
                         linesPerSec = drawn * 1000 / elapsed;
                         kbPerSec = bytes / elapsed;       /* bytes per ms == kB/s */
                         dropPerSec = dropped * 1000 / elapsed;
-                        drawn = 0; bytes = 0; dropped = 0;
+                        rateEst = 0.6 * rateEst + 0.4 * linesPerSec;
+                        if (rateEst < 5) { rateEst = 5; }
+                        /* "auto": ask for what actually gets through -- back off hard
+                         * when the ring laps us, creep back up while it does not. */
+                        if (document.getElementById('speed').value === 'auto') {
+                            if (dropPerSec >= 2 || errors > 0) {
+                                autoRate = Math.max(25, autoRate * 0.75);
+                            } else {
+                                autoRate = Math.min(1200, autoRate * 1.15);
+                            }
+                        }
+                        drawn = 0; bytes = 0; dropped = 0; errors = 0;
                         lastRateTick = now;
                     }
                     /* Falling behind means the device produces faster than we ask:
                      * go straight back for the next batch instead of idling. */
-                    var wait = behind ? 4 : (1000 / POLL_HZ - (now - started));
+                    var wait = behind ? 8 : (1000 / POLL_HZ - (now - started));
                     setTimeout(tick, wait > 0 ? wait : 0);
                 });
         }
@@ -290,13 +366,16 @@
             running = !running;
             this.textContent = running ? 'Pause' : 'Run';
             this.className = running ? 'selected' : '';
-            if (running) { since = 0; tick(); }
+            if (running) { since = 0; pending.length = 0; tick(); }
         };
         document.getElementById('span').onchange = function () {
             span = parseInt(this.value, 10);
             resetWaterfall(pixels || 1);
         };
-        document.getElementById('dec').onchange = function () { since = 0; };
+        document.getElementById('dec').onchange = function () {
+            since = 0;
+            pending.length = 0;
+        };
         document.getElementById('gain').oninput = function () {
             document.getElementById('gainVal').textContent = parseFloat(this.value).toFixed(1) + '×';
         };
@@ -326,6 +405,7 @@
         fitView();
         resetWaterfall(1);
         lastRateTick = performance.now();
+        requestAnimationFrame(frame);
         tick();
 
         /* The device is about to reboot (DPI change): stop hammering it. */
@@ -474,13 +554,38 @@
                 xhr.send("oversampling=" + newOversampling);
             });
         }
+        /* A calibrated black point is rarely one of the presets: give it its own
+         * option so the selector shows the real value instead of going blank. */
+        function setBlackPointValue(v) {
+            var sel = document.getElementById('blackpoint');
+            var preset = false;
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === v && sel.options[i].id !== 'bpCustom') {
+                    preset = true;
+                    break;
+                }
+            }
+            var custom = document.getElementById('bpCustom');
+            if (!preset) {
+                if (!custom) {
+                    custom = document.createElement('option');
+                    custom.id = 'bpCustom';
+                    sel.appendChild(custom);
+                }
+                custom.value = v;
+                custom.textContent = 'Calibrated (' + v + ')';
+            } else if (custom) {
+                custom.remove();
+            }
+            sel.value = v;
+        }
         function loadBlackPoint() {
             return new Promise((resolve, reject) => {
                 var xhr = new XMLHttpRequest();
                 xhr.open("GET", "/getBlackPoint", true);
                 xhr.onload = function () {
                     if (xhr.status === 200) {
-                        document.getElementById('blackpoint').value = xhr.responseText.trim();
+                        setBlackPointValue(xhr.responseText.trim());
                         resolve();
                     }
                     else { reject(new Error("getBlackPoint: " + xhr.status)); }
@@ -488,6 +593,56 @@
                 xhr.onerror = () => reject(new Error("Network request failed"));
                 xhr.send();
             });
+        }
+        function startBlackPointCal() {
+            var btn = document.getElementById('bpCalButton');
+            btn.classList.add('button-loading');
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/startBlackPointCal", true);
+            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    /* The device answers before the measurement runs: poll the status.
+                     * 180 polls x 500 ms = 90 s, past the device's 60 s motion timeout. */
+                    pollBlackPointCal(btn, 180);
+                } else {
+                    btn.classList.remove('button-loading');
+                    alert("✗ Failed to start black point calibration (HTTP " + xhr.status + ")");
+                }
+            };
+            xhr.onerror = function () {
+                btn.classList.remove('button-loading');
+                alert("✗ Network Error!\n\nUnable to communicate with device.");
+            };
+            xhr.send("BP_CAL_START");
+        }
+        function pollBlackPointCal(btn, remaining) {
+            function retry() {
+                if (remaining <= 0) {
+                    btn.classList.remove('button-loading');
+                    alert("✗ Black point calibration timed out.");
+                } else {
+                    setTimeout(function () { pollBlackPointCal(btn, remaining - 1); }, 500);
+                }
+            }
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "/getBlackPointCalStatus", true);
+            xhr.onload = function () {
+                if (xhr.status !== 200) { retry(); return; }
+                var parts = xhr.responseText.trim().split(' ');
+                if (parts[0] === 'done') {
+                    btn.classList.remove('button-loading');
+                    setBlackPointValue(parts[1]);
+                    alert("✓ Black point calibrated to " + parts[1] + "/1000.\n\nApplied and saved.");
+                } else if (parts[0] === 'failed') {
+                    btn.classList.remove('button-loading');
+                    alert("✗ Black point calibration failed.\n\nKeep gliding on matte BLACK paper while it runs, then try again.");
+                } else {
+                    retry();
+                }
+            };
+            xhr.onerror = retry;
+            xhr.send();
         }
         function updateBlackPoint(v) {
             var ind = document.getElementById('loadingIndicatorBp');

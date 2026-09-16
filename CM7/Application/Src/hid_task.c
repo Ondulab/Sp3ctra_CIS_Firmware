@@ -36,6 +36,7 @@
 #include "icm42688.h"
 #include "udp_client.h"
 #include "link_server.h"
+#include "imu_gestures.h"
 #include "hid_task.h"
 
 /* Private define ------------------------------------------------------------*/
@@ -69,7 +70,7 @@ static void hidTask(void *argument)
     hid_msg.hdr.version  = SLP_VERSION;
     hid_msg.hdr.type     = SLP_HID;
     hid_msg.hdr.length   = sizeof(hid_msg);
-    hid_msg.valid_mask   = SLP_HID_BUTTONS | SLP_HID_ACC | SLP_HID_GYRO | SLP_HID_TEMP;
+    hid_msg.valid_mask   = SLP_HID_BUTTONS | SLP_HID_ACC | SLP_HID_GYRO | SLP_HID_TEMP | SLP_HID_GESTURES;
     hid_msg.button_count = NUMBER_OF_BUTTONS;
 
     for (;;)
@@ -81,6 +82,10 @@ static void hidTask(void *argument)
         icm42688_getAccG(acc);
         icm42688_getGyroDps(gyr);
         const float temp = icm42688_temp();
+
+        /* Gesture detectors run on the full 1 kHz samples - the host stream
+         * only carries their EVENTS (hit + struck face, resting face). */
+        imuGestures_update(acc, gyr);
 
         /* Publish to the CM4 (cached shared region: clean after writing). */
         shared_imu.acc[0]  = acc[0];
@@ -115,6 +120,12 @@ static void hidTask(void *argument)
         }
         first = false;
 
+        /* A gesture event flushes a datagram immediately, like a button edge. */
+        if (imuGestures_takeEvent())
+        {
+            edge = true;
+        }
+
         const uint32_t now  = HAL_GetTick();
         const uint16_t rate = link_getHidRateHz();
         uint32_t period_ms  = (rate != 0U) ? (1000U / rate) : (1000U / SLP_DEFAULT_HID_RATE_HZ);
@@ -139,6 +150,13 @@ static void hidTask(void *argument)
                 hid_msg.gyro[1] = gyr[1];
                 hid_msg.gyro[2] = gyr[2];
                 hid_msg.temp_c  = temp;
+
+                const ImuGestureState *ges = imuGestures_state();
+                hid_msg.gesture_face = ges->face;
+                hid_msg.hit_seq      = ges->hit_seq;
+                hid_msg.hit_velocity = ges->hit_velocity;
+                hid_msg.hit_face     = ges->hit_face;
+
                 (void)udpClient_sendData(&hid_msg, sizeof(hid_msg));
             }
         }

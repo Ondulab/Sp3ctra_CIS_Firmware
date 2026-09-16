@@ -76,7 +76,11 @@ static void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResul
 static void cis_ComputeCalsInactivesAvrg(struct cisCalsTypes *currCals, CIS_Color_TypeDef color);
 static void cis_computeAffine(struct cisCalsTypes *whiteCal, struct cisCalsTypes *blackCal, CIS_Color_TypeDef color);
 static void cis_measureLevel(struct cisCalsTypes *levelCal, uint32_t level);
-static void cis_buildCurves(uint32_t maxOut);
+static void cis_storeBreakpoints(void);
+static int32_t cis_evalLinearCurveQ16(int32_t c, int32_t lane, int32_t n);
+#if CIS_CAL_LOW_ANCHOR_ENABLED
+static void cis_captureLowDeltas(struct cisCalsTypes *levelCal, uint32_t level, int8_t *dst);
+#endif
 
 /* Rapports cycliques LED des points de calibration. Le premier est 0 (obscurite) et le
    dernier 100 (blanc) : ce sont les deux ancres de la normalisation affine. */
@@ -87,8 +91,9 @@ static const uint8_t cisCalLevels[CIS_CAL_LEVEL_COUNT] = CIS_CAL_LEVELS;
    pixel a pixel. C'est ce qui rend le nombre de niveaux gratuit en memoire. */
 static int32_t cisLevelNorm[CIS_CAL_LEVEL_COUNT][COLOR_CHANNELS][CIS_ADC_OUT_LANES];
 
-/* Etat de l'IIR de derive (Q3), au niveau fichier : cis_refreshDarkReferences le
-   re-amorce apres avoir rebase offsets et references noires. */
+/* Etat de l'IIR de derive (Q<CIS_DRIFT_IIR_STATE_Q>), au niveau fichier :
+   cis_refreshDarkReferences le re-amorce apres avoir rebase offsets et
+   references noires. */
 static int32_t driftState[3][CIS_ADC_OUT_LANES];
 static bool driftPrimed = false;
 
@@ -97,6 +102,17 @@ static bool driftPrimed = false;
 /* LUT de RENDU lue par la boucle pixel : linearisation du fichier composee avec
    l'equilibre couleur (compile), le point noir (config appareil) et le gamma. */
 static uint8_t cisRenderCurve[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
+
+#if CIS_CAL_LOW_ANCHOR_ENABLED
+/* Ponderations des ancres basses par pixel, en Q<CIS_CAL_TENT_SHIFT>. Bases
+   triangulaires confinees aux sombres : A culmine (=UNITY) a x(4%) et s'annule a
+   x(8%), B culmine a x(8%) et s'annule a x(15%) ; toutes deux nulles au noir --
+   les ancres affines restent exactes par pixel, et les tons moyens ne recoivent
+   AUCUNE extrapolation. Reconstruites par cis_composeOutputLut ; toutes a zero
+   tant qu'aucune calibration valide n'est chargee (correction inerte). */
+static uint8_t cisTentLutA[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
+static uint8_t cisTentLutB[COLOR_CHANNELS][CIS_ADC_OUT_LANES][CIS_CAL_CURVE_SIZE];
+#endif
 
 static int16_t cisActHalfL[3][CIS_ADC_OUT_LANES];
 static int16_t cisActHalfR[3][CIS_ADC_OUT_LANES];
@@ -123,6 +139,14 @@ struct cisLineLogEntry cisLineLog[CIS_LINE_LOG_N];
 #endif
 
 /* Private user code ---------------------------------------------------------*/
+
+/* Index normalise d'un canal : normalisation affine par pixel. Inline et sans branche
+   -- boucle la plus chaude du CM7. La correction de VOILE est REPLIEE dans gainData/
+   offsetData a la calibration (cis_foldVeil), donc invisible ici : cout runtime nul. */
+static inline uint32_t cis_normIdx(int32_t v, int32_t gain)
+{
+    return __USAT((v * gain) >> CIS_CAL_GAIN_SHIFT, CIS_CAL_CURVE_BITS);
+}
 
 void cis_mean(const uint32_t * pSrc, uint32_t blockSize, int32_t * pResult)
 {
@@ -268,16 +292,18 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
     // Step 1: Compute global drift correction offsets (always enabled)
     cis_computeGlobalDriftCorrection(cisDataCpy, globalDriftOffset);
 
-    /* Lissage temporel (IIR 1/8) : la derive corrigee est THERMIQUE, elle evolue en
-       secondes. Appliquee brute, la moyenne de 24 echantillons injecte son bruit ligne
-       a ligne dans TOUTE la ligne -- c'est du banding fabrique par la correction
-       elle-meme. Etat en Q3 pour ne pas perdre la resolution sous l'IIR. */
+    /* Lissage temporel : la derive corrigee est THERMIQUE, elle evolue en secondes.
+       Appliquee brute, la moyenne de 24 echantillons injecte son bruit ligne a ligne
+       dans TOUTE la ligne -- c'est du banding fabrique par la correction elle-meme.
+       Etat en Q<CIS_DRIFT_IIR_STATE_Q> : la zone morte de troncature de l'increment
+       (2^SHIFT en Q) doit rester une fraction de comptage, sinon l'IIR lent ne suit
+       plus les petites derives. */
     {
         for (int32_t c = 0; c < 3; c++)
         {
             for (int32_t l = 0; l < CIS_ADC_OUT_LANES; l++)
             {
-                const int32_t target = globalDriftOffset[c][l] << 3;
+                const int32_t target = globalDriftOffset[c][l] << CIS_DRIFT_IIR_STATE_Q;
                 if (!driftPrimed)
                 {
                     driftState[c][l] = target;
@@ -286,9 +312,9 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
                 {
                     driftState[c][l] += (target - driftState[c][l]) >> CIS_DRIFT_IIR_SHIFT;
                 }
-                globalDriftOffset[c][l] = driftState[c][l] >> 3;
+                globalDriftOffset[c][l] = driftState[c][l] >> CIS_DRIFT_IIR_STATE_Q;
 #if CIS_LMS_CANCELLER_ENABLED
-                cisLmsRef[c][l] = (int16_t)((target >> 3) - globalDriftOffset[c][l]);
+                cisLmsRef[c][l] = (int16_t)((target >> CIS_DRIFT_IIR_STATE_Q) - globalDriftOffset[c][l]);
 #endif
             }
         }
@@ -334,18 +360,20 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
         }
     }
 
-    /* Step 2 : normalisation affine par pixel, puis courbe partagée.
+    /* Step 2 : normalisation affine par pixel, correction d'ancre basse, puis courbe.
      *
      * La boucle est SANS BRANCHE. L'ancien schéma testait, pour chaque canal de chaque
      * pixel, de quel côté du coude on se trouvait : 10 368 branches par ligne dont
      * l'issue suit les données de l'image, donc largement imprévisibles. Sur Cortex-M7
      * chaque erreur de prédiction coûte une dizaine de cycles. __USAT sature en une
      * instruction et remplace du même coup les deux comparaisons de l'écrêtage, et
-     * l'écrêtage à 255 est désormais porté par la courbe elle-même.
+     * l'écrêtage à 255 est désormais porté par la courbe elle-même. La correction
+     * des ancres basses (dA·baseA + dB·baseB) respecte la même règle : deux
+     * multiplications, deux lectures de table et un __USAT, aucune branche.
      *
-     * Bornes : l'entrée est un ADC 10 bits corrigé de la dérive (bornée à
-     * CIS_DRIFT_THRESHOLD) puis de l'offset, donc |x| <= 1123 ; les gains sont des
-     * int16 <= 32767 ; le produit plafonne à 3,7e7, très loin de 2^31.
+     * Bornes : l'entrée est un ADC 14 bits corrigé de la dérive (bornée à
+     * CIS_DRIFT_THRESHOLD ~1,6k) puis de l'offset, donc |x| <= ~18k ; les gains sont
+     * des int16 <= 32767 ; le produit plafonne à 5,9e8, sous 2^31.
      */
     (void)maxClipValue;  /* la sortie est bornée par construction de la courbe */
 
@@ -453,22 +481,19 @@ void cis_applyLinearCalibration(int32_t * restrict cisDataCpy, uint32_t maxClipV
             pixelIdx = baseR + i;
             calIdx = calR + i;
             v = cisDataCpy[pixelIdx] - driftR - cisCals.offsetData[calIdx];
-            cisDataCpy[pixelIdx] = curveR[__USAT((v * cisCals.gainData[calIdx]) >> CIS_CAL_GAIN_SHIFT,
-                                                CIS_CAL_CURVE_BITS)];
+            cisDataCpy[pixelIdx] = curveR[cis_normIdx(v, cisCals.gainData[calIdx])];
 
             /* Process GREEN channel */
             pixelIdx = baseG + i;
             calIdx = calG + i;
             v = cisDataCpy[pixelIdx] - driftG - cisCals.offsetData[calIdx];
-            cisDataCpy[pixelIdx] = curveG[__USAT((v * cisCals.gainData[calIdx]) >> CIS_CAL_GAIN_SHIFT,
-                                                CIS_CAL_CURVE_BITS)];
+            cisDataCpy[pixelIdx] = curveG[cis_normIdx(v, cisCals.gainData[calIdx])];
 
             /* Process BLUE channel */
             pixelIdx = baseB + i;
             calIdx = calB + i;
             v = cisDataCpy[pixelIdx] - driftB - cisCals.offsetData[calIdx];
-            cisDataCpy[pixelIdx] = curveB[__USAT((v * cisCals.gainData[calIdx]) >> CIS_CAL_GAIN_SHIFT,
-                                                CIS_CAL_CURVE_BITS)];
+            cisDataCpy[pixelIdx] = curveB[cis_normIdx(v, cisCals.gainData[calIdx])];
         }
     }
 
@@ -660,12 +685,15 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
             const int32_t duty = (int32_t)cisCalLevels[k];
             const uint8_t base = (uint8_t)(((k - 1U) * 100U) / nInter);
             const uint8_t span = (uint8_t)(100U / nInter);
+            /* Les ancres basses sont conservees PAR PIXEL : moyenne d'ancre. */
+            const uint16_t iter = (k == CIS_CAL_LOW_ANCHOR_IDX_A || k == CIS_CAL_LOW_ANCHOR_IDX_B)
+                                ? CIS_CAL_ITER_LOW_ANCHOR : CIS_CAL_ITER_LEVEL;
 
             cis_ledPowerAdj(duty, duty, duty);
             osDelay(200);
 
             if (cis_imageProcessRGB_Calibration(cisDataCpy, intermediateCal.data,
-                                                CIS_CAL_ITER_LEVEL, base, span, true) != CIS_OK)
+                                                iter, base, span, true) != CIS_OK)
             {
                 printf("Calibration ABORTED during the %d%% level capture, previous calibration kept\n",
                        (int)duty);
@@ -673,14 +701,28 @@ void cis_startLinearCalibration(int32_t *cisDataCpy, uint16_t iterationNb, uint3
             }
 
             cis_measureLevel(&intermediateCal, k);
+#if CIS_CAL_LOW_ANCHOR_ENABLED
+            if (k == CIS_CAL_LOW_ANCHOR_IDX_A)
+            {
+                cis_captureLowDeltas(&intermediateCal, k, cisCals.lowDeltaA);
+            }
+            else if (k == CIS_CAL_LOW_ANCHOR_IDX_B)
+            {
+                cis_captureLowDeltas(&intermediateCal, k, cisCals.lowDeltaB);
+            }
+#endif
         }
 
         shared_var.cis_cal_progressbar = 100;
     }
 
-    /* ---- Construction des courbes de reponse ----------------------------------- */
-    printf("Build response curves\n");
-    cis_buildCurves(bitDepth);
+    /* ---- Points de cassure de la reponse ---------------------------------------
+       La sortie n'est plus tabulee ici : seule la LUT de rendu l'est, composee en
+       pleine precision par cis_composeOutputLut. bitDepth n'a donc plus de role,
+       la quantification finale vit dans la composition. */
+    (void)bitDepth;
+    printf("Store response breakpoints\n");
+    cis_storeBreakpoints();
     cis_composeOutputLut();
     shared_var.cis_cal_state = CIS_CAL_COMPUTE_GAINS;
     osDelay(100);
@@ -929,36 +971,6 @@ void cis_refreshDarkReferences(int32_t *cisDataCpy)
         }
     }
 
-    /* Repli du voile stocke, si present : offsets = noir frais + lumiere parasite. */
-    {
-        char path[64];
-        sprintf(path, CIS_VEIL_FILE_PATH_FORMAT, (unsigned)shared_config.cis_dpi);
-        FIL f;
-        if (f_open(&f, path, FA_READ) == FR_OK)
-        {
-            uint32_t hdr[4]; UINT br;
-            const int32_t total = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
-            if (f_read(&f, hdr, sizeof(hdr), &br) == FR_OK && br == sizeof(hdr)
-                && hdr[0] == CIS_VEIL_FILE_MAGIC && hdr[2] == shared_config.cis_dpi
-                && (int32_t)hdr[3] == total)
-            {
-                int16_t chunk[256];
-                int32_t k = 0;
-                for (;;)
-                {
-                    if (f_read(&f, chunk, sizeof(chunk), &br) != FR_OK || br == 0U) { break; }
-                    const int32_t cnt = (int32_t)(br / 2U);
-                    for (int32_t j = 0; j < cnt && k < total; j++, k++)
-                    {
-                        cisCals.offsetData[k] = (int16_t)(cisCals.offsetData[k] + chunk[j]);
-                    }
-                }
-                printf("CIS: veil map folded (%ld px)\n", (long)k);
-            }
-            f_close(&f);
-        }
-    }
-
     driftPrimed = false;   /* l'IIR de derive repart de la nouvelle reference */
     printf("CIS: dark refresh, offsets rebased (shift %ld..%ld)\n",
            (long)shiftMin, (long)shiftMax);
@@ -967,10 +979,39 @@ void cis_refreshDarkReferences(int32_t *cisDataCpy)
 }
 
 /**
- * @brief  Compose la LUT de rendu : lineaire (fichier) -> equilibre -> point noir -> sRGB.
+ * @brief  Linearisation en un index normalise, evaluee sur les points de cassure.
+ *
+ * Rend la sortie visee en Q16 (0..CIS_CAL_CURVE_Y_MAX). C'est la reference de
+ * precision de toute la chaine : la LUT de rendu en est derivee, et la calibration
+ * du point noir mesure a travers elle. Hors boucle pixel (la marche lineaire sur
+ * les 7 points est sans enjeu de temps).
+ */
+static int32_t cis_evalLinearCurveQ16(int32_t c, int32_t lane, int32_t n)
+{
+    const int16_t *xs = cisCals.curveX[c][lane];
+    const uint16_t *ys = cisCals.curveY;
+    int32_t k = 0;
+
+    while ((k + 2) < CIS_CAL_LEVEL_COUNT && n >= xs[k + 1])
+    {
+        k++;
+    }
+
+    const int32_t dx = xs[k + 1] - xs[k];
+    /* (n - xs[k]) <= 2047 et |dy| <= 65535 : produit < 2^28, marge int32 confortable. */
+    return (dx > 0) ? (int32_t)ys[k] + ((n - xs[k]) * ((int32_t)ys[k + 1] - (int32_t)ys[k])) / dx
+                    : (int32_t)ys[k + 1];
+}
+
+/**
+ * @brief  Compose la LUT de rendu : lineaire (points de cassure) -> equilibre ->
+ *         point noir -> sRGB, et reconstruit les tentes d'ancre basse.
  *
  * Appelee au chargement de la calibration, en fin de calibration, et par le lien
  * SLP quand SLP_CFG_BLACK_POINT change : effet immediat, sans recalibration.
+ * La quantification 8 bits n'a lieu QU'ICI, en bout de chaine : le lineaire
+ * interpole reste en pleine precision jusqu'a l'encodage final -- l'ancienne
+ * courbe uint8 posterisait les ombres avant meme le point noir et le sRGB.
  * ~18k evaluations flottantes, quelques millisecondes, hors boucle pixel.
  */
 void cis_composeOutputLut(void)
@@ -986,7 +1027,7 @@ void cis_composeOutputLut(void)
         {
             for (int32_t n = 0; n < CIS_CAL_CURVE_SIZE; n++)
             {
-                float yf = (float)cisCals.curve[c][lane][n] / 255.0f;
+                float yf = (float)cis_evalLinearCurveQ16(c, lane, n) / (float)CIS_CAL_CURVE_Y_MAX;
                 yf = (yf * trim[c] - bp) / (1.0f - bp);
                 if (yf < 0.0f) { yf = 0.0f; } else if (yf > 1.0f) { yf = 1.0f; }
 #if CIS_OUTPUT_GAMMA_SRGB
@@ -995,97 +1036,238 @@ void cis_composeOutputLut(void)
 #endif
                 cisRenderCurve[c][lane][n] = (uint8_t)(yf * 255.0f + 0.5f);
             }
+
+#if CIS_CAL_LOW_ANCHOR_ENABLED
+            /* Bases Q7 des deux ancres basses, confinees aux sombres : A culmine a
+               x(4%) et s'annule a x(8%), B culmine a x(8%) et s'annule a x(15%).
+               Interpolation par pixel entre les deux points mesures ; au-dela de
+               x(15%), aucune correction. Des positions incoherentes (calibration
+               absente ou aberrante) eteignent la correction pour ce couple. */
+            {
+                const int32_t xA = cisCals.curveX[c][lane][CIS_CAL_LOW_ANCHOR_IDX_A];
+                const int32_t xB = cisCals.curveX[c][lane][CIS_CAL_LOW_ANCHOR_IDX_B];
+                const int32_t xT = cisCals.curveX[c][lane][CIS_CAL_LOW_ANCHOR_TOP_IDX];
+                uint8_t *tA = cisTentLutA[c][lane];
+                uint8_t *tB = cisTentLutB[c][lane];
+
+                if (xA <= 0 || xB <= xA || xT <= xB || xT > CIS_CAL_CURVE_MAX)
+                {
+                    memset(tA, 0, CIS_CAL_CURVE_SIZE);
+                    memset(tB, 0, CIS_CAL_CURVE_SIZE);
+                }
+                else
+                {
+                    for (int32_t n = 0; n < CIS_CAL_CURVE_SIZE; n++)
+                    {
+                        int32_t a = 0, b = 0;
+                        if (n <= xA)
+                        {
+                            a = (n * CIS_CAL_TENT_UNITY) / xA;
+                        }
+                        else if (n <= xB)
+                        {
+                            a = ((xB - n) * CIS_CAL_TENT_UNITY) / (xB - xA);
+                            b = ((n - xA) * CIS_CAL_TENT_UNITY) / (xB - xA);
+                        }
+                        else if (n < xT)
+                        {
+                            b = ((xT - n) * CIS_CAL_TENT_UNITY) / (xT - xB);
+                        }
+                        tA[n] = (uint8_t)a;
+                        tB[n] = (uint8_t)b;
+                    }
+                }
+            }
+#endif
         }
     }
     printf("CIS: render LUT composed (black point %u/1000)\n",
            (unsigned)shared_config.cis_black_point);
 }
 
-volatile uint8_t cisVeilRequested = 0;
+volatile uint8_t cisBlackPointCalState = 0;   /* 0 repos, 1 demandee/en cours, 2 ok, 3 echec */
 
-/* Decomposition d'un index canonique d'offsetData en position DONNEE (rotation). */
-static int32_t cis_veilDataIndex(int32_t k)
+/* Index de courbe d'un pixel de la capture de point noir, avec le gain/offset COURANTS.
+   Miroir exact de la boucle pixel. Avant le repli du voile il rend le plancher brut
+   (etapes 1-2) ; apres, le plancher aplati (etape 3). Facteur commun aux passes. */
+static inline uint32_t cis_bpRawIndex(int32_t c, int32_t lane, uint32_t laneData,
+                                      uint32_t laneCal, int32_t i)
 {
-    const int32_t perLane = cisConfig.useful_data_size_per_lane;           /* 3570 */
-    const int32_t perCol  = cisConfig.useful_data_size_per_color_per_lane; /* 1190 */
-    const int32_t lane = k / perLane, rem = k % perLane;
-    const int32_t c = rem / perCol, i = rem % perCol;
-    if (i < CIS_BLACK_PIXELS) { return -1; }                /* fenetre noire : pas de voile */
-    const int32_t dataOff = (c == 0) ? cisConfig.red_offset
-                          : (c == 1) ? cisConfig.green_offset : cisConfig.blue_offset;
-    return (perLane * lane) + dataOff + (i - CIS_BLACK_PIXELS);
+    (void)c; (void)lane;
+    const int32_t raw = ((int32_t)whiteCal.data[laneData + i] + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS;
+    const int32_t v = raw - cisCals.offsetData[laneCal + i];
+    return cis_normIdx(v, cisCals.gainData[laneCal + i]);
 }
 
 /**
- * @brief  Calibration du voile : carte de la lumiere parasite interne, LEDs allumees.
+ * @brief  Calibration du point noir + carte de VOILE : glisser sur le papier noir, LEDs on.
  *
- * Prerequis physique : RIEN devant la vitre (papier noir defocalise a 20-30 cm en
- * ecran de la piece). Sequence : purge de l'ancienne carte, ancre noire fraiche
- * (LEDs eteintes), capture LEDs a 100 %%, voile = moyenne - offsets, ecrit en flux
- * dans CIS_VEIL_FILE puis replie dans offsetData. Ensuite le repli est rejoue par
- * cis_refreshDarkReferences a chaque demarrage de capture.
+ * Une seule capture, trois etapes :
+ *  1. Base par COULEUR : moyenne de l'index BRUT sur les 3 voies (un scalaire/couleur).
+ *  2. Carte de voile : veilDelta[p] = plancher[p] - base_couleur (ecart PLEIN, toutes
+ *     echelles spatiales, sature int8). Reference commune aux 3 voies -> pas de marche
+ *     de voie. Appliquee par rampe (nulle au blanc, pleine au noir) : aplatit tout le
+ *     plancher d'ombre (voile LED additif, commun aux 3 couleurs) sans toucher les
+ *     clairs. C'est le banding vertical que le point noir scalaire ne peut aplatir.
+ *  3. Point noir : percentile haut du residu APLATI (voile retire), le vrai residu
+ *     scalaire une fois les stries supprimees. Le papier sort alors noir UNIFORME.
+ * Applique a chaud (LUT recomposee) et persiste dans CONFIG.TXT ; la carte de voile
+ * part dans le fichier de calibration au prochain ecrit... non : elle vit dans cisCals
+ * en RAM et sera perdue au reboot -> on la sauve ici via file_writeCisCals.
  */
-void cis_calibrateVeil(int32_t *cisDataCpy, bool onBlackTarget)
+void cis_calibrateBlackPoint(int32_t *cisDataCpy)
 {
-    char path[64];
-    sprintf(path, CIS_VEIL_FILE_PATH_FORMAT, (unsigned)shared_config.cis_dpi);
-
     if (cisCals.magic != CIS_CAL_FILE_MAGIC || cisCals.version != CIS_CAL_FILE_VERSION)
     {
-        printf("VEIL: no valid calibration, aborted\n");
+        printf("BP CAL: no valid calibration, aborted\n");
+        cisBlackPointCalState = 3;
         return;
     }
-    printf(onBlackTarget
-           ? "===== BLACK TARGET ANCHOR (GLIDE on black paper, LEDs on) =====\n"
-           : "===== VEIL CALIBRATION (glass must face NOTHING) =====\n");
-    f_unlink(path);                                  /* sinon le refresh replierait l'ancienne */
+    printf("===== BLACK POINT + VEIL CALIBRATION (GLIDE on black paper, LEDs on) =====\n");
 
     cis_refreshDarkReferences(cisDataCpy);           /* offsets = noir frais, LEDs restaurees */
     osDelay(40);
 
-    /* Sur cible noire : le MOUVEMENT moyenne la texture du papier (comme l'ancre
-       blanche) ; en l'air il n'y a rien a moyenner. */
+    /* Le MOUVEMENT moyenne la texture du papier, comme pour les ancres. */
     if (cis_imageProcessRGB_Calibration(cisDataCpy, whiteCal.data,
-                                        onBlackTarget ? CIS_CAL_ITER_ANCHOR : CIS_VEIL_ITER,
-                                        0, 100, onBlackTarget) != CIS_OK)
+                                        CIS_BP_CAL_ITER, 0, 100, true) != CIS_OK)
     {
-        printf("VEIL: capture FAILED, nothing written\n");
+        printf("BP CAL: capture FAILED, black point + veil unchanged\n");
+        cisBlackPointCalState = 3;
         return;
     }
 
-    FIL f;
-    if (f_open(&f, path, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
+    static const int32_t trim[3] = { CIS_OUTPUT_TRIM_R_X1000,
+                                     CIS_OUTPUT_TRIM_G_X1000,
+                                     CIS_OUTPUT_TRIM_B_X1000 };
+
+    int32_t veilAbsMax = 0, veilClipped = 0;
+
+    for (int32_t c = 0; c < COLOR_CHANNELS; c++)
     {
-        printf("VEIL: f_open FAILED\n");
-        return;
-    }
-    const int32_t total = cisConfig.useful_data_size_per_lane * CIS_ADC_OUT_LANES;
-    uint32_t hdr[4] = { CIS_VEIL_FILE_MAGIC, 1U, shared_config.cis_dpi, (uint32_t)total };
-    UINT bw;
-    f_write(&f, hdr, sizeof(hdr), &bw);
-    int16_t chunk[256];
-    int32_t n = 0, vmin = INT16_MAX, vmax = INT16_MIN;
-    for (int32_t k = 0; k < total; k++)
-    {
-        const int32_t d = cis_veilDataIndex(k);
-        int32_t v = 0;
-        if (d >= 0)
+        const uint32_t dataOff = (c == 0) ? (uint32_t)cisConfig.red_offset
+                               : (c == 1) ? (uint32_t)cisConfig.green_offset
+                                          : (uint32_t)cisConfig.blue_offset;
+        const uint32_t calOff = (uint32_t)c * cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_PIXELS;
+        const int32_t  nPix   = cisConfig.pixels_per_color_per_lane;
+
+        /* --- Etape 1 : base = moyenne de l'index brut sur les 3 voies de la couleur --- */
+        int64_t sum = 0;
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
         {
-            v = (((int32_t)whiteCal.data[d] + CIS_CAL_FRAC_ROUND) >> CIS_CAL_FRAC_BITS)
-                - (int32_t)cisCals.offsetData[k];
-            v = CLIP_INT16(v);
-            cisCals.offsetData[k] = (int16_t)(cisCals.offsetData[k] + v);   /* repli immediat */
-            if (v < vmin) { vmin = v; }
-            if (v > vmax) { vmax = v; }
+            const uint32_t laneData = (cisConfig.useful_data_size_per_lane * lane) + dataOff;
+            const uint32_t laneCal  = (cisConfig.useful_data_size_per_lane * lane) + calOff;
+            for (int32_t i = 0; i < nPix; i++)
+            {
+                sum += cis_bpRawIndex(c, lane, laneData, laneCal, i);
+            }
         }
-        chunk[n++] = (int16_t)v;
-        if (n == 256) { f_write(&f, chunk, sizeof(chunk), &bw); n = 0; }
+        const int32_t base = (int32_t)(sum / (nPix * CIS_ADC_OUT_LANES));
+
+        /* --- Etape 2 : ecart plein par pixel, REPLIE dans gain/offset -----------------
+           veilDelta stocke pour inspection. Le repli rend la rampe n'=n-d*(MAX-n)/MAX
+           = n*(MAX+d)/MAX - d, affine en n donc en raw : gain' = gain*(MAX+d)/MAX,
+           offset' = offset + (d<<GAIN_SHIFT)/gain'. Cout runtime nul. */
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            const uint32_t laneData = (cisConfig.useful_data_size_per_lane * lane) + dataOff;
+            const uint32_t laneCal  = (cisConfig.useful_data_size_per_lane * lane) + calOff;
+            for (int32_t i = 0; i < nPix; i++)
+            {
+                int32_t d = (int32_t)cis_bpRawIndex(c, lane, laneData, laneCal, i) - base;
+                const int32_t a = (d < 0) ? -d : d;
+                if (a > veilAbsMax) { veilAbsMax = a; }
+                if (d >  CIS_VEIL_DELTA_MAX) { d =  CIS_VEIL_DELTA_MAX; veilClipped++; }
+                if (d < -CIS_VEIL_DELTA_MAX) { d = -CIS_VEIL_DELTA_MAX; veilClipped++; }
+                cisCals.veilDelta[laneCal + i] = (int8_t)d;
+
+                /* Repli dans gain/offset (guard : gain nul = pixel mort, on ne touche pas). */
+                const int32_t g = cisCals.gainData[laneCal + i];
+                if (g > 0)
+                {
+                    int32_t gp = (g * (CIS_CAL_CURVE_MAX + d) + CIS_CAL_CURVE_MAX / 2)
+                               / CIS_CAL_CURVE_MAX;
+                    gp = CLIP_INT16(gp);
+                    if (gp > 0)
+                    {
+                        const int32_t off = cisCals.offsetData[laneCal + i];
+                        const int32_t dOff = ((d << CIS_CAL_GAIN_SHIFT)
+                                              + ((d >= 0 ? gp : -gp) / 2)) / gp;
+                        cisCals.gainData[laneCal + i]   = (int16_t)gp;
+                        cisCals.offsetData[laneCal + i] = CLIP_INT16(off + dOff);
+                    }
+                }
+            }
+        }
     }
-    if (n) { f_write(&f, chunk, (UINT)(n * 2), &bw); }
-    f_close(&f);
-    printf("VEIL: map written (%ld px, %ld..%ld counts), folded into offsets\n",
-           (long)total, (long)vmin, (long)vmax);
+
+    /* --- Etape 3 : point noir sur le residu APLATI (voile desormais retire) -------- */
+    static uint16_t hist[1001];
+    memset(hist, 0, sizeof(hist));
+    int32_t total = 0;
+    for (int32_t c = 0; c < COLOR_CHANNELS; c++)
+    {
+        const uint32_t dataOff = (c == 0) ? (uint32_t)cisConfig.red_offset
+                               : (c == 1) ? (uint32_t)cisConfig.green_offset
+                                          : (uint32_t)cisConfig.blue_offset;
+        const uint32_t calOff = (uint32_t)c * cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_PIXELS;
+
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            const uint32_t laneData = (cisConfig.useful_data_size_per_lane * lane) + dataOff;
+            const uint32_t laneCal  = (cisConfig.useful_data_size_per_lane * lane) + calOff;
+            for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
+            {
+                /* Gain/offset desormais REPLIES : cis_bpRawIndex rend le plancher APLATI,
+                   miroir exact du runtime. */
+                const uint32_t n = cis_bpRawIndex(c, lane, laneData, laneCal, i);
+                const int32_t yq = cis_evalLinearCurveQ16(c, lane, (int32_t)n);
+                int32_t y = (yq * trim[c] + CIS_CAL_CURVE_Y_MAX / 2) / CIS_CAL_CURVE_Y_MAX;
+                if (y < 0) { y = 0; } else if (y > 1000) { y = 1000; }
+                hist[y]++;
+                total++;
+            }
+        }
+    }
+
+    int32_t cum = 0, p = 0;
+    const int32_t keep = (total * CIS_BP_CAL_KEEP_PERMILLE + 500) / 1000;
+    for (p = 0; p <= 1000; p++)
+    {
+        cum += hist[p];
+        if (cum >= keep) { break; }
+    }
+
+    if (p > CIS_BP_CAL_MAX_X1000)
+    {
+        printf("BP CAL: flattened residue %ld/1000 too bright for a black target, unchanged\n",
+               (long)p);
+        cisBlackPointCalState = 3;
+        return;   /* veilDelta reste en RAM mais n'est pas persistee : perdue au reboot */
+    }
+
+    int32_t bp = p + CIS_BP_CAL_MARGIN_X1000;
+    if (bp > 200) { bp = 200; }
+    shared_config.cis_black_point = (uint8_t)bp;
+    cis_composeOutputLut();
+    file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+
+    /* La carte de voile vit dans cisCals : la persister avec le fichier de calibration,
+       sinon elle disparait au reboot. */
+    char calibrationFilePath[64];
+    sprintf(calibrationFilePath, CALIBRATION_FILE_PATH_FORMAT, shared_config.cis_dpi);
+    if (file_writeCisCals(calibrationFilePath, &cisCals) != FILEMANAGER_OK)
+    {
+        printf("BP CAL: veil map write FAILED (black point applied but veil lost on reboot)\n");
+    }
+
+    printf("BP CAL: veil map stored (max |ripple| %ld, clipped %ld), flattened P%d.%d %ld/1000"
+           " -> black point %ld/1000, persisted\n",
+           (long)veilAbsMax, (long)veilClipped,
+           CIS_BP_CAL_KEEP_PERMILLE / 10, CIS_BP_CAL_KEEP_PERMILLE % 10,
+           (long)p, (long)bp);
     printf("=====================================================\n");
+    cisBlackPointCalState = 2;
 }
 
 /**
@@ -1172,26 +1354,32 @@ static void cis_measureLevel(struct cisCalsTypes *levelCal, uint32_t level)
 }
 
 /**
- * @brief       Tabule la courbe de reponse de chaque couple (couleur, voie).
+ * @brief       Fige les points de cassure de la reponse de chaque couple (couleur, voie).
  *
- * Interpolation lineaire par morceaux entre les points (position normalisee mesuree,
- * sortie visee). La sortie visee d'un niveau est proportionnelle a son rapport cyclique :
- * c'est la definition meme de ce que l'ISP doit rendre, une sortie proportionnelle a la
- * lumiere. Toute la non-linearite de la chaine se retrouve donc dans l'ecart entre les
- * abscisses mesurees et cette droite, et c'est exactement ce que la table corrige.
- *
- * Avec 3 niveaux {0, 30, 100} on retombe trait pour trait sur l'ancien schema a deux
- * segments -- a ceci pres que le coude est desormais partage par la voie au lieu d'etre
- * repete pixel a pixel, et qu'il est evalue par lecture de table au lieu d'une branche.
+ * Le fichier stocke la LINEARISATION physique pure sous forme de points (position
+ * normalisee mesuree, sortie visee Q16) ; le rendu (equilibre couleur, point noir,
+ * sRGB) est interpole et compose a chaud par cis_composeOutputLut(). La sortie visee
+ * d'un niveau est proportionnelle a son rapport cyclique : c'est la definition meme
+ * de ce que l'ISP doit rendre, une sortie proportionnelle a la lumiere. Toute la
+ * non-linearite de la chaine se retrouve donc dans l'ecart entre les abscisses
+ * mesurees et cette droite, et c'est exactement ce que l'interpolation corrige.
  */
-static void cis_buildCurves(uint32_t maxOut)
+static void cis_storeBreakpoints(void)
 {
+    /* Sorties visees, partagees par tous les couples : les rapports cycliques sont
+       strictement croissants, donc curveY est monotone par construction. */
+    for (int32_t k = 0; k < CIS_CAL_LEVEL_COUNT; k++)
+    {
+        cisCals.curveY[k] = (uint16_t)(((uint32_t)CIS_CAL_CURVE_Y_MAX * cisCalLevels[k] + 50U) / 100U);
+    }
+    cisCals.curveY[0] = 0;
+    cisCals.curveY[CIS_CAL_LEVEL_COUNT - 1] = CIS_CAL_CURVE_Y_MAX;
+
     for (int32_t c = 0; c < COLOR_CHANNELS; c++)
     {
         for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
         {
             int32_t xs[CIS_CAL_LEVEL_COUNT];
-            int32_t ys[CIS_CAL_LEVEL_COUNT];
 
             for (int32_t k = 0; k < CIS_CAL_LEVEL_COUNT; k++)
             {
@@ -1199,14 +1387,11 @@ static void cis_buildCurves(uint32_t maxOut)
                 if (x < 0)                    x = 0;
                 if (x > CIS_CAL_CURVE_MAX)    x = CIS_CAL_CURVE_MAX;
                 xs[k] = x;
-                ys[k] = (int32_t)(((uint32_t)maxOut * cisCalLevels[k] + 50U) / 100U);
             }
 
             /* Les ancres sont exactes par construction de la normalisation affine. */
             xs[0] = 0;
-            ys[0] = 0;
             xs[CIS_CAL_LEVEL_COUNT - 1] = CIS_CAL_CURVE_MAX;
-            ys[CIS_CAL_LEVEL_COUNT - 1] = (int32_t)maxOut;
 
             /* Monotonie : le bruit peut faire reculer un point intermediaire, ce qui
                produirait une courbe non croissante -- visible comme une inversion de
@@ -1216,31 +1401,70 @@ static void cis_buildCurves(uint32_t maxOut)
             {
                 if (xs[k] <= xs[k - 1]) xs[k] = xs[k - 1] + 1;
                 if (xs[k] >= CIS_CAL_CURVE_MAX) xs[k] = CIS_CAL_CURVE_MAX - 1;
-                if (ys[k] <  ys[k - 1]) ys[k] = ys[k - 1];
             }
 
-            uint8_t *lut = cisCals.curve[c][lane];
-            int32_t  k   = 0;
-
-            for (int32_t n = 0; n < CIS_CAL_CURVE_SIZE; n++)
+            for (int32_t k = 0; k < CIS_CAL_LEVEL_COUNT; k++)
             {
-                while ((k + 2) < CIS_CAL_LEVEL_COUNT && n >= xs[k + 1])
-                {
-                    k++;
-                }
-
-                const int32_t dx = xs[k + 1] - xs[k];
-                /* Le fichier stocke la LINEARISATION physique pure ; le rendu
-                   (equilibre couleur, point noir, sRGB) est compose a chaud dans
-                   cisRenderCurve par cis_composeOutputLut(). */
-                int32_t y = (dx > 0)
-                          ? (ys[k] + ((n - xs[k]) * (ys[k + 1] - ys[k])) / dx)
-                          : ys[k + 1];
-
-                if (y < 0)                  y = 0;
-                if (y > (int32_t)maxOut)    y = (int32_t)maxOut;
-                lut[n] = (uint8_t)y;
+                cisCals.curveX[c][lane][k] = (int16_t)xs[k];
             }
         }
     }
 }
+
+#if CIS_CAL_LOW_ANCHOR_ENABLED
+/**
+ * @brief       Ecart par pixel a une ancre basse : ce que la courbe partagee ne voit pas.
+ *
+ * A appeler juste apres cis_measureLevel(level) : la moyenne de voie (cisLevelNorm)
+ * vient d'etre posee sur la MEME capture. On conserve, par pixel, l'ecart de sa
+ * position normalisee a cette moyenne, sature int8, dans dst (lowDeltaA ou lowDeltaB).
+ * C'est la dispersion de non-linearite basse lumiere -- celle qui reste en banding
+ * vertical dans les ombres quand seule la forme moyenne est corrigee.
+ */
+static void cis_captureLowDeltas(struct cisCalsTypes *levelCal, uint32_t level, int8_t *dst)
+{
+    int32_t clipped = 0;
+    int32_t maxAbs  = 0;
+
+    for (int32_t c = 0; c < COLOR_CHANNELS; c++)
+    {
+        uint32_t offset = 0;
+        switch (c)
+        {
+            case 0: offset = cisConfig.red_offset; break;
+            case 1: offset = cisConfig.green_offset; break;
+            default: offset = cisConfig.blue_offset; break;
+        }
+
+        const uint32_t calOff = (uint32_t)c * cisConfig.useful_data_size_per_color_per_lane + CIS_BLACK_PIXELS;
+
+        for (int32_t lane = 0; lane < CIS_ADC_OUT_LANES; lane++)
+        {
+            const uint32_t laneOffset = (cisConfig.useful_data_size_per_lane * lane) + offset;
+            const uint32_t laneCal    = (cisConfig.useful_data_size_per_lane * lane) + calOff;
+            const int32_t  mean       = cisLevelNorm[level][c][lane];
+
+            for (int32_t i = 0; i < cisConfig.pixels_per_color_per_lane; i++)
+            {
+                const uint32_t idx = laneOffset + i;
+                const uint32_t cal = laneCal + i;
+                const int32_t  v_fx = (int32_t)levelCal->data[idx]
+                                    - ((int32_t)cisCals.offsetData[cal] << CIS_CAL_FRAC_BITS);
+                const int32_t  n = (int32_t)(((int64_t)v_fx * cisCals.gainData[cal])
+                                             >> (CIS_CAL_GAIN_SHIFT + CIS_CAL_FRAC_BITS));
+
+                int32_t d = n - mean;
+                const int32_t a = (d < 0) ? -d : d;
+                if (a > maxAbs) { maxAbs = a; }
+                if (d >  CIS_CAL_LOW_DELTA_MAX) { d =  CIS_CAL_LOW_DELTA_MAX; clipped++; }
+                if (d < -CIS_CAL_LOW_DELTA_MAX) { d = -CIS_CAL_LOW_DELTA_MAX; clipped++; }
+
+                dst[cal] = (int8_t)d;
+            }
+        }
+    }
+
+    printf("CAL low anchor %d%%: per-pixel deltas stored (max |d| %ld, clipped %ld)\n",
+           (int)cisCalLevels[level], (long)maxAbs, (long)clipped);
+}
+#endif /* CIS_CAL_LOW_ANCHOR_ENABLED */

@@ -37,6 +37,7 @@
 #include "gui_interaction.h"
 #include "gui_calibration.h"
 #include "gui_overlay.h"
+#include "gui_menu.h"
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -78,7 +79,9 @@ int gui_mainLoop(void)
         int32_t current_tick = HAL_GetTick(); // Get the current tick
 
         // Check for significant motion or button activity and update screensaver state
-        if (gui_isSignificantMotion() || gui_checkButtonActivity() || gui_overlay_hasActivity()) {
+        // (an open device menu keeps the panel awake; it closes by itself after
+        // 30 s without a button press, re-arming the screensaver countdown)
+        if (gui_isSignificantMotion() || gui_checkButtonActivity() || gui_overlay_hasActivity() || gui_menu_isActive()) {
             last_significant_motion_tick = current_tick;
             screensaver_active = false;  // Wake up from screensaver
             leds_setScreensaverMode(false);
@@ -109,10 +112,25 @@ int gui_mainLoop(void)
                 gui_displayScreensaver();
             }
         } else {
-            // Normal operation - update the interface
-            gui_displayImage();
-            gui_overlay_process();   // host overlay + link banner, drawn over the waterfall
+            // Normal operation - update the interface. The overlay and menu
+            // bands do not mask the live image: they reserve the top rows
+            // (animated slide) and the image is squeezed into the rows below -
+            // which keeps the live feedback visible on the calibration pages.
+            uint32_t overlay_top = gui_overlay_reservedTop();
+            uint32_t menu_top = gui_menu_reservedTop();
+            gui_displayImage((menu_top > overlay_top) ? menu_top : overlay_top);
+            gui_overlay_draw();      // host overlay + link banner, in the reserved rows
+            gui_menu_draw();         // device menu wins over the overlay band
             leds_check_update_state();
+
+            // No host session bound: pulse the validate button's backlight so
+            // the user thinks of pressing it (menu entry). Deliberately NOT
+            // gated on the Ethernet carrier - a USB-ETH adapter provides a
+            // link even with no computer behind it (seen on device). The LED
+            // index equals the button index (leds_handle convention).
+            leds_setAttractMode((shared_feedback.link_state == 0U &&
+                                 !gui_menu_isActive())
+                                ? (int32_t)gui_menu_okButton() : -1);
 
             if ((current_tick - last_refresh_tick) >= 200)
             {

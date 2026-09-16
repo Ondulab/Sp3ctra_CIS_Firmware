@@ -63,6 +63,18 @@ static volatile uint32_t system_time = 0; // Global timer in milliseconds
 static volatile bool saver_active = false;
 static volatile int32_t saver_brightness[NUMBER_OF_LEDS] = {0};
 
+/* -- Attract pulse ---------------------------------------------------------
+ * Sine breathing of ONE button backlight (the menu's validate button) while
+ * the device is powered without any IP link: a quiet invitation to press it.
+ * Lower priority than press feedback and the screensaver breathing; brighter
+ * and faster than the screensaver so it reads in daylight. */
+#define LEDS_ATTRACT_PERIOD_MS  (2000U)
+#define LEDS_ATTRACT_PEAK       (70)     /* duty, PWM window is 0..100 */
+#define LEDS_ATTRACT_FLOOR      (0)
+
+static volatile int32_t attract_led = -1;        /* button/LED index, -1 = off */
+static volatile int32_t attract_brightness = 0;
+
 /* Raised cosine, 0..255 (generated: 127.5 * (1 - cos(2*pi*i/64))). */
 static const uint8_t saver_lut[64] =
 {
@@ -147,6 +159,20 @@ static void leds_handle(struct led_State *cmd, struct ledStateExtended *state, G
 	if (saver_active)
 	{
 		if ((system_time % 100) < (uint32_t)saver_brightness[button_id])
+		{
+			HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);   // on
+		}
+		else
+		{
+			HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_SET);     // off
+		}
+		return;
+	}
+
+	// Attract pulse on the validate button (no IP link, menu closed).
+	if (attract_led == button_id)
+	{
+		if ((system_time % 100) < (uint32_t)attract_brightness)
 		{
 			HAL_GPIO_WritePin(GPIO_Port, GPIO_Pin, GPIO_PIN_RESET);   // on
 		}
@@ -272,6 +298,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 }
             }
         }
+        else if (attract_led >= 0)
+        {
+            /* Same raised-cosine LUT, single LED, its own (faster) period. */
+            static uint32_t attract_tick = 0;
+            if (++attract_tick >= LEDS_SAVER_STEP_TICKS)
+            {
+                attract_tick = 0;
+                const uint32_t ms = system_time / 10U;   /* 10 kHz ticks -> ms */
+                const uint32_t base = (ms % LEDS_ATTRACT_PERIOD_MS) * 64U / LEDS_ATTRACT_PERIOD_MS;
+                attract_brightness = LEDS_ATTRACT_FLOOR
+                                   + ((LEDS_ATTRACT_PEAK - LEDS_ATTRACT_FLOOR) * (int32_t)saver_lut[base & 63U]) / 255;
+            }
+        }
 
 		system_time++; // Increment global system time for PWM
 	}
@@ -313,6 +352,11 @@ void leds_setScreensaverMode(bool active)
 			                             ? (int32_t)ledCommands[i].blink_count : -1;
 		}
 	}
+}
+
+void leds_setAttractMode(int32_t led_index)
+{
+	attract_led = (led_index >= 0 && led_index < NUMBER_OF_LEDS) ? led_index : -1;
 }
 
 void leds_check_update_state(void)

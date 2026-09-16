@@ -152,12 +152,30 @@ enum slp_error_code
 #define SLP_FEAT_HID_ACC       (1u << 9)
 #define SLP_FEAT_HID_GYRO      (1u << 10)
 #define SLP_FEAT_HID_TEMP      (1u << 11)
+#define SLP_FEAT_HID_GESTURES  (1u << 12)  /* device-side gesture events in slp_hid */
 
 /* slp_hid.valid_mask / slp_bind_ack.hid_valid_mask (= SLP_FEAT_HID_* >> 8) */
 #define SLP_HID_BUTTONS        (1u << 0)
 #define SLP_HID_ACC            (1u << 1)
 #define SLP_HID_GYRO           (1u << 2)
 #define SLP_HID_TEMP           (1u << 3)
+#define SLP_HID_GESTURES       (1u << 4)
+
+/* slp_hid.gesture_face / slp_hid.hit_face - the LONG faces of the bar only
+ * (device-side detector, gravity + hysteresis + stability; left/right follow
+ * cis_handedness). The two SHORT ends (nose up / nose down, codes 5 and 6 up
+ * to firmware 4.x) are retired: standing a 194 mm bar on its end is neither a
+ * playing position nor a surface anyone strikes. */
+enum slp_face
+{
+    SLP_FACE_MOVING = 0,   /* in hand / moving / undecided / struck on an end */
+    SLP_FACE_PAPER  = 1,   /* the large face that carries the CIS (reading position) */
+    SLP_FACE_BACK   = 2,   /* the other large face */
+    SLP_FACE_LEFT   = 3,   /* the left long edge */
+    SLP_FACE_RIGHT  = 4    /* the right long edge */
+    /* 5 = UP, 6 = DOWN: retired, never emitted. */
+};
+#define SLP_FACE_COUNT  5
 
 /* slp_led_cmd.flags */
 #define SLP_LED_NO_LOCAL_PRESS (1u << 0)   /* do not light the LED while its button is pressed */
@@ -165,6 +183,7 @@ enum slp_error_code
 /* slp_overlay_item.flags */
 #define SLP_OVL_BIPOLAR        (1u << 0)   /* draw a centre mark on the bar */
 #define SLP_OVL_HIGHLIGHT      (1u << 1)   /* "last touched": full contrast */
+#define SLP_OVL_TAG_INVERT     (1u << 2)   /* label starts with a "Cn " chain tag drawn inverted (black on white) */
 
 /* slp_pong.link_flags */
 #define SLP_LINK_STREAMING     (1u << 0)
@@ -429,7 +448,15 @@ struct slp_hid                      /* 72 B */
     float    acc[3];                /* g */
     float    gyro[3];               /* dps */
     float    temp_c;
-    uint8_t  reserved[8];
+    /* Gestures (SLP_HID_GESTURES) - computed on the device at 1 kHz. The u8
+     * event counter WRAPS: consumers react to changes only (same doctrine as
+     * button_seq, sized for the datagram's former reserved bytes). */
+    uint8_t  gesture_face;          /* enum slp_face: the face it RESTS on */
+    uint8_t  hit_seq;               /* +1 per HIT (shock), wraps */
+    uint8_t  hit_velocity;          /* 1..127, strength of the last HIT */
+    uint8_t  hit_face;              /* enum slp_face: which face was STRUCK
+                                     * (SLP_FACE_MOVING = along the bar, no face) */
+    uint8_t  reserved[4];
 };
 
 #pragma pack(pop)

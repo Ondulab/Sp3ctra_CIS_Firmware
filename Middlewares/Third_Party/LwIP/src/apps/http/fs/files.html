@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Sp3ctra Files</title>
+    <link rel="icon" href="img/favicon_64x64.ico" type="image/x-icon">
+    <link rel="stylesheet" href="sp3ctra.css">
+    <style>
+        /* Read-only listing: rows you can touch are lime, sizes stay muted. */
+        .crumbs {
+            font-size: 13px;
+            margin: 2px 0 8px 0;
+            color: var(--muted);
+            word-break: break-all;
+        }
+
+        .crumbs a {
+            color: var(--lime-rest);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .crumbs a:hover { color: var(--lime); }
+
+        .filelist {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .filerow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            border-top: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .filerow:first-child { border-top: none; }
+        .filerow:hover { background: var(--btn-hot); }
+
+        .filerow .icon {
+            width: 18px;
+            text-align: center;
+            color: var(--accent);
+            flex: none;
+        }
+
+        .filerow .name {
+            flex: 1 1 auto;
+            color: var(--lime-rest);
+            word-break: break-all;
+        }
+
+        .filerow:hover .name { color: var(--lime); }
+
+        .filerow .size {
+            flex: none;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .empty {
+            padding: 10px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body data-page="files">
+    <div class="main-wrapper">
+        <div class="container">
+            <span class="title">FILES</span>
+
+            <div class="crumbs" id="crumbs"></div>
+            <div class="filelist" id="filelist"></div>
+            <p class="hint">Read-only view of the device storage. Click a file to download it.</p>
+        </div>
+    </div>
+    <script src="sp3ctra.js"></script>
+    <script>
+        var currentPath = '/';
+
+        function fmtSize(n) {
+            if (n < 1024) { return n + ' B'; }
+            if (n < 1024 * 1024) { return (n / 1024).toFixed(1) + ' KB'; }
+            return (n / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function renderCrumbs() {
+            var box = document.getElementById('crumbs');
+            box.textContent = '';
+            var root = document.createElement('a');
+            root.textContent = 'device:/';
+            root.onclick = function () { loadDir('/'); };
+            box.appendChild(root);
+
+            var parts = currentPath.split('/').filter(function (p) { return p !== ''; });
+            var acc = '';
+            for (var i = 0; i < parts.length; i++) {
+                acc += '/' + parts[i];
+                var target = acc;
+                var a = document.createElement('a');
+                a.textContent = parts[i];
+                a.onclick = (function (t) { return function () { loadDir(t); }; })(target);
+                box.appendChild(a);
+                box.appendChild(document.createTextNode('/'));
+            }
+        }
+
+        function addRow(list, icon, label, size, action) {
+            var row = document.createElement('div');
+            row.className = 'filerow';
+            row.onclick = action;
+            var i = document.createElement('span');
+            i.className = 'icon';
+            i.textContent = icon;
+            var n = document.createElement('span');
+            n.className = 'name';
+            n.textContent = label;
+            var s = document.createElement('span');
+            s.className = 'size';
+            s.textContent = size;
+            row.appendChild(i);
+            row.appendChild(n);
+            row.appendChild(s);
+            list.appendChild(row);
+        }
+
+        function renderEntries(entries) {
+            var list = document.getElementById('filelist');
+            list.textContent = '';
+
+            if (currentPath !== '/') {
+                var parent = currentPath.replace(/\/[^\/]+$/, '') || '/';
+                addRow(list, '←', '..', '', function () { loadDir(parent); });
+            }
+
+            /* Directories first, then files, both alphabetical. */
+            entries.sort(function (a, b) {
+                if (a.d !== b.d) { return b.d - a.d; }
+                return a.n.toLowerCase() < b.n.toLowerCase() ? -1 : 1;
+            });
+
+            for (var i = 0; i < entries.length; i++) {
+                var e = entries[i];
+                var full = (currentPath === '/' ? '' : currentPath) + '/' + e.n;
+                if (e.d) {
+                    addRow(list, '▸', e.n, '', (function (p) {
+                        return function () { loadDir(p); };
+                    })(full));
+                } else {
+                    addRow(list, '↓', e.n, fmtSize(e.s), (function (p) {
+                        return function () {
+                            window.location.href = '/fs/get?path=' + encodeURIComponent(p);
+                        };
+                    })(full));
+                }
+            }
+
+            if (entries.length === 0) {
+                var d = document.createElement('div');
+                d.className = 'empty';
+                d.textContent = 'Empty directory';
+                list.appendChild(d);
+            }
+        }
+
+        function showError(text) {
+            var list = document.getElementById('filelist');
+            list.textContent = '';
+            var d = document.createElement('div');
+            d.className = 'empty';
+            d.textContent = text;
+            list.appendChild(d);
+        }
+
+        function loadDir(path) {
+            currentPath = path;
+            renderCrumbs();
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/fs/list?path=' + encodeURIComponent(path), true);
+            xhr.onload = function () {
+                if (xhr.status !== 200) {
+                    showError('Cannot open ' + path + ' (' + xhr.status + ')');
+                    return;
+                }
+                try {
+                    renderEntries(JSON.parse(xhr.responseText).entries);
+                } catch (e) {
+                    showError('Bad listing for ' + path);
+                }
+            };
+            xhr.onerror = function () { showError('Device not reachable'); };
+            xhr.send();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () { loadDir('/'); });
+    </script>
+</body>
+
+</html>

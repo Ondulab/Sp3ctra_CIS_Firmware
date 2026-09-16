@@ -47,7 +47,8 @@
 #include "cis_linearCal.h"
 
 /* Private define ------------------------------------------------------------*/
-#define LINK_TASK_STACK_BYTES   (16384)   /* file_writeConfig (FatFs FIL + sector buffer) and IMU calibration run here */
+#define LINK_TASK_STACK_BYTES   (24576)   /* file_writeConfig (FatFs FIL + sector buffer), IMU calibration and
+                                             file_factoryReset (f_mkfs work buffer, 2 sectors) run here */
 #define LINK_RECV_TIMEOUT_MS    (100)
 #define LINK_REBOOT_DELAY_MS    (500)
 
@@ -241,7 +242,8 @@ static void link_handleHello(const ip_addr_t *src, uint16_t sport)
         memcpy(a->bound_peer_ip, (const void *)shared_feedback.peer_ip, 4);
     }
     a->features      = SLP_FEAT_LED_SET | SLP_FEAT_OLED_OVERLAY | SLP_FEAT_CFG | SLP_FEAT_CAL
-                     | SLP_FEAT_HID_BUTTONS | SLP_FEAT_HID_ACC | SLP_FEAT_HID_GYRO | SLP_FEAT_HID_TEMP;
+                     | SLP_FEAT_HID_BUTTONS | SLP_FEAT_HID_ACC | SLP_FEAT_HID_GYRO | SLP_FEAT_HID_TEMP
+                     | SLP_FEAT_HID_GESTURES;
     a->n_buttons     = NUMBER_OF_BUTTONS;
     a->n_leds        = NUMBER_OF_LEDS;
     a->led_kind      = SLP_LED_MONO_PWM;
@@ -320,7 +322,7 @@ static void link_handleBind(const struct slp_bind *m, const ip_addr_t *src, uint
     ack->fragment_count   = (uint8_t)((pixels + UDP_LINE_FRAGMENT_SIZE - 1) / UDP_LINE_FRAGMENT_SIZE);
     ack->line_packet_bytes = (uint16_t)SLP_LINE_BYTES(UDP_LINE_FRAGMENT_SIZE);
     ack->hid_rate_hz      = hid_rate_hz;
-    ack->hid_valid_mask   = SLP_HID_BUTTONS | SLP_HID_ACC | SLP_HID_GYRO | SLP_HID_TEMP;
+    ack->hid_valid_mask   = SLP_HID_BUTTONS | SLP_HID_ACC | SLP_HID_GYRO | SLP_HID_TEMP | SLP_HID_GESTURES;
     ack->session_timeout_ms = SLP_SESSION_TIMEOUT_MS;
 
     link_send(ack, sizeof(*ack), src, sport);
@@ -671,6 +673,78 @@ static void link_handleCal(const struct slp_cal_start *m, const ip_addr_t *src, 
     }
 }
 
+/* CM4 device-menu mailbox --------------------------------------------------*/
+
+/** Execute one pending request from the CM4 device menu (shared_var.menu_req_*).
+ *  Reuses the SLP cfg_write path so validation, side effects (LUT, IMU FS,
+ *  reboot flags) and persistence behave exactly like a host CFG_SET. */
+static void link_pollMenuMailbox(void)
+{
+    const uint32_t seq = shared_var.menu_req_seq;
+    if (seq == shared_var.menu_req_done_seq)
+    {
+        return;
+    }
+
+    uint32_t result = 0;
+
+    switch (shared_var.menu_req_kind)
+    {
+        case MENU_REQ_CFG_SET:
+        {
+            struct slp_cfg_item it;
+            memset(&it, 0, sizeof(it));
+            it.id = (uint16_t)shared_var.menu_req_id;
+            it.value = shared_var.menu_req_value;
+
+            bool changed = false, reboot = false, stream_target = false;
+            cfg_write(&it, &changed, &reboot, &stream_target);
+            if (changed)
+            {
+                file_writeConfig(CONFIG_FILE_PATH, &shared_config);
+            }
+            if (stream_target && !session.bound)
+            {
+                udpClient_applyDefaultTarget();
+            }
+            result = it.flags;
+            if (reboot)
+            {
+                printf("LINK: menu configuration change requires a reboot\n");
+                reboot_pending = 1;
+            }
+            break;
+        }
+        case MENU_REQ_IMU_CAL:
+            printf("LINK: menu IMU calibration requested\n");
+            /* Blocking (~1.2 s): same inline execution as SLP_CAL_IMU. */
+            result = (icm42688_performCalibration() == ICM42688_OK) ? 0U : SLP_CFG_F_REJECTED;
+            break;
+        case MENU_REQ_BLACKPOINT_CAL:
+            printf("LINK: menu black point calibration requested\n");
+            cisBlackPointCalState = 1U;   /* picked up by cis_scanTask; progress mirrored below */
+            break;
+        case MENU_REQ_FACTORY_RESET:
+            printf("LINK: menu factory reset requested\n");
+            if (file_factoryReset() == FILEMANAGER_OK)
+            {
+                result = SLP_CFG_F_REBOOT;
+                reboot_pending = 1;
+            }
+            else
+            {
+                result = SLP_CFG_F_REJECTED;
+            }
+            break;
+        default:
+            result = SLP_CFG_F_UNKNOWN;
+            break;
+    }
+
+    shared_var.menu_req_result = result;
+    shared_var.menu_req_done_seq = seq;   /* last: releases the CM4 side */
+}
+
 /* Dispatcher ----------------------------------------------------------------*/
 
 static void link_handle(const uint8_t *buf, uint16_t len, const ip_addr_t *src, uint16_t sport)
@@ -838,6 +912,13 @@ static void linkTask(void *argument)
         {
             netbuf_delete(nb);
         }
+
+        /* CM4 device menu: execute pending requests, mirror the states it
+         * cannot reach (CM7-private variables). Runs at least every
+         * LINK_RECV_TIMEOUT_MS thanks to the recv timeout. */
+        shared_feedback.net_link_up = (isConnected == 1U) ? 1U : 0U;
+        shared_var.menu_bp_cal_state = cisBlackPointCalState;
+        link_pollMenuMailbox();
 
         /* Session keep-alive */
         if (session.bound && (HAL_GetTick() - session.last_ping_tick) > SLP_SESSION_TIMEOUT_MS)

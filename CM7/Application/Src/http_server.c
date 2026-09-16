@@ -39,7 +39,6 @@
 #include "stm32_flash.h"
 
 #include "http_server.h"
-#include "admin_auth.h"
 #include "cis_scan.h"
 #include "ota_app.h"
 #include "link_server.h"
@@ -63,6 +62,13 @@ static char http_reqbuf[HTTP_REQ_BUF_SIZE];
 /* Requests served on one keep-alive connection before we close it anyway: at the
  * live viewer's 25 polls per second, 64 is ~2.5 s of viewing (see GET /scan.bin). */
 #define HTTP_KEEPALIVE_MAX_REQUESTS 64
+
+/* Same, for the live scan. The server handles ONE connection at a time, so this
+ * burst length is also the ceiling on every OTHER client's wait in the accept
+ * queue: at 512 (~20 s at 25 polls/s) the settings XHRs of the scan page itself
+ * starved forever behind their own waterfall. ~2 s keeps the viewer smooth (the
+ * since= batching resumes without losing lines) and bounds settings latency. */
+#define HTTP_KEEPALIVE_MAX_SCAN_REQUESTS 50
 
 /* Copy the whole netbuf chain into http_reqbuf, then for a POST keep receiving (bounded by the
  * receive timeout) until the Content-Length body is complete. Returns the assembled length. */
@@ -851,19 +857,6 @@ static bool fwupdate_handleUpload(struct netconn *conn, struct netbuf *inbuf)
                 if (strstr(http_reqbuf, DOWNLOAD_STREAM_TAG) != NULL ||
                     strstr(http_reqbuf, DOWNLOAD_STREAM_TAG_2) != NULL)
                 {
-                    /* Les en-tetes sont complets : on verifie les identifiants
-                     * AVANT la premiere ecriture sur la NOR, pour qu'une
-                     * requete non authentifiee ne laisse aucune trace et ne
-                     * detruise pas le paquet deja en place. */
-                    if (!adminAuth_check(http_reqbuf))
-                    {
-                        printf("@ fwupdate - unauthenticated upload rejected\n");
-                        adminAuth_sendChallenge(conn);
-                        ret = FWUPDATE_STATUS_ERROR;
-                        goto finished;
-                    }
-                    adminAuth_markUsed();
-
                     ret = fwupdate_multipart_state_machine(conn, http_reqbuf, assembled);
                     headerDone = true;
                 }
@@ -905,6 +898,200 @@ finished:
 
     fwupdate_abort();
     return false;
+}
+
+/* ---- Navigateur de fichiers en lecture seule (remplace le serveur FTP) ----
+ *
+ * Deux points d'entree : GET /fs/list?path= (liste JSON d'un repertoire) et
+ * GET /fs/get?path= (telechargement d'un fichier). Aucune ecriture n'est
+ * possible par ce canal : deposer un firmware reste l'affaire de POST /upload. */
+
+/* Le telechargement passe par ces statiques plutot que par la pile de la
+ * tache : un FIL pese plus d'un demi-kilo-octet avec les noms longs, et le
+ * serveur est monotache, un seul jeu suffit (meme motif que http_reqbuf). */
+static FIL fsbrowse_file;
+static uint8_t fsbrowse_chunk[2048];
+
+static int fsbrowse_hexVal(char c)
+{
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+/* Extrait et decode l'argument "path=" de la requete vers out, prefixe "0:"
+ * (syntaxe FatFs). Refuse ".." -- FatFs accepte les chemins relatifs
+ * (_FS_RPATH) et rien ne doit permettre de sortir du volume -- ainsi que tout
+ * caractere de controle. Retourne false si le chemin manque ou est malforme. */
+static bool fsbrowse_extractPath(const char *req, char *out, size_t outsz)
+{
+    const char *p = strstr(req, "path=");
+    if (p == NULL)
+    {
+        return false;
+    }
+    p += 5;
+
+    size_t n = 2;
+    out[0] = '0'; out[1] = ':';
+    while (*p != '\0' && *p != ' ' && *p != '&' && *p != '\r' && *p != '\n')
+    {
+        char c = *p++;
+        if (c == '%')
+        {
+            int hi = fsbrowse_hexVal(p[0]);
+            int lo = (hi >= 0) ? fsbrowse_hexVal(p[1]) : -1;
+            if (lo < 0)
+            {
+                return false;
+            }
+            c = (char)((hi << 4) | lo);
+            p += 2;
+        }
+        else if (c == '+')
+        {
+            c = ' ';
+        }
+        if ((unsigned char)c < 0x20 || n >= outsz - 1)
+        {
+            return false;
+        }
+        out[n++] = c;
+    }
+    out[n] = '\0';
+
+    if (out[2] != '/' || strstr(out, "..") != NULL)
+    {
+        return false;
+    }
+    /* FatFs ouvre la racine avec "0:/" mais refuse un slash final ailleurs. */
+    if (n > 3 && out[n - 1] == '/')
+    {
+        out[n - 1] = '\0';
+    }
+    return true;
+}
+
+static void fsbrowse_sendError(struct netconn *conn, const char *status, const char *text)
+{
+    char response[160];
+    int len = snprintf(response, sizeof(response),
+                       "HTTP/1.1 %s\r\nContent-Type: text/plain\r\nContent-Length: %u\r\n\r\n%s",
+                       status, (unsigned)strlen(text), text);
+    netconn_write(conn, response, (size_t)len, NETCONN_COPY);
+}
+
+/* Liste un repertoire en JSON : {"entries":[{"n":nom,"d":0|1,"s":octets},...]}.
+ * Le corps est emis entree par entree, sans Content-Length : la connexion est
+ * fermee apres la reponse (close reste vrai), ce qui en marque la fin. */
+static void fsbrowse_list(struct netconn *conn, const char *req)
+{
+    char path[FILE_NAME_MAX_LENGTH];
+    DIR dir;
+
+    if (!fsbrowse_extractPath(req, path, sizeof(path)))
+    {
+        fsbrowse_sendError(conn, "400 Bad Request", "Bad path");
+        return;
+    }
+    if (f_opendir(&dir, path) != FR_OK)
+    {
+        fsbrowse_sendError(conn, "404 Not Found", "No such directory");
+        return;
+    }
+
+    const char *hdr = "HTTP/1.1 200 OK\r\n"
+                      "Content-Type: application/json\r\n"
+                      "Cache-Control: no-store\r\n"
+                      "Connection: close\r\n\r\n"
+                      "{\"entries\":[";
+    netconn_write(conn, hdr, strlen(hdr), NETCONN_COPY);
+
+    FILINFO fno;
+    bool first = true;
+    while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != '\0')
+    {
+        /* Nom echappe pour JSON : seuls " et \ peuvent surgir d'un nom FatFs,
+         * les caracteres de controle y sont interdits. */
+        char name[FILE_NAME_MAX_LENGTH * 2];
+        size_t w = 0;
+        for (const char *r = fno.fname; *r != '\0' && w < sizeof(name) - 2; r++)
+        {
+            if (*r == '"' || *r == '\\')
+            {
+                name[w++] = '\\';
+            }
+            name[w++] = *r;
+        }
+        name[w] = '\0';
+
+        char entry[sizeof(name) + 48];
+        int len = snprintf(entry, sizeof(entry), "%s{\"n\":\"%s\",\"d\":%d,\"s\":%lu}",
+                           first ? "" : ",", name,
+                           (fno.fattrib & AM_DIR) ? 1 : 0,
+                           (unsigned long)fno.fsize);
+        if (netconn_write(conn, entry, (size_t)len, NETCONN_COPY) != ERR_OK)
+        {
+            break;
+        }
+        first = false;
+    }
+    f_closedir(&dir);
+
+    netconn_write(conn, "]}", 2, NETCONN_COPY);
+}
+
+/* Sert un fichier du volume en telechargement (Content-Disposition:
+ * attachment), par morceaux de sizeof(fsbrowse_chunk). */
+static void fsbrowse_download(struct netconn *conn, const char *req)
+{
+    char path[FILE_NAME_MAX_LENGTH];
+
+    if (!fsbrowse_extractPath(req, path, sizeof(path)))
+    {
+        fsbrowse_sendError(conn, "400 Bad Request", "Bad path");
+        return;
+    }
+    if (f_open(&fsbrowse_file, path, FA_READ) != FR_OK)
+    {
+        fsbrowse_sendError(conn, "404 Not Found", "No such file");
+        return;
+    }
+
+    /* Nom propose au navigateur : la derniere composante du chemin, ses
+     * eventuels guillemets neutralises pour ne pas casser l'en-tete. */
+    const char *fileName = strrchr(path, '/');
+    fileName = (fileName != NULL) ? fileName + 1 : path + 2;
+    char safeName[FILE_NAME_MAX_LENGTH];
+    size_t w = 0;
+    for (const char *r = fileName; *r != '\0' && w < sizeof(safeName) - 1; r++)
+    {
+        safeName[w++] = (*r == '"') ? '_' : *r;
+    }
+    safeName[w] = '\0';
+
+    char hdr[FILE_NAME_MAX_LENGTH + 192];
+    int hdrLen = snprintf(hdr, sizeof(hdr),
+                          "HTTP/1.1 200 OK\r\n"
+                          "Content-Type: application/octet-stream\r\n"
+                          "Content-Length: %lu\r\n"
+                          "Content-Disposition: attachment; filename=\"%s\"\r\n"
+                          "Cache-Control: no-store\r\n"
+                          "Connection: close\r\n\r\n",
+                          (unsigned long)f_size(&fsbrowse_file), safeName);
+    if (netconn_write(conn, hdr, (size_t)hdrLen, NETCONN_COPY) == ERR_OK)
+    {
+        UINT rd;
+        while (f_read(&fsbrowse_file, fsbrowse_chunk, sizeof(fsbrowse_chunk), &rd) == FR_OK && rd > 0)
+        {
+            if (netconn_write(conn, fsbrowse_chunk, rd, NETCONN_COPY) != ERR_OK)
+            {
+                break; /* client parti : le corps s'arrete, la connexion se ferme */
+            }
+        }
+    }
+    f_close(&fsbrowse_file);
 }
 
 static void http_server(struct netconn *conn)
@@ -956,22 +1143,6 @@ static void http_server(struct netconn *conn)
 				/* Assemble headers + body (may span several netbufs) into http_reqbuf */
 				buflen = http_assembleRequest(conn, inbuf);
 				buf = http_reqbuf;
-
-				/* Toute requete qui MODIFIE l'appareil exige les identifiants :
-				 * un changement d'IP ou un factory reset a distance sont aussi
-				 * dommageables qu'un mauvais firmware. Les GET de lecture
-				 * restent libres, pour ne pas gener la supervision. */
-				if (buflen >= 5 && strncmp(buf, "POST ", 5) == 0)
-				{
-					if (!adminAuth_check(buf))
-					{
-						printf("HTTP: unauthenticated POST rejected\n");
-						adminAuth_sendChallenge(conn);
-						close = true;
-						break;
-					}
-					adminAuth_markUsed();
-				}
 #ifdef HTTP_SERVER_DEBUG
 				printf("# Process buffer: %p %d bytes\n", buf, buflen);
 #endif
@@ -1007,6 +1178,18 @@ static void http_server(struct netconn *conn)
 						char response[100];
 						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%d", (int)shared_config.cis_oversampling);
 
+						netconn_write(conn, response, len, NETCONN_COPY);
+					}
+
+					/* Etat de la calibration du point noir. AVANT /getBlackPoint : meme prefixe. */
+					else if (strncmp((char const *)buf, "GET /getBlackPointCalStatus", 27) == 0)
+					{
+						const char *st = (cisBlackPointCalState == 1U) ? "running"
+						               : (cisBlackPointCalState == 2U) ? "done"
+						               : (cisBlackPointCalState == 3U) ? "failed" : "idle";
+						char response[100];
+						int len = sprintf(response, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n%s %d",
+						                  st, (int)shared_config.cis_black_point);
 						netconn_write(conn, response, len, NETCONN_COPY);
 					}
 
@@ -1246,8 +1429,10 @@ static void http_server(struct netconn *conn)
 						head[20] = flags;                   head[21] = dec;
 						head[22] = 0;                       head[23] = 0;
 
-						/* Keep the connection for the next batch, up to the burst cap. */
-						close = (++served >= HTTP_KEEPALIVE_MAX_REQUESTS);
+						/* Keep the connection for the next batch. The viewer polls tens of
+						 * times per second, so it gets a longer burst than the settings
+						 * pages: reconnecting mid-scan costs a gap in the image. */
+						close = (++served >= HTTP_KEEPALIVE_MAX_SCAN_REQUESTS);
 
 						char hdr[160];
 						int hdrLen = sprintf(hdr,
@@ -1275,6 +1460,20 @@ static void http_server(struct netconn *conn)
 								break;
 							}
 						}
+					}
+
+					/* Read-only file browser (replaces the FTP server). Both
+					 * responses say "Connection: close": honour it even when a
+					 * previous request on this connection asked for keep-alive. */
+					else if (strncmp((char const *)buf, "GET /fs/list", 12) == 0)
+					{
+						fsbrowse_list(conn, buf);
+						close = true;
+					}
+					else if (strncmp((char const *)buf, "GET /fs/get", 11) == 0)
+					{
+						fsbrowse_download(conn, buf);
+						close = true;
 					}
 
 					/* Anything else: serve the file of that name from the flash file
@@ -1413,17 +1612,12 @@ static void http_server(struct netconn *conn)
 						}
 					}
 
-					/* Calibration du voile : vitre face a RIEN (papier noir a 20-30 cm) */
-					else if (strncmp((char const *)buf, "POST /startVeil", 15) == 0)
+					/* Calibration du point noir : glisser sur le papier noir de reference.
+					   Reponse immediate ; la fin se lit sur GET /getBlackPointCalStatus. */
+					else if (strncmp((char const *)buf, "POST /startBlackPointCal", 24) == 0)
 					{
-						/* target=black : ancre noire sur CIBLE noire, LEDs allumees, en
-						   GLISSANT (le zero par pixel du mode Dessin, stries annulees par
-						   construction). Sans argument : voile en l'air (mode Physique). */
-						const bool black = (strstr(buf, "target=black") != NULL);
-						cisVeilRequested = black ? 2U : 1U;
-						const char *resp = black
-						    ? "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nBlack target anchor started - GLIDE on black paper now"
-						    : "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nVeil calibration started";
+						cisBlackPointCalState = 1U;
+						const char *resp = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nBlack point calibration started - glide on black paper now";
 						netconn_write(conn, resp, strlen(resp), NETCONN_COPY);
 					}
 

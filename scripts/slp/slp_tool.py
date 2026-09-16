@@ -4,7 +4,7 @@
     slp_tool.py discover [--seconds 3] [--broadcast 192.168.100.255 ...] [--ip 192.168.100.1]
                          (default: the directed broadcast of every local interface)
     slp_tool.py stat     --ip 192.168.100.1 [--seconds 3]
-    slp_tool.py hid      --ip ... [--seconds 10] [--rate 200]      # buttons edges + IMU
+    slp_tool.py hid      --ip ... [--seconds 10] [--rate 200]      # button edges + IMU + HIT / FACE
     slp_tool.py lines    --ip ... [--seconds 10]                    # LINE datagrams, loss, rate
     slp_tool.py led      --ip ... --led 0 --b1 100 [--t1 0 --g1 0 --b2 0 --t2 0 --g2 0 --blink 0 --no-local]
     slp_tool.py overlay  --ip ... "Speed=12 ms:0.6" "Gain=-3.0 dB:0.5b" [--ttl 1500] [--hold 3]
@@ -259,12 +259,29 @@ def cmd_hid(args):
     rx = stream_socket(link.stream_port)
     last_seq = None
     last_btn = None
+    last_hit = None
+    last_face = None
+    amax = [0.0, 0.0, 0.0]
+    hits = []
     count = 0
     lost = 0
     t0 = time.monotonic()
     last_print = t0
     end = t0 + args.seconds
-    print(f"  listening HID on UDP {link.stream_port} for {args.seconds} s (press the buttons, move the device)")
+    # The accel full scale decides how much HIT dynamics the hardware can even
+    # produce: every axis clips there, and gravity already eats 1 g of the axis
+    # the bar rests on. Print it first - a flat velocity is usually this.
+    fs_g = None
+    link.send(slp.build_cfg(link.seq.next(), [slp.CFG_IDS["accel_fs"]], set_values=False))
+    reply = link.recv(slp.CFG_REPLY, 1.0)
+    if reply:
+        for cid, ctype, flags, value in slp.parse_cfg_reply(reply):
+            if cid == slp.CFG_IDS["accel_fs"]:
+                fs_g = (16, 8, 4, 2)[value] if value < 4 else None
+                print(f"  accel full scale = +/-{fs_g} g"
+                      + ("   <-- too small for HIT dynamics, use +/-16 g" if fs_g and fs_g <= 4 else ""))
+    print(f"  listening HID on UDP {link.stream_port} for {args.seconds} s "
+          f"(press the buttons, move the device, knock on its faces)")
     while time.monotonic() < end:
         link.keepalive()
         r, _, _ = select.select([rx], [], [], 0.05)
@@ -285,20 +302,42 @@ def cmd_hid(args):
             last_seq = h.seq
             if last_btn is None:
                 last_btn = list(h.button_seq)
+            for i in range(3):
+                amax[i] = max(amax[i], abs(h.acc[i]))
             for i in range(h.button_count):
                 if h.button_seq[i] != last_btn[i]:
                     edges = (h.button_seq[i] - last_btn[i]) & 0xFFFFFFFF
                     state = "PRESSED " if h.button_state & (1 << i) else "released"
                     print(f"  SW{i + 1} {state} (seq {h.button_seq[i]}, +{edges} edge{'s' if edges > 1 else ''})")
                     last_btn[i] = h.button_seq[i]
+            # Gestures: the counter wraps, so react to CHANGES only. This is
+            # also the bench check for the axis mapping - knock on each face
+            # and read back the name the device gives it.
+            if last_hit is None:
+                last_hit, last_face = h.hit_seq, h.face
+            else:
+                if h.hit_seq != last_hit:
+                    last_hit = h.hit_seq
+                    hits.append(h.hit_velocity)
+                    print(f"  HIT on {slp.face_name(h.hit_face):6s} velocity {h.hit_velocity:3d}")
+                if h.face != last_face:
+                    print(f"  FACE {slp.face_name(last_face)} -> {slp.face_name(h.face)}")
+                    last_face = h.face
             if time.monotonic() - last_print >= 0.5:
                 last_print = time.monotonic()
                 el = last_print - t0
                 print(f"  acc {h.acc[0]:+.2f} {h.acc[1]:+.2f} {h.acc[2]:+.2f} g  gyro {h.gyro[0]:+6.1f} {h.gyro[1]:+6.1f} "
                       f"{h.gyro[2]:+6.1f} dps  {h.temp_c:.1f} C  btn 0b{h.button_state:03b}  "
-                      f"{count / el:.0f} Hz  lost {lost}")
+                      f"face {slp.face_name(h.face)}  {count / el:.0f} Hz  lost {lost}")
     link.close()
     print(f"  {count} HID datagrams, {lost} lost, expected ~{ack.hid_rate_hz} Hz")
+    print(f"  |acc| max seen: X {amax[0]:.2f}  Y {amax[1]:.2f}  Z {amax[2]:.2f} g")
+    if fs_g and max(amax) >= 0.98 * fs_g:
+        print(f"  -> an axis reached the +/-{fs_g} g full scale: the accelerometer CLIPPED, "
+              f"so every blow above that reads the same velocity. Raise the range.")
+    if hits:
+        print(f"  {len(hits)} hits, velocity min {min(hits)} / max {max(hits)} / "
+              f"spread {max(hits) - min(hits)}")
     return 0
 
 

@@ -45,11 +45,11 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  /* Slot A. Doit rester identique a FW_CM7_SLOT_A_ADDR / FW_CM7_MAX_SIZE de
+  /* Slot B, ENGENDRE par scripts/ota/link_slot_b.sh -- ne pas editer. Doit rester identique a FW_CM7_SLOT_A_ADDR / FW_CM7_MAX_SIZE de
      Common/Inc/boot_config.h. Le script du slot B est engendre a partir
      de celui-ci par scripts/ota/link_slot_b.sh : ne pas le dupliquer a la
      main, les deux dériveraient. */
-  FLASH (rx)    			: ORIGIN = 0x08100000, LENGTH = 512K
+  FLASH (rx)    			: ORIGIN = 0x08180000, LENGTH = 512K
   DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
@@ -188,8 +188,6 @@ SECTIONS
     . = ALIGN(4);
     KEEP (*(.cisData_adc1)); 
     KEEP (*(.cisData_adc3));
-    . = ALIGN(4);
-    KEEP (*(.previewPool));
     . = ALIGN(4);
   } >RAM_D1B
   

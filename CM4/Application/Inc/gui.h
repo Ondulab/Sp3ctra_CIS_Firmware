@@ -26,6 +26,7 @@
 #include "gui_interaction.h"
 #include "gui_calibration.h"
 #include "gui_interrupts.h"
+#include "gui_menu.h"
 
 /* Legacy compatibility ------------------------------------------------------*/
 // For backward compatibility, expose the main loop function

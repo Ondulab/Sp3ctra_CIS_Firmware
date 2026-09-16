@@ -7,6 +7,7 @@
         { page: 'imu', href: 'imu.html', label: 'IMU' },
         { page: 'network', href: 'network.html', label: 'NETWORK' },
         { page: 'gui', href: 'gui.html', label: 'GUI' },
+        { page: 'files', href: 'files.html', label: 'FILES' },
         { page: 'update', href: 'update.html', label: 'UPDATE' }
     ];
 

@@ -240,6 +240,8 @@ typedef struct {
     void icm42688_getAccG(float out[3]);
     /** Angular rate in dps, for the SLP HID stream. */
     void icm42688_getGyroDps(float out[3]);
+    /* Accelerometer full scale in g (2/4/8/16), 0 before configuration. */
+    float icm42688_accelFsG(void);
 
     /**
      * @brief      Get gyro data, per axis

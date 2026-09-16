@@ -160,6 +160,15 @@ int main(void)
 	 * the CM4 is released: it reads device_name on its very first frame, and the
 	 * unique-id region is not readable from the CM4 (bus fault). */
 	shared_var.cis_process_rdy = FALSE;
+	/* Device-menu mailbox: seq == done_seq means idle; garbage here would make
+	 * the link task replay a phantom request or the CM4 wait forever. */
+	shared_var.menu_req_seq = 0;
+	shared_var.menu_req_kind = MENU_REQ_NONE;
+	shared_var.menu_req_id = 0;
+	shared_var.menu_req_value = 0;
+	shared_var.menu_req_done_seq = 0;
+	shared_var.menu_req_result = 0;
+	shared_var.menu_bp_cal_state = 0;
 	memset((void *)&shared_feedback, 0, sizeof(shared_feedback));
 	sys_identity_name((char *)shared_feedback.device_name);
 	shared_feedback.boot_stage = BOOT_STAGE_STARTING;
