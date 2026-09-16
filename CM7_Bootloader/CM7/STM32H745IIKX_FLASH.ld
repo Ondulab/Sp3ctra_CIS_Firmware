@@ -54,7 +54,7 @@ MEMORY
   RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
   RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
   RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
-  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 32K   /* moitie haute reservee : Common/Inc/log_ring.h */
   ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
@@ -183,6 +183,15 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM_AXI
+
+  /* Descripteurs et tampons DMA du flasheur reseau (netboot_eth.c) : en D2,
+   * joignable par le DMA Ethernet, hors du cache (coupe en mode flasheur). */
+  .netboot_eth (NOLOAD) :
+  {
+    . = ALIGN(32);
+    KEEP(*(.netboot_eth))
+    . = ALIGN(32);
+  } >RAM_D2
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

@@ -59,3 +59,8 @@ nbproject/
 # Python
 __pycache__/
 *.pyc
+
+# Simulateur et test du flasheur reseau (scripts/netboot/sim/build.sh)
+scripts/netboot/sim/test_core
+scripts/netboot/sim/netboot_sim
+*.dSYM/

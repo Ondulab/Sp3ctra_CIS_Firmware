@@ -51,6 +51,57 @@
                 </p>
             </form>
 
+            <div class="section">&mdash; NETWORK FLASH &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">BOOTLOADER</span>
+                    <button id="netbootBtn" onclick="enterNetboot()">Enter flash mode</button>
+                </div>
+                <div class="box wide">
+                    <span class="boxlabel">STATUS</span>
+                    <input type="text" id="netbootStatus" value="application running" disabled>
+                </div>
+            </div>
+            <p class="hint">
+                Reboots into the bootloader's network flasher (UDP 55152), the ST-Link
+                replacement. Then, from the firmware repository:
+                <code>scripts/netboot/netflash.py flash --cm7 CM7.bin --cm4 CM4.bin</code>.
+                The device comes back when the tool sends BOOT, or after 120 s without a
+                host, and this page reconnects. Holding the two outer buttons at power-on
+                enters the same mode when this page is unreachable.
+            </p>
+
+            <div class="section">&mdash; DEVICE LOG &mdash;</div>
+
+            <div class="boxrow">
+                <div class="box">
+                    <span class="boxlabel">SOURCE</span>
+                    <div class="seg">
+                        <button id="logSrcCm7" class="selected" onclick="setLogSource('cm7')">CM7</button>
+                        <button id="logSrcCm4" onclick="setLogSource('cm4')">CM4</button>
+                    </div>
+                </div>
+                <div class="box narrow">
+                    <span class="boxlabel">READ</span>
+                    <button onclick="refreshLog()">Refresh</button>
+                </div>
+                <div class="box narrow">
+                    <span class="boxlabel">FOLLOW</span>
+                    <button id="logFollowBtn" onclick="toggleFollow()">Off</button>
+                </div>
+                <div class="box narrow">
+                    <span class="boxlabel">VIEW</span>
+                    <button onclick="clearLogView()">Clear</button>
+                </div>
+            </div>
+            <pre id="deviceLog" class="logbox">(press Refresh)</pre>
+            <p class="hint">
+                Retained-RAM journal of the bootloader (B), CM7 (7) and CM4 (4), timestamped
+                in seconds since each boot; it survives reboots. Read on demand only: nothing
+                is sent while Follow is off.
+            </p>
+
             <div class="section">&mdash; FACTORY RESET &mdash;</div>
 
             <div class="boxrow">
@@ -173,6 +224,104 @@ function factoryReset() {
                 };
                 xhr.send("START_FACTORY_RESET");
             });
+        }
+
+        /* ---- network flash mode (docs/NETBOOT.md) ---- */
+        function enterNetboot() {
+            var btn = document.getElementById('netbootBtn');
+            btn.classList.add('button-loading');
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/netboot', true);
+            xhr.onload = function () {
+                btn.classList.remove('button-loading');
+                if (xhr.status !== 202) { alert('Device refused: HTTP ' + xhr.status); return; }
+                if (logTimer) { toggleFollow(); }
+                stopTimers();
+                document.getElementById('netbootStatus').value = 'bootloader, network flash mode';
+                overlay.style.display = 'block';
+                showReconnectNotification(
+                    "Network flash mode\n\n" +
+                    "The bootloader answers on UDP 55152.\n" +
+                    "Run scripts/netboot/netflash.py flash ...\n\n" +
+                    "Waiting for the application to come back...");
+                waitForApplication();
+            };
+            xhr.onerror = function () {
+                btn.classList.remove('button-loading');
+                alert("\u2717 Network Error!\n\nUnable to communicate with device.");
+            };
+            xhr.send();
+        }
+
+        function waitForApplication() {
+            var probe = function () {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/getFirmwareVersion?nocache=' + Date.now(), true);
+                xhr.timeout = 1500;
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        window.location.href = window.location.pathname + '?nocache=' + Date.now();
+                    } else {
+                        setTimeout(probe, 1000);
+                    }
+                };
+                xhr.onerror = xhr.ontimeout = function () { setTimeout(probe, 1000); };
+                xhr.send();
+            };
+            setTimeout(probe, 3000);
+        }
+
+        /* ---- device log: GET /log, pulled on demand ---- */
+        var logSrc = 'cm7';
+        var logNext = null;
+        var logTimer = null;
+
+        function setLogSource(src) {
+            logSrc = src;
+            logNext = null;
+            document.getElementById('logSrcCm7').classList.toggle('selected', src === 'cm7');
+            document.getElementById('logSrcCm4').classList.toggle('selected', src === 'cm4');
+            clearLogView();
+            refreshLog();
+        }
+
+        function clearLogView() {
+            document.getElementById('deviceLog').textContent = '';
+        }
+
+        function refreshLog() {
+            var xhr = new XMLHttpRequest();
+            var url = '/log?src=' + logSrc +
+                (logNext === null ? '&max=4096' : '&since=' + logNext + '&max=4096');
+            xhr.open('GET', url, true);
+            xhr.onload = function () {
+                if (xhr.status !== 200) { return; }
+                var next = parseInt(xhr.getResponseHeader('X-Log-Next') || '0', 10);
+                var pre = document.getElementById('deviceLog');
+                if (logNext === null) { pre.textContent = ''; }
+                else if (next < logNext) { pre.textContent += '[page] device log counter reset (power cycle)\n'; }
+                if (xhr.responseText.length) {
+                    pre.textContent += xhr.responseText;
+                    pre.scrollTop = pre.scrollHeight;
+                }
+                logNext = next;
+            };
+            xhr.send();
+        }
+
+        function toggleFollow() {
+            var b = document.getElementById('logFollowBtn');
+            if (logTimer) {
+                clearInterval(logTimer);
+                logTimer = null;
+                b.textContent = 'Off';
+                b.classList.remove('selected');
+            } else {
+                refreshLog();
+                logTimer = setInterval(refreshLog, 500);
+                b.textContent = 'On';
+                b.classList.add('selected');
+            }
         }
 
         loadFirmwareVersion();

@@ -41,6 +41,9 @@ void otaBoot_logResetCause(void);
 /* Vrai si le dernier reset a ete provoque par l'IWDG. */
 bool otaBoot_lastResetWasWatchdog(void);
 
+/* RCC_RSR tel que lu au demarrage (les drapeaux sont effaces juste apres). */
+uint32_t otaBoot_resetCause(void);
+
 /* Sequencement -------------------------------------------------------------*/
 
 /* Etape precoce, juste apres SystemClock_Config et avant l'initialisation des

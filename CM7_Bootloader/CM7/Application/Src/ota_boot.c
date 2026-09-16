@@ -22,6 +22,8 @@
 #include "ota_boot.h"
 #include "update.h"
 #include "update_gui.h"
+#include "boot_mailbox.h"
+#include "netboot.h"
 
 #include <stdio.h>
 
@@ -76,6 +78,7 @@ void otaBoot_armWatchdog(void)
 void otaBoot_logResetCause(void)
 {
     otaBoot_resetFlags = RCC->RSR;
+    boot_mailbox_note_reset_flags(otaBoot_resetFlags); /* pour l'application et le flasheur */
 
     printf("Reset cause: 0x%08lX%s%s%s%s%s%s\n",
            (unsigned long)otaBoot_resetFlags,
@@ -96,6 +99,11 @@ bool otaBoot_lastResetWasWatchdog(void)
     return (otaBoot_resetFlags & RCC_RSR_IWDG1RSTF) != 0u;
 }
 
+uint32_t otaBoot_resetCause(void)
+{
+    return otaBoot_resetFlags;
+}
+
 /**
  * @brief  Message a l'operateur, sur la liaison serie et, si elle existe deja,
  *         sur la dalle OLED.
@@ -112,8 +120,6 @@ static void otaBoot_message(const char *line1, const char *line2)
 }
 
 /* Saut et reboot ------------------------------------------------------------*/
-
-typedef void (*pFunction)(void);
 
 void otaBoot_jumpToFirmware(uint32_t flashStartAddr)
 {
@@ -147,10 +153,15 @@ void otaBoot_jumpToFirmware(uint32_t flashStartAddr)
     __DSB();
 
     HAL_DeInit();
-    __set_MSP(appStack);
 
-    pFunction jumpToApplication = (pFunction)appEntry;
-    jumpToApplication();
+    /* Pile puis saut en une sequence : rien ne doit etre relu depuis l'ancienne
+     * pile apres le changement de MSP, quel que soit le niveau d'optimisation. */
+    __ASM volatile("msr msp, %0\n\t"
+                   "bx %1"
+                   :
+                   : "r"(appStack), "r"(appEntry)
+                   : "memory");
+    __builtin_unreachable();
 }
 
 void otaBoot_reboot(void)
@@ -347,9 +358,9 @@ static void otaBoot_rollback(const ota_record_t *record)
         otaBoot_requireJournal(ota_journal_write(OTA_PHASE_FAILED, 0,
                                                  record->rollback_attempts, 0));
         otaBoot_message("       RECOVERY FAILED          ",
-                        "     SERVICE REQUIRED (SWD)     ");
-        otaBoot_startApplication(false);
-        return;
+                        "      NETWORK FLASH MODE        ");
+        /* Rien de sain a demarrer : le flasheur reseau remplace la sonde. */
+        netboot_run(NETBOOT_REASON_FAILED);
     }
 
     printf("OTA: restoring the previous firmware\n");
@@ -395,9 +406,8 @@ void otaBoot_lateStage(void)
 
     case OTA_PHASE_FAILED:
         otaBoot_message("       RECOVERY FAILED          ",
-                        "     SERVICE REQUIRED (SWD)     ");
-        otaBoot_startApplication(false);
-        break;
+                        "      NETWORK FLASH MODE        ");
+        netboot_run(NETBOOT_REASON_FAILED);
 
     default:
         otaBoot_startApplication(false);

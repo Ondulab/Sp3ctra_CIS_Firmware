@@ -6,8 +6,8 @@
 **  Author      : STM32CubeIDE
 **
 **  Abstract    : Linker script for STM32H7 series
-**			      		2048Kbytes FLASH
-**                		512Kbytes RAM
+**                      2048Kbytes FLASH
+**                      512Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.
@@ -16,50 +16,52 @@
 **
 **  Target      : STMicroelectronics STM32
 **
-**  Distribution: The file is distributed as is, without any warranty
+**  Distribution: The file is distributed as is without any warranty
 **                of any kind.
 **
 *****************************************************************************
 ** @attention
 **
-** Copyright (c) 2019 STMicroelectronics.
-** All rights reserved.
+** <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+** All rights reserved.</center></h2>
 **
 ** This software component is licensed by ST under BSD 3-Clause license,
 ** the "License"; You may not use this file except in compliance with the
 ** License. You may obtain a copy of the License at:
 **                        opensource.org/licenses/BSD-3-Clause
 **
-****************************************************************************
+*****************************************************************************
 */
 
 /* Entry Point */
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM_D1A) + LENGTH(RAM_D1A); /* 0x10048000;    /* end of RAM */
-/* Generate a link error if heap and stack don't fit into RAM */
-_Min_Heap_Size = 0x400;      /* required amount of heap  */
+_estack = ORIGIN(RAM_AXI) + LENGTH(RAM_AXI); /* end of "RAM" Ram type memory */
+
+_Min_Heap_Size = 0x400; /* required amount of heap  */
 _Min_Stack_Size = 0x800; /* required amount of stack */
 
-/* Specify the memory areas */
+/* Memories definition */
 MEMORY
 {
-  /* Slot B, ENGENDRE par scripts/ota/link_slot_b.sh -- ne pas editer. Doit rester identique a FW_CM4_SLOT_A_ADDR / FW_CM4_MAX_SIZE de
-     Common/Inc/boot_config.h. Le script du slot B est engendre a partir
-     de celui-ci par scripts/ota/link_slot_b.sh : ne pas le dupliquer a la
-     main, les deux dériveraient. */
-  FLASH (rx)      			: ORIGIN = 0x08060000, LENGTH = 128K
-  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
-  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
-  RAM_D1A (rw)    			: ORIGIN = 0x10000000, LENGTH = 40K
-  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 32K   /* moitie haute reservee : Common/Inc/log_ring.h */
+  FLASH (rx)    			: ORIGIN = 0x080E0000, LENGTH = 128K 
+  FLASH_DATA (rw)    		: ORIGIN = 0x08020000, LENGTH = 128K 
+  FLASH_FW (rw)    			: ORIGIN = 0x08000000 + LENGTH(FLASH) + LENGTH(FLASH_DATA), LENGTH = 2048K -  (LENGTH(FLASH) + LENGTH(FLASH_DATA))
+  DTCM (rw)   				: ORIGIN = 0x20000000, LENGTH = 128K
+  RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 256
+  RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 32K
+  RAM_AXI (rwx)   			: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED), LENGTH = 512K - (LENGTH(RAM_SHARED) + LENGTH(RAM_SHARED_CACHED))
+  RAM_D1 (r)      			: ORIGIN = 0x30000000, LENGTH = 128K
+  RAM_D2 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
+  RAM_D3 (rw)    			: ORIGIN = 0x38000000, LENGTH = 32K   /* moitie haute reservee : Common/Inc/log_ring.h */
+  ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
-/* Define output sections */
+/* Sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
+  /* The startup code into "FLASH" Rom type memory */
   .isr_vector :
   {
     . = ALIGN(4);
@@ -67,7 +69,7 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  /* The program code and other data goes into FLASH */
+  /* The program code and other data into "FLASH" Rom type memory */
   .text :
   {
     . = ALIGN(4);
@@ -84,7 +86,7 @@ SECTIONS
     _etext = .;        /* define a global symbols at end of code */
   } >FLASH
 
-  /* Constant data goes into FLASH */
+  /* Constant data into "FLASH" Rom type memory */
   .rodata :
   {
     . = ALIGN(4);
@@ -93,70 +95,56 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
-  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >FLASH
+  .ARM.extab   : { 
+    . = ALIGN(4);
+    *(.ARM.extab* .gnu.linkonce.armextab.*)
+    . = ALIGN(4);
+  } >FLASH
+  
   .ARM : {
+    . = ALIGN(4);
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
+    . = ALIGN(4);
   } >FLASH
 
-  .preinit_array     :
+  .preinit_array :
   {
+    . = ALIGN(4);
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
+    . = ALIGN(4);
   } >FLASH
+  
   .init_array :
   {
+    . = ALIGN(4);
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
+    . = ALIGN(4);
   } >FLASH
+  
   .fini_array :
   {
+    . = ALIGN(4);
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
+    . = ALIGN(4);
   } >FLASH
   
   /* user sections... */
-  /* Pas de "AT> FLASH" sur les sections NOLOAD : elles ne contiennent aucune
-     donnee a charger, mais un AT> leur donne quand meme une LMA en flash,
-     identique a celle de .data. STM32CubeProgrammer voit alors plusieurs
-     segments a la meme adresse physique et affiche "File corrupted. Two or
-     more segments define the same memory zone". Sans AT>, LMA = VMA (comme
-     dans le script du CM7) et le binaire produit est inchange. */
-  
-  .shared (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP (*(.shared_var));  
-    KEEP (*(.shared_config));
-    . = ALIGN(4); 
-  } >RAM_SHARED
 
-  .shared_cached (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP (*(.rgbBuffers));
-    KEEP (*(.imuData));    
-    . = ALIGN(4);    
-  } >RAM_SHARED_CACHED
-  
-  .ram_d4_shared (NOLOAD):
-  {
-    . = ALIGN(4);
-    KEEP(*(.scanline_CM4));
-    . = ALIGN(4);
-  } >RAM_D4
-  
-  /* used by the startup to initialize data */
+  /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
-  /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data :
+  /* Initialized data sections into "RAM_AXI" Ram type memory */
+  .data : 
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -167,13 +155,13 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM_D1A AT> FLASH
+  } >RAM_AXI AT> FLASH
 
-  /* Uninitialized data section */
+  /* Uninitialized data section into "RAM_AXI" Ram type memory */
   . = ALIGN(4);
   .bss :
   {
-    /* This is used by the startup in order to initialize the .bss secion */
+    /* This is used by the startup in order to initialize the .bss section */
     _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
     *(.bss)
@@ -183,9 +171,9 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >RAM_D1A
+  } >RAM_AXI
 
-  /* User_heap_stack section, used to check that there is enough RAM left */
+  /* User_heap_stack section, used to check that there is enough "RAM_AXI" Ram  type memory left */
   ._user_heap_stack :
   {
     . = ALIGN(8);
@@ -194,9 +182,18 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >RAM_D1A
+  } >RAM_AXI
 
-  /* Remove information from the standard libraries */
+  /* Descripteurs et tampons DMA du flasheur reseau (netboot_eth.c) : en D2,
+   * joignable par le DMA Ethernet, hors du cache (coupe en mode flasheur). */
+  .netboot_eth (NOLOAD) :
+  {
+    . = ALIGN(32);
+    KEEP(*(.netboot_eth))
+    . = ALIGN(32);
+  } >RAM_D2
+
+  /* Remove information from the compiler libraries */
   /DISCARD/ :
   {
     libc.a ( * )
@@ -206,5 +203,3 @@ SECTIONS
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
 }
-
-

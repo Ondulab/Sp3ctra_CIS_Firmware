@@ -53,7 +53,7 @@ MEMORY
   RAM_SHARED (rw) 			: ORIGIN = 0x24000000, LENGTH = 2K
   RAM_SHARED_CACHED (rw) 	: ORIGIN = 0x24000000 + LENGTH(RAM_SHARED), LENGTH = 2K
   RAM_D1A (rw)    			: ORIGIN = 0x10000000, LENGTH = 40K
-  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 32K   /* moitie haute reservee : Common/Inc/log_ring.h */
 }
 
 /* Define output sections */

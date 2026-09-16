@@ -65,7 +65,7 @@ you look at, one acid lime for what you touch):
 | IMU | `/imu.html` | accelerometer, gyroscope and buttons, live -- **and the IMU settings** (full scales, calibration) |
 | NETWORK | `/network.html` | device identity, host link, addresses and ports |
 | GUI | `/gui.html` | what the OLED shows, screensaver and motion thresholds |
-| UPDATE | `/update.html` | installed firmware, upload, factory reset |
+| UPDATE | `/update.html` | installed firmware, upload, network flash mode, device log, factory reset |
 
 Each live view carries the settings that shape it: the DPI you pick on SCAN
 changes the image right above it, and the full scales picked on IMU are the ones
@@ -183,6 +183,17 @@ applied, the new image runs **on trial** -- it must prove the configuration was
 read and the HTTP server is listening, and hold for 30 s, or the bootloader
 restores the previous version automatically. See
 [docs/PLAN_FIRMWARE_UPDATE.md](docs/PLAN_FIRMWARE_UPDATE.md).
+
+#### Network flash and logs (no ST-Link)
+
+For development, the bootloader carries a network flasher (UDP 55152, see
+[docs/NETBOOT.md](docs/NETBOOT.md)): `POST /netboot` reboots the device into
+it, `scripts/netboot/netflash.py flash --cm7 … --cm4 …` erases, writes,
+verifies and reboots, in about the time the ST-Link needs. Holding the two
+outer buttons at power-on enters the same mode when the application is not
+reachable. All three images (bootloader, CM7, CM4) log into a ring in retained
+RAM, served by `GET /log?src=cm7|cm4&since=N` on the application and by the
+flasher while it runs: `scripts/netboot/netlog.py` follows it across reboots.
 
 #### Advanced Settings
 

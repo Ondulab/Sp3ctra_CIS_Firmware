@@ -35,6 +35,7 @@
 /* USER CODE BEGIN Includes */
 #include "ota_fault_inject.h"
 #include "sys_identity.h"
+#include "log_ring.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
@@ -152,6 +153,7 @@ int main(void)
   MX_FATFS_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+  log_ring_init(); /* avant le premier printf */
   HSEM7_Init();
 
   printf("CM7 BOOT\n");
@@ -178,8 +180,9 @@ int main(void)
 
   	Sp3ctra_ascii_preview();
 
-	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1000);
+	/* Le PHY est seulement relache : une impulsion de reset ici coupait le lien
+	 * Ethernet a chaque demarrage (1 s d'attente + renegociation). Il n'est remis
+	 * a zero, dans ethernetif.c, que s'il ne repond pas sur le MDIO. */
 	HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
 
   /* USER CODE END 2 */

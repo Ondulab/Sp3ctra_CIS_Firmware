@@ -43,6 +43,8 @@
 #include "ota_app.h"
 #include "link_server.h"
 #include "sys_identity.h"
+#include "log_ring.h"
+#include "boot_mailbox.h"
 #include "udp_client.h"
 #include "sp3ctra_link.h"
 #include "FreeRTOS.h"
@@ -1094,6 +1096,57 @@ static void fsbrowse_download(struct netconn *conn, const char *req)
     f_close(&fsbrowse_file);
 }
 
+/* ------------------------------------------------------------------------
+ * Journal en RAM retenue et passage en mode flasheur reseau (docs/NETBOOT.md)
+ * ------------------------------------------------------------------------ */
+
+/* GET /log?src=cm7|cm4&since=N&max=M : texte brut depuis la position N ;
+ * sans since, les M derniers octets. X-Log-Next donne la position a redemander. */
+static uint8_t logserve_body[4096];
+
+static void logserve_get(struct netconn *conn, const char *req)
+{
+	char line[256];
+	char header[192];
+	const char *eol = strstr(req, "\r\n");
+	size_t n = eol ? (size_t)(eol - req) : strlen(req);
+	log_src_t src = LOG_SRC_CM7;
+	uint32_t since = 0, next = 0, got, head;
+	uint32_t max = sizeof(logserve_body);
+	bool have_since = false;
+	const char *a;
+	int hl;
+
+	/* Les parametres ne sont cherches que dans la ligne de requete. */
+	if (n > sizeof(line) - 1) n = sizeof(line) - 1;
+	memcpy(line, req, n);
+	line[n] = '\0';
+
+	if (strstr(line, "src=cm4") != NULL) src = LOG_SRC_CM4;
+	if ((a = strstr(line, "since=")) != NULL) { since = strtoul(a + 6, NULL, 10); have_since = true; }
+	if ((a = strstr(line, "max=")) != NULL)
+	{
+		max = strtoul(a + 4, NULL, 10);
+		if (max > sizeof(logserve_body)) max = sizeof(logserve_body);
+	}
+
+	head = log_ring_head(src);
+	if (!have_since) since = (head > max) ? head - max : 0;
+	got = log_ring_read(src, since, logserve_body, max, &next);
+
+	hl = snprintf(header, sizeof(header),
+	              "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n"
+	              "Cache-Control: no-store\r\nX-Log-Next: %lu\r\nX-Log-Head: %lu\r\n"
+	              "Content-Length: %lu\r\nConnection: close\r\n\r\n",
+	              (unsigned long)next, (unsigned long)head, (unsigned long)got);
+	netconn_write(conn, header, (size_t)hl, NETCONN_COPY);
+	if (got > 0) netconn_write(conn, logserve_body, got, NETCONN_COPY);
+}
+
+/* POST /netboot : demande consommee apres la reponse, hors de la boucle de
+ * lecture, pour que la fermeture TCP parte avant le reset. */
+static bool netboot_requested = false;
+
 static void http_server(struct netconn *conn)
 {
 	struct netbuf *inbuf;
@@ -1476,6 +1529,14 @@ static void http_server(struct netconn *conn)
 						close = true;
 					}
 
+					/* Journal en RAM retenue (bootloader, CM7, CM4) : tirage a la
+					 * demande, rien ne circule sans lecteur. */
+					else if (strncmp((char const *)buf, "GET /log", 8) == 0 && (buf[8] == '?' || buf[8] == ' '))
+					{
+						logserve_get(conn, buf);
+						close = true;
+					}
+
 					/* Anything else: serve the file of that name from the flash file
 					 * system (fsdata.c carries each file's HTTP header), 404 otherwise.
 					 * Names are matched against the embedded table, so a path cannot
@@ -1539,6 +1600,17 @@ static void http_server(struct netconn *conn)
 							char *errorResponse = "Error: DPI value not found";
 							netconn_write(conn, errorResponse, strlen(errorResponse), NETCONN_NOCOPY);
 						}
+					}
+
+					/* Redemarre dans le bootloader en mode flasheur reseau (docs/NETBOOT.md).
+					 * La reponse part d'abord, le reset suit la fermeture de la connexion. */
+					else if (strncmp((char const *)buf, "POST /netboot", 13) == 0)
+					{
+						const char *resp = "HTTP/1.1 202 Accepted\r\nContent-Type: text/plain\r\n"
+						                   "Connection: close\r\n\r\nentering network flash mode";
+						netconn_write(conn, resp, strlen(resp), NETCONN_COPY);
+						netboot_requested = true;
+						close = true;
 					}
 
 					/* Process POST request to set hand settings */
@@ -2068,6 +2140,17 @@ static void http_server(struct netconn *conn)
 #ifdef HTTP_SERVER_DEBUG
 	printf("===== http_server_serve close\n");
 #endif
+
+	if (netboot_requested)
+	{
+		netboot_requested = false;
+		netconn_close(conn);
+		printf("Entering network flash mode at next reset\n");
+		boot_mailbox_request_netboot((const uint8_t *)shared_config.network_ip,
+		                             (const uint8_t *)shared_config.network_netmask);
+		osDelay(150); /* laisse partir la reponse et la fermeture TCP */
+		System_SafeReset();
+	}
 
 	if (reboot)
 	{

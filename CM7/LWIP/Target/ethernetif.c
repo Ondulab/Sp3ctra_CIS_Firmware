@@ -286,7 +286,18 @@ static void low_level_init(struct netif *netif)
 /* USER CODE END OS_THREAD_NEW_CMSIS_RTOS_V2 */
 
 /* USER CODE BEGIN PHY_PRE_CONFIG */
-
+  /* Le PHY n'est remis a zero que s'il ne repond pas sur le MDIO : le lien
+   * survit ainsi aux redemarrages a chaud (flash reseau, changement de DPI).
+   * LAN8742_Init ne fait qu'un balayage d'adresse, il est rejouable. */
+  LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);
+  if (LAN8742_Init(&LAN8742) != LAN8742_STATUS_OK)
+  {
+    printf("ETH: PHY silent on MDIO, pulsing its reset line\n");
+    HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_RESET);
+    osDelay(10);
+    HAL_GPIO_WritePin(ETH_RST_GPIO_Port, ETH_RST_Pin, GPIO_PIN_SET);
+    osDelay(100);
+  }
 /* USER CODE END PHY_PRE_CONFIG */
   /* Set PHY IO functions */
   LAN8742_RegisterBusIO(&LAN8742, &LAN8742_IOCtx);

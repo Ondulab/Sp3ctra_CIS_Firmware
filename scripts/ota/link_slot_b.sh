@@ -10,7 +10,7 @@
 # que recopiee ici : elle suit ainsi toute evolution des options sans risque de
 # desynchronisation.
 #
-# Usage: scripts/ota/link_slot_b.sh <cm7|cm4> [Release|Debug]
+# Usage: scripts/ota/link_slot_b.sh <cm7|cm4|bootloader> [Release|Debug]
 
 set -euo pipefail
 
@@ -21,7 +21,8 @@ CONFIG="${2:-Release}"
 case "$(echo "$CORE_ARG" | tr '[:upper:]' '[:lower:]')" in
     cm7) CORE=CM7; SLOT_B_ADDR=0x08180000 ;;
     cm4) CORE=CM4; SLOT_B_ADDR=0x08060000 ;;
-    *)   echo "core inconnu : $CORE_ARG (attendu cm7 ou cm4)"; exit 1 ;;
+    bootloader) CORE=CM7_Bootloader/CM7; SLOT_B_ADDR=0x080E0000 ;;   # BOOT_ADD0, voir docs/NETBOOT.md
+    *)   echo "core inconnu : $CORE_ARG (attendu cm7, cm4 ou bootloader)"; exit 1 ;;
 esac
 
 BUILD_DIR="$ROOT/$CORE/$CONFIG"
@@ -63,5 +64,7 @@ LINK_CMD=${LINK_CMD//$ARTIFACT.map/${ARTIFACT}_SLOT_B.map}
 cd "$BUILD_DIR"
 eval "$LINK_CMD"
 arm-none-eabi-objcopy -O binary "${ARTIFACT}_SLOT_B.elf" "${ARTIFACT}_SLOT_B.bin"
+# Le slot A aussi en .bin : le makefile du bootloader n'en produit pas.
+[ -f "$ARTIFACT.bin" ] || arm-none-eabi-objcopy -O binary "$ARTIFACT.elf" "$ARTIFACT.bin"
 
 echo "Slot B lie : $CORE/$CONFIG/${ARTIFACT}_SLOT_B.bin ($(wc -c < "${ARTIFACT}_SLOT_B.bin" | tr -d ' ') octets, base $SLOT_B_ADDR)"

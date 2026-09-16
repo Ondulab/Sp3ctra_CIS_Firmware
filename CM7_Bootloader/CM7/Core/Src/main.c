@@ -36,6 +36,8 @@
 #include "ota_boot.h"
 #include "update.h"
 #include "update_gui.h"
+#include "log_ring.h"
+#include "netboot.h"
 
 #include "basetypes.h"
 #include "stdio.h"
@@ -155,7 +157,15 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	/* Table des vecteurs de CE bootloader, qu'il tourne en slot A (0x08000000) ou
+	 * en slot B (0x080E0000, choisi par BOOT_ADD0) : le flasheur reseau en deduit
+	 * le secteur a proteger, et les interruptions ne dependent plus de la valeur
+	 * de reset de VTOR. */
+	{
+		extern uint32_t g_pfnVectors[];
+		SCB->VTOR = (uint32_t)g_pfnVectors;
+		__DSB();
+	}
   /* USER CODE END 1 */
 /* USER CODE BEGIN Boot_Mode_Sequence_0 */
 
@@ -204,9 +214,23 @@ int main(void)
 	 * horloges et ses broches. */
 	MX_USART1_UART_Init();
 
+	/* Anneau de logs en RAM retenue : le premier printf doit le trouver pret. */
+	log_ring_init();
+
 	printf("\n------- START BOOTLOADER -------\n");
 	printf("Bootloader version: %s\n", BL_VERSION);
 	otaBoot_logResetCause();
+
+	/* Mode flasheur reseau : demande de l'application (boite aux lettres) ou
+	 * deux boutons exterieurs maintenus a la mise sous tension. Ne revient pas. */
+	{
+		netboot_reason_t netbootReason;
+		if (netboot_entryRequested(&netbootReason))
+		{
+			netboot_run(netbootReason);
+		}
+	}
+
 
 	/* Etape precoce du sequenceur : saute directement dans l'application quand
 	 * il n'y a rien a faire, et ne retourne alors pas. */

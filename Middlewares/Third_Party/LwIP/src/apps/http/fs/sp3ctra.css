@@ -587,3 +587,19 @@ progress::-moz-progress-bar {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Device log (UPDATE tab): the retained-RAM ring, pulled on demand. */
+.logbox {
+    box-sizing: border-box;
+    width: 100%;
+    height: 260px;
+    overflow: auto;
+    margin: 10px 0 0 0;
+    padding: 8px 10px;
+    background: var(--frame);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font: 11px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space: pre;
+}

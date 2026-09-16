@@ -25,6 +25,18 @@ Utilisez `./scripts/build.sh --help` pour plus de détails.
 
 ### Flashage (via ST-Link SWD)
 
+Sans sonde : `./scripts/netflash.sh [cm4|cm7|all] [release|debug]`, memes
+arguments, par Ethernet (section « Flash et logs par Ethernet » plus bas).
+Le bootloader passe aussi par le reseau des qu'une version >= 1.3.0 est en place
+(`netflash.sh bootloader`, slots A/B) ; la premiere installation de 1.3.0 se fait par SWD.
+
+macOS : `No route to host` a l'envoi = permission « Reseau local » refusee au
+terminal utilise (Reglages > Confidentialite et securite > Reseau local, puis
+relancer l'app -- le verdict est mis en cache par processus) ou VPN bloquant
+le LAN. En attendant : `--relay` delegue a Terminal.app, qui l'a.
+
+#### Par SWD
+
 ```bash
 ./scripts/flash.sh [target] [config]
 ```
@@ -149,6 +161,36 @@ Options utiles :
 - `--retry-s 1.0` : délai entre tentatives de reconnexion
 
 Note : par défaut le script préfère `/dev/cu.*` (recommandé sur macOS). Tu peux autoriser `/dev/tty.*` avec `--allow-tty`.
+
+## Flash et logs par Ethernet, sans ST-Link (`scripts/netboot/`)
+
+Le bootloader embarque un flasheur réseau (UDP 55152, protocole SNB) et les
+trois images écrivent leurs `printf` dans un anneau en RAM retenue lisible par
+le réseau. Détails, protocole et checklist de validation : `docs/NETBOOT.md`.
+
+```bash
+# meme interface que flash.sh : cible (cm7, cm4, all) et config (release, debug)
+./scripts/netflash.sh all release
+./scripts/netflash.sh cm7 release --show-log
+./scripts/netflash.sh bootloader release   # ecrit l'autre slot du BL, bascule BOOT_ADD0
+./scripts/netlog.sh all                    # trace des deux coeurs (remplace uart_trace.sh)
+
+# ou directement l'outil, avec des images choisies
+scripts/netboot/netflash.py flash --cm7 CM7/Release/Sp3ctra_CIS_Firmware_CM7.bin \
+                                  --cm4 CM4/Release/Sp3ctra_CIS_Firmware_CM4.bin
+scripts/netboot/netflash.py discover        # appareils en mode flasheur
+scripts/netboot/netflash.py info            # état, journal OTA, cause de reset
+scripts/netboot/netlog.py                   # trace bootloader + CM7 en continu
+scripts/netboot/netlog.py --src cm7,cm4     # avec le CM4
+```
+
+`flash` fait `POST /netboot` à l'application, attend le bootloader, efface,
+écrit, vérifie par CRC relu, redémarre. Application injoignable : mise sous
+tension avec les deux boutons extérieurs maintenus. Le bootloader lui-même se
+flashe encore par SWD (`./scripts/flash.sh bootloader release`), une fois.
+
+Tests sans matériel : `scripts/netboot/sim/build.sh` puis `sim/test_core`
+(unitaire) ou `sim/netboot_sim &` + `netflash.py --host 127.0.0.1 …`.
 
 ## Pages web embarquées (fsdata.c)
 

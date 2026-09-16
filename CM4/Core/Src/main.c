@@ -36,6 +36,7 @@
 #include "leds.h"
 
 #include "usart.h"
+#include "log_ring.h"
 
 /* USER CODE END Includes */
 
@@ -111,6 +112,7 @@ int main(void)
   MX_USART1_UART_Init();
 #endif
 
+    log_ring_init(); /* avant le premier printf */
     printf("CM4 BOOT\n");
 
    //Sp3ctra_ascii_preview();

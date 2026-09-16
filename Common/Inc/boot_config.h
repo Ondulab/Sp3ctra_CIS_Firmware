@@ -19,7 +19,7 @@
 /**************************************************************************************/
 /*******************              General definitions               *******************/
 /**************************************************************************************/
-#define BL_VERSION	"1.2.1"
+#define BL_VERSION	"1.3.0" /* 1.3.0 : flasheur reseau, slots A/B du bootloader */
 
 /**************************************************************************************/
 /********************              Debug definitions               ********************/
@@ -76,7 +76,7 @@
  *   0x08040000  128 Ko  CM4 slot A
  *   0x08060000  128 Ko  CM4 slot B
  *   0x08080000  384 Ko  reserve
- *   0x080E0000  128 Ko  bootloader slot B (etape 3, non utilise)
+ *   0x080E0000  128 Ko  bootloader slot B (BOOT_ADD0, bascule par le flasheur reseau)
  *   0x08100000  512 Ko  CM7 slot A
  *   0x08180000  512 Ko  CM7 slot B
  */

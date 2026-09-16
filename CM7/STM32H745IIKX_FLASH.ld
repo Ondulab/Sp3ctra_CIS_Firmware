@@ -57,7 +57,7 @@ MEMORY
   RAM_D1A (r)    			: ORIGIN = 0x30000000, LENGTH = 40K
   RAM_D1B (rw)    			: ORIGIN = 0x30000000 + LENGTH(RAM_D1A), LENGTH = 128K - LENGTH(RAM_D1A)
   RAM_D23 (rw)   			: ORIGIN = 0x30020000, LENGTH = 160K
-  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 64K
+  RAM_D4 (xrw)    			: ORIGIN = 0x38000000, LENGTH = 32K   /* moitie haute reservee : Common/Inc/log_ring.h */
   ITCMRAM (rw)   			: ORIGIN = 0x00000000, LENGTH = 64K
 }
 
